@@ -7,7 +7,7 @@ var sm = require('gulp-sourcemaps');
 var browserSync = require('browser-sync').create();
 
 function redirect(done){
-  gulp.src('./assets/scss/**/*.scss')
+  gulp.src('./k/assets/js/scss/style.scss')
   .pipe(sm.init())
   .pipe(sass({
     errorLogToConsole: true,
@@ -47,7 +47,7 @@ function sync(done){
 }
 
 function watcherSCSS(){
-  gulp.watch("./assets/scss/*.scss", redirect);
+  gulp.watch("./k/assets/scss/*.scss", redirect);
 
 }
 
