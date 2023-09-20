@@ -6395,26 +6395,45 @@ Die Muse des Mörders (2018)</strong>
 	<li>[[[ a few of these are still in the <br>early stages of production...]]]<br>
 <br>
 <input type="text" id="wordInput" placeholder="Enter a word to search">
-<iframe id="collinsAPIFrame" width="100%" height="400"></iframe>
+<div id="definitionContainer"></div>
 
 <script type="text/javascript">
-  // Function to update the iframe source with the Collins Dictionary API URL
-  const updateIframe = (word) => {
-    const iframe = document.querySelector("#collinsAPIFrame");
+  // Function to fetch and display the definition in a div
+  const displayDefinition = (word) => {
+    const definitionContainer = document.querySelector("#definitionContainer");
     const apiKey = "9PC10fw7wehjX6VrPxkBLxRn7RUYOQWwucqe7kj5SFj8sSJyrSVyfYS0AZ8TrRh3";
     const apiUrl = `https://api.collinsdictionary.com/1.0/entries?q=${word}&language=en`;
 
-    // Set the Authorization header with your API key
-    iframe.src = apiUrl;
-    iframe.contentWindow.postMessage({ apiKey }, apiUrl);
+    fetch(apiUrl, {
+      headers: {
+        "Authorization": `Bearer ${apiKey}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Extract the word and definition from the API response
+      const word = data.results[0].word;
+      const definition = data.results[0].definition;
+
+      // Update the div with the word and its definition
+      definitionContainer.innerHTML = `
+        <h1>${word}</h1>
+        <p>${definition}</p>
+      `;
+    })
+    .catch(error => {
+      console.error(error);
+      definitionContainer.innerHTML = "An error occurred while fetching the definition.";
+    });
   };
 
   // Fetch the definition of the word when the user enters a word into the input field
   document.querySelector("#wordInput").addEventListener("input", (event) => {
     const word = event.target.value;
-    updateIframe(word);
+    displayDefinition(word);
   });
 </script>
+
 
 
 
