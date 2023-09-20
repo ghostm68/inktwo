@@ -6394,45 +6394,73 @@ Die Muse des Mörders (2018)</strong>
         
 	<li>[[[ a few of these are still in the <br>early stages of production...]]]<br>
 <br>
-<input type="text" id="wordInput" placeholder="Enter a word to search">
-<div id="definitionContainer"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* CSS styles for the definition container */
+    #definitionContainer {
+      background-color: black; /* Set the background to black */
+      color: white; /* Set the text color to white */
+      padding: 20px; /* Add some padding for spacing */
+    }
+  </style>
+</head>
+<body>
+  <input type="text" id="wordInput" placeholder="Enter a word to search">
+  <div id="definitionContainer"></div>
 
-<script type="text/javascript">
-  // Function to fetch and display the definition in a div
-  const displayDefinition = (word) => {
-    const definitionContainer = document.querySelector("#definitionContainer");
-    const apiKey = "9PC10fw7wehjX6VrPxkBLxRn7RUYOQWwucqe7kj5SFj8sSJyrSVyfYS0AZ8TrRh3";
-    const apiUrl = `https://api.collinsdictionary.com/1.0/entries?q=${word}&language=en`;
+  <script type="text/javascript">
+    const collinsAPI = async (word, language) => {
+      const apiKey = "9PC10fw7wehjX6VrPxkBLxRn7RUYOQWwucqe7kj5SFj8sSJyrSVyfYS0AZ8TrRh3";
+      const apiUrl = `https://api.collinsdictionary.com/1.0/entries?q=${word}&language=${language}`;
 
-    fetch(apiUrl, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            "Authorization": `Bearer ${apiKey}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return data;
+      } catch (error) {
+        console.error(error);
+        return null;
       }
-    })
-    .then(response => response.json())
-    .then(data => {
-      // Extract the word and definition from the API response
-      const word = data.results[0].word;
-      const definition = data.results[0].definition;
+    };
 
-      // Update the div with the word and its definition
-      definitionContainer.innerHTML = `
-        <h1>${word}</h1>
-        <p>${definition}</p>
-      `;
-    })
-    .catch(error => {
-      console.error(error);
-      definitionContainer.innerHTML = "An error occurred while fetching the definition.";
+    const displayDefinition = (definition) => {
+      const definitionContainer = document.querySelector("#definitionContainer");
+
+      if (definition) {
+        const word = definition.results[0].word;
+        const def = definition.results[0].definition;
+        definitionContainer.innerHTML = `
+          <h1>${word}</h1>
+          <p>${def}</p>
+        `;
+      } else {
+        definitionContainer.innerHTML = "Definition not found.";
+      }
+    };
+
+    document.querySelector("#wordInput").addEventListener("input", async (event) => {
+      const word = event.target.value;
+      const definition = await collinsAPI(word, "en");
+      displayDefinition(definition);
     });
-  };
+  </script>
+</body>
+</html>
 
-  // Fetch the definition of the word when the user enters a word into the input field
-  document.querySelector("#wordInput").addEventListener("input", (event) => {
-    const word = event.target.value;
-    displayDefinition(word);
-  });
-</script>
 
 
 
