@@ -6410,7 +6410,9 @@ Die Muse des Mörders (2018)</strong>
   </style>
 </head>
 <body>
+  <input type="text" id="wordInput" placeholder="Enter a word to search">
   <iframe id="collinsAPIFrame" width="100%" height="400"></iframe>
+  <div id="definitionContainer"></div>
 
   <script type="text/javascript">
     const fetchDictionaryEntry = async (dictCode, entryId, format, accessKey) => {
@@ -6440,28 +6442,48 @@ Die Muse des Mörders (2018)</strong>
       }
     };
 
-    // Function to update the iframe source with the Collins Dictionary API URL
+    // Function to display the definition in the container
+    const displayDefinition = (definition) => {
+      const definitionContainer = document.querySelector("#definitionContainer");
+      if (definitionContainer) {
+        definitionContainer.innerHTML = `
+          <h1>${definition.word}</h1>
+          <p>${definition.definition}</p>
+        `;
+      }
+    };
+
+    // Function to update the iframe source and display definition
     const updateIframe = async () => {
       const iframe = document.querySelector("#collinsAPIFrame");
       const format = "json"; // or "xml"
       const accessKey = "9PC10fw7wehjX6VrPxkBLxRn7RUYOQWwucqe7kj5SFj8sSJyrSVyfYS0AZ8TrRh3"; // Provided API key
-      const dictCode = "british"; // Replace with the appropriate dictionary code
-      const entryId = "example"; // Replace with the word you want to search for
+      const wordInput = document.querySelector("#wordInput");
+      const word = wordInput.value;
 
-      const definition = await fetchDictionaryEntry(dictCode, entryId, format, accessKey);
+      if (word) {
+        const definition = await fetchDictionaryEntry("british", word, format, accessKey);
 
-      if (definition) {
-        iframe.src = definition.url;
-      } else {
-        iframe.src = "about:blank";
+        if (definition) {
+          iframe.src = definition.url;
+          displayDefinition(definition);
+        } else {
+          iframe.src = "about:blank";
+          displayDefinition({ word: "Word not found", definition: "Definition not available" });
+        }
       }
     };
 
-    // Load the definition of the specified word on page load
-    window.addEventListener("load", updateIframe);
+    // Attach the "Enter" key press event listener to the input field
+    document.querySelector("#wordInput").addEventListener("keyup", (event) => {
+      if (event.key === "Enter") {
+        updateIframe();
+      }
+    });
   </script>
 </body>
 </html>
+
 
  <br>
 		
