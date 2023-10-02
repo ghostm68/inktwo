@@ -1,6 +1,6 @@
 <?php
 
-$store_locally = true; /* change to false if you don't want to host videos locally */
+$store_locally = false; /* change to false if you don't want to host videos locally */
 
 function generateRandomString($length = 10)
 {
