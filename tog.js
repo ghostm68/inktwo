@@ -1,4 +1,4 @@
-<script>
+
 		    const menuToggle = document.querySelector('.toggle');
 2
 const showcase = document.querySelector('.showcase');
@@ -10,4 +10,4 @@ menuToggle.addEventListener('click', () => {
         showcase.classList.toggle('active');
 6
 })
-	</script>
+	
