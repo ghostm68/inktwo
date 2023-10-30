@@ -1,0 +1,185 @@
+LITERARY FICTION 
+
+
+
+BAPTISM BY DESIRE
+BAPTISM BY DESIRE edit version  
+FRAILTY
+SHOULDER 1863
+UNEDITED FRIDAY NIGHT
+MIAMI
+PARTI PRIS
+NEB
+CURVILINEAR
+NATIONALITY
+LETTER FROM...
+PROSE POEM FRAGMENT IN PORN
+T WITH A TURN
+TOURIST PET
+RED*
+MULTIPLICITY
+MAN IS HOPELESS
+THE PRIM VASE
+TWO MONTHS OR HOW I MET THE BISHOP
+KATHLEEN
+UNIVERSE PRETEND
+TILL TOMORROW
+THURSDAYING WITH MARGOT
+THRUST*
+GALA IN PASTEL OASIS -introduction to the BEGUILEMENT stories
+SWAY
+BEYOND SOFT DRINKS AND STEREOTYPES
+BEFORE THE FIRST SNOWFALL
+SONATA
+JUMPING FOUR JACK THOUSAND DOLLAR FLASH
+(retitled, the cotton airport)
+RAKE
+PLANET GABY
+LUCREZIA’S AUREOLE
+(retitled Idroes of the northeastern lands 
+SUBTITLE SUBTRACTION
+AVIATRIX
+THE CERTIFIED CHEQUE
+HYPOTHECATING IN EXPECTATION OF CAROLINE’S RETURN
+JEUX d’ESPRIT
+PREPARED
+BEAUTIFUL EVERYWHERE
+ARTS IN TEN
+GENERATION OBLOQUY
+POCKET
+SINGLE BARRELED BLUES
+THE SANDWICH COIN
+SPRING
+SPITBALL
+BEGUILEMENT part one
+BEGUILEMENT part two
+JELLY & JAM
+REDDISH PURPLE
+HUE
+LASH
+THE INCOMPLETE MYTH OF FLORENCE MILLS
+TOLE
+HALAK
+LITTLE PHOEBE LIFT BRIDGE REVERSIONS
+MAGUS BAIZA AND THE HAND-PICKED FLOWERS
+I & Sy
+MAGUS BAIZA AND THE NOTORIOUS BALLERINA
+BESIDE
+FINSTERAARHORN
+Magus BAIZA AND THE LONG DRIVE INTO NINETY SIX
+HIARA PIRLU RESH KAVAWN
+The Letter-Perfect Inamorata  
+Fidelity Where Terms End
+Bittersweet Wheels Turning
+INGEMINATION -emily heather & alice
+SHOULDER 1884*
+CEMETERY LOVE MATCH*
+A LAST AGILE PASSION (conclusion of the beguilement stories)
+Opium
+
+
+SCREENPLAYS
+
+	
+SOUBRETTE                  - DRAMA -WILL BE RETITLED
+	
+DESIRE                    - ROMANCE/INTRODUCTION
+
+EZRA POUND PROJECT	  -DRAMA/HISTORY
+
+NO WISE                   -WESTERN/INTRODUCTION
+
+TERPSICHORE              - ROMANCE
+
+A VIRGIN SAINT            -DRAMA/HISTORY
+
+1933                      -DRAMA
+
+OCTOBER PINK DRAFT         -DRAMA -WILL BE RETITLED
+
+IRAN COUP DRAFT           -DRAMA/HISTORY
+
+
+
+NOVELLAS AND NOVELS
+
+	ARMED TRANSPORT                             -AUTO BIO
+	ARMED TRANSPORT                            -SEQUEL
+	ROMANTIC SCENES                           -an extemporaneous novel
+	NARRATIVE 411              -METHOD
+	Rarely Chewed Gum                       -a romance (RETITLED "OVERSKIRTS"
+       Tightrope over a tempest    -MYSTERY
+	The anti-blonde writings     -SERIES
+        Jeannie's DIARY           - AUS BIO
+       SELAH                      -INCOMPLETE VERSION PUBLISHED AS 'THE FAR HORIZON'
+        COYOTE                    -SERIES
+        BRIM                      -METHOD AND COLLAGE
+        RED AND WHITE             -SERIES
+        THE WHITE CAT             -SERIES
+
+
+
+
+POETRY
+
+ POETRY 
+
+	Freewheeling Raga
+	Acrostic Ode
+	Blue Sestina Beat Song of Love
+	Beating The Dutch I
+	Beating The Dutch II
+	Beating The Dutch III
+	Easy Eyes
+	 Three Poems
+	A Prayer For Russia
+	Idea Run At Arm 2006
+	Idea Run At Arm 2007
+	Jazz Sestina
+	Pirouette For Dalva
+	Postcard 12 July 2007
+	L’Chaim
+	The Word
+	Out Of Mine
+	Thick As Thieves
+	Names, Said He
+	Hands Reaching
+	Reflections
+	Lambrequin
+	Dust Upon That Sea 
+	Winter Wonderland
+	With Dionysus
+	That Glittering Retinue Of Nerves
+	Looking For The Ashtray
+	After Five
+	Nocturne
+	Drafted
+	Absquatulated
+	A Promise
+	Love Faith Hope
+	Karmic Fig Mints
+	Lingua Fragile
+	Far From Science With The Strange Technology Of  Words
+	Chisel Craft Thread
+	Habitual Pause
+	Imagist Homage
+	I wrote Your Name In the Book Of My Heart
+	Lickety-Split
+	Birthday
+	Faith
+	Nude Words
+	On The Far Edge Of Day
+
+THINK PIECES AND ESSAYS  
+
+	STEALING COMFORT
+	OUR HELVLESS FASHION
+	UNTITLED EDITORIALS ON MY SPACE
+	DOG DROWNING IN BEER
+	IF YOU ASK ME, WHEN THE WOMEN PLAY WELL, IT’S LIKE THE MOST EXCELLENT JAZZ MUSIC AND YOU JUST GO ‘YEAH, MAN, OH, YEAH’
+	AT YOUR MACHINE
+	UNICORN
+	ON THE OFF CHANCE THAT THE UNKNOWN IS ASTIR
+	CLISERE
+	ALDER ODE
+	NIKU ODORI
