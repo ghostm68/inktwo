@@ -8,7 +8,7 @@ const glob = require('tiny-glob');
 async function script() {
   await fs.mkdir('./.tmp', { recursive: true });
 
-  for await (const file of await glob('public/**/*.html')) {
+  for await (const file of await glob('home.html')) {
     console.log(`Inlining criticall CSS of "${file}"`);
     //   critical "$f" --base public/ --inline > ./.tmp/$f
     const generated = await critical.generate({
@@ -27,10 +27,3 @@ async function script() {
 }
 
 script();
-Footer
-© 2023 GitHub, Inc.
-Footer navigation
-Terms
-Privacy
-Security
-Stat
