@@ -10813,7 +10813,7 @@
                                                 : n - 0.5 >= t.scrolly.options.minZoom
                                                 ? (n -= 0.5)
                                                 : (n = t.scrolly.options.minZoom),
-                                                (i = (50 * Math.round((100 * n) / 50)) / 100),
+                                                (i = (50 * Math.round((88 * n) / 50)) / 88),
                                                 (t.mainImageWrapper.style.transition = "all 0.5s"),
                                                 window.setTimeout(function () {
                                                     t.mainImageWrapper.style.transition = "transform 0.1s linear";
@@ -10904,7 +10904,7 @@
                     {
                         key: "_writeZoomToDom",
                         value: function (t) {
-                            u.textContent = Math.round(100 * t) + "%";
+                            u.textContent = Math.round(88* t) + "%";
                         },
                     },
                     {
