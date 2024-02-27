@@ -40,7 +40,7 @@ s2.to('.intro .first', {duration:0.6, x:'60rem', opacity:0})
 ScrollTrigger.create({
   animation:s2,
   start:'top top',
-  markers:true,
+ 
   toggleActions:'restart none reverse reverse'
 })
 
@@ -54,7 +54,7 @@ s3.fromTo('.vid-section h1', 0.5 , {opacity:0, scale:0}, {opacity:1, scale:1, ro
 ScrollTrigger.create({
   animation:s3,
   start:'top top',
-  markers:true,
+
   toggleActions:'restart none reverse reverse'
 })
 
