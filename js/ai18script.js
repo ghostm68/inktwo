@@ -1,3 +1,14 @@
+}
+
+function displayMessage(sender, message) {
+  const messageElement = document.createElement('div');
+  messageElement.textContent = `${sender}: ${message}`;
+  chatMessages.appendChild(messageElement);
+}messageForm.addEventListener('submit', (event) => {
+  event.preventDefault(); // Prevent default form submission
+
+  // ... rest of your code ...
+});
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const fileInput = document.getElementById('file-input');
