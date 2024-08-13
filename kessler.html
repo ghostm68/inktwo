@@ -31,17 +31,28 @@
       object-fit: cover;
     }
 
-    #content-overlay {
-      position: relative;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 1;
-      pointer-events: none;
-    }
+.wrapper {
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  position: relative; /* Make wrapper relative to control popup position */
+}
 
+.imageContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 25px;
+  width: 200%;
+  position: relative;
+}
+
+.imageContainer .image {
+  height: 275px;
+  width: 100%;
+  background-size: cover;
+  position: relative;
+  cursor: pointer;
+}
     .container {
       text-align: center;
       margin-top: 20px;
@@ -124,14 +135,14 @@
       color: #fff;
     }
 
-    footer {
-      margin-top: 40px;
-      padding: 20px;
-      background-color: rgba(248, 248, 248, 0.8);
-      border-top: 1px solid #ddd;
-      position: relative;
-      z-index: 10;
-    }
+  footer {
+  margin-top: 40px;
+  padding: 20px;
+  background-color: rgba(248, 248, 248, 0.8);
+  border-top: 1px solid #ddd;
+  position: relative;
+  z-index: 10;
+}
 
     .footer-content {
       display: flex;
@@ -148,14 +159,14 @@
       text-decoration: underline;
     }
 
-    .map {
-      margin-bottom: 20px;
-      width: 100%;
-      height: 300px;
-      position: relative;
-      z-index: 10;
-      clear: both;
-    }
+   .map {
+  margin-bottom: 20px;
+  width: 100%;
+  height: 300px;
+  position: relative;
+  z-index: 10;
+  clear: both;
+}
   </style>
 </head>
 
@@ -225,33 +236,50 @@
     const popupImage = document.getElementById('popupImage');
 
     // Function to open the popup
-    function openPopup(image) {
-      if (image.tagName === 'VIDEO') {
-        // Display the video player in the popup (using YouTube or Vimeo embedding)
-        popupImage.innerHTML = '<iframe src="https://www.youtube.com/embed/' + image.dataset.popupSrc.split('v=')[1] + '" frameborder="0" allowfullscreen></iframe>';
-      } else {
-        // Display the image in the popup
-        popupImage.src = image.dataset.popupSrc;
-      }
-      popup.style.display = 'flex';
-    }
+function openPopup(image) {
+  if (image.tagName === 'VIDEO') {
+    // Display the video player in the popup (using YouTube or Vimeo embedding)
+    popupImage.innerHTML = '<iframe src="https://www.youtube.com/embed/' + image.dataset.popupSrc.split('v=')[1] + '" frameborder="0" allowfullscreen></iframe>';
+  } else {
+    // Display the image in the popup
+    popupImage.src = image.dataset.popupSrc;
+  }
+  popup.style.display = 'flex';
+}
 
     // Function to close the popup
-    function closePopup() {
-      popup.style.display = 'none'; // Hide the popup
-    }
+  function closePopup() {
+  popup.style.display = 'none'; // Hide the popup
+}
 
     // Add click event listeners to all image elements
-    images.forEach(image => {
-      image.addEventListener('click', () => {
-        openPopup(image);
-      });
-    });
+  images.forEach(image => {
+  image.addEventListener('click', () => {
+    openPopup(image);
+  });
+});
 
     // GSAP animation for horizontal loop
-    const loop = gsap.timeline({ defaults: { duration: 5, ease: "none" } });
-    let direction = 1; // Initial direction
+  const loop = gsap.timeline({ defaults: { duration: 5, ease: "none" } });
+let direction = 1; // Initial direction
 
+function setDirection(value) {
+  if (direction !== value) {
+    gsap.to(loop, { timeScale: value, duration: 0.3, overwrite: true });
+    direction = value;
+  }
+}
+
+loop.to(".imageContainer", { x: "-=50%", repeat: -1, yoyo: true });
+ScrollTrigger.create({
+  trigger: ".wrapper",
+  start: "top top",
+  end: "bottom bottom",
+  scrub: false,
+  onUpdate: (self) => {
+    setDirection(self.direction === 1 ? 1 : -1);
+  }
+});
     function setDirection(value) {
       if (direction !== value) {
         gsap.to(loop, { timeScale: value, duration: 0.3, overwrite: true });
