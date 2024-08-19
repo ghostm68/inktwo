@@ -15,7 +15,6 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden; /* Hide default scrollbar */
         }
         .menu-bar {
             background-color: #0C0C3A;
@@ -67,19 +66,6 @@
             border: 1px solid #A8E0FF;
             padding: 10px;
             resize: none;
-            overflow: auto; /* Enable custom scrollbar */
-            scrollbar-color: #0C0C3A #1A2A6C; /* Firefox scrollbar color */
-            scrollbar-width: thin; /* Firefox scrollbar width */
-        }
-        textarea::-webkit-scrollbar {
-            width: 12px; /* Scrollbar width for WebKit browsers */
-        }
-        textarea::-webkit-scrollbar-track {
-            background: #1A2A6C; /* Scrollbar track color */
-        }
-        textarea::-webkit-scrollbar-thumb {
-            background-color: #0C0C3A; /* Scrollbar handle color */
-            border-radius: 10px; /* Round scrollbar handle */
         }
         footer.footer {
             background-color: #0C0C3A;
@@ -99,6 +85,20 @@
         footer.footer button:hover {
             text-decoration: underline;
         }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1A2A6C;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #A8E0FF;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7A9ACD;
+        }
     </style>
 </head>
 <body>
@@ -117,9 +117,7 @@
         </div>
     </div>
 
-    <textarea id="textEditor" placeholder="Type your text here..." spellcheck="true"></textarea>
-
-    <input type="file" id="fileInput" style="display: none;" />
+    <textarea id="textEditor" placeholder="Type your text here..."></textarea>
 
     <footer class="footer">
         <button onclick="downloadText()">Download Text</button>
@@ -127,21 +125,32 @@
         <button onclick="toggleFullScreen()" id="fullScreenToggle">Toggle Fullscreen</button>
     </footer>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/espell/0.4.1/espell.min.js"></script>
     <script>
+        // Load the dictionary
+        const affUrl = 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.aff';
+        const dicUrl = 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.dic';
+        
+        const spellchecker = new SpellChecker();
+        spellchecker.loadDictionary(affUrl, dicUrl);
+
         function newFile() {
             document.getElementById('textEditor').value = '';
             alert('New page created!');
         }
 
         function modifyText() {
-            alert('Modify text (add your logic)!');
+            var element = document.getElementById("textEditor");
+            element.value = "The text has been modified!";
+            element.style.color = "red"; // Changes the text color to red
         }
 
         function recallPage() {
-            const fileInput = document.getElementById('fileInput');
-            fileInput.click();
-            fileInput.onchange = () => {
-                const file = fileInput.files[0];
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.txt';
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
                 const reader = new FileReader();
 
                 reader.onload = function(e) {
@@ -154,6 +163,7 @@
                     alert('No file selected!');
                 }
             };
+            fileInput.click();
         }
 
         function savePage() {
@@ -171,7 +181,15 @@
         }
 
         function spellCheck() {
-            alert('Spell check (add your logic)!');
+            const textArea = document.getElementById('textEditor');
+            const text = textArea.value;
+            const misspelledWords = spellchecker.check(text);
+            
+            if (misspelledWords.length > 0) {
+                alert('Misspelled words: ' + misspelledWords.join(', '));
+            } else {
+                alert('No misspelled words found.');
+            }
         }
 
         function downloadText() {
