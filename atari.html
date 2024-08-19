@@ -122,15 +122,21 @@
 
         let typo;
 
-        fetch(dictionary.aff)
-            .then(response => response.text())
-            .then(aff => {
-                fetch(dictionary.dic)
-                    .then(response => response.text())
-                    .then(dic => {
-                        typo = new Typo('en_US', dic, aff);
-                    });
-            });
+        function loadDictionaries() {
+            fetch(dictionary.aff)
+                .then(response => response.text())
+                .then(aff => {
+                    fetch(dictionary.dic)
+                        .then(response => response.text())
+                        .then(dic => {
+                            typo = new Typo('en_US', dic, aff);
+                            console.log('Dictionaries loaded successfully');
+                        });
+                })
+                .catch(error => console.error('Error loading dictionaries:', error));
+        }
+
+        loadDictionaries();
 
         function newFile() {
             document.getElementById('textEditor').value = '';
@@ -148,7 +154,7 @@
             fileInput.type = 'file';
             fileInput.style.display = 'none';
             document.body.appendChild(fileInput);
-            
+
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 const reader = new FileReader();
@@ -157,7 +163,7 @@
                 };
                 reader.readAsText(file);
             });
-            
+
             fileInput.click();
         }
 
@@ -184,7 +190,7 @@
         function spellCheck() {
             const text = document.getElementById('textEditor').value;
             const words = text.split(/\s+/);
-            const misspelled = words.filter(word => !typo.check(word));
+            const misspelled = words.filter(word => !typo || !typo.check(word)); // Ensure typo is defined
 
             if (misspelled.length > 0) {
                 alert('Misspelled words: ' + misspelled.join(', '));
