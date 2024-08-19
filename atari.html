@@ -15,7 +15,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            overflow: auto;
+            overflow: hidden;
         }
         .menu-bar {
             background-color: #0C0C3A;
@@ -67,7 +67,7 @@
             border: 1px solid #A8E0FF;
             padding: 10px;
             resize: none;
-            overflow-y: scroll; /* Ensures scrollbar appears */
+            overflow-y: auto; /* Add scrollbar if needed */
         }
         footer.footer {
             background-color: #0C0C3A;
@@ -87,21 +87,9 @@
         footer.footer button:hover {
             text-decoration: underline;
         }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 12px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1A2A6C;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #A8E0FF;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #7A9ACD;
-        }
     </style>
+    <!-- Add the Hunspell JavaScript library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hunspell.js/1.0.4/hunspell.min.js"></script>
 </head>
 <body>
     <div class="menu-bar">
@@ -118,7 +106,7 @@
             </div>
         </div>
     </div>
-
+    
     <textarea id="textEditor" placeholder="Type your text here..."></textarea>
 
     <footer class="footer">
@@ -127,16 +115,37 @@
         <button onclick="toggleFullScreen()" id="fullScreenToggle">Toggle Fullscreen</button>
     </footer>
 
-    <!-- Spell Checker library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/espell/0.4.1/espell.min.js"></script>
-
     <script>
-        // Load the dictionary
-        const affUrl = 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.aff';
-        const dicUrl = 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.dic';
+        // Spell checker initialization
+        const spellChecker = new Hunspell();
+        let dictionaryLoaded = false;
 
-        const spellchecker = new SpellChecker();
-        spellchecker.loadDictionary(affUrl, dicUrl);
+        function loadDictionary() {
+            fetch('https://github.com/wooorm/dictionaries/raw/main/dictionaries/en/index.aff')
+                .then(response => response.text())
+                .then(affData => {
+                    return fetch('https://github.com/wooorm/dictionaries/raw/main/dictionaries/en/index.dic')
+                        .then(response => response.text())
+                        .then(dicData => {
+                            spellChecker.addDictionary(affData, dicData);
+                            dictionaryLoaded = true;
+                        });
+                });
+        }
+
+        function spellCheck() {
+            if (!dictionaryLoaded) {
+                alert('Dictionary not loaded. Please wait...');
+                return;
+            }
+            const text = document.getElementById('textEditor').value;
+            const errors = spellChecker.check(text);
+            if (errors.length > 0) {
+                alert('Spelling mistakes found: ' + errors.join(', '));
+            } else {
+                alert('No spelling mistakes found.');
+            }
+        }
 
         function newFile() {
             document.getElementById('textEditor').value = '';
@@ -146,28 +155,23 @@
         function modifyText() {
             var element = document.getElementById("textEditor");
             element.value = "The text has been modified!";
-            element.style.color = "red"; // Changes the text color to red
+            element.style.color = "red";
         }
 
         function recallPage() {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.txt';
-            fileInput.onchange = function(event) {
-                const file = event.target.files[0];
-                const reader = new FileReader();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
 
-                reader.onload = function(e) {
-                    document.getElementById('textEditor').value = e.target.result;
-                };
-
-                if (file) {
-                    reader.readAsText(file);
-                } else {
-                    alert('No file selected!');
-                }
+            reader.onload = function(e) {
+                document.getElementById('textEditor').value = e.target.result;
             };
-            fileInput.click();
+
+            if (file) {
+                reader.readAsText(file);
+            } else {
+                alert('No file selected!');
+            }
         }
 
         function savePage() {
@@ -182,18 +186,6 @@
         function insertDateTime() {
             const now = new Date();
             document.getElementById('textEditor').value += '\n' + now.toLocaleString();
-        }
-
-        function spellCheck() {
-            const textArea = document.getElementById('textEditor');
-            const text = textArea.value;
-            const misspelledWords = spellchecker.check(text);
-            
-            if (misspelledWords.length > 0) {
-                alert('Misspelled words: ' + misspelledWords.join(', '));
-            } else {
-                alert('No misspelled words found.');
-            }
         }
 
         function downloadText() {
@@ -223,6 +215,9 @@
                 }
             }
         }
+
+        // Load dictionary on page load
+        window.onload = loadDictionary;
     </script>
 </body>
 </html>
