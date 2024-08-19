@@ -15,6 +15,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden; /* Prevent default scrollbar */
         }
         .menu-bar {
             background-color: #0C0C3A;
@@ -66,7 +67,7 @@
             border: 1px solid #A8E0FF;
             padding: 10px;
             resize: none;
-            overflow: auto; /* Ensure scrollbar appears */
+            overflow-y: auto; /* Enable scroll bar */
         }
         footer.footer {
             background-color: #0C0C3A;
@@ -103,8 +104,8 @@
             </div>
         </div>
     </div>
-
-    <textarea id="textEditor" placeholder="Type your text here..."></textarea>
+    
+    <textarea id="textEditor" placeholder="Type your text here..." spellcheck="true"></textarea>
 
     <footer class="footer">
         <button onclick="downloadText()">Download Text</button>
@@ -112,32 +113,7 @@
         <button onclick="toggleFullScreen()" id="fullScreenToggle">Toggle Fullscreen</button>
     </footer>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/typo-js/2.1.0/typo.min.js"></script>
     <script>
-        // Load dictionaries
-        const dictionary = {
-            aff: 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.aff',
-            dic: 'https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en/index.dic'
-        };
-
-        let typo;
-
-        function loadDictionaries() {
-            fetch(dictionary.aff)
-                .then(response => response.text())
-                .then(aff => {
-                    fetch(dictionary.dic)
-                        .then(response => response.text())
-                        .then(dic => {
-                            typo = new Typo('en_US', dic, aff);
-                            console.log('Dictionaries loaded successfully');
-                        });
-                })
-                .catch(error => console.error('Error loading dictionaries:', error));
-        }
-
-        loadDictionaries();
-
         function newFile() {
             document.getElementById('textEditor').value = '';
             alert('New page created!');
@@ -145,30 +121,28 @@
 
         function modifyText() {
             var element = document.getElementById("textEditor");
-            var currentText = element.value;
-            if (currentText === "The text has been modified!") {
-                alert('Text already modified!');
-            } else {
-                element.value = "The text has been modified!";
-                element.style.color = "red";
-            }
+            element.value = "The text has been modified!";
+            element.style.color = "red"; // Changes the text color to red
         }
 
         function recallPage() {
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
-            fileInput.style.display = 'none';
-            document.body.appendChild(fileInput);
-
-            fileInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
+            fileInput.accept = '.txt';
+            fileInput.addEventListener('change', function() {
+                const file = fileInput.files[0];
                 const reader = new FileReader();
+
                 reader.onload = function(e) {
                     document.getElementById('textEditor').value = e.target.result;
                 };
-                reader.readAsText(file);
-            });
 
+                if (file) {
+                    reader.readAsText(file);
+                } else {
+                    alert('No file selected!');
+                }
+            });
             fileInput.click();
         }
 
@@ -181,6 +155,7 @@
             a.download = 'document.txt';
             a.click();
             URL.revokeObjectURL(url);
+            alert('Text saved!');
         }
 
         function textFormatting() {
@@ -193,15 +168,7 @@
         }
 
         function spellCheck() {
-            const text = document.getElementById('textEditor').value;
-            const words = text.split(/\s+/);
-            const misspelled = words.filter(word => typo && !typo.check(word)); // Ensure typo is defined
-
-            if (misspelled.length > 0) {
-                alert('Misspelled words: ' + misspelled.join(', '));
-            } else {
-                alert('No spelling errors found!');
-            }
+            alert('Please right-click on the text area for spell check options.');
         }
 
         function downloadText() {
