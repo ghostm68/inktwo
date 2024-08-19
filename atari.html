@@ -1756,74 +1756,112 @@ h1 {
 </script>
 	
 	<script>
-		function getKey (e) {
-            var location = e.location;
-            var selector;
-            if (location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT) {
-                selector = ['[data-key="' + e.keyCode + '-R"]']
-            } else {
-                var code = e.keyCode || e.which;
-                selector = [
-                    '[data-key="' + code + '"]',
-                    '[data-char*="' + encodeURIComponent(String.fromCharCode(code)) + '"]'
-                ].join(',');
-            }
-            return document.querySelector(selector);
-        }
+		var init = function () {
+  var shift = false;
+  var caps = false;
 
-        function pressKey (char) {
-            var key = document.querySelector('[data-char*="' + char.toUpperCase() + '"]');
-            if (!key) {
-                return console.warn('No key for', char);
-            }
-            key.setAttribute('data-pressed', 'on');
-            setTimeout(function () {
-                key.removeAttribute('data-pressed');
-            }, 200);
-        }
+  $(".key").mousedown(function () {
+    // Setting the content to grab
+    var content = $(this).html();
+    var outputContent = $("#output").val(); // Use .val() for textarea
 
-        var h1 = document.querySelector('h1');
-        var originalQueue = h1.innerHTML;
-        var queue = h1.innerHTML;
+    if (content.substr(0, 4) == "<div") {
+      if (shift) {
+        var subDiv = $(this).find(".first-ch");
+      } else {
+        var subDiv = $(this).find(".second-ch");
+      }
+      content = subDiv.html();
+    }
 
-        function next () {
-            var c = queue[0];
-            queue = queue.slice(1);
-            h1.innerHTML = originalQueue.slice(0, originalQueue.length - queue.length);
-            pressKey(c);
-            if (queue.length) {
-                setTimeout(next, Math.random() * 200 + 50);
-            }
-        }
+    // Setting special output, and then outputting
+    if (content == "Backspace") {
+      var stuff = outputContent;
+      var x = stuff.length - 1;
 
-        h1.innerHTML = "&nbsp;";
-        setTimeout(next, 500);
+      if (stuff.charAt(x) == ">") {
+        var tagStart = stuff.lastIndexOf("<");
+        $("#output").val(stuff.substr(0, tagStart)); // Use .val()
+      } else if (stuff.charAt(x) == ";") {
+        var charStart = stuff.lastIndexOf("&");
+        $("#output").val(stuff.substr(0, charStart)); // Use .val()
+      } else {
+        $("#output").val(stuff.substr(0, x)); // Use .val()
+      }
+    } else if (content == "Enter") {
+      content = "\n"; // Use newline for textarea
+      $("#output").val($("#output").val() + content); // Use .val()
+    } else if (content == "Tab") {
+      content = "    "; // Use 4 spaces for tab in textarea
+      $("#output").val($("#output").val() + content); // Use .val()
+    } else if (content == "Shift") {
+      if (shift) {
+        shift = false;
+      } else {
+        shift = true;
+      }
+    } else if (content == "Caps Lock") {
+      if (caps) {
+        caps = false;
+      } else {
+        caps = true;
+      }
+    } else if (
+      content == "Ctrl" ||
+      content == "Alt" ||
+      content == "Win" ||
+      content == "Spl"
+    ) {
+    } else {
+      // i.e. a letter
+      capitalize = false;
 
-        document.body.addEventListener('keydown', function (e) {
-            var key = getKey(e);
-            if (!key) {
-                return console.warn('No key for', e.keyCode);
-            }
+      if (shift) {
+        capitalize = !capitalize;
+        shift = false;
+      }
 
-            key.setAttribute('data-pressed', 'on');
-        });
+      if (caps) {
+        capitalize = !capitalize;
+      }
 
-        document.body.addEventListener('keyup', function (e) {
-            var key = getKey(e);
-            key && key.removeAttribute('data-pressed');
-        });
+      if (content.length == 1 && capitalize) {
+        content = content.toUpperCase();
+      }
 
-        function size () {
-            var size = keyboard.parentNode.clientWidth / 90;
-            keyboard.style.fontSize = size + 'px';
-            console.log(size);
-        }
+      $("#output").val($("#output").val() + content); // Use .val()
+    }
 
-        var keyboard = document.querySelector('.keyboard');
-        window.addEventListener('resize', function (e) {
-            size();
-        });
-        size();
+    outputContent = $("#output").val(); // Use .val()
+
+    // creating the automatic line break
+    var sinceLastTag, relevantString, start, end, snippet;
+    sinceLastTag = outputContent.lastIndexOf(">");
+    relevantString = outputContent
+      .substring(sinceLastTag)
+      .replace("     ", "1111");
+    var relevantLength = relevantString.length;
+
+    if (relevantLength > 1) {
+      start = relevantString.indexOf("&");
+      end = relevantString.indexOf(";") + 1;
+      snippet = relevantString.substring(start, end);
+      relevantString = relevantString.replace(snippet, "1");
+    }
+
+    if (relevantLength % 41 === 0 && relevantLength > 0) {
+      var sweetSpot = outputContent.lastIndexOf(" ");
+      var firstHalf = outputContent.substring(0, sweetSpot);
+      var secondHalf = outputContent.substring(sweetSpot);
+
+      $("#output").val(firstHalf + "\n" + secondHalf); // Use \n for newline
+    }
+  });
+};
+
+$(document).ready(function () {
+  init();
+});
 	</script>	
 </body>
 </html>
