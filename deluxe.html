@@ -4,157 +4,777 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Dynamic word creation with animation effect">
-  <title>Dynamic Word Animation</title>
+ <script src="https://d3js.org/d3.v7.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+     font-family: Arial, sans-serif;
+    background-color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+  #graph-container {
+    width: 100vw;
+    height: 100vh;
+    background-color: #1a1a1a;
+  }
+  .node circle {
+    fill: transparent;
+    stroke-width: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .node:hover circle {
+    transform: scale(1.2);
+  }
+  .node text {
+    font-size: 12px;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+    text-transform: uppercase;
+  }
+  .link {
+    stroke: #999;
+    stroke-opacity: 0.6;
+    stroke-dasharray: 5, 5;
+  }
+  .particle {
+    fill: #2a2a2a;
+    opacity: 0.7;
+  }
+  @keyframes glow {
+    0% {
+      filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+    }
+    50% {
+      filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
+    }
+    100% {
+      filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+    }
+  }
+  .word-glow {
+    animation: glow 2s ease-in-out infinite;
+  }
+  @keyframes dissipate {
+    0% {
+      filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
+    }
+    100% {
+      filter: none;
+    }
+  }
+  .dissipate-glow {
+    animation: dissipate 0.5s ease-out forwards;
+  }
+  #mixing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  #mixing-circle {
+    width: 200px;
+    height: 200px;
+    background-color: #1a1a1a;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transform: scale(0);
+    transition: transform 0.3s ease;
+  }
+  #mixing-text {
+    color: white;
+    font-size: 18px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  #words-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 10px 20px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    letter-spacing: 1px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+  #words-bar:hover {
+    background-color: rgba(40, 40, 40, 0.8);
+  }
+  #words-list {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100%;
+    background-color: rgba(26, 26, 26, 0.9);
+    backdrop-filter: blur(10px);
+    color: white;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+  .word-item {
+    padding: 15px;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    transition: background-color 0.2s ease;
+    font-weight: bold;
+  }
+  .word-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  #search-container {
+    padding: 15px;
+    position: sticky;
+    top: 0;
+    background-color: rgba(26, 26, 26, 0.9);
+    z-index: 1;
+  }
+  #search-box {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 5px 10px;
+  }
+  #search-input {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    color: #ccc;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 5px;
+  }
+  #search-input::placeholder {
+    color: #888;
+  }
+  #search-input:focus {
+    outline: none;
+  }
+  #search-icon {
+    width: 20px;
+    height: 20px;
+    fill: #888;
+  }
+  #custom-word-creator {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 250px;
+    height: 100%;
+    background-color: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 20px;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+  #custom-word-creator h3 {
+    margin: 0 0 20px 0;
+    color: #fff;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: uppercase;
+  }
+  #custom-word-creator input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 400;
+    box-sizing: border-box;
+  }
+  #custom-word-creator input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin-bottom: 15px;
+    cursor: pointer;
+  }
+  #custom-word-creator button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #4CAF50;
+    color: #fff;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  #toggle-creator {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background-color: rgba(26, 26, 26, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1001;
+    transition: transform 0.3s ease;
+  }
+  #toggle-creator:hover {
+    transform: scale(1.1);
+  }
+  #clear-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 36px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  #clear-button:hover {
+    transform: scale(1.2);
+  }
+  @keyframes breathe {
+    0% {
+      transform: translateX(-50%) scale(1);
+    }
+    50% {
+      transform: translateX(-50%) scale(1.05);
+    }
+    100% {
+      transform: translateX(-50%) scale(1);
+    }
+  }
+  #words-bar {
+    animation: breathe 4s ease-in-out infinite;
+  }
   
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+  /* New styles for the coin animation */
+  #coin-animation {
+    position: fixed;
+    top: -100px;
+    right: 20px;
+    background-color: rgba(26, 26, 26, 0.9);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 2000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
   
-  <!-- Styles -->
-  <style>
-    body {
-      font-family: 'Work Sans', sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f4f4f4;
-      overflow-x: hidden;
-    }
-
-    #coin-animation {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: none;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 20px;
-      border-radius: 10px;
-      color: #fff;
-      z-index: 1000;
-    }
-
-    #coin-text {
-      font-size: 24px;
-    }
-
-    #coined-word {
-      font-size: 36px;
-      font-weight: bold;
-    }
-
-    .word-glow {
-      animation: glow 1s forwards;
-    }
-
-    @keyframes glow {
-      from {
-        text-shadow: 0 0 5px #fff;
-      }
-      to {
-        text-shadow: 0 0 15px #fff, 0 0 30px #fff;
-      }
-    }
-
-    .dissipate-glow {
-      animation: dissipate 1s forwards;
-    }
-
-    @keyframes dissipate {
-      from {
-        text-shadow: 0 0 15px #fff, 0 0 30px #fff;
-      }
-      to {
-        text-shadow: 0 0 5px #fff;
-      }
-    }
-
-    #custom-word-creator {
-      position: fixed;
-      left: -300px;
-      top: 20px;
-      transition: left 0.3s ease;
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-    }
-
-    #custom-word-creator-right {
-      position: fixed;
-      right: -300px;
-      top: 20px;
-      transition: right 0.3s ease;
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-    }
-
-    #toggle-creator-left {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      cursor: pointer;
-      background: #007bff;
-      color: #fff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-    }
-
-    #toggle-creator-right {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      cursor: pointer;
-      background: #28a745;
-      color: #fff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-    }
-  </style>
+  #coin-animation.show {
+    top: 20px;
+    opacity: 1;
+  }
+  
+  #coin-text {
+    margin: 0;
+  }
+  
+  #coined-word {
+    color: #4CAF50;
+    font-size: 24px;
+    margin-top: 10px;
+    display: block;
+  }
+  
+  /* New styles for audio controls */
+  #audio-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 80px;
+    display: flex;
+    align-items: center;
+    background-color: rgba(26, 26, 26, 0.8);
+    padding: 10px;
+    border-radius: 20px;
+    z-index: 1002;
+  }
+  
+  #volume-slider {
+    width: 100px;
+    margin-right: 10px;
+  }
+  
+  #mute-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+  }
+</style>
 </head>
 <body>
-  <!-- New coin animation word -->
-  <div id="coin-animation">
-    <p id="coin-text">YOU HAVE DISCOVERED</p>
-    <span id="coined-word"></span>
+<div id="graph-container"></div>
+<div id="mixing-overlay">
+  <div id="mixing-circle">
+    <div id="mixing-text">MIXING...</div>
   </div>
-  
-  <!-- Custom Word Creator Left -->
-  <div id="custom-word-creator">
-    <label for="custom-word-name">Word:</label>
-    <input type="text" id="custom-word-name">
-    <label for="custom-word-color">Color:</label>
-    <input type="color" id="custom-word-color">
-    <button id="create-custom-word">Create Word</button>
+</div>
+<div id="words-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
+<span id="words-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">#</span><br>
+Coined Methods
+</div>
+<div id="words-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
+  <div id="search-container">
+    <div id="search-box">
+      <input type="text" id="search-input" placeholder="Search words">
+      <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+      </svg>
+    </div>
   </div>
+</div>
+<div id="custom-word-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
+  <h3>Create Custom Method</h3>
+  <input type="text" id="custom-word-name" placeholder="Method Name">
+  <input type="color" id="custom-word-color" value="#ffffff">
+  <button id="create-custom-word">Create</button>
+</div>
+<button id="toggle-creator" style="width: 30px; height: 30px; font-size: 16px; opacity: 0.7; background-color: rgba(26, 26, 26, 0.5);">➕</button>
+<button id="clear-button">🧹</button>
 
-  <!-- Custom Word Creator Right -->
-  <div id="custom-word-creator-right">
-    <label for="another-word-name">Another Word:</label>
-    <input type="text" id="another-word-name">
-    <label for="another-word-color">Color:</label>
-    <input type="color" id="another-word-color">
-    <button id="create-another-word">Create Another Word</button>
-  </div>
-  
-  <!-- Toggle Buttons -->
-  <button id="toggle-creator-left">➕</button>
-  <button id="toggle-creator-right">➕</button>
+<!-- New coin animation word -->
+<div id="coin-animation">
+  <p id="coin-text">YOU HAVE DISCOVERED</p>
+  <span id="coined-word"></span>
+</div>
 
-  <!-- Existing content here -->
-  <div id="existing-content">
-    <!-- Your existing content -->
-  </div>
+<!-- New audio controls -->
+<div id="audio-controls">
+  <input type="range" id="volume-slider" min="0" max="100" value="20">
+  <button id="mute-button">🔊</button>
+</div>
+
+<!-- Background music -->
+<audio id="background-music" loop>
+  <source src="https://storage.googleapis.com/udio-artifacts-c33fe3ba-3ffe-471f-92c8-5dfef90b3ea3/samples/232797d8e9c5469a9b94bd1c07299178/1/Whispers%2520of%2520Winter%2520ext%2520v1.2.1.mp3" type="audio/mpeg">
+  Your browser does not support the audio word.
+</audio>
+
+<!-- Selection sound effect -->
+<audio id="selection-sfx">
+  <source src="https://dl.sndup.net/7v8f2/dry_sfx,_pop.mp3" type="audio/mpeg">
+  Your browser does not support the audio word.
+</audio>
+
 
   <!-- JavaScript -->
   <script>
+    const width = window.innerWidth;
+const height = window.innerHeight;
+
+const svg = d3.select("#graph-container")
+  .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+// Add particles
+const particleCount = 50;
+const particles = [];
+for (let i = 0; i < particleCount; i++) {
+  particles.push({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    radius: Math.random() * 2 + 1,
+    speedX: Math.random() * 0.5 - 0.25,
+    speedY: Math.random() * 0.5 - 0.25
+  });
+}
+
+svg.selectAll(".particle")
+  .data(particles)
+  .enter()
+  .append("circle")
+  .attr("class", "particle")
+  .attr("cx", d => d.x)
+  .attr("cy", d => d.y)
+  .attr("r", d => d.radius);
+
+function moveParticles() {
+  svg.selectAll(".particle")
+    .each(function(d) {
+      d.x += d.speedX;
+      d.y += d.speedY;
+      
+      if (d.x < 0 || d.x > width) d.speedX *= -1;
+      if (d.y < 0 || d.y > height) d.speedY *= -1;
+      
+      d3.select(this)
+        .attr("cx", d.x)
+        .attr("cy", d.y);
+    });
+  
+  requestAnimationFrame(moveParticles);
+}
+
+moveParticles();
+
+const g = svg.append("g");
+
+let zoomLevel = 1;
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 4])
+  .on("zoom", (event) => {
+    const newZoomLevel = event.transform.k;
+    const zoomFactor = newZoomLevel / zoomLevel;
+    zoomLevel = newZoomLevel;
+
+    g.transition()
+      .duration(50)
+      .ease(d3.easeQuadOut)
+      .attr("transform", event.transform);
+  });
+
+svg.call(zoom);
+
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(100))
+  .force("charge", d3.forceManyBody().strength(-300))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(50));
+
+let nodes = [
+  {id: "Notes", color: "#8B4513"},
+  {id: "Story", color: "#87CEEB"},
+  {id: "Novel", color: "#FF4500"},
+  {id: "Poetry", color: "#1E90FF"}
+];
+
+let links = [];
+let selectedMethods = [];
+
+function updateGraph() {
+  const link = g.selectAll(".link")
+    .data(links)
+    .join("line")
+      .attr("class", "link");
+
+  const node = g.selectAll(".node")
+    .data(nodes)
+    .join("g")
+      .attr("class", "node")
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+  node.selectAll("circle")
+    .data(d => [d])
+    .join("circle")
+      .attr("r", 40)
+      .attr("stroke", d => d.color)
+      .attr("fill", "transparent")
+      .on("click", handleNodeClick)
+      .on("dblclick", handleNodeDoubleClick);
+
+  node.selectAll("text")
+    .data(d => [d])
+    .join("text")
+      .text(d => d.id.toUpperCase())
+      .attr("fill", d => d.color);
+
+  simulation.nodes(nodes);
+  simulation.force("link").links(links);
+  simulation.alpha(1).restart();
+  
+  updateMethodsCount();
+  renderMethodsList();
+}
+
+function dragstarted(event) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  event.subject.fx = event.subject.x;
+  event.subject.fy = event.subject.y;
+}
+
+function dragged(event) {
+  event.subject.fx = event.x;
+  event.subject.fy = event.y;
+}
+
+function dragended(event) {
+  if (!event.active) simulation.alphaTarget(0);
+  event.subject.fx = null;
+  event.subject.fy = null;
+}
+
+function handleNodeClick(event, d) {
+  const index = selectedMethods.findIndex(el => el.id === d.id);
+  if (index > -1) {
+    // Deselect
+    selectedMethods.splice(index, 1);
+    d3.select(this)
+      .classed("word-glow", false)
+      .classed("dissipate-glow", true)
+      .style("color", d.color)
+      .on("animationend", function() {
+        d3.select(this).classed("dissipate-glow", false).style("color", null);
+      });
+  } else {
+    // Select
+    if (selectedMethods.length < 2) {
+      selectedMethods.push(d);
+      d3.select(this)
+        .classed("dissipate-glow", false)
+        .classed("word-glow", true)
+        .style("color", d.color);
+      playSelectionSFX();
+    }
+  }
+
+  if (selectedMethods.length === 2) {
+    craftMethods();
+  }
+}
+
+function handleNodeDoubleClick(event, d) {
+  event.preventDefault();
+  event.stopPropagation();
+  craftMethods([d, d]);
+}
+
+function showMixingAnimation() {
+  const overlay = document.getMethodById('mixing-overlay');
+  const circle = document.getMethodById('mixing-circle');
+  overlay.style.opacity = '1';
+  circle.style.transform = 'scale(1)';
+}
+
+function hideMixingAnimation() {
+  const overlay = document.getMethodById('mixing-overlay');
+  const circle = document.getMethodById('mixing-circle');
+  overlay.style.opacity = '0';
+  circle.style.transform = 'scale(0)';
+}
+
+async function craftMethods(words = selectedMethods) {
+  const [elem1, elem2] = words;
+  
+  showMixingAnimation();
+  
+  try {
+    const result = await createNewMethod(elem1.id, elem2.id);
+    if (!nodes.some(n => n.id === result)) {
+      nodes.push({id: result, color: getRandomColor()});
+      links.push({source: elem1.id, target: result});
+      if (elem1 !== elem2) {
+        links.push({source: elem2.id, target: result});
+      }
+      updateGraph();
+      showCoinyAnimation(result);
+    }
+  } catch (error) {
+    console.error('Error crafting word:', error);
+  } finally {
+    hideMixingAnimation();
+  }
+
+  // Reset selection and stop glow animation
+  g.selectAll("circle")
+    .classed("word-glow", false)
+    .classed("dissipate-glow", false)
+    .style("color", null);
+  
+  selectedMethods = [];
+}
+
+async function createNewMethod(elem1, elem2) {
+  const response = await fetch('/api/craft', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ word1: elem1, word2: elem2, temperature: 0.4 }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.result;
+}
+
+function getRandomColor() {
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = 70 + Math.random() * 30; // 70-100%
+  const lightness = 40 + Math.random() * 20;  // 40-60%
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+simulation.on("tick", () => {
+  g.selectAll(".link")
+    .attr("x1", d => d.source.x)
+    .attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x)
+    .attr("y2", d => d.target.y);
+
+  g.selectAll(".node")
+    .attr("transform", d => `translate(${d.x},${d.y})`);
+});
+
+// Ensure nodes are drawn on top of links
+g.append("g").attr("class", "links");
+g.append("g").attr("class", "nodes");
+
+function updateMethodsCount() {
+  document.getMethodById('words-count').textContent = nodes.length;
+}
+
+function toggleMethodsList() {
+  const wordsList = document.getMethodById('words-list');
+  if (wordsList.style.right === '0px') {
+    wordsList.style.right = '-300px';
+  } else {
+    wordsList.style.right = '0px';
+    renderMethodsList();
+  }
+}
+
+function renderMethodsList() {
+  const wordsList = document.getMethodById('words-list');
+  const searchContainer = document.getMethodById('search-container');
+  wordsList.innerHTML = '';
+  wordsList.appendChild(searchContainer);
+  
+  nodes.sort((a, b) => a.id.localeCompare(b.id)).forEach(node => {
+    const word = document.createMethod('div');
+    word.className = 'word-item';
+    word.textContent = node.id;
+    word.style.color = node.color;
+    word.addEventListener('click', () => focusOnMethod(node));
+    wordsList.appendChild(word);
+  });
+}
+
+function focusOnMethod(node) {
+  const transform = d3.zoomIdentity
+    .translate(width / 2, height / 2)
+    .scale(1.5)
+    .translate(-node.x, -node.y);
+
+  svg.transition()
+    .duration(750)
+    .call(zoom.transform, transform);
+}
+
+document.getMethodById('words-bar').addEventListener('click', toggleMethodsList);
+
+document.getMethodById('search-input').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const words = document.querySelectorAll('.word-item');
+  
+  words.forEach(word => {
+    const wordName = word.textContent.toLowerCase();
+    if (wordName.includes(searchTerm)) {
+      word.style.display = 'block';
+    } else {
+      word.style.display = 'none';
+    }
+  });
+});
+
+// Custom Method Creator
+const customMethodCreator = document.getMethodById('custom-word-creator');
+const createCustomMethodBtn = document.getMethodById('create-custom-word');
+const toggleCreatorBtn = document.getMethodById('toggle-creator');
+
+toggleCreatorBtn.addEventListener('click', () => {
+  if (customMethodCreator.style.left === '0px') {
+    customMethodCreator.style.left = '-300px';
+    toggleCreatorBtn.textContent = '➕';
+  } else {
+    customMethodCreator.style.left = '0px';
+    toggleCreatorBtn.textContent = '✖';
+  }
+});
+
+createCustomMethodBtn.addEventListener('click', () => {
+  const wordName = document.getMethodById('custom-word-name').value.trim();
+  const wordColor = document.getMethodById('custom-word-color').value;
+
+  if (wordName) {
+    if (!nodes.some(n => n.id === wordName)) {
+      nodes.push({id: wordName, color: wordColor});
+      updateGraph();
+      document.getMethodById('custom-word-name').value = '';
+      showCoinyAnimation(wordName);
+    } else {
+      alert('The word with this name already exists!');
+    }
+  } else {
+    alert('Please enter a word name!');
+  }
+});
+
+// Clear button functionality
+document.getMethodById('clear-button').addEventListener('click', () => {
+  nodes = [];
+  links = [];
+  updateGraph();
+});
+
+function showCoinyAnimation(wordName) {
+  const coinAnimation = document.getMethodById('coin-animation');
+  const coinedMethod = document.getMethodById('coined-word');
+  
+  coinedMethod.textContent = wordName.toUpperCase();
+  coinAnimation.classList.add('show');
+  
+  setTimeout(() => {
+    coinAnimation.classList.remove('show');
+  }, 3000);
+}
+
+updateGraph();
     // Function to show animation
     function showCoinAnimation(word) {
       const coinAnimation = document.getElementById("coin-animation");
