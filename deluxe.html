@@ -1,3 +1,513 @@
+<!DOCTYPE html><html><head>
+  <title>Prelude Craft </title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Work Sans', sans-serif;
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+  #graph-container {
+    width: 100vw;
+    height: 100vh;
+  }
+  .node {
+    cursor: pointer;
+  }
+  .node circle {
+    stroke: #fff;
+    stroke-width: 1.5px;
+  }
+  .node text {
+    font-size: 12px;
+    fill: #ffffff;
+  }
+  .link {
+    fill: none;
+    stroke: #666;
+    stroke-width: 1.5px;
+  }
+  #mixing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  #mixing-circle {
+    width: 200px;
+    height: 200px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  #mixing-text {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+  }
+  #elements-bar {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background-color: rgba(26, 26, 26, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 100;
+  }
+  #elements-list {
+    position: fixed;
+    top: 100px;
+    left: 20px;
+    width: 200px;
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+    background-color: rgba(26, 26, 26, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 100;
+  }
+  .element-item {
+    margin-bottom: 5px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.3s;
+  }
+  .element-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  #custom-element-creator {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 200px;
+    background-color: rgba(26, 26, 26, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 100;
+  }
+  #custom-element-creator input, #custom-element-creator button {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  #toggle-creator {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 101;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  #clear-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    background-color: rgba(26, 26, 26, 0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 100;
+  }
+  #search-container {
+    margin-bottom: 10px;
+  }
+  #search-box {
+    position: relative;
+    width: 100%;
+  }
+  #search-input {
+    width: calc(100% - 30px);
+    padding: 5px 25px 5px 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 14px;
+  }
+  #search-icon {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    fill: #888;
+  }
+  #discovery-animation {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    display: none;
+    z-index: 1001;
+    animation: fadeInOut 3s ease-in-out;
+  }
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    20%, 80% { opacity: 1; }
+  }
+  #discovery-text {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  #discovered-element {
+    font-size: 36px;
+    font-weight: bold;
+  }
+  #instructions-menu {
+    position: fixed;
+    top: 20px;
+    right: 70px;
+    z-index: 1000;
+  }
+  #toggle-instructions {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    background-color: rgba(26, 26, 26, 0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  #instructions-content {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    width: 300px;
+    background-color: rgba(26, 26, 26, 0.9);
+    padding: 20px;
+    border-radius: 5px;
+    display: none;
+    color: white;
+    font-size: 14px;
+  }
+  #instructions-content h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  #instructions-content ol {
+    padding-left: 20px;
+  }
+  #instructions-content li {
+    margin-bottom: 5px;
+  }
+</style>
+</head>
+<body>
+<div id="graph-container">
+  <div id="instructions-menu">
+    <button id="toggle-instructions">?</button>
+    <div id="instructions-content">
+      <h2>How to...</h2>
+      <ol>
+        <li>Start with the four basic elements: Wprd, Sentence, Paragraph, and Chapter.</li>
+        <li>Click on two elements to combine them and create a new element.</li>
+        <li>Discover new elements by combining existing ones in different ways.</li>
+        <li>Use the search bar to find specific elements quickly.</li>
+        <li>Create custom elements using the "+" button at the bottom left.</li>
+        <li>Clear your progress and start over with the trash can button.</li>
+      </ol>
+      <p>Have fun exploring and creating new elements!</p>
+    </div>
+  </div>
+</div>
+<div id="elements-bar">
+  <div id="search-container">
+    <div id="search-box">
+      <input type="text" id="search-input" placeholder="Search elements...">
+      <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+      </svg>
+    </div>
+  </div>
+</div>
+<div id="elements-list"></div>
+<button id="toggle-creator">+</button>
+<div id="custom-element-creator" style="display: none;">
+  <input type="text" id="custom-element-name" placeholder="Enter element name">
+  <button id="create-custom-element">Create Element</button>
+</div>
+<button id="clear-button" style="position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px; font-size: 24px; background-color: rgba(26, 26, 26, 0.5); color: white; border: none; border-radius: 50%; cursor: pointer; z-index: 100;">🗑️</button>
+<div id="mixing-overlay">
+  <div id="mixing-circle">
+    <div id="mixing-text">Magic...</div>
+  </div>
+</div>
+<div id="discovery-animation">
+  <div id="discovery-text">decoded:</div>
+  <div id="discovered-element"></div>
+</div>
+
+<script>
+const width = window.innerWidth;
+const height = window.innerHeight;
+const baseElements = ["Word", "Sentence", "Paragraph", "Chapter"];
+let nodes = [];
+let links = [];
+let selectedNodes = [];
+
+const svg = d3.select("#graph-container")
+  .append("svg")
+  .attr("width", width)
+  .attr("height", height);
+
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(100))
+  .force("charge", d3.forceManyBody().strength(-300))
+  .force("center", d3.forceCenter(width / 2, height / 2));
+
+let link = svg.append("g")
+  .attr("class", "links")
+  .selectAll("line");
+
+let node = svg.append("g")
+  .attr("class", "nodes")
+  .selectAll("g");
+
+function updateGraph() {
+  link = link.data(links, d => `${d.source.id}-${d.target.id}`);
+  link.exit().remove();
+  link = link.enter().append("line")
+    .attr("class", "link")
+    .merge(link);
+
+  node = node.data(nodes, d => d.id);
+  node.exit().remove();
+  const nodeEnter = node.enter().append("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended));
+
+  nodeEnter.append("circle")
+    .attr("r", 10)
+    .attr("fill", d => getColor(d.id));
+
+  nodeEnter.append("text")
+    .attr("dy", "0.35em")
+    .attr("x", 12)
+    .text(d => d.id);
+
+  node = nodeEnter.merge(node);
+
+  simulation.nodes(nodes);
+  simulation.force("link").links(links);
+  simulation.alpha(1).restart();
+}
+
+function getColor(elementName) {
+  const colors = {
+    "Word": "#3498db",
+    "Sentence": "#e74c3c",
+    "Paragraph": "#2ecc71",
+    "Chapter": "#ecf0f1"
+  };
+  return colors[elementName] || "#f39c12";
+}
+
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+function ticked() {
+  link
+    .attr("x1", d => d.source.x)
+    .attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x)
+    .attr("y2", d => d.target.y);
+
+  node
+    .attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+simulation.on("tick", ticked);
+
+function addElement(elementName) {
+  if (!nodes.some(n => n.id === elementName)) {
+    nodes.push({ id: elementName });
+    updateElementsList();
+    updateGraph();
+  }
+}
+
+function updateElementsList() {
+  const elementsList = d3.select("#elements-list");
+  elementsList.selectAll("*").remove();
+  
+  nodes.forEach(node => {
+    elementsList.append("div")
+      .attr("class", "element-item")
+      .text(node.id)
+      .on("click", () => selectElement(node.id));
+  });
+}
+
+function selectElement(elementName) {
+  if (selectedNodes.length < 2) {
+    selectedNodes.push(elementName);
+    if (selectedNodes.length === 2) {
+      mixElements(selectedNodes[0], selectedNodes[1]);
+    }
+  }
+}
+
+function mixElements(element1, element2) {
+  showMixingAnimation();
+  
+  setTimeout(() => {
+    fetch(`https://api.datamuse.com/words?sp=t??k=${encodeURIComponent(element1)}&element2=${encodeURIComponent(element2)}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      hideMixingAnimation();
+      if (data.result) {
+        const newElement = data.result;
+        addElement(newElement);
+        links.push({ source: element1, target: newElement });
+        links.push({ source: element2, target: newElement });
+        updateGraph();
+        showDiscoveryAnimation(newElement);
+      }
+      selectedNodes = [];
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      hideMixingAnimation();
+      selectedNodes = [];
+    });
+  }, 1000);
+}
+
+function showMixingAnimation() {
+  document.getElementById("mixing-overlay").style.display = "flex";
+}
+
+function hideMixingAnimation() {
+  document.getElementById("mixing-overlay").style.display = "none";
+}
+
+function showDiscoveryAnimation(element) {
+  const discoveryAnimation = document.getElementById("discovery-animation");
+  const discoveredElement = document.getElementById("discovered-element");
+  
+  discoveredElement.textContent = element;
+  discoveryAnimation.style.display = "block";
+  
+  setTimeout(() => {
+    discoveryAnimation.style.display = "none";
+  }, 3000);
+}
+
+baseElements.forEach(addElement);
+
+const toggleCreator = document.getElementById("toggle-creator");
+const customElementCreator = document.getElementById("custom-element-creator");
+const customElementName = document.getElementById("custom-element-name");
+const createCustomElement = document.getElementById("create-custom-element");
+
+toggleCreator.addEventListener("click", () => {
+  customElementCreator.style.display = customElementCreator.style.display === "none" ? "block" : "none";
+});
+
+createCustomElement.addEventListener("click", () => {
+  const elementName = customElementName.value.trim();
+  if (elementName) {
+    addElement(elementName);
+    customElementName.value = "";
+  }
+});
+
+const clearButton = document.getElementById("clear-button");
+clearButton.addEventListener("click", () => {
+  nodes = baseElements.map(element => ({ id: element }));
+  links = [];
+  selectedNodes = [];
+  updateElementsList();
+  updateGraph();
+});
+
+const searchInput = document.getElementById("search-input");
+searchInput.addEventListener("input", () => {
+  const searchTerm = searchInput.value.toLowerCase();
+  const elementItems = document.querySelectorAll(".element-item");
+  
+  elementItems.forEach(item => {
+    const elementName = item.textContent.toLowerCase();
+    if (elementName.includes(searchTerm)) {
+      item.style.display = "block";
+    } else {
+      item.style.display = "none";
+    }
+  });
+});
+
+// Add instructions menu functionality
+const toggleInstructions = document.getElementById("toggle-instructions");
+const instructionsContent = document.getElementById("instructions-content");
+
+toggleInstructions.addEventListener("click", () => {
+  instructionsContent.style.display = instructionsContent.style.display === "none" ? "block" : "none";
+});
+
+updateElementsList();
+updateGraph();
+</script>
+</body></html>
+</html>
+<br>
+<br>
+
 <html><head><title>LITERARY NOTE CRAFT </title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
@@ -356,7 +866,7 @@
 </div>
 <div id="elements-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
 <span id="elements-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">4</span><br>
-Discovered Elements
+Coined Elements
 </div>
 <div id="elements-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
   <div id="search-container">
@@ -621,7 +1131,7 @@ async function craftElements(elements = selectedElements) {
 }
 
 async function createNewElement(elem1, elem2) {
-  const response = await fetch('/api/craft', {
+  const response = await fetch('https://api.datamuse.com/words?sp=t??k', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
