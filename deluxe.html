@@ -326,464 +326,136 @@
 </style>
 </head>
 <body>
-<div id="graph-container"></div>
-<div id="mixing-overlay">
-  <div id="mixing-circle">
-    <div id="mixing-text">MIXING...</div>
+  <div id="graph-container"></div>
+  <div id="method-list">
+    <h3>Coined Methods (<span id="method-count">0</span>)</h3>
+    <ul id="method-items"></ul>
   </div>
-</div>
-<div id="words-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
-<span id="words-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">#</span><br>
-Coined Methods
-</div>
-<div id="words-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
-  <div id="search-container">
-    <div id="search-box">
-      <input type="text" id="search-input" placeholder="Search words">
-      <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-      </svg>
-    </div>
+  <div id="method-creator">
+    <h3>Create a Method</h3>
+    <input type="text" id="method-name" placeholder="Enter method name">
+    <button id="create-method">Coin!</button>
   </div>
-</div>
-<div id="custom-word-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
-  <h3>Create Custom Method</h3>
-  <input type="text" id="custom-word-name" placeholder="Method Name">
-  <input type="color" id="custom-word-color" value="#ffffff">
-  <button id="create-custom-word">Create</button>
-</div>
-<button id="toggle-creator" style="width: 30px; height: 30px; font-size: 16px; opacity: 0.7; background-color: rgba(26, 26, 26, 0.5);">➕</button>
-<button id="clear-button">🧹</button>
 
-<!-- New coin animation word -->
-<div id="coin-animation">
-  <p id="coin-text">YOU HAVE COINED</p>
-  <span id="coined-word"></span>
-</div>
-
-
-
-  <!-- JavaScript -->
   <script>
     const width = window.innerWidth;
-const height = window.innerHeight;
+    const height = window.innerHeight;
 
-const svg = d3.select("#graph-container")
-  .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    const svg = d3.select("#graph-container")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
 
-// Add particles
-const particleCount = 50;
-const particles = [];
-for (let i = 0; i < particleCount; i++) {
-  particles.push({
-    x: Math.random() * width,
-    y: Math.random() * height,
-    radius: Math.random() * 2 + 1,
-    speedX: Math.random() * 0.5 - 0.25,
-    speedY: Math.random() * 0.5 - 0.25
-  });
-}
+    const g = svg.append("g");
 
-svg.selectAll(".particle")
-  .data(particles)
-  .enter()
-  .append("circle")
-  .attr("class", "particle")
-  .attr("cx", d => d.x)
-  .attr("cy", d => d.y)
-  .attr("r", d => d.radius);
+    let methods = [{ id: "Method1" }, { id: "Method2" }];
+    let links = [];
 
-function moveParticles() {
-  svg.selectAll(".particle")
-    .each(function(d) {
-      d.x += d.speedX;
-      d.y += d.speedY;
-      
-      if (d.x < 0 || d.x > width) d.speedX *= -1;
-      if (d.y < 0 || d.y > height) d.speedY *= -1;
-      
-      d3.select(this)
-        .attr("cx", d.x)
-        .attr("cy", d.y);
-    });
-  
-  requestAnimationFrame(moveParticles);
-}
+    function updateGraph() {
+      const simulation = d3.forceSimulation(methods)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width / 2, height / 2));
 
-moveParticles();
+      const link = g.selectAll(".link")
+        .data(links)
+        .join("line")
+        .attr("class", "link");
 
-const g = svg.append("g");
+      const node = g.selectAll(".node")
+        .data(methods)
+        .join("g")
+        .attr("class", "node");
 
-let zoomLevel = 1;
-const zoom = d3.zoom()
-  .scaleExtent([0.1, 4])
-  .on("zoom", (event) => {
-    const newZoomLevel = event.transform.k;
-    const zoomFactor = newZoomLevel / zoomLevel;
-    zoomLevel = newZoomLevel;
+     node.append("circle")
+  .attr("r", 25)
+  .attr("stroke", getRandomColor()) // Call the function!
+  .attr("fill", "transparent");
 
-    g.transition()
-      .duration(50)
-      .ease(d3.easeQuadOut)
-      .attr("transform", event.transform);
-  });
+node.append("text")
+  .text(d => d.id)
+  .attr("dy", "0.35em")
+  .attr("fill", getRandomColor()); // Call the function!
 
-svg.call(zoom);
+      simulation.on("tick", () => {
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
 
-const simulation = d3.forceSimulation()
-  .force("link", d3.forceLink().id(d => d.id).distance(100))
-  .force("charge", d3.forceManyBody().strength(-300))
-  .force("center", d3.forceCenter(width / 2, height / 2))
-  .force("collision", d3.forceCollide().radius(50));
-
-let nodes = [
-  {id: "Notes", color: "#8B4513"},
-  {id: "Story", color: "#87CEEB"},
-  {id: "Novel", color: "#FF4500"},
-  {id: "Poetry", color: "#1E90FF"}
-];
-
-let links = [];
-let selectedMethods = [];
-
-function updateGraph() {
-  const link = g.selectAll(".link")
-    .data(links)
-    .join("line")
-      .attr("class", "link");
-
-  const node = g.selectAll(".node")
-    .data(nodes)
-    .join("g")
-      .attr("class", "node")
-      .call(d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
-
-  node.selectAll("circle")
-    .data(d => [d])
-    .join("circle")
-      .attr("r", 40)
-      .attr("stroke", d => d.color)
-      .attr("fill", "transparent")
-      .on("click", handleNodeClick)
-      .on("dblclick", handleNodeDoubleClick);
-
-  node.selectAll("text")
-    .data(d => [d])
-    .join("text")
-      .text(d => d.id.toUpperCase())
-      .attr("fill", d => d.color);
-
-  simulation.nodes(nodes);
-  simulation.force("link").links(links);
-  simulation.alpha(1).restart();
-  
-  updateMethodsCount();
-  renderMethodsList();
-}
-
-function dragstarted(event) {
-  if (!event.active) simulation.alphaTarget(0.3).restart();
-  event.subject.fx = event.subject.x;
-  event.subject.fy = event.subject.y;
-}
-
-function dragged(event) {
-  event.subject.fx = event.x;
-  event.subject.fy = event.y;
-}
-
-function dragended(event) {
-  if (!event.active) simulation.alphaTarget(0);
-  event.subject.fx = null;
-  event.subject.fy = null;
-}
-
-function handleNodeClick(event, d) {
-  const index = selectedMethods.findIndex(el => el.id === d.id);
-  if (index > -1) {
-    // Deselect
-    selectedMethods.splice(index, 1);
-    d3.select(this)
-      .classed("word-glow", false)
-      .classed("dissipate-glow", true)
-      .style("color", d.color)
-      .on("animationend", function() {
-        d3.select(this).classed("dissipate-glow", false).style("color", null);
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
       });
-  } else {
-    // Select
-    if (selectedMethods.length < 2) {
-      selectedMethods.push(d);
-      d3.select(this)
-        .classed("dissipate-glow", false)
-        .classed("word-glow", true)
-        .style("color", d.color);
-      playSelectionSFX();
     }
-  }
 
-  if (selectedMethods.length === 2) {
-    craftMethods();
-  }
-}
-
-function handleNodeDoubleClick(event, d) {
-  event.preventDefault();
-  event.stopPropagation();
-  craftMethods([d, d]);
-}
-
-function showMixingAnimation() {
-  const overlay = document.getMethodById('mixing-overlay');
-  const circle = document.getMethodById('mixing-circle');
-  overlay.style.opacity = '1';
-  circle.style.transform = 'scale(1)';
-}
-
-function hideMixingAnimation() {
-  const overlay = document.getMethodById('mixing-overlay');
-  const circle = document.getMethodById('mixing-circle');
-  overlay.style.opacity = '0';
-  circle.style.transform = 'scale(0)';
-}
-
-async function craftMethods(words = selectedMethods) {
-  const [elem1, elem2] = words;
-  
-  showMixingAnimation();
-  
-  try {
-    const result = await createNewMethod(elem1.id, elem2.id);
-    if (!nodes.some(n => n.id === result)) {
-      nodes.push({id: result, color: getRandomColor()});
-      links.push({source: elem1.id, target: result});
-      if (elem1 !== elem2) {
-        links.push({source: elem2.id, target: result});
+    function getRandomColor() {
+      const letters = '0123456789ABCDEF';
+      let color = '#';
+      for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
       }
-      updateGraph();
-      showCoinyAnimation(result);
-    }
-  } catch (error) {
-    console.error('Error crafting word:', error);
-  } finally {
-    hideMixingAnimation();
-  }
-
-  // Reset selection and stop glow animation
-  g.selectAll("circle")
-    .classed("word-glow", false)
-    .classed("dissipate-glow", false)
-    .style("color", null);
-  
-  selectedMethods = [];
-}
-
-async function createNewMethod(elem1, elem2) {
-  const response = await fetch('/api/craft', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ word1: elem1, word2: elem2, temperature: 0.4 }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.result;
-}
-
-function getRandomColor() {
-  const hue = Math.floor(Math.random() * 360);
-  const saturation = 70 + Math.random() * 30; // 70-100%
-  const lightness = 40 + Math.random() * 20;  // 40-60%
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-}
-
-simulation.on("tick", () => {
-  g.selectAll(".link")
-    .attr("x1", d => d.source.x)
-    .attr("y1", d => d.source.y)
-    .attr("x2", d => d.target.x)
-    .attr("y2", d => d.target.y);
-
-  g.selectAll(".node")
-    .attr("transform", d => `translate(${d.x},${d.y})`);
-});
-
-// Ensure nodes are drawn on top of links
-g.append("g").attr("class", "links");
-g.append("g").attr("class", "nodes");
-
-function updateMethodsCount() {
-  document.getMethodById('words-count').textContent = nodes.length;
-}
-
-function toggleMethodsList() {
-  const wordsList = document.getMethodById('words-list');
-  if (wordsList.style.right === '0px') {
-    wordsList.style.right = '-300px';
-  } else {
-    wordsList.style.right = '0px';
-    renderMethodsList();
-  }
-}
-
-function renderMethodsList() {
-  const wordsList = document.getMethodById('words-list');
-  const searchContainer = document.getMethodById('search-container');
-  wordsList.innerHTML = '';
-  wordsList.appendChild(searchContainer);
-  
-  nodes.sort((a, b) => a.id.localeCompare(b.id)).forEach(node => {
-    const word = document.createMethod('div');
-    word.className = 'word-item';
-    word.textContent = node.id;
-    word.style.color = node.color;
-    word.addEventListener('click', () => focusOnMethod(node));
-    wordsList.appendChild(word);
-  });
-}
-
-function focusOnMethod(node) {
-  const transform = d3.zoomIdentity
-    .translate(width / 2, height / 2)
-    .scale(1.5)
-    .translate(-node.x, -node.y);
-
-  svg.transition()
-    .duration(750)
-    .call(zoom.transform, transform);
-}
-
-document.getMethodById('words-bar').addEventListener('click', toggleMethodsList);
-
-document.getMethodById('search-input').addEventListener('input', function(e) {
-  const searchTerm = e.target.value.toLowerCase();
-  const words = document.querySelectorAll('.word-item');
-  
-  words.forEach(word => {
-    const wordName = word.textContent.toLowerCase();
-    if (wordName.includes(searchTerm)) {
-      word.style.display = 'block';
-    } else {
-      word.style.display = 'none';
-    }
-  });
-});
-
-// Custom Method Creator
-const customMethodCreator = document.getMethodById('custom-word-creator');
-const createCustomMethodBtn = document.getMethodById('create-custom-word');
-const toggleCreatorBtn = document.getMethodById('toggle-creator');
-
-toggleCreatorBtn.addEventListener('click', () => {
-  if (customMethodCreator.style.left === '0px') {
-    customMethodCreator.style.left = '-300px';
-    toggleCreatorBtn.textContent = '➕';
-  } else {
-    customMethodCreator.style.left = '0px';
-    toggleCreatorBtn.textContent = '✖';
-  }
-});
-
-createCustomMethodBtn.addEventListener('click', () => {
-  const wordName = document.getMethodById('custom-word-name').value.trim();
-  const wordColor = document.getMethodById('custom-word-color').value;
-
-  if (wordName) {
-    if (!nodes.some(n => n.id === wordName)) {
-      nodes.push({id: wordName, color: wordColor});
-      updateGraph();
-      document.getMethodById('custom-word-name').value = '';
-      showCoinyAnimation(wordName);
-    } else {
-      alert('The word with this name already exists!');
-    }
-  } else {
-    alert('Please enter a word name!');
-  }
-});
-
-// Clear button functionality
-document.getMethodById('clear-button').addEventListener('click', () => {
-  nodes = [];
-  links = [];
-  updateGraph();
-});
-
-function showCoinyAnimation(wordName) {
-  const coinAnimation = document.getMethodById('coin-animation');
-  const coinedMethod = document.getMethodById('coined-word');
-  
-  coinedMethod.textContent = wordName.toUpperCase();
-  coinAnimation.classList.add('show');
-  
-  setTimeout(() => {
-    coinAnimation.classList.remove('show');
-  }, 3000);
-}
-
-updateGraph();
-    // Function to show animation
-    function showCoinAnimation(word) {
-      const coinAnimation = document.getElementById("coin-animation");
-      const coinedWord = document.getElementById("coined-word");
-      coinAnimation.style.display = "block";
-      coinedWord.textContent = word;
-      coinedWord.classList.add("word-glow");
-      setTimeout(() => {
-        coinedWord.classList.remove("word-glow");
-        coinedWord.classList.add("dissipate-glow");
-        setTimeout(() => {
-          coinAnimation.style.display = "none";
-        }, 1000); // Match duration of dissipate-glow animation
-      }, 3000); // Display duration
+      return color;
     }
 
-    // Add event listener for creating a custom word
-    document.getElementById("create-custom-word").addEventListener("click", () => {
-      const wordName = document.getElementById("custom-word-name").value;
-      const wordColor = document.getElementById("custom-word-color").value;
-      showCoinAnimation(wordName);
+    function generateRandomMethodName() {
+      const url = "https://api.datamuse.com/words?ml=create&max=10"; 
+
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.length > 0) {
+            const randomIndex = Math.floor(Math.random() * data.length);
+            return data[randomIndex].word; 
+          } else {
+            return "NewMethod"; 
+          }
+        });
+    }
+
+    function addMethod(name) {
+      const newName = name || generateRandomMethodName();
+
+      Promise.resolve(newName)
+        .then(finalName => {
+          if (methods.some(m => m.id.toLowerCase() === finalName.toLowerCase())) {
+            alert(`A method named "${finalName}" already exists.`);
+            return;
+          }
+
+          methods.push({ id: finalName });
+
+          if (methods.length > 2) {
+            const lastMethod = methods[methods.length - 2]; 
+            links.push({ source: lastMethod.id, target: finalName });
+          }
+
+          updateGraph();
+          updateMethodList();
+        });
+    }
+
+    function updateMethodList() {
+      const methodList = document.getElementById("method-items");
+      methodList.innerHTML = ""; 
+
+      methods.forEach(method => {
+        const listItem = document.createElement("li");
+        listItem.textContent = method.id;
+        methodList.appendChild(listItem);
+      });
+
+      document.getElementById("method-count").textContent = methods.length;
+    }
+
+    document.getElementById("create-method").addEventListener("click", () => {
+      const methodNameInput = document.getElementById("method-name");
+      const methodName = methodNameInput.value.trim();
+
+      addMethod(methodName);
+      methodNameInput.value = ""; 
     });
 
-    document.getElementById("create-another-word").addEventListener("click", () => {
-      const wordName = document.getElementById("another-word-name").value;
-      const wordColor = document.getElementById("another-word-color").value;
-      showCoinAnimation(wordName);
-    });
-
-    // Toggle visibility of custom word creator on the left
-    document.getElementById("toggle-creator-left").addEventListener("click", () => {
-      const creator = document.getElementById("custom-word-creator");
-      if (creator.style.left === "0px") {
-        creator.style.left = "-300px";
-        document.getElementById("toggle-creator-left").textContent = "➕";
-      } else {
-        creator.style.left = "0px";
-        document.getElementById("toggle-creator-left").textContent = "✖";
-      }
-    });
-
-    // Toggle visibility of custom word creator on the right
-    document.getElementById("toggle-creator-right").addEventListener("click", () => {
-      const creator = document.getElementById("custom-word-creator-right");
-      if (creator.style.right === "0px") {
-        creator.style.right = "-300px";
-        document.getElementById("toggle-creator-right").textContent = "➕";
-      } else {
-        creator.style.right = "0px";
-        document.getElementById("toggle-creator-right").textContent = "✖";
-      }
-    });
+    updateGraph(); 
   </script>
 </body>
 </html>
