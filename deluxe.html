@@ -343,6 +343,14 @@
       stroke: #999;
       stroke-opacity: 0.6;
     }
+    #words-list {
+  position: fixed;
+  top: 0;
+  right: -300px;
+  width: 300px;
+  height: 100%;
+  transition: right 0.3s ease;
+}
   </style>
 </head>
 <body>
@@ -352,11 +360,11 @@
       <div id="mixing-text">MIXING...</div>
     </div>
   </div>
-  <div id="methods-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
+  <div id="words-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
     <span id="method-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">2</span><br>
     Coined Methods 
   </div>
-  <div id="method-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
+  <div id="words-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
     <div id="search-container">
       <div id="search-box">
         <input type="text" id="search-input" placeholder="Search methods"> 
@@ -401,11 +409,40 @@
       updateMethodList();
       updateGraph();
 
-      function updateGraph() {
-        const simulation = d3.forceSimulation(methods)
-          .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-          .force("charge", d3.forceManyBody().strength(-300))
-          .force("center", d3.forceCenter(width / 2, height / 2));
+    function updateGraph() {
+  // ... (keep your existing updateGraph code)
+  updateMethodsCount();
+  renderMethodsList();
+}
+
+function updateMethodsCount() {
+  document.getElementById('words-count').textContent = nodes.length;
+}
+
+function toggleMethodsList() {
+  const wordsList = document.getElementById('words-list');
+  wordsList.style.right = wordsList.style.right === '0px' ? '-300px' : '0px';
+  if (wordsList.style.right === '0px') {
+    renderMethodsList();
+  }
+}
+
+function renderMethodsList() {
+  const wordsList = document.getElementById('words-list');
+  const searchContainer = document.getElementById('search-container');
+  wordsList.innerHTML = '';
+  wordsList.appendChild(searchContainer);
+  
+  nodes.sort((a, b) => a.id.localeCompare(b.id)).forEach(node => {
+    const method = document.createElement('div');
+    method.className = 'word-item';
+    method.textContent = node.id;
+    method.style.color = node.color;
+    method.addEventListener('click', () => focusOnMethod(node));
+    wordsList.appendChild(method);
+  });
+}
+
 
         const link = g.selectAll(".link")
           .data(links)
@@ -566,8 +603,17 @@
     document.getElementById('methods-bar').addEventListener('click', toggleMethodsList);
     
     updateMethodList();
-    updateGraph();
+document.getElementById('words-bar').addEventListener('click', toggleMethodsList);
+
+document.getElementById('search-input').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  document.querySelectorAll('.word-item').forEach(word => {
+    word.style.display = word.textContent.toLowerCase().includes(searchTerm) ? 'block' : 'none';
   });
+});
+
+// Initialize the graph
+updateGraph();
   </script>
 </body>
 </html>
