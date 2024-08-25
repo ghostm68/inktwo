@@ -1,573 +1,274 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Dynamic word creation with animation effect">
-  <title>Method Coiner</title>
-  <script src="https://d3js.org/d3.v7.min.js"></script> 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #1a1a1a;
-      margin: 0;
-      padding: 0;
-      color: white; /* Default text color */
-      overflow: hidden;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Literary Creations Interface</title>
 
-    #graph-container {
-      width: 100vw;
-      height: 100vh;
-      background-color: #1a1a1a;
-    }
- .node circle {
-    fill: transparent;
-    stroke-width: 3px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  .node:hover circle {
-    transform: scale(1.2);
-  }
-  .node text {
-    font-size: 12px;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    pointer-events: none;
-    text-transform: uppercase;
-  }
-  .link {
-    stroke: #999;
-    stroke-opacity: 0.6;
-    stroke-dasharray: 5, 5;
-  }
-  .particle {
-    fill: #2a2a2a;
-    opacity: 0.7;
-  }
-  @keyframes glow {
-    0% {
-      filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
-    }
-    50% {
-      filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
-    }
-    100% {
-      filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
-    }
-  }
-  .word-glow {
-    animation: glow 2s ease-in-out infinite;
-  }
-  @keyframes dissipate {
-    0% {
-      filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
-    }
-    100% {
-      filter: none;
-    }
-  }
-  .dissipate-glow {
-    animation: dissipate 0.5s ease-out forwards;
-  }
-  #mixing-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-  }
-  #mixing-circle {
-    width: 200px;
-    height: 200px;
-    background-color: #1a1a1a;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    transform: scale(0);
-    transition: transform 0.3s ease;
-  }
-  #mixing-text {
-    color: white;
-    font-size: 18px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  #words-bar {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(26, 26, 26, 0.8);
-    backdrop-filter: blur(10px);
-    color: white;
-    padding: 10px 20px;
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    letter-spacing: 1px;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-  }
-  #words-bar:hover {
-    background-color: rgba(40, 40, 40, 0.8);
-  }
-  #words-list {
-    position: fixed;
-    top: 0;
-    right: -300px;
-    width: 300px;
-    height: 100%;
-    background-color: rgba(26, 26, 26, 0.9);
-    backdrop-filter: blur(10px);
-    color: white;
-    overflow-y: auto;
-    transition: right 0.3s ease;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  }
-.method-item { /* Changed from .word-item */
-      padding: 15px;
-      font-size: 14px;
-      letter-spacing: 0.5px;
-      transition: background-color 0.2s ease;
-      font-weight: bold;
-    }
-  .method-item:hover { /* Changed from .word-item:hover */
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-  }
-  #search-container {
-    padding: 15px;
-    position: sticky;
-    top: 0;
-    background-color: rgba(26, 26, 26, 0.9);
-    z-index: 1;
-  }
-  #search-box {
-    display: flex;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 5px 10px;
-  }
-  #search-input {
-    flex-grow: 1;
-    background: none;
-    border: none;
-    color: #ccc;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    padding: 5px;
-  }
-  #search-input::placeholder {
-    color: #888;
-  }
-  #search-input:focus {
-    outline: none;
-  }
-  #search-icon {
-    width: 20px;
-    height: 20px;
-    fill: #888;
-  }
-  #custom-method-creator {
-    position: fixed;
-    top: 0;
-    left: -300px;
-    width: 250px;
-    height: 100%;
-    background-color: rgba(26, 26, 26, 0.8);
-    backdrop-filter: blur(10px);
-    color: white;
-    padding: 20px;
-    transition: left 0.3s ease;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-  }
-  #custom-method-creator h3 {
-    margin: 0 0 20px 0;
-    color: #fff;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 700;
-    font-size: 18px;
-    text-transform: uppercase;
-  }
- #custom-method-creator input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: none;
-    border-radius: 5px;
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 400;
-    box-sizing: border-box;
-}
+    <!-- Custom Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 
-#custom-method-creator input[type="color"] {
-    width: 100%;
-    height: 40px;
-    border: none;
-    border-radius: 5px;
-    background-color: rgba(255, 255, 255, 0.1);
-    margin-bottom: 15px;
-    cursor: pointer;
-}
+    <style>
+        /* Global Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-#custom-method-creator button {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    background-color: #4CAF50;
-    color: #fff;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 700;
-    text-transform: uppercase;
-    cursor: pointer;
-}
-  #toggle-creator {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    background-color: rgba(26, 26, 26, 0.8);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-    cursor: pointer;
-    z-index: 1001;
-    transition: transform 0.3s ease;
-  }
-  #toggle-creator:hover {
-    transform: scale(1.1);
-  }
-  #clear-button {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    font-size: 36px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-  }
-  #clear-button:hover {
-    transform: scale(1.2);
-  }
-  @keyframes breathe {
-    0% {
-      transform: translateX(-50%) scale(1);
-    }
-    50% {
-      transform: translateX(-50%) scale(1.05);
-    }
-    100% {
-      transform: translateX(-50%) scale(1);
-    }
-  }
-  #words-bar {
-    animation: breathe 4s ease-in-out infinite;
-  }
-  
-  /* New styles for the coin animation */
-  #coin-animation {
-    position: fixed;
-    top: -100px;
-    right: 20px;
-    background-color: rgba(26, 26, 26, 0.9);
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
-    font-family: 'Work Sans', sans-serif;
-    font-weight: 700;
-    font-size: 18px;
-    opacity: 0;
-    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    z-index: 2000;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  #coin-animation.show {
-    top: 20px;
-    opacity: 1;
-  }
-  
-  #coin-text {
-    margin: 0;
-  }
-  
-  #coined-word {
-    color: #4CAF50;
-    font-size: 24px;
-    margin-top: 10px;
-    display: block;
-  }
-    /* Styles for the D3 graph */
-    .node circle {
-      fill: #4CAF50;
-      stroke: #fff;
-      stroke-width: 2px;
-    }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            overflow-x: hidden;
+        }
 
-    .node text {
-      font-size: 12px;
-      text-anchor: middle;
-      dominant-baseline: central;
-      fill: white; 
-    }
+        /* Header */
+        header {
+            background-color: #6200ea;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            z-index: 1000;
+        }
 
-    .link {
-      stroke: #999;
-      stroke-opacity: 0.6;
-    }
-  </style>
+        header h1 {
+            font-family: 'Merriweather', serif;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* Slide-Out Menu */
+        .slide-menu {
+            position: fixed;
+            top: 0;
+            left: -250px; /* Hidden by default */
+            width: 250px;
+            height: 100%;
+            background-color: #3700b3;
+            color: #fff;
+            overflow-y: auto;
+            transition: left 0.3s ease;
+            padding-top: 60px;
+            z-index: 999;
+        }
+
+        .slide-menu.open {
+            left: 0;
+        }
+
+        .slide-menu ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .slide-menu li {
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .slide-menu li:hover {
+            background-color: #6200ea;
+        }
+
+        /* Menu Toggle Button */
+        .menu-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #6200ea;
+            border: none;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            z-index: 1001;
+            transition: background 0.2s ease;
+        }
+
+        .menu-toggle:hover {
+            background-color: #3700b3;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 0;
+            padding: 80px 20px 20px 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.shifted {
+            margin-left: 250px; /* Width of the slide-out menu */
+        }
+
+        /* Word Container */
+        #wordContainer {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 100px;
+            margin-bottom: 20px;
+        }
+
+        .word-item {
+            background-color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .word-item:hover {
+            background-color: #d1c4e9;
+        }
+
+        /* Creation Area */
+        #creationArea {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-height: 200px;
+            font-size: 1rem;
+            line-height: 1.6;
+            font-family: 'Merriweather', serif;
+            overflow-y: auto;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .menu-toggle {
+                top: 15px;
+                left: 15px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            header p {
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="graph-container"></div>
-  <div id="mixing-overlay">
-    <div id="mixing-circle">
-      <div id="mixing-text">MIXING...</div>
+
+    <!-- Header -->
+    <header>
+        <h1>Literary Creations</h1>
+        <p>Unleash your creativity through words</p>
+    </header>
+
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" onclick="toggleMenu()">☰ Categories</button>
+
+    <!-- Slide-Out Menu -->
+    <nav id="slideMenu" class="slide-menu">
+        <ul>
+            <li onclick="loadWords('poetry')">Poetry</li>
+            <li onclick="loadWords('shortStory')">Short Story</li>
+            <li onclick="loadWords('novel')">Novel</li>
+            <li onclick="loadWords('notes')">Notes</li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="main-content">
+        <!-- Word Container -->
+        <div id="wordContainer">
+            <p>Select a category from the menu to load words.</p>
+        </div>
+
+        <!-- Creation Area -->
+        <div id="creationArea" contenteditable="true">
+            <!-- User can compose their creation here -->
+            <p>Start creating your masterpiece here...</p>
+        </div>
     </div>
-  </div>
-  <div id="methods-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
-    <span id="method-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">2</span><br>
-    Coined Methods 
-  </div>
-  <div id="method-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
-    <div id="search-container">
-      <div id="search-box">
-        <input type="text" id="search-input" placeholder="Search methods"> 
-        <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-        </svg>
-      </div>
-    </div>
-  </div>
-<div id="custom-method-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
-  <h3>Create Custom Method</h3>
-  <input type="text" id="custom-method-name" placeholder="Method Name">
-  <input type="color" id="custom-method-color" value="#ffffff">
-  <button id="create-custom-method">Create</button> <div id="custom-method-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
-    <h3>Create Custom Method</h3>
-    <input type="text" id="custom-method-name" placeholder="Method Name">
-    <input type="color" id="custom-method-color" value="#ffffff">
-    <button id="create-custom-method">Create</button>
-  </div> </div>
-  <button id="toggle-creator" style="width: 30px; height: 30px; font-size: 16px; opacity: 0.7; background-color: rgba(26, 26, 26, 0.5);">➕</button>
-  <button id="clear-button">🧹</button>
 
-  <!-- New coin animation word -->
-  <div id="coin-animation">
-    <p id="coin-text">YOU HAVE COINED</p>
-    <span id="coined-word"></span>
-  </div> 
-</body>
+    <script>
+        // Sample word sets for each category
+        const wordSets = {
+            poetry: [
+                "Ethereal", "Whisper", "Moonlight", "Silhouette", "Echo", "Serenity",
+                "Blossom", "Eclipse", "Murmur", "Dreamscape", "Luminous", "Cascade"
+            ],
+            shortStory: [
+                "Adventure", "Mystery", "Journey", "Encounter", "Secret", "Discovery",
+                "Twilight", "Legacy", "Whimsy", "Betrayal", "Courage", "Destiny"
+            ],
+            novel: [
+                "Protagonist", "Antagonist", "Climax", "Conflict", "Resolution", "Saga",
+                "Chronicle", "Odyssey", "Empire", "Rebellion", "Intrigue", "Redemption"
+            ],
+            notes: [
+                "Observation", "Idea", "Insight", "Question", "Reminder", "Thought",
+                "Concept", "Analysis", "Summary", "Note", "Reflection", "Plan"
+            ]
+        };
 
-  <script>
-    document.addEventListener('DOMContentLoaded', (event) => {
-      console.log("DOMContentLoaded event fired!"); // Check if this event is firing
-
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-
-      const svg = d3.select("#graph-container").append("svg").attr("width", width).attr("height", height);
-      const g = svg.append("g");
-
-      let methods = [{ id: "Method1" }, { id: "Method2" }];
-      let links = [];
-      updateMethodList();
-      updateGraph();
-
-      function updateGraph() {
-        const simulation = d3.forceSimulation(methods)
-          .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-          .force("charge", d3.forceManyBody().strength(-300))
-          .force("center", d3.forceCenter(width / 2, height / 2));
-
-        const link = g.selectAll(".link")
-          .data(links)
-          .join("line")
-          .attr("class", "link");
-
-        const node = g.selectAll(".node")
-          .data(methods)
-          .join("g")
-          .attr("class", "node")
-          .call(d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended)
-          );
-
-        node.append("circle")
-          .attr("r", 25)
-          .attr("stroke", getRandomColor)
-          .attr("fill", "white"); // Or another contrasting color
-
-        node.append("text")
-          .text(d => d.id)
-          .attr("dy", "0.35em")
-          .attr("fill", getRandomColor());
-
-        simulation.on("tick", () => {
-          link
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
-
-          node.attr("transform", d => `translate(${d.x},${d.y})`);
-        });
-
-        function dragstarted(event) {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
-          event.subject.fx = event.subject.x;
-          event.subject.fy = event.subject.y;
+        // Toggle slide-out menu visibility
+        function toggleMenu() {
+            const menu = document.getElementById('slideMenu');
+            const content = document.getElementById('mainContent');
+            menu.classList.toggle('open');
+            content.classList.toggle('shifted');
         }
 
-        function dragged(event) {
-          event.subject.fx = event.x;
-          event.subject.fy = event.y;
+        // Load words into the word container based on selected category
+        function loadWords(category) {
+            const wordContainer = document.getElementById('wordContainer');
+            wordContainer.innerHTML = ''; // Clear existing words
+
+            const words = wordSets[category];
+
+            words.forEach(word => {
+                const wordElement = document.createElement('div');
+                wordElement.classList.add('word-item');
+                wordElement.textContent = word;
+                wordElement.addEventListener('click', () => addWordToCreation(word));
+                wordContainer.appendChild(wordElement);
+            });
+
+            // Close menu after selection (optional)
+            toggleMenu();
         }
 
-        function dragended(event) {
-          if (!event.active) simulation.alphaTarget(0);
-          event.subject.fx = null;
-          event.subject.fy = null;
+        // Add selected word to the creation area
+        function addWordToCreation(word) {
+            const creationArea = document.getElementById('creationArea');
+            creationArea.focus(); // Focus on the editable area
+            // Insert word at the current cursor position
+            document.execCommand('insertText', false, word + ' ');
         }
-      }
 
-      function getRandomColor() {
-        const letters = '0123456789ABCDEF';
-        let color = '#';
-        for (let i = 0; i < 6; i++) {
-          color += letters[Math.floor(Math.random() * 16)];
-        }
-        return color;
-      }
-
-      function generateRandomMethodsName() {
-        const url = "https://api.datamuse.com/words?ml=create&max=10";
-
-        return fetch(url)
-          .then(response => response.json())
-          .then(data => {
-            if (data.length > 0) {
-              const randomIndex = Math.floor(Math.random() * data.length);
-              return data[randomIndex].word;
-            } else {
-              return "NewMethod";
+        // Optional: Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('slideMenu');
+            const toggleButton = document.querySelector('.menu-toggle');
+            if (!menu.contains(event.target) && !toggleButton.contains(event.target)) {
+                menu.classList.remove('open');
+                document.getElementById('mainContent').classList.remove('shifted');
             }
-          });
-      }
-
-      function addMethod(name) {
-        const newName = name || generateRandomMethodName();
-
-        Promise.resolve(newName)
-          .then(finalName => {
-            if (methods.some(m => m.id.toLowerCase() === finalName.toLowerCase())) {
-              alert(`A method named "${finalName}" already exists.`);
-              return;
-            }
-
-            methods.push({ id: finalName });
-
-            if (methods.length > 2) {
-              const lastMethod = methods[methods.length - 2];
-              links.push({ source: lastMethod.id, target: finalName });
-            }
-
-            updateGraph();
-            updateMethodList();
-          });
-      }
-
-      function updateMethodList() {
-        const methodList = document.getElementById("method-items");
-        methodList.innerHTML = "";
-
-        methods.forEach(method => {
-          const listItem = document.createElement("li");
-          listItem.textContent = method.id;
-          methodList.appendChild(listItem);
         });
+    </script>
 
-        document.getElementById("words-count").textContent = methods.length;
-      }
-
-      function toggleMethodsList() {
-        const wordsList = document.getElementById('words-list');
-        if (wordsList.style.right === '0px') {
-          wordsList.style.right = '-300px';
-        } else {
-          wordsList.style.right = '0px';
-        }
-        renderMethodsList();
-      }
-
-      function renderMethodsList() {
-        const wordsList = document.getElementById('words-list');
-        const searchContainer = document.getElementById('search-container');
-        wordsList.innerHTML = '';
-        wordsList.appendChild(searchContainer);
-
-        methods.sort((a, b) => a.id.localeCompare(b.id)).forEach(method => {
-          const word = document.createElement('div');
-          word.className = 'word-item';
-          word.textContent = method.id;
-          word.style.color = getRandomColor();
-          wordsList.appendChild(word);
-        });
-      }
-
-      document.getElementById("create-method").addEventListener("click", () => {
-        const methodNameInput = document.getElementById("method-name");
-        const methodName = methodNameInput.value.trim();
-
-        addMethod(methodName);
-        methodNameInput.value = "";
-      });
-
-  document.getElementById("create-custom-method").addEventListener("click", () => { // Change here
-  console.log("Create button clicked!"); 
-
-  const methodNameInput = document.getElementById("custom-method-name"); // Change here
-  const methodName = methodNameInput.value.trim();
-  console.log("Method name:", methodName); 
-
-  addMethod(methodName);
-  methodNameInput.value = "";
-});
-
-    document.getElementById('methods-bar').addEventListener('click', toggleMethodsList);
-    
-    updateMethodList();
-    updateGraph();
-  });
-  </script>
 </body>
 </html>
