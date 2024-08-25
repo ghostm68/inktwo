@@ -408,350 +408,139 @@
 .glowy-button:hover::before {
   opacity: 1; /* Outer glow intensifies on hover */
 }
+
  </style>
 </head>
 <body>
-  <body>
-<body>
-  <!-- Overlay and mixing circle -->
+  <div id="graph-container"></div>
   <div id="mixing-overlay">
     <div id="mixing-circle">
       <div id="mixing-text">MIXING...</div>
     </div>
   </div>
-
-  <!-- Elements Bar -->
-  <div id="elements-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
-    <span id="elements-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">4</span><br>
+  <div id="elements-bar">
+    <span id="elements-count">4</span><br>
     Discovered Elements
   </div>
-
-  <!-- Elements List -->
-  <div id="elements-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
-    <div id="search-container">
-      <div id="search-box">
-        <input type="text" id="search-input" placeholder="Search elements">
-        <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: #555;">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-        </svg>
-      </div>
-    </div>
-    <!-- Add more elements here as needed -->
+  <div id="elements-list">
+    <!-- Your existing list items -->
   </div>
-
-  <!-- Buttons -->
-  <div id="buttons-container" style="text-align: center; margin-top: 20px;">
-    <button id="plus-button" class="glow-button">+</button>
-    <button id="discover-button" class="glow-button">Discover</button>
-    <button id="clear-button" class="glow-button">
-      <svg id="broom-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: #555;">
-        <path d="M12 2v2h-1v2h2V4h-1zm0 4h-2v2h2V6zm-4 0H6v2h2V6zm0 4h2v2H8v-2zm-2 2H4v2h2v-2zm0 4v2h2v-2H6zm4-4v2h-2v-2h2zm-2 6h2v2h-2v-2zm-4 0h2v2H4v-2zm6-10h2V6h-2v2zm6 6h-2v2h2v-2zm0-4v2h-2v-2h2zm-2-2v2h-2v-2h2zM2 6h2V4H2v2zM4 2h2V0H4v2zm6-2v2H8V0h2zm4 6h-2v2h2V6zm-6 4h2v-2H8v2z"></path>
-      </svg>
-    </button>
+  <div id="custom-element-creator">
+    <!-- Your existing custom element creator -->
   </div>
-</body>
-
-</body>
-
+  <button id="toggle-creator">➕</button>
+  <button id="clear-button">🧹</button>
+  <div id="discovery-animation">
+    <p id="discovery-text">YOU HAVE DISCOVERED</p>
+    <span id="discovered-element"></span>
+  </div>
+<div class="button-container">
+  <button class="glowy-button" id="discover-button">Discover</button>
+  <button class="glowy-button" id="plus-button">+</button>
+</div>
 
  <script>
-   document.addEventListener('DOMContentLoaded', function() {
-  // Discover button functionality
-  document.getElementById('discover-button').addEventListener('click', function() {
-    console.log('Discover button clicked');
-    // Handle "Discover" action
-    alert('Discover button clicked!');
-  });
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-  // Plus button functionality
-  document.getElementById('plus-button').addEventListener('click', function() {
-    console.log('Plus button clicked');
-    // Handle "+" action
-    let countElement = document.getElementById('elements-count');
-    let currentCount = parseInt(countElement.innerText, 10);
-    countElement.innerText = currentCount + 1;
-  });
+    const svg = d3.select("#graph-container")
+      .append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-  // Clear button functionality
-  document.getElementById('clear-button').addEventListener('click', function() {
-    console.log('Clear button clicked');
-    nodes = [];
-    links = [];
-    updateGraph();
-  });
+    // Define literary terms and their outputs
+    const literaryTerms = {
+      "Sonnet": ["Love", "Poetry", "Elegy"],
+      "Lake": ["Water", "River", "Pond"],
+      "Epic": ["Hero", "Saga", "Myth"],
+      "Haiku": ["Nature", "Zen", "Verse"]
+    };
 
-  // Setup D3 visualization
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+    // Define colors for literary terms
+    const colors = {
+      "Sonnet": "#FFD700",
+      "Lake": "#00BFFF",
+      "Epic": "#FF6347",
+      "Haiku": "#32CD32"
+    };
 
-  const svg = d3.select("#graph-container")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    // Initialize nodes and links
+    let nodes = Object.keys(literaryTerms).map(term => ({
+      id: term,
+      color: colors[term]
+    }));
 
-  // Add particles
-  const particleCount = 50;
-  const particles = [];
-  for (let i = 0; i < particleCount; i++) {
-    particles.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      radius: Math.random() * 2 + 1,
-      speedX: Math.random() * 0.5 - 0.25,
-      speedY: Math.random() * 0.5 - 0.25
-    });
-  }
+    let links = [];  // You can define specific links if needed
+    let selectedElements = [];
 
-  svg.selectAll(".particle")
-    .data(particles)
-    .enter()
-    .append("circle")
-    .attr("class", "particle")
-    .attr("cx", d => d.x)
-    .attr("cy", d => d.y)
-    .attr("r", d => d.radius);
+    // Create graph elements
+    const g = svg.append("g");
 
-  function moveParticles() {
-    svg.selectAll(".particle")
-      .each(function(d) {
-        d.x += d.speedX;
-        d.y += d.speedY;
+    function updateGraph() {
+      const link = g.selectAll(".link")
+        .data(links)
+        .join("line")
+          .attr("class", "link");
 
-        if (d.x < 0 || d.x > width) d.speedX *= -1;
-        if (d.y < 0 || d.y > height) d.speedY *= -1;
+      const node = g.selectAll(".node")
+        .data(nodes)
+        .join("g")
+          .attr("class", "node")
+          .on("click", handleNodeClick);
 
-        d3.select(this)
-          .attr("cx", d.x)
-          .attr("cy", d.y);
+      node.append("circle")
+        .attr("r", 20)
+        .attr("fill", d => d.color)
+        .attr("stroke-width", 3);
+
+      node.append("text")
+        .text(d => d.id)
+        .attr("font-size", "12px")
+        .attr("fill", "#fff");
+
+      simulation.nodes(nodes).on("tick", () => {
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
       });
-
-    requestAnimationFrame(moveParticles);
-  }
-
-  moveParticles();
-
-  const g = svg.append("g");
-
-  let zoomLevel = 1;
-  const zoom = d3.zoom()
-    .scaleExtent([0.1, 4])
-    .on("zoom", (event) => {
-      const newZoomLevel = event.transform.k;
-      const zoomFactor = newZoomLevel / zoomLevel;
-      zoomLevel = newZoomLevel;
-
-      g.transition()
-        .duration(50)
-        .ease(d3.easeQuadOut)
-        .attr("transform", event.transform);
-    });
-
-  svg.call(zoom);
-
-  const simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(d => d.id).distance(100))
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collision", d3.forceCollide().radius(50));
-
-  let nodes = [
-    {id: "Earth", color: "#8B4513"},
-    {id: "Wind", color: "#87CEEB"},
-    {id: "Fire", color: "#FF4500"},
-    {id: "Water", color: "#1E90FF"}
-  ];
-
-  let links = [];
-  let selectedElements = [];
-
-  function updateGraph() {
-    const link = g.selectAll(".link")
-      .data(links)
-      .join("line")
-      .attr("class", "link");
-
-    const node = g.selectAll(".node")
-      .data(nodes)
-      .join("g")
-      .attr("class", "node")
-      .call(d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
-
-    node.selectAll("circle")
-      .data(d => [d])
-      .join("circle")
-      .attr("r", 40)
-      .attr("stroke", d => d.color)
-      .attr("fill", "transparent")
-      .on("click", handleNodeClick)
-      .on("dblclick", handleNodeDoubleClick);
-
-    node.selectAll("text")
-      .data(d => [d])
-      .join("text")
-      .text(d => d.id.toUpperCase())
-      .attr("fill", d => d.color);
-
-    simulation.nodes(nodes);
-    simulation.force("link").links(links);
-    simulation.alpha(1).restart();
-
-    updateElementsCount();
-    renderElementsList();
-  }
-
-  function dragstarted(event) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    event.subject.fx = event.subject.x;
-    event.subject.fy = event.subject.y;
-  }
-
-  function dragged(event) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-  }
-
-  function dragended(event) {
-    if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
-  }
-
-  function handleNodeClick(event, d) {
-    const index = selectedElements.findIndex(el => el.id === d.id);
-    if (index > -1) {
-      // Deselect
-      selectedElements.splice(index, 1);
-      d3.select(this)
-        .classed("element-glow", false)
-        .classed("dissipate-glow", true)
-        .style("color", d.color)
-        .on("animationend", function() {
-          d3.select(this).classed("dissipate-glow", false).style("color", null);
-        });
-    } else {
-      // Select
-      if (selectedElements.length < 2) {
-        selectedElements.push(d);
-        d3.select(this)
-          .classed("dissipate-glow", false)
-          .classed("element-glow", true)
-          .style("color", d.color);
-        playSelectionSFX();
-      }
     }
 
-    if (selectedElements.length === 2) {
-      craftElements();
-    }
-  }
+    function handleNodeClick(event, d) {
+      // Display discovered elements
+      const discovered = literaryTerms[d.id];
+      document.getElementById("discovered-element").textContent = discovered.join(', ');
 
-  function handleNodeDoubleClick(event, d) {
-    event.preventDefault();
-    event.stopPropagation();
-    craftElements([d, d]);
-  }
+      // Show discovery animation
+      const discoveryAnimation = document.getElementById("discovery-animation");
+      discoveryAnimation.classList.add("show");
 
-  function showMixingAnimation() {
-    const overlay = document.getElementById('mixing-overlay');
-    const circle = document.getElementById('mixing-circle');
-    overlay.style.opacity = '1';
-    circle.style.transform = 'scale(1)';
-  }
-
-  function hideMixingAnimation() {
-    const overlay = document.getElementById('mixing-overlay');
-    const circle = document.getElementById('mixing-circle');
-    overlay.style.opacity = '0';
-    circle.style.transform = 'scale(0)';
-  }
-
-  async function craftElements(elements = selectedElements) {
-    const [elem1, elem2] = elements;
-
-    showMixingAnimation();
-
-    try {
-      const result = await createNewElement(elem1.id, elem2.id);
-      if (!nodes.some(n => n.id === result)) {
-        nodes.push({id: result, color: getRandomColor()});
-        links.push({source: elem1.id, target: result});
-        if (elem1 !== elem2) {
-          links.push({source: elem2.id, target: result});
-        }
-        updateGraph();
-        showDiscoveryAnimation(result);
-      }
-    } catch (error) {
-      console.error('Error crafting element:', error);
-    } finally {
-      hideMixingAnimation();
+      // Hide animation after 2 seconds
+      setTimeout(() => {
+        discoveryAnimation.classList.remove("show");
+      }, 2000);
     }
 
-    // Reset selection and stop glow animation
-    g.selectAll("circle")
-      .classed("element-glow", false)
-      .classed("dissipate-glow", false)
-      .style("color", null);
+    const simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(50));
 
-    selectedElements = [];
-  }
-
-  async function createNewElement(elem1, elem2) {
-    const response = await fetch('/api/craft', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ element1: elem1, element2: elem2, temperature: 0.4 }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.result;
-  }
-
-  function getRandomColor() {
-    const hue = Math.floor(Math.random() * 360);
-    const saturation = 70 + Math.random() * 30; // 70-100%
-    const lightness = 40 + Math.random() * 20;  // 40-60%
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  }
-
-  simulation.on("tick", () => {
-    g.selectAll(".link")
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
-
-    g.selectAll(".node")
-      .attr("transform", d => `translate(${d.x},${d.y})`);
-  });
-
-  function updateElementsCount() {
-    document.getElementById('elements-count').innerText = nodes.length;
-  }
-
-  function renderElementsList() {
-    const listContainer = document.getElementById('elements-list');
-    listContainer.innerHTML = '';
-    nodes.forEach(node => {
-      const listItem = document.createElement('li');
-      listItem.textContent = node.id;
-      listContainer.appendChild(listItem);
-    });
-  }
-
-  // Initialize graph
-  updateGraph();
+   document.getElementById('discover-button').addEventListener('click', function() {
+  // Handle click event for Discover button
+  console.log('Discover button clicked');
 });
 
+document.getElementById('plus-button').addEventListener('click', function() {
+  // Handle click event for + button
+  console.log('Plus button clicked');
+});
+
+
+    updateGraph();
   </script>
 </body>
 </html>
