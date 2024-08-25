@@ -7,183 +7,407 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
   <style>
-   /* General Styles */
-body {
+    body {
+  font-family: Arial, sans-serif;
+  background-color: #1a1a1a;
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
   overflow: hidden;
+  user-select: none;
 }
 
 #graph-container {
-  position: relative;
   width: 100vw;
   height: 100vh;
-}
-
-/* Buttons Styles */
-.button-container {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  gap: 10px;
-  z-index: 10;
-}
-
-.button-container button {
-  padding: 10px 15px;
-  font-size: 14px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s, color 0.3s;
-}
-
-#discover-button {
-  background-color: #4CAF50;
-  color: white;
-}
-
-#discover-button:hover {
-  background-color: #45a049;
-}
-
-#plus-button {
-  background-color: #2196F3;
-  color: white;
-}
-
-#plus-button:hover {
-  background-color: #0b7dda;
-}
-
-#clear-button {
-  background-color: #f44336;
-  color: white;
-}
-
-#clear-button:hover {
-  background-color: #da190b;
-}
-
-/* Particle System Styles */
-.particle {
-  fill: #FFFFFF;
-  opacity: 0.7;
-}
-
-/* Graph and Node Styles */
-.link {
-  stroke: #999;
-  stroke-opacity: 0.6;
-  stroke-width: 2px;
-}
-
-.node {
-  cursor: pointer;
+  background-color: #1a1a1a;
 }
 
 .node circle {
-  stroke-width: 2px;
-  stroke: #000;
+  fill: transparent;
+  stroke-width: 3px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.node:hover circle {
+  transform: scale(1.2);
 }
 
 .node text {
   font-size: 12px;
   text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  text-transform: uppercase;
+  fill: white; /* Added fill color for visibility */
 }
 
-/* Element Selection Styles */
-.element-glow {
-  stroke-width: 4px;
-  stroke: gold;
-  animation: glow-animation 1s infinite;
+.link {
+  stroke: #999;
+  stroke-opacity: 0.6;
+  stroke-dasharray: 5, 5;
 }
 
-@keyframes glow-animation {
+.particle {
+  fill: #2a2a2a;
+  opacity: 0.7;
+}
+
+@keyframes glow {
   0% {
-    stroke-width: 4px;
-    stroke: gold;
-    filter: drop-shadow(0 0 5px gold);
+    filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
   }
   50% {
-    stroke-width: 6px;
-    stroke: orange;
-    filter: drop-shadow(0 0 10px orange);
+    filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
   }
   100% {
-    stroke-width: 4px;
-    stroke: gold;
-    filter: drop-shadow(0 0 5px gold);
+    filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
   }
 }
 
-.dissipate-glow {
-  animation: dissipate-animation 1s forwards;
+.element-glow {
+  animation: glow 2s ease-in-out infinite;
 }
 
-@keyframes dissipate-animation {
+@keyframes dissipate {
   0% {
-    stroke-width: 4px;
-    stroke: gold;
-    filter: drop-shadow(0 0 5px gold);
+    filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 9px currentColor);
   }
   100% {
-    stroke-width: 2px;
-    stroke: #000;
     filter: none;
   }
 }
 
-/* Mixing Animation Styles */
+.dissipate-glow {
+  animation: dissipate 0.5s ease-out forwards;
+}
+
 #mixing-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
   opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 20;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 #mixing-circle {
+  width: 200px;
+  height: 200px;
+  background-color: #1a1a1a;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  transform: scale(0);
+  transition: transform 0.3s ease;
+}
+
+#mixing-text {
+  color: white;
+  font-size: 18px;
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 100px;
-  height: 100px;
-  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
-  border-radius: 50%;
-  transform: scale(0);
-  transition: transform 0.3s;
-  z-index: 30;
+  transform: translate(-50%, -50%);
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#elements-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  padding: 10px 20px;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  letter-spacing: 1px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+#elements-bar:hover {
+  background-color: rgba(40, 40, 40, 0.8);
 }
 
 #elements-list {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  position: fixed;
+  top: 0;
+  right: -300px;
+  width: 300px;
+  height: 100%;
+  background-color: rgba(26, 26, 26, 0.9);
+  backdrop-filter: blur(10px);
+  color: white;
+  overflow-y: auto;
+  transition: right 0.3s ease;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.element-item {
+  padding: 15px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  transition: background-color 0.2s ease;
+  font-weight: bold;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); /* Added border for better separation */
+}
+
+.element-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#search-container {
+  padding: 15px;
+  position: sticky;
+  top: 0;
+  background-color: rgba(26, 26, 26, 0.9);
+  z-index: 1;
+}
+
+#search-box {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 5px 10px;
+}
+
+#search-input {
+  flex-grow: 1;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 5px;
+}
+
+#search-input::placeholder {
+  color: #888;
+}
+
+#search-input:focus {
+  outline: none;
+}
+
+#search-icon {
+  width: 20px;
+  height: 20px;
+  fill: #888;
+}
+
+#custom-element-creator {
+  position: fixed;
+  top: 0;
+  left: -300px;
+  width: 250px;
+  height: 100%;
+  background-color: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  padding: 20px;
+  transition: left 0.3s ease;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+#custom-element-creator h3 {
+  margin: 0 0 20px 0;
+  color: #fff;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+#custom-element-creator input[type="text"] {
+  width: 100%;
   padding: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  z-index: 10;
+  margin-bottom: 15px;
+  border: none;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 400;
+  box-sizing: border-box;
 }
 
-#elements-list ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+#custom-element-creator input[type="color"] {
+  width: 100%;
+  height: 40px;
+  border: none;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin-bottom: 15px;
+  cursor: pointer;
 }
 
-#elements-list li {
-  padding: 5px 0;
+#custom-element-creator button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  color: #fff;
+  font-family: 'Work Sans', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
+#toggle-creator {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(26, 26, 26, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1001;
+  transition: transform 0.3s ease;
+}
+
+#toggle-creator:hover {
+  transform: scale(1.1);
+}
+
+#clear-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  font-size: 36px;
+  background: rgba(26, 26, 26, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+#clear-button:hover {
+  background: rgba(40, 40, 40, 0.8);
+}
+
+#discovery-animation {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 1000;
+}
+
+#discovery-animation.active {
+  opacity: 1;
+  animation: expand 1s forwards;
+}
+
+@keyframes expand {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Container for buttons */
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Glowing and breathing button styles */
+.glowy-button {
+  background-color: #333;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  padding: 20px;
+  font-size: 24px;
+  cursor: pointer;
+  position: relative;
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.8); /* Initial glowing effect */
+  transition: box-shadow 0.3s; /* Smooth transition for glow */
+  animation: breathe 2s infinite; /* Breathing animation */
+}
+
+/* Breathe animation keyframes */
+@keyframes breathe {
+  0% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* Hover effect for extra glow */
+.glowy-button:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 0, 1); /* Enhanced glowing on hover */
+}
+
+.glowy-button:active {
+  transform: scale(0.9); /* Button press effect */
+}
+
+/* Optional: Add outer glow effect */
+.glowy-button::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 0, 0.8); /* Outer glow */
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+
+.glowy-button:hover::before {
+  opacity: 1; /* Outer glow intensifies on hover */
+}
  </style>
 </head>
 <body>
