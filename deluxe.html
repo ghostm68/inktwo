@@ -449,219 +449,150 @@
 </div>
 
  <script>
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+const width = window.innerWidth;
+const height = window.innerHeight;
 
-  const svg = d3.select("#graph-container")
-    .append("svg")
-      .attr("width", width)
-      .attr("height", height);
+const svg = d3.select("#graph-container")
+  .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-  // Define colors for literary terms (you can remove this if you only want the dictionary words)
-  const colors = {
-    "Sonnet": "#FFD700",
-    "Lake": "#00BFFF",
-    "Epic": "#FF6347",
-    "Haiku": "#32CD32"
+// Define colors for literary terms 
+const colors = {
+  "Sonnet": "#FFD700",
+  "Lake": "#00BFFF",
+  "Epic": "#FF6347",
+  "Haiku": "#32CD32"
+};
+
+// Function to create a new node based on a word
+function createNode(word) {
+  return {
+    id: word,
+    color: colors[word] || getRandomColor() 
   };
+}
 
-  // Function to create a new node based on a word
-  function createNode(word) {
-    return {
-      id: word,
-      color: colors[word] || getRandomColor() // Use a random color if not defined
-    };
+// Function to generate random color
+function getRandomColor() {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
   }
+  return color;
+}
 
-  // Function to generate random color
-  function getRandomColor() {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  }
+// Initialize nodes and links
+let nodes = []; 
+let links = [];
 
-  // Initialize nodes and links
-  let nodes = []; 
-  let links = [];
+// Create graph elements
+const g = svg.append("g");
 
-  // Create graph elements
-  const g = svg.append("g");
+function updateGraph() {
+  // ... your existing code (updateGraph) ... 
+}
 
-  function updateGraph() {
-    const link = g.selectAll(".link")
-      .data(links)
-      .join("line")
-        .attr("class", "link");
+function handleNodeClick(event, d) {
+  // ... your existing code (handleNodeClick) ...
+}
 
-    const node = g.selectAll(".node")
-      .data(nodes)
-      .join("g")
-        .attr("class", "node")
-        .on("click", handleNodeClick);
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(100))
+  .force("charge", d3.forceManyBody().strength(-300))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(50));
 
-    node.append("circle")
-      .attr("r", 20)
-      .attr("fill", d => d.color)
-      .attr("stroke-width", 3);
+// Fetch the dictionary file and create nodes
+async function fetchDictionary() {
+  try {
+    const response = await fetch('wooorm%20dictionaries%20main%20dictionaries-en/index.dic');
+    const data = await response.text();
+    const dictionary = data.split('\n').filter(line => line !== '');
 
-    node.append("text")
-      .text(d => d.id)
-      .attr("font-size", "12px")
-      .attr("fill", "#fff");
-
-    // Add links to nodes
-    if (nodes.length > 1) {
-      links = [];
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const source = nodes[i];
-          const target = nodes[j];
-          if (Math.random() < 0.2) { // Adjust the probability of connection
-            links.push({ source, target });
-          }
-        }
-      }
-      simulation.force("link").links(links);
-    }
-
-    simulation.nodes(nodes).on("tick", () => {
-      node.attr("transform", d => `translate(${d.x},${d.y})`);
-      link
-        .attr("x1", d => d.source.x)
-        .attr("y1", d => d.source.y)
-        .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
-    });
-  }
-
-  function handleNodeClick(event, d) {
-    // Display discovered elements
-    const discovered = literaryTerms[d.id] || []; // Check if the term exists in literaryTerms
-    document.getElementById("discovered-element").textContent = discovered.join(', ');
-
-    // Show discovery animation
-    const discoveryAnimation = document.getElementById("discovery-animation");
-    discoveryAnimation.classList.add("show");
-
-    // Hide animation after 2 seconds
-    setTimeout(() => {
-      discoveryAnimation.classList.remove("show");
-    }, 2000);
-  }
-
-  const simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(d => d.id).distance(100))
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collision", d3.forceCollide().radius(50));
-
-  // Fetch the dictionary file
-  fetch('wooorm%20dictionaries%20main%20dictionaries-en/index.dic') 
-    .then(response => response.text())
-    .then(data => {
-      const dictionary = data.split('\n').filter(line => line !== ''); 
-
-      // Add dictionary words to the nodes array
-      dictionary.forEach(word => {
-        nodes.push(createNode(word));
-      });
-
-      // Update the graph
-      updateGraph();
-
-      // Update the elements list
-      const discoveredElementsList = document.getElementById('discovered-elements-list');
-      discoveredElementsList.innerHTML = ''; 
-
-      nodes.forEach(node => {
-        const listItem = document.createElement('li');
-        listItem.textContent = node.id;
-        discoveredElementsList.appendChild(listItem);
-      });
-    })
-    .catch(error => {
-      console.error("Error fetching dictionary:", error);
-      // Additional error handling, e.g., display an error message, load a default graph
+    // Create nodes and update the graph
+    dictionary.forEach(word => {
+      nodes.push(createNode(word));
     });
 
-  // Event listeners for buttons
-  document.getElementById('discover-button').addEventListener('click', function() {
-    // Handle click event for Discover button
-    // 1. Select a random word from the dictionary
-    const randomIndex = Math.floor(Math.random() * dictionary.length);
-    const randomWord = dictionary[randomIndex];
-    // 2. Add the new node to the nodes array
-    nodes.push(createNode(randomWord));
-    // 3. Update the graph
+    // Update the graph
     updateGraph();
-    // 4. Increment the element count in the elements-bar
-    const elementCount = document.getElementById('elements-count');
-    elementCount.textContent = parseInt(elementCount.textContent) + 1;
 
     // Update the elements list
     const discoveredElementsList = document.getElementById('discovered-elements-list');
-    const listItem = document.createElement('li');
-    listItem.textContent = randomWord;
-    discoveredElementsList.appendChild(listItem);
-  });
+    discoveredElementsList.innerHTML = ''; 
 
-  document.getElementById('plus-button').addEventListener('click', function() {
-    // Handle click event for + button
-    // Toggle the custom element creator visibility
-    const customElementCreator = document.getElementById('custom-element-creator');
-    customElementCreator.classList.toggle('show');
-    customElementCreator.classList.toggle('hidden');
-  });
+    nodes.forEach(node => {
+      const listItem = document.createElement('li');
+      listItem.textContent = node.id;
+      discoveredElementsList.appendChild(listItem);
+    });
+  } catch (error) {
+    console.error("Error fetching dictionary:", error);
+    // Additional error handling, e.g., display an error message, load a default graph
+  }
+}
 
-  document.getElementById('toggle-creator').addEventListener('click', function() {
-    // Handle click event for + button
-    // Toggle the custom element creator visibility
-    const customElementCreator = document.getElementById('custom-element-creator');
-    customElementCreator.classList.toggle('show');
-    customElementCreator.classList.toggle('hidden');
-  });
+// Call the fetchDictionary function to start the process
+fetchDictionary();
 
-  document.getElementById('create-element-button').addEventListener('click', function() {
-    const elementName = document.getElementById('custom-element-name').value;
-    const elementColor = document.getElementById('custom-element-color').value;
+// Event listeners for buttons
+document.getElementById('discover-button').addEventListener('click', function() {
+  // Handle click event for Discover button
+  // 1. Select a random word from the dictionary
+  const randomIndex = Math.floor(Math.random() * dictionary.length);
+  const randomWord = dictionary[randomIndex];
 
-    if (elementName && elementColor) {
-      // Create a new node
-      const newNode = createNode(elementName);
-      newNode.color = elementColor;
-      nodes.push(newNode);
-      updateGraph();
-
-      // Clear the input fields
-      document.getElementById('custom-element-name').value = '';
-      document.getElementById('custom-element-color').value = '#FF0000';
-
-      // Hide the creator
-      document.getElementById('custom-element-creator').classList.remove('show');
-      document.getElementById('custom-element-creator').classList.add('hidden');
-    } else {
-      // Handle invalid input, e.g., display an error message
-      alert("Please enter both a name and color for the new element.");
-    }
-  });
-
-  document.getElementById('clear-button').addEventListener('click', function() {
-    nodes = [];
-    links = [];
-    updateGraph();
-    const elementCount = document.getElementById('elements-count');
-    elementCount.textContent = 0;
-
-    // Clear the elements list
-    const discoveredElementsList = document.getElementById('discovered-elements-list');
-    discoveredElementsList.innerHTML = '';
-  });
-
-  // Existing code for updateGraph
+  // 2. Add the new node to the nodes array
+  nodes.push(createNode(randomWord));
+  // 3. Update the graph
   updateGraph();
+  // 4. Increment the element count in the elements-bar
+  const elementCount = document.getElementById('elements-count');
+  elementCount.textContent = parseInt(elementCount.textContent) + 1;
+
+  // Update the elements list
+  const discoveredElementsList = document.getElementById('discovered-elements-list');
+  const listItem = document.createElement('li');
+  listItem.textContent = randomWord;
+  discoveredElementsList.appendChild(listItem);
+});
+
+document.getElementById('plus-button').addEventListener('click', function() {
+  // Handle click event for + button
+  // Toggle the custom element creator visibility
+  const customElementCreator = document.getElementById('custom-element-creator');
+  customElementCreator.classList.toggle('show');
+  customElementCreator.classList.toggle('hidden');
+});
+
+document.getElementById('toggle-creator').addEventListener('click', function() {
+  // Handle click event for + button
+  // Toggle the custom element creator visibility
+  const customElementCreator = document.getElementById('custom-element-creator');
+  customElementCreator.classList.toggle('show');
+  customElementCreator.classList.toggle('hidden');
+});
+
+document.getElementById('create-element-button').addEventListener('click', function() {
+  // ... your existing code (create-element-button event listener) ... 
+});
+
+document.getElementById('clear-button').addEventListener('click', function() {
+  nodes = [];
+  links = [];
+  updateGraph();
+  const elementCount = document.getElementById('elements-count');
+  elementCount.textContent = 0;
+
+  // Clear the elements list
+  const discoveredElementsList = document.getElementById('discovered-elements-list');
+  discoveredElementsList.innerHTML = '';
+});
+
+// Existing code for updateGraph
+updateGraph();
  </script>
 </body>
 </html>
