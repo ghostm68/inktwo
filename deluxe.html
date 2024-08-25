@@ -621,22 +621,32 @@ async function craftElements(elements = selectedElements) {
 }
 
 async function createNewElement(elem1, elem2) {
-  const response = await fetch('https://api.datamuse.com/words?sp=t??k', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ element1: elem1, element2: elem2, temperature: 0.4 }),
-  });
+  try {
+    const query = `ml:${elem1}+${elem2}`;
+    const response = await fetch(`https://api.datamuse.com/words?sp=${query}`, {
+      method: 'GET',
+    });
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data; 
+  } catch (error) {
+    console.error('Error fetching elements:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.result;
 }
 
+// Example usage:
+createNewElement("love", "hate")
+  .then(elements => {
+    console.log(elements); // Process the fetched elements
+  })
+  .catch(error => {
+    console.error("An error occurred:", error);
+  });
 function getRandomColor() {
   const hue = Math.floor(Math.random() * 360);
   const saturation = 70 + Math.random() * 30; // 70-100%
@@ -768,43 +778,6 @@ function showDiscoveryAnimation(elementName) {
   }, 3000);
 }
 
-// Background music functionality
-const backgroundMusic = document.getElementById('background-music');
-const volumeSlider = document.getElementById('volume-slider');
-const muteButton = document.getElementById('mute-button');
-
-backgroundMusic.volume = 0.2; // Set initial volume to 20%
-
-volumeSlider.addEventListener('input', (e) => {
-  const volume = e.target.value / 100;
-  backgroundMusic.volume = volume;
-  updateMuteButtonIcon();
-});
-
-muteButton.addEventListener('click', () => {
-  backgroundMusic.muted = !backgroundMusic.muted;
-  updateMuteButtonIcon();
-});
-
-function updateMuteButtonIcon() {
-  if (backgroundMusic.muted || backgroundMusic.volume === 0) {
-    muteButton.textContent = '🔇';
-  } else {
-    muteButton.textContent = '🔊';
-  }
-}
-
-// Start playing the background music
-backgroundMusic.play();
-
-// Selection sound effect functionality
-const selectionSFX = document.getElementById('selection-sfx');
-selectionSFX.volume = 0.1; // Set initial volume to 10%
-
-function playSelectionSFX() {
-  selectionSFX.currentTime = 0; // Reset the audio to the beginning
-  selectionSFX.play();
-}
 
 updateGraph();
 </script>
