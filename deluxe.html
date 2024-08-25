@@ -1,15 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Game</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Arial+Black&display=swap" rel="stylesheet">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-</head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Literary Elements Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
   <style>
     body {
   font-family: Arial, sans-serif;
@@ -350,100 +346,124 @@
 }
 
 
-  </style>
+ </style>
+</head>
 <body>
-    <div id="graph-container"></div>
-    <div id="mixing-overlay">
-        <div id="mixing-circle">
-            <div id="mixing-text">MIXING...</div>
-        </div>
+  <div id="graph-container"></div>
+  <div id="mixing-overlay">
+    <div id="mixing-circle">
+      <div id="mixing-text">MIXING...</div>
     </div>
-    <div id="elements-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
-        <span id="elements-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">4</span><br>
-        Discovered Words
-    </div>
-    <div id="elements-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
-        <div id="search-container">
-            <div id="search-box">
-                <input type="text" id="search-input" placeholder="Search words">
-                <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-                </svg>
-            </div>
-        </div>
-    </div>
-    <div id="custom-element-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
-        <h3>Create Custom Word</h3>
-        <input type="text" id="custom-element-name" placeholder="Word Name">
-        <button id="create-custom-element">Create</button>
-    </div>
-    <button id="toggle-creator" style="width: 30px; height: 30px; font-size: 16px; opacity: 0.7; background-color: rgba(26, 26, 26, 0.5);">➕</button>
-    <button id="clear-button">🧹</button>
+  </div>
+  <div id="elements-bar">
+    <span id="elements-count">4</span><br>
+    Discovered Elements
+  </div>
+  <div id="elements-list">
+    <!-- Your existing list items -->
+  </div>
+  <div id="custom-element-creator">
+    <!-- Your existing custom element creator -->
+  </div>
+  <button id="toggle-creator">➕</button>
+  <button id="clear-button">🧹</button>
+  <div id="discovery-animation">
+    <p id="discovery-text">YOU HAVE DISCOVERED</p>
+    <span id="discovered-element"></span>
+  </div>
 
-    <!-- New discovery animation element -->
-    <div id="discovery-animation">
-        <p id="discovery-text">YOU HAVE DISCOVERED</p>
-        <span id="discovered-word"></span>
-    </div>
+ <script>
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
+    const svg = d3.select("#graph-container")
+      .append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const elementsCount = document.getElementById('elements-count');
-    const elementsList = document.getElementById('elements-list');
-    const searchInput = document.getElementById('search-input');
-    const createCustomElementButton = document.getElementById('create-custom-element');
-    const customElementName = document.getElementById('custom-element-name');
-    const discoveryAnimation = document.getElementById('discovery-animation');
-    const discoveredWord = document.getElementById('discovered-word');
-    
-    let words = ['apple', 'banana', 'cherry']; // Initial words
-    
-    function updateElementsList() {
-        elementsList.innerHTML = '';
-        words.forEach(word => {
-            const div = document.createElement('div');
-            div.textContent = word;
-            elementsList.appendChild(div);
-        });
+    // Define literary terms and their outputs
+    const literaryTerms = {
+      "Sonnet": ["Love", "Poetry", "Elegy"],
+      "Lake": ["Water", "River", "Pond"],
+      "Epic": ["Hero", "Saga", "Myth"],
+      "Haiku": ["Nature", "Zen", "Verse"]
+    };
+
+    // Define colors for literary terms
+    const colors = {
+      "Sonnet": "#FFD700",
+      "Lake": "#00BFFF",
+      "Epic": "#FF6347",
+      "Haiku": "#32CD32"
+    };
+
+    // Initialize nodes and links
+    let nodes = Object.keys(literaryTerms).map(term => ({
+      id: term,
+      color: colors[term]
+    }));
+
+    let links = [];  // You can define specific links if needed
+    let selectedElements = [];
+
+    // Create graph elements
+    const g = svg.append("g");
+
+    function updateGraph() {
+      const link = g.selectAll(".link")
+        .data(links)
+        .join("line")
+          .attr("class", "link");
+
+      const node = g.selectAll(".node")
+        .data(nodes)
+        .join("g")
+          .attr("class", "node")
+          .on("click", handleNodeClick);
+
+      node.append("circle")
+        .attr("r", 20)
+        .attr("fill", d => d.color)
+        .attr("stroke-width", 3);
+
+      node.append("text")
+        .text(d => d.id)
+        .attr("font-size", "12px")
+        .attr("fill", "#fff");
+
+      simulation.nodes(nodes).on("tick", () => {
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+      });
     }
-    
-    updateElementsList();
-    
-    searchInput.addEventListener('input', () => {
-        const searchTerm = searchInput.value.toLowerCase();
-        Array.from(elementsList.children).forEach(div => {
-            const text = div.textContent.toLowerCase();
-            div.style.display = text.includes(searchTerm) ? '' : 'none';
-        });
-    });
-    
-    createCustomElementButton.addEventListener('click', () => {
-        const newWord = customElementName.value.trim();
-        if (newWord && !words.includes(newWord)) {
-            words.push(newWord);
-            updateElementsList();
-            customElementName.value = '';
-            discoveryAnimation.style.display = 'block';
-            discoveredWord.textContent = newWord;
-            setTimeout(() => {
-                discoveryAnimation.style.display = 'none';
-            }, 3000);
-            elementsCount.textContent = words.length;
-        }
-    });
 
-    document.getElementById('clear-button').addEventListener('click', () => {
-        words = [];
-        updateElementsList();
-        elementsCount.textContent = words.length;
-    });
+    function handleNodeClick(event, d) {
+      // Display discovered elements
+      const discovered = literaryTerms[d.id];
+      document.getElementById("discovered-element").textContent = discovered.join(', ');
 
-    document.getElementById('toggle-creator').addEventListener('click', () => {
-        const creator = document.getElementById('custom-element-creator');
-        creator.style.display = creator.style.display === 'none' ? 'block' : 'none';
-    });
-});
+      // Show discovery animation
+      const discoveryAnimation = document.getElementById("discovery-animation");
+      discoveryAnimation.classList.add("show");
 
-</script>
-</body></html>
+      // Hide animation after 2 seconds
+      setTimeout(() => {
+        discoveryAnimation.classList.remove("show");
+      }, 2000);
+    }
+
+    const simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(50));
+
+    updateGraph();
+  </script>
+</body>
+</html>
+
