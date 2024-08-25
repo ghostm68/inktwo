@@ -1,29 +1,28 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Dynamic word creation with animation effect">
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <title>Method Coiner</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script> 
   <style>
-  font-family: Arial, sans-serif;
-    background-color: #1a1a1a;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-    user-select: none;
-  }
- #graph-container {
-  width: 100vw;
-  height: 100vh;
-  background-color: white; // Or a lighter color 
-}
-  .node circle {
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+      color: white; /* Default text color */
+      overflow: hidden;
+    }
+
+    #graph-container {
+      width: 100vw;
+      height: 100vh;
+      background-color: #1a1a1a;
+    }
+ .node circle {
     fill: transparent;
     stroke-width: 3px;
     cursor: pointer;
@@ -323,19 +322,25 @@
     margin-top: 10px;
     display: block;
   }
-  /* More specific styles for graph nodes */
-  #graph-container .node circle {
-    fill: #4CAF50; 
-    stroke: #fff;
-    stroke-width: 2px;
-  }
+    /* Styles for the D3 graph */
+    .node circle {
+      fill: #4CAF50;
+      stroke: #fff;
+      stroke-width: 2px;
+    }
 
-  #graph-container .node text {
-    font-size: 12px;
-    fill: #fff; /* White text color */
-  }
+    .node text {
+      font-size: 12px;
+      text-anchor: middle;
+      dominant-baseline: central;
+      fill: white; 
+    }
 
-</style>
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
+  </style>
 </head>
 <body>
   <div id="graph-container"></div>
@@ -345,7 +350,7 @@
     </div>
   </div>
   <div id="words-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
-    <span id="words-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">#</span><br>
+    <span id="words-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">2</span><br>
     Coined Methods
   </div>
   <div id="words-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
@@ -374,160 +379,180 @@
   </div>
 
   <script>
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    const svg = d3.select("#graph-container")
-      .append("svg")
-      .attr("width", width)
-      .attr("height", height);
-
-    const g = svg.append("g");
-
-    let methods = [{ id: "Method1" }, { id: "Method2" }];
-    let links = [];
-
-    function updateGraph() {
-      const simulation = d3.forceSimulation(methods)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("center", d3.forceCenter(width / 2, height / 2));
-
-      const link = g.selectAll(".link")
-        .data(links)
-        .join("line")
-        .attr("class", "link");
-
-      const node = g.selectAll(".node")
-        .data(methods)
-        .join("g")
-        .attr("class", "node");
-
-      node.append("circle")
-        .attr("r", 25)
-        .attr("stroke", getRandomColor()) 
-        .attr("fill", "white"); // Or another contrasting color
-
-      node.append("text")
-        .text(d => d.id)
-        .attr("dy", "0.35em")
-        .attr("fill", getRandomColor()); 
-
-      simulation.on("tick", () => {
-        link
-          .attr("x1", d => d.source.x)
-          .attr("y1", d => d.source.y)
-          .attr("x2", d => d.target.x)
-          .attr("y2", d => d.target.y);
-
-        node.attr("transform", d => `translate(${d.x},${d.y})`);
-      });
-    }
-
-    function getRandomColor() {
-      const letters = '0123456789ABCDEF';
-      let color = '#';
-      for (let i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
-      }
-      return color;
-    }
-
-    function generateRandomMethodName() {
-      const url = "https://api.datamuse.com/words?ml=create&max=10"; 
-
-      return fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          if (data.length > 0) {
-            const randomIndex = Math.floor(Math.random() * data.length);
-            return data[randomIndex].word; 
-          } else {
-            return "NewMethod"; 
-          }
-        });
-    }
-
-    function addMethod(name) {
-      const newName = name || generateRandomMethodName();
-
-      Promise.resolve(newName)
-        .then(finalName => {
-          if (methods.some(m => m.id.toLowerCase() === finalName.toLowerCase())) {
-            alert(`A method named "${finalName}" already exists.`);
-            return;
-          }
-
-          methods.push({ id: finalName });
-
-          if (methods.length > 2) {
-            const lastMethod = methods[methods.length - 2]; 
-            links.push({ source: lastMethod.id, target: finalName });
-          }
-
-          updateGraph();
-          updateMethodList();
-        });
-    }
-
-    function updateMethodList() {
-      const methodList = document.getElementById("method-items");
-      methodList.innerHTML = ""; 
-
-      methods.forEach(method => { 
-        const listItem = document.createElement("li");
-        listItem.textContent = method.id;
-        methodList.appendChild(listItem);
-      });
-
-      document.getElementById("words-count").textContent = methods.length; 
-    }
-
-    function toggleMethodsList() {
-      const wordsList = document.getElementById('words-list');
-      if (wordsList.style.right === '0px') {
-        wordsList.style.right = '-300px';
-      } else {
-        wordsList.style.right = '0px';
-      }
-      renderMethodsList(); 
-    }
-
-    function renderMethodsList() {
-      const wordsList = document.getElementById('words-list');
-      const searchContainer = document.getElementById('search-container');
-      wordsList.innerHTML = '';
-      wordsList.appendChild(searchContainer);
-
-      methods.sort((a, b) => a.id.localeCompare(b.id)).forEach(method => { 
-        const word = document.createElement('div');
-        word.className = 'word-item';
-        word.textContent = method.id; 
-        word.style.color = getRandomColor();
-        wordsList.appendChild(word);
-      });
-    }
-
     document.addEventListener('DOMContentLoaded', (event) => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const svg = d3.select("#graph-container").append("svg").attr("width", width).attr("height", height);
+      const g = svg.append("g");
+
+      let methods = [{ id: "Method1" }, { id: "Method2" }];
+      let links = [];
+      updateMethodList();
+      updateGraph();
+
+      function updateGraph() {
+        const simulation = d3.forceSimulation(methods)
+          .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+          .force("charge", d3.forceManyBody().strength(-300))
+          .force("center", d3.forceCenter(width / 2, height / 2));
+
+        const link = g.selectAll(".link")
+          .data(links)
+          .join("line")
+          .attr("class", "link");
+
+        const node = g.selectAll(".node")
+          .data(methods)
+          .join("g")
+          .attr("class", "node")
+          .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended)
+          );
+
+        node.append("circle")
+          .attr("r", 25)
+          .attr("stroke", getRandomColor)
+          .attr("fill", "white"); // Or another contrasting color
+
+        node.append("text")
+          .text(d => d.id)
+          .attr("dy", "0.35em")
+          .attr("fill", getRandomColor());
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+          node.attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        function dragstarted(event) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        }
+
+        function dragended(event) {
+          if (!event.active) simulation.alphaTarget(0);
+          event.subject.fx = null;
+          event.subject.fy = null;
+        }
+      }
+
+      function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
+
+      function generateRandomMethodName() {
+        const url = "https://api.datamuse.com/words?ml=create&max=10";
+
+        return fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            if (data.length > 0) {
+              const randomIndex = Math.floor(Math.random() * data.length);
+              return data[randomIndex].word;
+            } else {
+              return "NewMethod";
+            }
+          });
+      }
+
+      function addMethod(name) {
+        const newName = name || generateRandomMethodName();
+
+        Promise.resolve(newName)
+          .then(finalName => {
+            if (methods.some(m => m.id.toLowerCase() === finalName.toLowerCase())) {
+              alert(`A method named "${finalName}" already exists.`);
+              return;
+            }
+
+            methods.push({ id: finalName });
+
+            if (methods.length > 2) {
+              const lastMethod = methods[methods.length - 2];
+              links.push({ source: lastMethod.id, target: finalName });
+            }
+
+            updateGraph();
+            updateMethodList();
+          });
+      }
+
+      function updateMethodList() {
+        const methodList = document.getElementById("method-items");
+        methodList.innerHTML = "";
+
+        methods.forEach(method => {
+          const listItem = document.createElement("li");
+          listItem.textContent = method.id;
+          methodList.appendChild(listItem);
+        });
+
+        document.getElementById("words-count").textContent = methods.length;
+      }
+
+      function toggleMethodsList() {
+        const wordsList = document.getElementById('words-list');
+        if (wordsList.style.right === '0px') {
+          wordsList.style.right = '-300px';
+        } else {
+          wordsList.style.right = '0px';
+        }
+        renderMethodsList();
+      }
+
+      function renderMethodsList() {
+        const wordsList = document.getElementById('words-list');
+        const searchContainer = document.getElementById('search-container');
+        wordsList.innerHTML = '';
+        wordsList.appendChild(searchContainer);
+
+        methods.sort((a, b) => a.id.localeCompare(b.id)).forEach(method => {
+          const word = document.createElement('div');
+          word.className = 'word-item';
+          word.textContent = method.id;
+          word.style.color = getRandomColor();
+          wordsList.appendChild(word);
+        });
+      }
+
       document.getElementById("create-method").addEventListener("click", () => {
         const methodNameInput = document.getElementById("method-name");
         const methodName = methodNameInput.value.trim();
 
         addMethod(methodName);
-        methodNameInput.value = ""; 
+        methodNameInput.value = "";
       });
 
       document.getElementById("create-custom-word").addEventListener("click", () => {
-        const methodNameInput = document.getElementById("custom-word-name"); 
+        const methodNameInput = document.getElementById("custom-word-name");
         const methodName = methodNameInput.value.trim();
 
         addMethod(methodName);
-        methodNameInput.value = ""; 
+        methodNameInput.value = "";
       });
 
       document.getElementById('words-bar').addEventListener('click', toggleMethodsList);
 
-      updateGraph(); 
+      updateGraph();
     }); 
   </script>
 </body>
