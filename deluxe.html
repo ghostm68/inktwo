@@ -566,68 +566,171 @@ const width = window.innerWidth;
       });
     }
 
-    function handleNodeClick(event, d) {
-      // Display discovered elements
-      const discovered = literaryTerms[d.id];
-      document.getElementById("discovered-element").textContent = discovered.join(', ');
+   // ... your existing JavaScript code ...
 
-      // Show discovery animation
-      const discoveryAnimation = document.getElementById("discovery-animation");
-      discoveryAnimation.classList.add("show");
+const width = window.innerWidth;
+const height = window.innerHeight;
 
-      // Hide animation after 2 seconds
-      setTimeout(() => {
-        discoveryAnimation.classList.remove("show");
-      }, 2000);
-    }
+const svg = d3.select("#graph-container")
+  .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-    const simulation = d3.forceSimulation()
-      .force("link", d3.forceLink().id(d => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(50));
+// Define literary terms and their outputs
+const literaryTerms = {
+  "Sonnet": ["Love", "Poetry", "Elegy"],
+  "Lake": ["Water", "River", "Pond"],
+  "Epic": ["Hero", "Saga", "Myth"],
+  "Haiku": ["Nature", "Zen", "Verse"]
+};
 
-    // Event listeners for buttons
-    document.getElementById('discover-button').addEventListener('click', function() {
-      // Handle click event for Discover button
-      // 1. Select a random term from literaryTerms
-      const randomTerm = Object.keys(literaryTerms)[Math.floor(Math.random() * Object.keys(literaryTerms).length)];
-      // 2. Add the new node to the nodes array
-      nodes.push(createNode(randomTerm));
-      // 3. Update the graph
-      updateGraph();
-      // 4. Increment the element count in the elements-bar
-      const elementCount = document.getElementById('elements-count');
-      elementCount.textContent = parseInt(elementCount.textContent) + 1;
+// Define colors for literary terms
+const colors = {
+  "Sonnet": "#FFD700",
+  "Lake": "#00BFFF",
+  "Epic": "#FF6347",
+  "Haiku": "#32CD32"
+};
+
+// Initialize nodes and links
+let nodes = Object.keys(literaryTerms).map(term => ({
+  id: term,
+  color: colors[term]
+}));
+
+let links = [];  // You can define specific links if needed
+let selectedElements = [];
+
+// Create graph elements
+const g = svg.append("g");
+
+function updateGraph() {
+  const link = g.selectAll(".link")
+    .data(links)
+    .join("line")
+      .attr("class", "link");
+
+  const node = g.selectAll(".node")
+    .data(nodes)
+    .join("g")
+      .attr("class", "node")
+      .on("click", handleNodeClick);
+
+  node.append("circle")
+    .attr("r", 20)
+    .attr("fill", d => d.color)
+    .attr("stroke-width", 3);
+
+  node.append("text")
+    .text(d => d.id)
+    .attr("font-size", "12px")
+    .attr("fill", "#fff");
+
+  simulation.nodes(nodes).on("tick", () => {
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+  });
+}
+
+function handleNodeClick(event, d) {
+  // Display discovered elements
+  const discovered = literaryTerms[d.id];
+  document.getElementById("discovered-element").textContent = discovered.join(', ');
+
+  // Show discovery animation
+  const discoveryAnimation = document.getElementById("discovery-animation");
+  discoveryAnimation.classList.add("show");
+
+  // Hide animation after 2 seconds
+  setTimeout(() => {
+    discoveryAnimation.classList.remove("show");
+  }, 2000);
+
+  // Expand the node
+  const nodeElement = d3.select(this);
+  const circle = nodeElement.select("circle");
+  const text = nodeElement.select("text");
+
+  // Increase the circle size and fade out the text
+  circle
+    .transition()
+    .duration(500)
+    .attr("r", 60)
+    .style("opacity", 1)
+    .on("end", () => {
+      // Display the second word
+      const secondWord = discovered[0]; // Take the first word from the discovered array
+      text
+        .transition()
+        .duration(500)
+        .style("opacity", 1)
+        .text(secondWord);
     });
 
- // Event listeners for buttons
+  text
+    .transition()
+    .duration(500)
+    .style("opacity", 0);
+
+  // Add a transition to the links for a more visual effect
+  const linksToThisNode = g.selectAll(".link").filter(link => link.source.id === d.id || link.target.id === d.id);
+  linksToThisNode
+    .transition()
+    .duration(500)
+    .style("stroke-width", "4px")
+    .style("stroke", "#4CAF50"); 
+}
+
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(100))
+  .force("charge", d3.forceManyBody().strength(-300))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collision", d3.forceCollide().radius(50));
+
+// Event listeners for buttons
+document.getElementById('discover-button').addEventListener('click', function() {
+  // Handle click event for Discover button
+  // 1. Select a random term from literaryTerms
+  const randomTerm = Object.keys(literaryTerms)[Math.floor(Math.random() * Object.keys(literaryTerms).length)];
+  // 2. Add the new node to the nodes array
+  nodes.push(createNode(randomTerm));
+  // 3. Update the graph
+  updateGraph();
+  // 4. Increment the element count in the elements-bar
+  const elementCount = document.getElementById('elements-count');
+  elementCount.textContent = parseInt(elementCount.textContent) + 1;
+});
+
 document.getElementById('plus-button').addEventListener('click', function() {
   // Handle click event for + button
   // Toggle the custom element creator visibility
   const customElementCreator = document.getElementById('custom-element-creator');
-  customElementCreator.classList.toggle('show'); // Only toggle 'show'
+  customElementCreator.classList.toggle('show'); 
 });
 
 document.getElementById('toggle-creator').addEventListener('click', function() {
   // Handle click event for + button
   // Toggle the custom element creator visibility
   const customElementCreator = document.getElementById('custom-element-creator');
-  customElementCreator.classList.toggle('show'); // Only toggle 'show'
+  customElementCreator.classList.toggle('show'); 
 });
 
-    document.getElementById('clear-button').addEventListener('click', function() {
-      nodes = Object.keys(literaryTerms).map(term => ({
-        id: term,
-        color: colors[term]
-      }));
-      links = [];
-      updateGraph();
-      const elementCount = document.getElementById('elements-count');
-      elementCount.textContent = 0;
-    });
+document.getElementById('clear-button').addEventListener('click', function() {
+  nodes = Object.keys(literaryTerms).map(term => ({
+    id: term,
+    color: colors[term]
+  }));
+  links = [];
+  updateGraph();
+  const elementCount = document.getElementById('elements-count');
+  elementCount.textContent = 0;
+});
 
-    updateGraph();
-  </script>
+updateGraph();
+</script>
 </body>
 </html>
