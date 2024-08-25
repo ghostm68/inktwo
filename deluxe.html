@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Dynamic word creation with animation effect">
  <script src="https://d3js.org/d3.v7.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;700&display=swap" rel="stylesheet">
 <style>
-     font-family: Arial, sans-serif;
+   font-family: Arial, sans-serif;
     background-color: #1a1a1a;
     margin: 0;
     padding: 0;
@@ -323,19 +323,56 @@
     margin-top: 10px;
     display: block;
   }
+  /* More specific styles for graph nodes */
+  #graph-container .node circle {
+    fill: #4CAF50; 
+    stroke: #fff;
+    stroke-width: 2px;
+  }
+
+  #graph-container .node text {
+    font-size: 12px;
+    fill: #fff; /* White text color */
+  }
+
 </style>
 </head>
 <body>
-  <div id="graph-container"></div>
-  <div id="method-list">
-    <h3>Coined Methods (<span id="method-count">0</span>)</h3>
-    <ul id="method-items"></ul>
+<div id="graph-container"></div>
+<div id="mixing-overlay">
+  <div id="mixing-circle">
+    <div id="mixing-text">MIXING...</div>
   </div>
-  <div id="method-creator">
-    <h3>Create a Method</h3>
-    <input type="text" id="method-name" placeholder="Enter method name">
-    <button id="create-method">Coin!</button>
+</div>
+<div id="words-bar" style="text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase;">
+<span id="words-count" style="font-size: 24px; font-weight: bold; font-family: 'Arial Black', Gadget, sans-serif;">#</span><br>
+Coined Methods
+</div>
+<div id="words-list" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5); font-family: 'Oswald', sans-serif; font-weight: bold; text-transform: uppercase;">
+  <div id="search-container">
+    <div id="search-box">
+      <input type="text" id="search-input" placeholder="Search words">
+      <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+      </svg>
+    </div>
   </div>
+</div>
+<div id="custom-word-creator" style="border: 2px solid #444; box-shadow: 0 0 10px rgba(68, 68, 68, 0.5);">
+  <h3>Create Custom Method</h3>
+  <input type="text" id="custom-word-name" placeholder="Method Name">
+  <input type="color" id="custom-word-color" value="#ffffff">
+  <button id="create-custom-word">Create</button>
+</div>
+<button id="toggle-creator" style="width: 30px; height: 30px; font-size: 16px; opacity: 0.7; background-color: rgba(26, 26, 26, 0.5);">➕</button>
+<button id="clear-button">🧹</button>
+
+<!-- New coin animation word -->
+<div id="coin-animation">
+  <p id="coin-text">YOU HAVE COINED</p>
+  <span id="coined-word"></span>
+</div>
+
 
   <script>
     const width = window.innerWidth;
@@ -350,6 +387,7 @@
 
     let methods = [{ id: "Method1" }, { id: "Method2" }];
     let links = [];
+    
 
     function updateGraph() {
       const simulation = d3.forceSimulation(methods)
@@ -367,15 +405,15 @@
         .join("g")
         .attr("class", "node");
 
-     node.append("circle")
-  .attr("r", 25)
-  .attr("stroke", getRandomColor()) // Call the function!
-  .attr("fill", "transparent");
+      node.append("circle")
+        .attr("r", 25)
+        .attr("stroke", getRandomColor) 
+        .attr("fill", "transparent");
 
-node.append("text")
-  .text(d => d.id)
-  .attr("dy", "0.35em")
-  .attr("fill", getRandomColor()); // Call the function!
+      node.append("text")
+        .text(d => d.id)
+        .attr("dy", "0.35em")
+        .attr("fill", getRandomColor); 
 
       simulation.on("tick", () => {
         link
@@ -446,6 +484,30 @@ node.append("text")
 
       document.getElementById("method-count").textContent = methods.length;
     }
+    function toggleMethodsList() {
+  const wordsList = document.getElementById('words-list');
+  if (wordsList.style.right === '0px') {
+    wordsList.style.right = '-300px';
+  } else {
+    wordsList.style.right = '0px';
+    renderMethodsList();
+  }
+}
+ function renderMethodsList() {
+  const wordsList = document.getElementById('words-list');
+  const searchContainer = document.getElementById('search-container');
+  wordsList.innerHTML = '';
+  wordsList.appendChild(searchContainer);
+  
+  nodes.sort((a, b) => a.id.localeCompare(b.id)).forEach(node => {
+    const word = document.createElement('div');
+    word.className = 'word-item';
+    word.textContent = node.id;
+    word.style.color = node.color;
+    word.addEventListener('click', () => focusOnMethod(node));
+    wordsList.appendChild(word);
+  });
+}
 
     document.getElementById("create-method").addEventListener("click", () => {
       const methodNameInput = document.getElementById("method-name");
@@ -454,6 +516,7 @@ node.append("text")
       addMethod(methodName);
       methodNameInput.value = ""; 
     });
+    document.getElementById('words-bar').addEventListener('click', toggleMethodsList);
 
     updateGraph(); 
   </script>
