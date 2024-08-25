@@ -411,13 +411,31 @@
   display: none; /* Initially hide the creator */
     }
 
-    #custom-element-creator.show {
-      display: block;
-    }
+   #custom-element-creator {
+  /* ... other styles ... */
+  position: fixed; /* Important: Position the menu */
+  top: 0;
+  right: -300px; /* Initially off-screen */
+  width: 300px;
+  height: 100%;
+  background-color: rgba(26, 26, 26, 0.9);
+  backdrop-filter: blur(10px);
+  color: white;
+  overflow-y: auto;
+  transition: right 0.3s ease; /* Add transition */
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  display: none;
+}
 
-    #custom-element-creator.hidden {
-      display: none;
-    }
+#custom-element-creator.show {
+  display: block; /* Make the menu visible */
+  right: 0; /* Move the menu to the right */
+}
+
+#custom-element-creator.hidden {
+  display: none;
+  right: -300px; /* Move the menu off-screen */
+}
  </style>
 </head>
 <body>
@@ -449,117 +467,98 @@
 </div>
 
  <script>
-const width = window.innerWidth;
-const height = window.innerHeight;
+   const width = window.innerWidth;
+    const height = window.innerHeight;
 
-const svg = d3.select("#graph-container")
-  .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    const svg = d3.select("#graph-container")
+      .append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-// Define colors for literary terms 
-const colors = {
-  "Sonnet": "#FFD700",
-  "Lake": "#00BFFF",
-  "Epic": "#FF6347",
-  "Haiku": "#32CD32"
-};
+    // Define literary terms and their outputs
+    const literaryTerms = {
+      "Sonnet": ["Love", "Poetry", "Elegy"],
+      "Lake": ["Water", "River", "Pond"],
+      "Epic": ["Hero", "Saga", "Myth"],
+      "Haiku": ["Nature", "Zen", "Verse"]
+    };
 
-// Function to create a new node based on a word
-function createNode(word) {
-  return {
-    id: word,
-    color: colors[word] || getRandomColor() 
-  };
-}
+    // Define colors for literary terms
+    const colors = {
+      "Sonnet": "#FFD700",
+      "Lake": "#00BFFF",
+      "Epic": "#FF6347",
+      "Haiku": "#32CD32"
+    };
 
-// Function to generate random color
-function getRandomColor() {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-}
+    // Initialize nodes and links
+    let nodes = Object.keys(literaryTerms).map(term => ({
+      id: term,
+      color: colors[term]
+    }));
 
-// Initialize nodes and links
-let nodes = []; 
-let links = [];
+    let links = [];  // You can define specific links if needed
+    let selectedElements = [];
 
-// Create graph elements
-const g = svg.append("g");
+    // Create graph elements
+    const g = svg.append("g");
 
-function updateGraph() {
-  // ... your existing code (updateGraph) ... 
-}
+    function updateGraph() {
+      const link = g.selectAll(".link")
+        .data(links)
+        .join("line")
+          .attr("class", "link");
 
-function handleNodeClick(event, d) {
-  // ... your existing code (handleNodeClick) ...
-}
+      const node = g.selectAll(".node")
+        .data(nodes)
+        .join("g")
+          .attr("class", "node")
+          .on("click", handleNodeClick);
 
-const simulation = d3.forceSimulation()
-  .force("link", d3.forceLink().id(d => d.id).distance(100))
-  .force("charge", d3.forceManyBody().strength(-300))
-  .force("center", d3.forceCenter(width / 2, height / 2))
-  .force("collision", d3.forceCollide().radius(50));
+      node.append("circle")
+        .attr("r", 20)
+        .attr("fill", d => d.color)
+        .attr("stroke-width", 3);
 
-// Define dictionary variable globally
-let dictionary = []; 
+      node.append("text")
+        .text(d => d.id)
+        .attr("font-size", "12px")
+        .attr("fill", "#fff");
 
-// Fetch the dictionary file and create nodes
-async function fetchDictionary() {
-  try {
-    const response = await fetch('wooorm%20dictionaries%20main%20dictionaries-en/index.dic');
-    const data = await response.text();
-    dictionary = data.split('\n').filter(line => line !== ''); // Assign to dictionary
+      simulation.nodes(nodes).on("tick", () => {
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+      });
+    }
 
-    // Create nodes and update the graph
-    dictionary.forEach(word => {
-      nodes.push(createNode(word));
-    });
+    function handleNodeClick(event, d) {
+      // Display discovered elements
+      const discovered = literaryTerms[d.id];
+      document.getElementById("discovered-element").textContent = discovered.join(', ');
 
-    // Update the graph
-    updateGraph();
+      // Show discovery animation
+      const discoveryAnimation = document.getElementById("discovery-animation");
+      discoveryAnimation.classList.add("show");
 
-    // Update the elements list
-    const discoveredElementsList = document.getElementById('discovered-elements-list');
-    discoveredElementsList.innerHTML = ''; 
+      // Hide animation after 2 seconds
+      setTimeout(() => {
+        discoveryAnimation.classList.remove("show");
+      }, 2000);
+    }
 
-    nodes.forEach(node => {
-      const listItem = document.createElement('li');
-      listItem.textContent = node.id;
-      discoveredElementsList.appendChild(listItem);
-    });
-  } catch (error) {
-    console.error("Error fetching dictionary:", error);
-    // Additional error handling, e.g., display an error message, load a default graph
-  }
-}
+    const simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(50));
 
-// Call the fetchDictionary function to start the process
-fetchDictionary();
-
-// Event listeners for buttons
-document.getElementById('discover-button').addEventListener('click', function() {
+   document.getElementById('discover-button').addEventListener('click', function() {
   // Handle click event for Discover button
-  // 1. Select a random word from the dictionary
-  const randomIndex = Math.floor(Math.random() * dictionary.length);
-  const randomWord = dictionary[randomIndex];
-
-  // 2. Add the new node to the nodes array
-  nodes.push(createNode(randomWord));
-  // 3. Update the graph
-  updateGraph();
-  // 4. Increment the element count in the elements-bar
-  const elementCount = document.getElementById('elements-count');
-  elementCount.textContent = parseInt(elementCount.textContent) + 1;
-
-  // Update the elements list
-  const discoveredElementsList = document.getElementById('discovered-elements-list');
-  const listItem = document.createElement('li');
-  listItem.textContent = randomWord;
-  discoveredElementsList.appendChild(listItem);
+  console.log('Discover button clicked');
 });
 
 document.getElementById('plus-button').addEventListener('click', function() {
@@ -578,44 +577,9 @@ document.getElementById('toggle-creator').addEventListener('click', function() {
   customElementCreator.classList.toggle('hidden');
 });
 
-document.getElementById('create-element-button').addEventListener('click', function() {
-  const elementName = document.getElementById('custom-element-name').value;
-  const elementColor = document.getElementById('custom-element-color').value;
 
-  if (elementName && elementColor) {
-    // Create a new node
-    const newNode = createNode(elementName);
-    newNode.color = elementColor;
-    nodes.push(newNode);
     updateGraph();
-
-    // Clear the input fields
-    document.getElementById('custom-element-name').value = '';
-    document.getElementById('custom-element-color').value = '#FF0000';
-
-    // Hide the creator
-    document.getElementById('custom-element-creator').classList.remove('show');
-    document.getElementById('custom-element-creator').classList.add('hidden');
-  } else {
-    // Handle invalid input, e.g., display an error message
-    alert("Please enter both a name and color for the new element.");
-  }
-});
-
-document.getElementById('clear-button').addEventListener('click', function() {
-  nodes = [];
-  links = [];
-  updateGraph();
-  const elementCount = document.getElementById('elements-count');
-  elementCount.textContent = 0;
-
-  // Clear the elements list
-  const discoveredElementsList = document.getElementById('discovered-elements-list');
-  discoveredElementsList.innerHTML = '';
-});
-
-// Existing code for updateGraph
-updateGraph();
+  </script>
  </script>
 </body>
 </html>
