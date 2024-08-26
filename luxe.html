@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Craft - Literary Edition</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans', sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        #graph-container {
+            width: 100vw;
+            height: 100vh;
+            background-color: #2a2a2a;
+        }
+        .node {
+            cursor: pointer;
+        }
+        .node circle {
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+        .node text {
+            font-size: 12px;
+            fill: #e0e0e0;
+        }
+        .link {
+            fill: none;
+            stroke: #666;
+            stroke-width: 1px;
+            stroke-opacity: 0.6;
+        }
+        #elements-bar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+        #elements-list {
+            position: fixed;
+            top: 100px;
+            left: 20px;
+            width: 200px;
+            height: calc(100vh - 140px);
+            overflow-y: auto;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+        .element-item {
+            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .element-item:hover {
+            background-color: #444;
+        }
+        #custom-element-creator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 200px;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+        #custom-element-creator input, #custom-element-creator button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #444;
+            color: #e0e0e0;
+        }
+        #custom-element-creator button {
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #custom-element-creator button:hover {
+            background-color: #3a7bc8;
+        }
+        #toggle-creator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 101;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: background-color 0.3s;
+        }
+        #toggle-creator:hover {
+            background-color: #3a7bc8;
+        }
+        #clear-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: background-color 0.3s;
+        }
+        #clear-button:hover {
+            background-color: #c0392b;
+        }
+        #search-container {
+            margin-bottom: 15px;
+        }
+        #search-box {
+            position: relative;
+            width: 100%;
+        }
+        #search-input {
+            width: calc(100% - 40px);
+            padding: 8px 30px 8px 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #444;
+            color: #e0e0e0;
+        }
+        #search-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            fill: #888;
+        }
+        #discovery-animation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(51, 51, 51, 0.9);
+            color: #e0e0e0;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 1001;
+            animation: fadeInOut 3s ease-in-out;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            20%, 80% { opacity: 1; }
+        }
+        #discovery-text {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        #discovered-element {
+            font-size: 36px;
+            font-weight: bold;
+            color: #4a90e2;
+        }
+        #instructions-menu {
+            position: fixed;
+            top: 20px;
+            right: 80px;
+            z-index: 1000;
+        }
+        #toggle-instructions {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: background-color 0.3s;
+        }
+        #toggle-instructions:hover {
+            background-color: #3a7bc8;
+        }
+        #instructions-content {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 300px;
+            background-color: #333;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            color: #e0e0e0;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        #instructions-content h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #4a90e2;
+        }
+        #instructions-content ol {
+            padding-left: 20px;
+        }
+        #instructions-content li {
+            margin-bottom: 10px;
+        }
+        .word-processor {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            width: 400px;
+            height: calc(100vh - 140px);
+            background-color: #333;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+        #editor {
+            width: 100%;
+            height: calc(100% - 100px);
+            background-color: #222;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Noto Sans', sans-serif;
+            font-size: 16px;
+            resize: none;
+        }
+        #toolbar {
+            margin-bottom: 10px;
+        }
+        #toolbar select, #toolbar input, #toolbar button {
+            margin-right: 5px;
+            padding: 5px;
+            background-color: #444;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        #toolbar button {
+            cursor: pointer;
+        }
+        #quantum-status {
+            margin-top: 10px;
+            font-style: italic;
+            color: #888;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+        .controls button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #3a7bc8;
+        }
+    </style>
+</head>
+<body>
+    <div id="graph-container">
+        <svg></svg>
+    </div>
+    <div id="elements-bar">
+        <div id="search-container">
+            <div id="search-box">
+                <input type="text" id="search-input" placeholder="Search elements...">
+                <svg id="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+                </svg>
+            </div>
+        </div>
+    </div>
+    <div id="elements-list"></div>
+    <button id="toggle-creator">+</button>
+    <div id="custom-element-creator" style="display: none;">
+        <input type="text" id="custom-element-name" placeholder="Enter element name">
+        <button id="create-custom-element">Create Element</button>
+    </div>
+    <button id="clear-button">♻️</button>
+    <div id="discovery-animation">
+        <div id="discovery-text">You discovered:</div>
+        <div id="discovered-element"></div>
+    </div>
+    <div id="instructions-menu">
+        <button id="toggle-instructions">i</button>
+        <div id="instructions-content">
+            <h2>How to Play Infinite Craft - Literary Edition</h2>
+            <ol>
+                <li>Start with the four basic elements: Writer, Novel, Poetry, and Essay.</li>
+                <li>Click on two elements to combine them and create a new literary element.</li>
+                <li>Discover new elements by combining existing ones in different ways.</li>
+                <li>Use the search bar to find specific elements quickly.</li>
+                <li>Create custom elements using the "+" button at the bottom left.</li>
+                <li>Clear your progress and start over with the trash can button.</li>
+            </ol>
+            <p>Explore the world of literature and create unique combinations!</p>
+        </div>
+    </div>
+    <div class="word-processor">
+        <div id="toolbar">
+            <select id="font-selector">
+                <option value="'Noto Sans', sans-serif">Noto Sans</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+            </select>
+            <input type="number" id="font-size" min="8" max="72" value="16">
+            <button id="bold-btn">B</button>
+            <button id="italic-btn">I</button>
+            <button id="underline-btn">U</button>
+        </div>
+        <textarea id="editor" placeholder="Start typing here..."></textarea>
+        <div id="quantum-status">Quantum circuit: Initializing...</div>
+        <div class="controls">
+            <button id="save-btn">Save to Quantum Cloud</button>
+            <button id="analyze-btn">Quantum Analyze</button>
+            <button id="upload-pdf">Upload PDF</button>
+            <button id="download-pdf">Download as PDF</button>
+        </div>
+    </div>
+
+    <script>
+const width = window.innerWidth;
+const height = window.innerHeight;
+const baseElements = ["Writer", "Novel", "Poetry", "Essay"];
+let nodes = [];
+let links = [];
+let selectedNodes = [];
+
+const svg = d3.select("#graph-container svg")
+    .attr("width", width)
+    .attr("height", height);
+
+const simulation = d3.forceSimulation()
+    .force("link", d3.forceLink().id(d => d.id).distance(100))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(width / 2, height / 2));
+
+let link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("line");
+
+let node = svg.append("g")
+    .attr("class", "nodes")
+    .selectAll("g");
+
+function updateGraph() {
+    link = link.data(links, d => `${d.source.id}-${d.target.id}`);
+    link.exit().remove();
+    link = link.enter().append("line")
+        .attr("class", "link")
+        .merge(link);
+
+    node = node.data(nodes, d => d.id);
+    node.exit().remove();
+    const nodeEnter = node.enter().append("g")
+        .attr("class", "node")
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    nodeEnter.append("circle")
+        .attr("r", 10)
+        .attr("fill", d => getColor(d.id));
+
+    nodeEnter.append("text")
+        .attr("dy", "0.35em")
+        .attr("x", 12)
+        .text(d => d.id);
+
+    node = nodeEnter.merge(node);
+
+    simulation.nodes(nodes);
+    simulation.force("link").links(links);
+    simulation.alpha(1).restart();
+}
+
+function getColor(elementName) {
+    const colors = {
+        "Writer": "#3498db",
+        "Novel": "#e74c3c",
+        "Poetry": "#2ecc71",
+        "Essay": "#f39c12"
+    };
+    return colors[elementName] || "#9b59b6";
+}
+
+function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+}
+
+function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+}
+
+function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+}
+
+function ticked() {
+    link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+    node
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+function addElement(elementName) {
+    if (!nodes.some(n => n.id === elementName)) {
+        nodes.push({ id: elementName });
+        updateElementsList();
+        updateGraph();
+    }
+}
+
+function combineElements(element1, element2) {
+    const combinations = {
+        "Writer+Novel": "Novelist",
+        "Writer+Poetry": "Poet",
+        "Writer+Essay": "Essayist",
+        "Novel+Poetry": "Verse Novel",
+        "Novel+Essay": "Literary Nonfiction",
+        "Poetry+Essay": "Prose Poetry",
+        "Novelist+Poet": "Versatile Author",
+        "Novelist+Essayist": "Literary Journalist",
+        "Poet+Essayist": "Lyric Essayist",
+        "Verse Novel+Literary Nonfiction": "Experimental Literature",
+        "Prose Poetry+Versatile Author": "Avant-Garde Writer",
+        "Literary Journalist+Lyric Essayist": "Creative Nonfiction",
+        "Experimental Literature+Avant-Garde Writer": "Postmodern Literature",
+        "Postmodern Literature+Creative Nonfiction": "Hybrid Genre",
+        "Hybrid Genre+Writer": "Literary Innovator"
+    };
+
+    const key1 = `${element1}+${element2}`;
+    const key2 = `${element2}+${element1}`;
+
+    if (combinations[key1]) {
+        return combinations[key1];
+    } else if (combinations[key2]) {
+        return combinations[key2];
+    } else {
+        const randomElements = [
+            "Literary Movement", "Character Study", "Plot Twist", "Narrative Arc",
+            "Allegory", "Metaphor", "Symbolism", "Irony", "Stream of Consciousness",
+            "Foreshadowing", "Flashback", "Unreliable Narrator", "Dialogue",
+            "Setting", "Theme", "Motif", "Conflict", "Resolution", "Climax",
+            "Denouement", "Exposition", "Rising Action", "Falling Action"
+        ];
+        return randomElements[Math.floor(Math.random() * randomElements.length)];
+    }
+}
+
+function selectNode(elementName) {
+    if (selectedNodes.length < 2 && !selectedNodes.includes(elementName)) {
+        selectedNodes.push(elementName);
+        if (selectedNodes.length === 2) {
+            const newElement = combineElements(selectedNodes[0], selectedNodes[1]);
+            addElement(newElement);
+            links.push({ source: selectedNodes[0], target: newElement });
+            links.push({ source: selectedNodes[1], target: newElement });
+            selectedNodes = [];
+            updateGraph();
+            showDiscoveryAnimation(newElement);
+        }
+    } else if (selectedNodes.includes(elementName)) {
+        selectedNodes = selectedNodes.filter(e => e !== elementName);
+    }
+    updateElementsList();
+}
+
+function updateElementsList() {
+    const elementsList = d3.select("#elements-list");
+    elementsList.html("");
+    nodes.forEach(node => {
+        elementsList.append("div")
+            .attr("class", "element-item")
+            .classed("selected", selectedNodes.includes(node.id))
+            .text(node.id)
+            .on("click", () => selectNode(node.id));
+    });
+}
+
+function showDiscoveryAnimation(element) {
+    const discoveryAnimation = document.getElementById("discovery-animation");
+    const discoveredElement = document.getElementById("discovered-element");
+    discoveredElement.textContent = element;
+    discoveryAnimation.style.display = "block";
+    setTimeout(() => {
+        discoveryAnimation.style.display = "none";
+    }, 3000);
+}
+
+baseElements.forEach(addElement);
+
+d3.select("#toggle-creator").on("click", () => {
+    const creator = d3.select("#custom-element-creator");
+    creator.style("display", creator.style("display") === "none" ? "block" : "none");
+});
+
+d3.select("#create-custom-element").on("click", () => {
+    const input = d3.select("#custom-element-name");
+    const elementName = input.property("value").trim();
+    if (elementName) {
+        addElement(elementName);
+        input.property("value", "");
+    }
+});
+
+d3.select("#clear-button").on("click", () => {
+    nodes = [];
+    links = [];
+    selectedNodes = [];
+    baseElements.forEach(addElement);
+    updateElementsList();
+    updateGraph();
+});
+
+d3.select("#search-input").on("input", function() {
+    const searchTerm = this.value.toLowerCase();
+    d3.selectAll(".element-item")
+        .style("display", d => d.textContent.toLowerCase().includes(searchTerm) ? "block" : "none");
+});
+
+d3.select("#toggle-instructions").on("click", () => {
+    const instructions = d3.select("#instructions-content");
+    instructions.style("display", instructions.style("display") === "none" ? "block" : "none");
+});
+
+simulation.on("tick", ticked);
+
+updateElementsList();
+updateGraph();
+
+// Word processor functionality
+document.addEventListener('DOMContentLoaded', (event) => {
+    const editor = document.getElementById('editor');
+    const fontSelector = document.getElementById('font-selector');
+    const fontSize = document.getElementById('font-size');
+    const boldBtn = document.getElementById('bold-btn');
+    const italicBtn = document.getElementById('italic-btn');
+    const underlineBtn = document.getElementById('underline-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const uploadPdfBtn = document.getElementById('upload-pdf');
+    const downloadPdfBtn = document.getElementById('download-pdf');
+    const quantumStatus = document.getElementById('quantum-status');
+
+    fontSelector.addEventListener('change', () => {
+        editor.style.fontFamily = fontSelector.value;
+    });
+
+    fontSize.addEventListener('input', () => {
+        editor.style.fontSize = `${fontSize.value}px`;
+    });
+
+    boldBtn.addEventListener('click', () => {
+        document.execCommand('bold', false, null);
+    });
+
+    italicBtn.addEventListener('click', () => {
+        document.execCommand('italic', false, null);
+    });
+
+    underlineBtn.addEventListener('click', () => {
+        document.execCommand('underline', false, null);
+    });
+
+    function simulateQuantumProcessing() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve('Quantum processing complete');
+            }, 2000);
+        });
+    }
+
+    saveBtn.addEventListener('click', async () => {
+        quantumStatus.textContent = 'Saving to quantum cloud...';
+        await simulateQuantumProcessing();
+        quantumStatus.textContent = 'Document saved in quantum state';
+    });
+
+    analyzeBtn.addEventListener('click', async () => {
+        quantumStatus.textContent = 'Quantum analysis in progress...';
+        await simulateQuantumProcessing();
+        quantumStatus.textContent = 'Quantum analysis complete: Text optimized for cosmic clarity';
+    });
+
+    uploadPdfBtn.addEventListener('click', () => {
+        alert('PDF upload functionality would be implemented here.');
+    });
+
+    downloadPdfBtn.addEventListener('click', () => {
+        alert('PDF download functionality would be implemented here.');
+    });
+});
+    </script>
