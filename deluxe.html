@@ -449,8 +449,8 @@ const height = window.innerHeight;
 
 const svg = d3.select("#graph-container")
   .append("svg")
-  .attr("width", width)
-  .attr("height", height);
+    .attr("width", width)
+    .attr("height", height);
 
 // Add particles
 const particleCount = 50;
@@ -476,18 +476,18 @@ svg.selectAll(".particle")
 
 function moveParticles() {
   svg.selectAll(".particle")
-    .each(function (d) {
+    .each(function(d) {
       d.x += d.speedX;
       d.y += d.speedY;
-
+      
       if (d.x < 0 || d.x > width) d.speedX *= -1;
       if (d.y < 0 || d.y > height) d.speedY *= -1;
-
+      
       d3.select(this)
         .attr("cx", d.x)
         .attr("cy", d.y);
     });
-
+  
   requestAnimationFrame(moveParticles);
 }
 
@@ -518,11 +518,11 @@ const simulation = d3.forceSimulation()
   .force("collision", d3.forceCollide().radius(50));
 
 let nodes = [
-  { id: "Poetry", color: "#8B4513" },
-  { id: "Novel", color: "#87CEEB" },
-  { id: "Story", color: "#FF4500" },
-  { id: "Notes", color: "#1E90FF" },
-  { id: "Verse", color: "#f2c761" }
+  {id: "Poetry", color: "#8B4513"},
+  {id: "Novel", color: "#87CEEB"},
+  {id: "Story", color: "#FF4500"},
+  {id: "Notes", color: "#1E90FF"},
+  {id: "Verse", color: "#f2c761"}
 ];
 
 let links = [];
@@ -532,36 +532,36 @@ function updateGraph() {
   const link = g.selectAll(".link")
     .data(links)
     .join("line")
-    .attr("class", "link");
+      .attr("class", "link");
 
   const node = g.selectAll(".node")
     .data(nodes)
     .join("g")
-    .attr("class", "node")
-    .call(d3.drag()
-      .on("start", dragstarted)
-      .on("drag", dragged)
-      .on("end", dragended));
+      .attr("class", "node")
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
 
   node.selectAll("circle")
     .data(d => [d])
     .join("circle")
-    .attr("r", 40)
-    .attr("stroke", d => d.color)
-    .attr("fill", "transparent")
-    .on("click", handleNodeClick)
-    .on("dblclick", handleNodeDoubleClick);
+      .attr("r", 40)
+      .attr("stroke", d => d.color)
+      .attr("fill", "transparent")
+      .on("click", handleNodeClick)
+      .on("dblclick", handleNodeDoubleClick);
 
   node.selectAll("text")
     .data(d => [d])
     .join("text")
-    .text(d => d.id.toUpperCase())
-    .attr("fill", d => d.color);
+      .text(d => d.id.toUpperCase())
+      .attr("fill", d => d.color);
 
   simulation.nodes(nodes);
   simulation.force("link").links(links);
   simulation.alpha(1).restart();
-
+  
   updateElementsCount();
   renderElementsList();
 }
@@ -592,7 +592,7 @@ function handleNodeClick(event, d) {
       .classed("element-glow", false)
       .classed("dissipate-glow", true)
       .style("color", d.color)
-      .on("animationend", function () {
+      .on("animationend", function() {
         d3.select(this).classed("dissipate-glow", false).style("color", null);
       });
   } else {
@@ -634,16 +634,16 @@ function hideMixingAnimation() {
 
 async function craftElements(elements = selectedElements) {
   const [elem1, elem2] = elements;
-
+  
   showMixingAnimation();
-
+  
   try {
     const result = await createNewElement(elem1.id, elem2.id);
     if (!nodes.some(n => n.id === result)) {
-      nodes.push({ id: result, color: getRandomColor() });
-      links.push({ source: elem1.id, target: result });
+      nodes.push({id: result, color: getRandomColor()});
+      links.push({source: elem1.id, target: result});
       if (elem1 !== elem2) {
-        links.push({ source: elem2.id, target: result });
+        links.push({source: elem2.id, target: result});
       }
       updateGraph();
       showDiscoveryAnimation(result);
@@ -659,7 +659,7 @@ async function craftElements(elements = selectedElements) {
     .classed("element-glow", false)
     .classed("dissipate-glow", false)
     .style("color", null);
-
+  
   selectedElements = [];
 }
 
@@ -675,13 +675,21 @@ async function createNewElement(elem1, elem2) {
     }
 
     const data = await response.json();
-    return data;
+    return data; 
   } catch (error) {
     console.error('Error fetching elements:', error);
     throw error;
   }
 }
 
+// Example usage:
+createNewElement("love", "hate")
+  .then(elements => {
+    console.log(elements); // Process the fetched elements
+  })
+  .catch(error => {
+    console.error("An error occurred:", error);
+  });
 function getRandomColor() {
   const hue = Math.floor(Math.random() * 360);
   const saturation = 70 + Math.random() * 30; // 70-100%
@@ -710,36 +718,119 @@ nodes.forEach(node => {
     node.y = height / 2 + (Math.random() - 0.5) * 100;
   }
 });
-
+	
 updateElementsCount();
-
+	
 function updateElementsCount() {
-  document.getElementById('elements-count').textContent = `Number of Elements: ${nodes.length}`;
-  updateWordCount(); // Update word count whenever nodes are updated
+  document.getElementById('elements-count').textContent = nodes.length;
+}
+
+function toggleElementsList() {
+  const elementsList = document.getElementById('elements-list');
+  if (elementsList.style.right === '0px') {
+    elementsList.style.right = '-300px';
+  } else {
+    elementsList.style.right = '0px';
+    renderElementsList();
+  }
 }
 
 function renderElementsList() {
   const elementsList = document.getElementById('elements-list');
+  const searchContainer = document.getElementById('search-container');
   elementsList.innerHTML = '';
-  nodes.forEach(node => {
-    const listItem = document.createElement('li');
-    listItem.textContent = node.id.toUpperCase();
-    elementsList.appendChild(listItem);
+  elementsList.appendChild(searchContainer);
+  
+  nodes.sort((a, b) => a.id.localeCompare(b.id)).forEach(node => {
+    const element = document.createElement('div');
+    element.className = 'element-item';
+    element.textContent = node.id;
+    element.style.color = node.color;
+    element.addEventListener('click', () => focusOnElement(node));
+    elementsList.appendChild(element);
   });
 }
 
-function updateWordCount() {
-  const wordCount = nodes.reduce((total, node) => total + node.id.split(' ').length, 0);
-  document.getElementById('word-count').textContent = `Word Count: ${wordCount}`;
+function focusOnElement(node) {
+  const transform = d3.zoomIdentity
+    .translate(width / 2, height / 2)
+    .scale(1.5)
+    .translate(-node.x, -node.y);
+
+  svg.transition()
+    .duration(750)
+    .call(zoom.transform, transform);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.getElementById('elements-bar').addEventListener('click', toggleElementsList);
+
+document.getElementById('search-input').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const elements = document.querySelectorAll('.element-item');
+  
+  elements.forEach(element => {
+    const elementName = element.textContent.toLowerCase();
+    if (elementName.includes(searchTerm)) {
+      element.style.display = 'block';
+    } else {
+      element.style.display = 'none';
+    }
+  });
+});
+
+// Custom Element Creator
+const customElementCreator = document.getElementById('custom-element-creator');
+const createCustomElementBtn = document.getElementById('create-custom-element');
+const toggleCreatorBtn = document.getElementById('toggle-creator');
+
+toggleCreatorBtn.addEventListener('click', () => {
+  if (customElementCreator.style.left === '0px') {
+    customElementCreator.style.left = '-300px';
+    toggleCreatorBtn.textContent = '➕';
+  } else {
+    customElementCreator.style.left = '0px';
+    toggleCreatorBtn.textContent = '✖';
+  }
+});
+
+createCustomElementBtn.addEventListener('click', () => {
+  const elementName = document.getElementById('custom-element-name').value.trim();
+  const elementColor = document.getElementById('custom-element-color').value;
+
+  if (elementName) {
+    if (!nodes.some(n => n.id === elementName)) {
+      nodes.push({id: elementName, color: elementColor});
+      updateGraph();
+      document.getElementById('custom-element-name').value = '';
+      showDiscoveryAnimation(elementName);
+    } else {
+      alert('An element with this name already exists!');
+    }
+  } else {
+    alert('Please enter an element name!');
+  }
+});
+
+// Clear button functionality
+document.getElementById('clear-button').addEventListener('click', () => {
+  nodes = [];
+  links = [];
   updateGraph();
 });
 
-document.getElementById('elements-count').addEventListener('click', updateElementsCount);
+function showDiscoveryAnimation(elementName) {
+  const discoveryAnimation = document.getElementById('discovery-animation');
+  const discoveredElement = document.getElementById('discovered-element');
+  
+  discoveredElement.textContent = elementName.toUpperCase();
+  discoveryAnimation.classList.add('show');
+  
+  setTimeout(() => {
+    discoveryAnimation.classList.remove('show');
+  }, 3000);
+}
+
 
 updateGraph();
-
 </script>
 </body></html>
