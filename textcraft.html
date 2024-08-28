@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotebookInkreaLM</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .notebook-container {
+            width: 900px;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .notebook-header {
+            background-color: var(--primary-color);
+            color: #FFFFFF;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notebook-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .notebook-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #FFFFFF;
+            cursor: pointer;
+            font-size: 18px;
+            transition: opacity 0.3s ease;
+        }
+
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+
+        .notebook-content {
+            padding: 24px;
+            position: relative;
+        }
+
+        .editor {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 16px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            background-color: #fff;
+            color: #000;
+        }
+
+        .notebook-toolbar {
+            background-color: #F9F9F9;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #E0E0E0;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .toolbar-btn {
+            background-color: var(--secondary-color);
+            color: #FFFFFF;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .toolbar-btn:hover {
+            background-color: #2E7D32;
+        }
+
+        .dictionary-popup {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 300px;
+            background-color: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            z-index: 1000;
+        }
+
+        .dictionary-popup input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+        }
+
+        #definition {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="notebook-container">
+        <header class="notebook-header">
+            <h1 class="notebook-title">NOTEBOOKinkreaLM</h1>
+            <div class="notebook-actions">
+                <button class="action-btn" title="Light Mode">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <button class="action-btn" title="Help">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+                <button class="action-btn" title="Profile">
+                    <i class="fas fa-user-circle"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="notebook-content">
+            <textarea class="editor" placeholder="Start typing your document here..."></textarea>
+            <div>
+                <button class="toolbar-btn" id="dictionaryToggle">Das Lexikon</button>
+                <div class="dictionary-popup hidden" id="dictionaryPopup">
+                    <input type="text" id="wordInput" placeholder="Enter a word...">
+                    <div id="definition"></div>
+                </div>
+            </div>
+        </main>
+
+        <div class="notebook-toolbar">
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="uploadButton">
+                    <i class="fas fa-upload"></i> Upload
+                </button>
+                <button class="toolbar-btn" id="saveButton">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+
+        <footer class="notebook-footer">
+            <p>NotebookInkreaLM is being developed. Features may evolve.</p>
+            <p>© 2024 inkrealm.info - All Rights Reserved</p>
+        </footer>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggle = document.querySelector('.fa-sun').parentElement;
+            const container = document.querySelector('.notebook-container');
+            const dictionaryToggle = document.getElementById('dictionaryToggle');
+            const dictionaryPopup = document.getElementById('dictionaryPopup');
+            const wordInput = document.getElementById('wordInput');
+            const definition = document.getElementById('definition');
+            const editor = document.querySelector('.editor');
+
+            themeToggle.addEventListener('click', () => {
+                container.classList.toggle('dark-theme');
+                themeToggle.querySelector('i').classList.toggle('fa-sun');
+                themeToggle.querySelector('i').classList.toggle('fa-moon');
+            });
+
+            dictionaryToggle.addEventListener('click', () => {
+                dictionaryPopup.classList.toggle('hidden');
+            });
+
+            wordInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    const word = wordInput.value;
+                    fetchDictionaryDefinition(word);
+                }
+            });
+
+            function fetchDictionaryDefinition(word) {
+                fetch(`https://wordstar.nexus/daslexikon?word=${encodeURIComponent(word)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        definition.textContent = data.definition || 'Definition not found.';
+                    })
+                    .catch(error => {
+                        definition.textContent = 'Error fetching definition.';
+                        console.error('Error fetching definition:', error);
+                    });
+            }
+
+            const uploadButton = document.getElementById('uploadButton');
+            uploadButton.addEventListener('click', () => {
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.txt';
+                fileInput.onchange = event => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            editor.value = e.target.result;
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                fileInput.click();
+            });
+
+            const saveButton = document.getElementById('saveButton');
+            saveButton.addEventListener('click', () => {
+                const text = editor.value;
+                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'document.txt';
+                link.click();
+            });
+        });
+    </script>
+</body>
+</html>
