@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NotebookInkreaLM</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+        :root {
+            --primary-color: #1E88E5; /* Neon Blue */
+            --secondary-color: #673AB7; /* Purple */
+            --background-color: #121212; /* Dark Background */
+            --text-color: #FFFFFF; /* White Text */
+            --accent-color: #FFC107; /* Neon Yellow */
+            --grid-color: #212121; /* Darker Gray for grid */
+        }
+
         body {
             font-family: 'Roboto', sans-serif;
             background-color: var(--background-color);
@@ -15,14 +27,16 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            transition: background-color 0.3s ease; /* Smooth transition for theme change */
         }
 
         .notebook-container {
             width: 900px;
-            background-color: #FFFFFF;
+            background-color: #181818; /* Slightly lighter for container */
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            transition: background-color 0.3s ease; /* Smooth transition for theme change */
         }
 
         .notebook-header {
@@ -66,23 +80,52 @@
         .editor {
             width: 100%;
             height: 400px;
-            border: 1px solid #E0E0E0;
+            border: 1px solid var(--grid-color); /* Use grid color for border */
             border-radius: 4px;
             padding: 16px;
             font-size: 16px;
             line-height: 1.6;
             resize: vertical;
-            background-color: #fff;
-            color: #000;
+            background-color: #282c34; /* Darker gray for editor background */
+            color: var(--text-color); /* White text */
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px); /* Use grid color */
+            background-size: 20px 20px;
+            background-position: -1px -1px;
+        }
+
+        .editor::before {
+            content: '';
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            right: 24px;
+            height: 20px;
+            background: linear-gradient(90deg, var(--grid-color) 1px, transparent 1px) repeat-x; /* Use grid color */
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .editor::after {
+            content: '';
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            bottom: 24px;
+            width: 20px;
+            background: linear-gradient(var(--grid-color) 1px, transparent 1px) repeat-y; /* Use grid color */
+            background-size: 20px 20px;
+            pointer-events: none;
         }
 
         .notebook-toolbar {
-            background-color: #F9F9F9;
+            background-color: #212121; /* Darker gray for toolbar */
             padding: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid #E0E0E0;
+            border-top: 1px solid var(--grid-color); /* Use grid color */
         }
 
         .toolbar-group {
@@ -103,7 +146,24 @@
         }
 
         .toolbar-btn:hover {
-            background-color: #2E7D32;
+            background-color: #4527A0; /* Darker purple */
+        }
+
+        .toolbar-select {
+            background-color: #282c34; /* Dark gray */
+            border: 1px solid var(--grid-color); /* Use grid color */
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        .notebook-footer {
+            background-color: #181818; /* Slightly lighter for footer */
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            color: #757575;
         }
 
         .dictionary-popup {
@@ -135,6 +195,32 @@
         .hidden {
             display: none;
         }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Styles for Neon Theme */
+        .neon-theme {
+            --primary-color: #FF00FF; /* Pink */
+            --secondary-color: #00FFFF; /* Cyan */
+            --background-color: #000000; /* Black Background */
+            --text-color: #FF00FF; /* Pink Text */
+            --accent-color: #FFFF00; /* Neon Yellow */
+            --grid-color: #111111; /* Darker Black */
+        }
     </style>
 </head>
 <body>
@@ -142,7 +228,7 @@
         <header class="notebook-header">
             <h1 class="notebook-title">NOTEBOOKinkreaLM</h1>
             <div class="notebook-actions">
-                <button class="action-btn" title="Light Mode">
+                <button class="action-btn" id="themeToggle" title="Toggle Theme">
                     <i class="fas fa-sun"></i>
                 </button>
                 <button class="action-btn" title="Help">
@@ -185,7 +271,7 @@
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const themeToggle = document.querySelector('.fa-sun').parentElement;
+            const themeToggle = document.getElementById('themeToggle');
             const container = document.querySelector('.notebook-container');
             const dictionaryToggle = document.getElementById('dictionaryToggle');
             const dictionaryPopup = document.getElementById('dictionaryPopup');
@@ -194,9 +280,14 @@
             const editor = document.querySelector('.editor');
 
             themeToggle.addEventListener('click', () => {
-                container.classList.toggle('dark-theme');
-                themeToggle.querySelector('i').classList.toggle('fa-sun');
-                themeToggle.querySelector('i').classList.toggle('fa-moon');
+                container.classList.toggle('neon-theme');
+                if (container.classList.contains('neon-theme')) {
+                    themeToggle.querySelector('i').classList.remove('fa-sun');
+                    themeToggle.querySelector('i').classList.add('fa-bolt');
+                } else {
+                    themeToggle.querySelector('i').classList.remove('fa-bolt');
+                    themeToggle.querySelector('i').classList.add('fa-sun');
+                }
             });
 
             dictionaryToggle.addEventListener('click', () => {
