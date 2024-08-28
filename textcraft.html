@@ -284,54 +284,132 @@
 
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // ... your existing themeToggle, dictionaryToggle, etc. JavaScript ...
+    document.addEventListener('DOMContentLoaded', () => {
+    // Theme Toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const container = document.querySelector('.notebook-container');
+    themeToggle.addEventListener('click', () => {
+        container.classList.toggle('neon-theme');
+        if (container.classList.contains('neon-theme')) {
+            themeToggle.querySelector('i').classList.remove('fa-sun');
+            themeToggle.querySelector('i').classList.add('fa-bolt');
+        } else {
+            themeToggle.querySelector('i').classList.remove('fa-bolt');
+            themeToggle.querySelector('i').classList.add('fa-sun');
+        }
+    });
 
-            const multiLanguageFontsButton = document.getElementById('multiLanguageFontsButton');
-            multiLanguageFontsButton.addEventListener('click', () => {
-                const fontOptions = [
-                    { name: 'Noto Sans', languages: 'English, German, Russian, Chinese, Japanese, Korean' },
-                    { name: 'Source Han Sans', languages: 'Chinese, Japanese, Korean' },
-                    { name: 'Roboto', languages: 'English, German, Russian' },
-                    { name: 'Droid Arabic Naskh', languages: 'Arabic' },
-                    { name: 'Noto Sans Thai', languages: 'Thai' },
-                    { name: 'Noto Sans Devanagari', languages: 'Hindi, Marathi, Nepali' }
-                ];
+    // Dictionary Functionality
+    const dictionaryToggle = document.getElementById('dictionaryToggle');
+    const dictionaryPopup = document.getElementById('dictionaryPopup');
+    const wordInput = document.getElementById('wordInput');
+    const definition = document.getElementById('definition');
 
-                const fontList = fontOptions.map(font => `${font.name} (${font.languages})`).join('\n');
-                alert(`Multi-Language Font Options:\n\n${fontList}\n\nChoose a font to support multiple languages including Asian, Russian, German, and others along with English.`);
-            });
+    dictionaryToggle.addEventListener('click', () => {
+        dictionaryPopup.classList.toggle('hidden');
+    });
 
-            // Dictionary Functionality
-            const wordInput = document.getElementById('wordInput');
-            const definition = document.getElementById('definition');
+    wordInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            const word = wordInput.value;
+            fetchDictionaryDefinition(word);
+        }
+    });
 
-            wordInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    const word = wordInput.value;
-                    fetchDictionaryDefinition(word);
+    function fetchDictionaryDefinition(word) {
+        fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    const definitionText = data[0].meanings[0].definitions[0].definition;
+                    definition.textContent = definitionText;
+                } else {
+                    definition.textContent = 'Definition not found.';
                 }
+            })
+            .catch(error => {
+                definition.textContent = 'Error fetching definition.';
+                console.error('Error fetching definition:', error);
             });
+    }
 
-            function fetchDictionaryDefinition(word) {
-                fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`) // Using a public dictionary API
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.length > 0) {
-                            const definitionText = data[0].meanings[0].definitions[0].definition;
-                            definition.textContent = definitionText;
-                        } else {
-                            definition.textContent = 'Definition not found.';
-                        }
-                    })
-                    .catch(error => {
-                        definition.textContent = 'Error fetching definition.';
-                        console.error('Error fetching definition:', error);
-                    });
+    // Upload Button
+    const uploadButton = document.getElementById('uploadButton');
+    uploadButton.addEventListener('click', () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt';
+        fileInput.onchange = event => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const editor = document.querySelector('.editor');
+                    editor.value = e.target.result;
+                };
+                reader.readAsText(file);
             }
+        };
+        fileInput.click();
+    });
 
-            // ... your existing uploadButton, saveButton, etc. JavaScript ...
+    // Save Button
+    const saveButton = document.getElementById('saveButton');
+    saveButton.addEventListener('click', () => {
+        const text = document.querySelector('.editor').value;
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'document.txt';
+        link.click();
+    });
+
+    // Multi-Language Font Functionality
+    const multiLanguageFontsButton = document.getElementById('multiLanguageFontsButton');
+    const fontOptions = [
+        { name: 'Noto Sans', languages: 'English, German, Russian, Chinese, Japanese, Korean' },
+        { name: 'Source Han Sans', languages: 'Chinese, Japanese, Korean' },
+        { name: 'Roboto', languages: 'English, German, Russian' },
+        { name: 'Droid Arabic Naskh', languages: 'Arabic' },
+        { name: 'Noto Sans Thai', languages: 'Thai' },
+        { name: 'Noto Sans Devanagari', languages: 'Hindi, Marathi, Nepali' }
+    ];
+    multiLanguageFontsButton.addEventListener('click', () => {
+        const fontDropdown = document.createElement('select');
+        fontDropdown.id = 'fontDropdown';
+        fontOptions.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font.name;
+            option.text = `${font.name} (${font.languages})`;
+            fontDropdown.appendChild(option);
         });
+
+        // Add a "Cancel" button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => {
+            document.body.removeChild(fontDropdown);
+            document.body.removeChild(cancelButton);
+            document.body.removeChild(selectButton);
+        });
+
+        // Add a "Select" button
+        const selectButton = document.createElement('button');
+        selectButton.textContent = 'Select';
+        selectButton.addEventListener('click', () => {
+            const selectedFont = fontDropdown.value;
+            const editor = document.querySelector('.editor');
+            editor.style.fontFamily = selectedFont;
+            document.body.removeChild(fontDropdown);
+            document.body.removeChild(cancelButton);
+            document.body.removeChild(selectButton);
+        });
+
+        document.body.appendChild(fontDropdown);
+        document.body.appendChild(cancelButton);
+        document.body.appendChild(selectButton);
+    });
+
     </script>
 </body>
 </html>
