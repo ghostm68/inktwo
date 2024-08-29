@@ -276,7 +276,7 @@
         </header>
 
         <main class="notebook-content">
-            <textarea class="editor" placeholder="Start typing your document here..."></textarea>
+            <div contenteditable="true" class="editor" placeholder="Start typing your document here..."></div>
             <div>
                 <button class="toolbar-btn" id="dictionaryToggle">Das Lexikon</button>
                 <div class="dictionary-popup hidden" id="dictionaryPopup">
@@ -329,182 +329,184 @@
         </footer>
     </div>
 
+
+
     
 <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Theme Toggle
-            const themeToggle = document.getElementById('themeToggle');
-            themeToggle.addEventListener('click', () => {
-                document.body.classList.toggle('neon-theme');
-                const icon = themeToggle.querySelector('i');
-                icon.classList.toggle('fa-sun');
-                icon.classList.toggle('fa-bolt');
-            });
+document.addEventListener('DOMContentLoaded', () => {
+    // Theme Toggle
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('neon-theme');
+    });
 
-            // Dictionary Functionality
-            const dictionaryToggle = document.getElementById('dictionaryToggle');
-            const dictionaryPopup = document.getElementById('dictionaryPopup');
-            const wordInput = document.getElementById('wordInput');
-            const definition = document.getElementById('definition');
+    // Dictionary Functionality
+    const dictionaryToggle = document.getElementById('dictionaryToggle');
+    const dictionaryPopup = document.getElementById('dictionaryPopup');
+    const wordInput = document.getElementById('wordInput');
+    const definition = document.getElementById('definition');
 
-            dictionaryToggle.addEventListener('click', () => {
-                dictionaryPopup.classList.toggle('hidden');
-            });
+    dictionaryToggle.addEventListener('click', () => {
+        dictionaryPopup.classList.toggle('hidden');
+    });
 
-            wordInput.addEventListener('keyup', (e) => {
-                if (e.key === 'Enter') {
-                    const word = wordInput.value;
-                    fetchDictionaryDefinition(word);
+    wordInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            const word = wordInput.value;
+            fetchDictionaryDefinition(word);
+        }
+    });
+
+    function fetchDictionaryDefinition(word) {
+        fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data[0] && data[0].meanings[0] && data[0].meanings[0].definitions[0]) {
+                    const definitionText = data[0].meanings[0].definitions[0].definition;
+                    definition.textContent = definitionText;
+                    definition.style.color = 'black';  // Change as needed
+                } else {
+                    definition.textContent = 'Definition not found.';
+                    definition.style.color = 'black'; // Change as needed
                 }
+            })
+            .catch(error => {
+                definition.textContent = 'Error fetching definition.';
+                definition.style.color = 'black'; // Change as needed
+                console.error('Error fetching definition:', error);
             });
+    }
 
-            function fetchDictionaryDefinition(word) {
-                fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data[0] && data[0].meanings[0] && data[0].meanings[0].definitions[0]) {
-                            const definitionText = data[0].meanings[0].definitions[0].definition;
-                            definition.textContent = definitionText;
-                            definition.style.color = 'black';  // Change as needed
-                        } else {
-                            definition.textContent = 'Definition not found.';
-                            definition.style.color = 'black'; // Change as needed
-                        }
-                    })
-                    .catch(error => {
-                        definition.textContent = 'Error fetching definition.';
-                        definition.style.color = 'black'; // Change as needed
-                        console.error('Error fetching definition:', error);
-                    });
-            }
-
-            // Upload Button
-            const uploadButton = document.getElementById('uploadButton');
-            uploadButton.addEventListener('click', () => {
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.txt';
-                fileInput.onchange = event => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = e => {
-                            document.querySelector('.editor').value = e.target.result;
-                        };
-                        reader.readAsText(file);
-                    }
+    // Upload Button
+    const uploadButton = document.getElementById('uploadButton');
+    uploadButton.addEventListener('click', () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt';
+        fileInput.onchange = event => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.querySelector('.editor').textContent = e.target.result;
                 };
-                fileInput.click();
-            });
+                reader.readAsText(file);
+            }
+        };
+        fileInput.click();
+    });
 
-            // Save Button
-            const saveButton = document.querySelector('.toolbar-btn[id="saveButton"]');
-            saveButton.addEventListener('click', () => {
-                const text = document.querySelector('.editor').value;
-                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'document.txt';
-                link.click();
-            });
-
-            // Multi-Language Fonts
-            const multiLanguageFontsButton = document.getElementById('multiLanguageFontsButton');
-            multiLanguageFontsButton.addEventListener('click', () => {
-                const fontOptions = [
-                    { name: 'Noto Sans', languages: 'English, German, Russian, Chinese, Japanese, Korean' },
-                    { name: 'Source Han Sans', languages: 'Chinese, Japanese, Korean' },
-                    { name: 'Roboto', languages: 'English, German, Russian' },
-                    { name: 'Droid Arabic Naskh', languages: 'Arabic' },
-                    { name: 'Noto Sans Thai', languages: 'Thai' },
-                    { name: 'Noto Sans Devanagari', languages: 'Hindi, Marathi, Nepali' }
-                ];
-
-                const fontDropdown = document.createElement('select');
-                fontDropdown.id = 'fontDropdown';
-                fontOptions.forEach(font => {
-                    const option = document.createElement('option');
-                    option.value = font.name;
-                    option.text = `${font.name} (${font.languages})`;
-                    fontDropdown.appendChild(option);
-                });
-
-                const cancelButton = document.createElement('button');
-                cancelButton.textContent = 'Cancel';
-                cancelButton.addEventListener('click', () => {
-                    document.body.removeChild(fontDropdown);
-                    document.body.removeChild(cancelButton);
-                    document.body.removeChild(selectButton);
-                });
-
-                const selectButton = document.createElement('button');
-                selectButton.textContent = 'Select';
-                selectButton.addEventListener('click', () => {
-                    const selectedFont = fontDropdown.value;
-                    document.querySelector('.editor').style.fontFamily = selectedFont;
-                    document.body.removeChild(fontDropdown);
-                    document.body.removeChild(cancelButton);
-                    document.body.removeChild(selectButton);
-                });
-
-                document.body.appendChild(fontDropdown);
-                document.body.appendChild(cancelButton);
-                document.body.appendChild(selectButton);
-            });
-
-            // Styling Options
-            const stylingButton = document.getElementById('stylingButton');
-            const stylingOptions = document.getElementById('stylingOptions');
-
-            stylingButton.addEventListener('click', () => {
-                stylingOptions.classList.toggle('hidden');
-            });
-
-            const boldButton = document.getElementById('boldButton');
-            const italicButton = document.getElementById('italicButton');
-            const underlineButton = document.getElementById('underlineButton');
-
-            boldButton.addEventListener('click', () => {
-                document.execCommand('bold', false, null);
-            });
-
-            italicButton.addEventListener('click', () => {
-                document.execCommand('italic', false, null);
-            });
-
-            underlineButton.addEventListener('click', () => {
-                document.execCommand('underline', false, null);
-            });
-
-            // Insert Options
-            const insertButton = document.getElementById('insertButton');
-            const insertOptions = document.getElementById('insertOptions');
-
-            insertButton.addEventListener('click', () => {
-                insertOptions.classList.toggle('hidden');
-            });
-
-            const insertImage = document.getElementById('insertImage');
-            insertImage.addEventListener('click', () => {
-                const editor = document.querySelector('.editor');
-                // Placeholder logic for image insertion
-                editor.value += '[Image]';
-            });
-
-            const insertTable = document.getElementById('insertTable');
-            insertTable.addEventListener('click', () => {
-                const editor = document.querySelector('.editor');
-                // Placeholder logic for table insertion
-                editor.value += '[Table]';
-            });
-
-            const insertList = document.getElementById('insertList');
-            insertList.addEventListener('click', () => {
-                const editor = document.querySelector('.editor');
-                // Placeholder logic for list insertion
-                editor.value += '[List]';
-            });
+    // Save Button
+    const saveButton = document.querySelector('.toolbar-btn[id="saveButton"]');
+    if (saveButton) {
+        saveButton.addEventListener('click', () => {
+            const text = document.querySelector('.editor').textContent;
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'document.txt';
+            link.click();
         });
+    }
+
+    // Multi-Language Fonts
+    const multiLanguageFontsButton = document.getElementById('multiLanguageFontsButton');
+    multiLanguageFontsButton.addEventListener('click', () => {
+        const fontOptions = [
+            { name: 'Noto Sans', languages: 'English, German, Russian, Chinese, Japanese, Korean' },
+            { name: 'Source Han Sans', languages: 'Chinese, Japanese, Korean' },
+            { name: 'Roboto', languages: 'English, German, Russian' },
+            { name: 'Droid Arabic Naskh', languages: 'Arabic' },
+            { name: 'Noto Sans Thai', languages: 'Thai' },
+            { name: 'Noto Sans Devanagari', languages: 'Hindi, Marathi, Nepali' }
+        ];
+
+        const fontDropdown = document.createElement('select');
+        fontDropdown.id = 'fontDropdown';
+        fontOptions.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font.name;
+            option.text = `${font.name} (${font.languages})`;
+            fontDropdown.appendChild(option);
+        });
+
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => {
+            document.body.removeChild(fontDropdown);
+            document.body.removeChild(cancelButton);
+            document.body.removeChild(selectButton);
+        });
+
+        const selectButton = document.createElement('button');
+        selectButton.textContent = 'Select';
+        selectButton.addEventListener('click', () => {
+            const selectedFont = fontDropdown.value;
+            document.querySelector('.editor').style.fontFamily = selectedFont;
+            document.body.removeChild(fontDropdown);
+            document.body.removeChild(cancelButton);
+            document.body.removeChild(selectButton);
+        });
+
+        document.body.appendChild(fontDropdown);
+        document.body.appendChild(cancelButton);
+        document.body.appendChild(selectButton);
+    });
+
+    // Styling Options
+    const stylingButton = document.getElementById('stylingButton');
+    const stylingOptions = document.getElementById('stylingOptions');
+
+    stylingButton.addEventListener('click', () => {
+        stylingOptions.classList.toggle('hidden');
+    });
+
+    const boldButton = document.getElementById('boldButton');
+    const italicButton = document.getElementById('italicButton');
+    const underlineButton = document.getElementById('underlineButton');
+
+    boldButton.addEventListener('click', () => {
+        document.execCommand('bold', false, null);
+    });
+
+    italicButton.addEventListener('click', () => {
+        document.execCommand('italic', false, null);
+    });
+
+    underlineButton.addEventListener('click', () => {
+        document.execCommand('underline', false, null);
+    });
+
+    // Insert Options
+    const insertButton = document.getElementById('insertButton');
+    const insertOptions = document.getElementById('insertOptions');
+
+    insertButton.addEventListener('click', () => {
+        insertOptions.classList.toggle('hidden');
+    });
+
+    const insertImage = document.getElementById('insertImage');
+    insertImage.addEventListener('click', () => {
+        const editor = document.querySelector('.editor');
+        // Placeholder logic for image insertion
+        editor.textContent += '[Image]';
+    });
+
+    const insertTable = document.getElementById('insertTable');
+    insertTable.addEventListener('click', () => {
+        const editor = document.querySelector('.editor');
+        // Placeholder logic for table insertion
+        editor.textContent += '[Table]';
+    });
+
+    const insertList = document.getElementById('insertList');
+    insertList.addEventListener('click', () => {
+        const editor = document.querySelector('.editor');
+        // Placeholder logic for list insertion
+        editor.textContent += '[List]';
+    });
+});
+
     
     </script>
 </body>
