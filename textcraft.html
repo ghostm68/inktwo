@@ -8,6 +8,29 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
     <title>NotebookInkreaLM</title>
     <style>
+	/* width */
+::-webkit-scrollbar {
+  width: 20px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 5px tan; 
+  border-radius: 10px;
+}
+ 
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: blue; 
+  border-radius: 10px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #efd0f5; 
+}
+</style>
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@300;400;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap');
@@ -373,6 +396,256 @@ right: 0;
   </div>
   <div id="dream-map"></div>
 </div>
+     <script>
+<script>
+let scene, camera, renderer, dreamObjects = [], currentDream = 0;
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+let moveUp = false;
+let moveDown = false;
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
+let prevTime = performance.now();
+
+function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({canvas: document.getElementById('dream-canvas'), antialias: true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  camera.position.z = 5;
+
+  window.addEventListener('resize', onWindowResize, false);
+  document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('mousedown', onMouseDown, false);
+  document.addEventListener('mouseup', onMouseUp, false);
+  document.addEventListener('keydown', onKeyDown, false);
+  document.addEventListener('keyup', onKeyUp, false);
+  document.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on right-click
+
+  // Lock the pointer
+  renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock ||
+                                           renderer.domElement.mozRequestPointerLock;
+  document.addEventListener('click', () => {
+    renderer.domElement.requestPointerLock();
+  });
+
+  createDreamScapes();
+  createDreamMap();
+  animate();
+}
+
+function createDreamScapes() {
+  // Kaleidoscope Realm
+  const kaleidoscopeGroup = new THREE.Group();
+  const geometry = new THREE.IcosahedronGeometry(1, 1);
+  for (let i = 0; i < 50; i++) {
+    const material = new THREE.MeshBasicMaterial({
+      color: Math.random() * 0xffffff,
+      wireframe: true
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(
+      Math.random() * 16 - 8,
+      Math.random() * 16 - 8,
+      Math.random() * 16 - 8
+    );
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    kaleidoscopeGroup.add(mesh);
+  }
+  dreamObjects.push(kaleidoscopeGroup);
+
+  // Fractal Dimension
+  const fractalGroup = new THREE.Group();
+  const fractalGeometry = new THREE.TetrahedronGeometry(0.5, 3);
+  for (let i = 0; i < 100; i++) {
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      opacity: Math.random() * 0.5 + 0.5,
+      transparent: true
+    });
+    const fractal = new THREE.Mesh(fractalGeometry, material);
+    fractal.position.set(
+      Math.random() * 20 - 10,
+      Math.random() * 20 - 10,
+      Math.random() * 20 - 10
+    );
+    fractal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    fractal.scale.setScalar(Math.random() * 0.5 + 0.5);
+    fractalGroup.add(fractal);
+  }
+  dreamObjects.push(fractalGroup);
+
+  // Add more dreamscapes here...
+
+  // Add all dreamObjects to the scene
+  dreamObjects.forEach(obj => scene.add(obj));
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const time = performance.now();
+  const delta = (time - prevTime) / 1000;
+
+  velocity.x -= velocity.x * 10.0 * delta;
+  velocity.z -= velocity.z * 10.0 * delta;
+  velocity.y -= velocity.y * 10.0 * delta;
+
+  direction.z = Number(moveForward) - Number(moveBackward);
+  direction.x = Number(moveRight) - Number(moveLeft);
+  direction.y = Number(moveDown) - Number(moveUp);
+  direction.normalize();
+
+  if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta; // Reduced speed
+  if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta; // Reduced speed
+  if (moveUp || moveDown) velocity.y -= direction.y * 100.0 * delta; // Reduced speed
+
+  camera.translateX(velocity.x * delta);
+  camera.translateY(velocity.y * delta);
+  camera.translateZ(velocity.z * delta);
+
+  if (dreamObjects[currentDream]) {
+    dreamObjects[currentDream].rotation.x += 0.001;
+    dreamObjects[currentDream].rotation.y += 0.002;
+  }
+
+  renderer.render(scene, camera);
+  prevTime = time;
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onMouseMove(event) {
+  if (document.pointerLockElement === renderer.domElement) {
+    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+    camera.rotation.y -= movementX * 0.002;
+    camera.rotation.x += movementY * 0.002; // Inverted Y-axis movement
+    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+  }
+}
+
+function onMouseDown(event) {
+  if (event.button === 0) { // Left mouse button
+    moveForward = true;
+  } else if (event.button === 2) { // Right mouse button
+    moveBackward = true;
+  }
+}
+
+function onMouseUp(event) {
+  if (event.button === 0) { // Left mouse button
+    moveForward = false;
+  } else if (event.button === 2) { // Right mouse button
+    moveBackward = false;
+  }
+}
+
+function onKeyDown(event) {
+  switch (event.code) {
+    case 'ArrowUp':
+      moveUp = true;
+      break;
+    case 'ArrowLeft':
+      moveRight = true;
+      break;
+    case 'ArrowDown':
+      moveDown = true;
+      break;
+    case 'ArrowRight':
+      moveLeft = true;
+      break;
+  }
+}
+
+function onKeyUp(event) {
+  switch (event.code) {
+    case 'ArrowUp':
+      moveUp = false;
+      break;
+    case 'ArrowLeft':
+      moveRight = false;
+      break;
+    case 'ArrowDown':
+      moveDown = false;
+      break;
+    case 'ArrowRight':
+      moveLeft = false;
+      break;
+  }
+}
+
+function switchDream(index) {
+  if (index >= 0 && index < dreamObjects.length) {
+    gsap.to(dreamObjects[currentDream].scale, {x: 0, y: 0, z: 0, duration: 1, ease: "power2.in"});
+    gsap.to(camera.position, {z: 10, duration: 1, ease: "power2.inOut", onComplete: () => {
+      currentDream = index;
+      gsap.to(dreamObjects[currentDream].scale, {x: 1, y: 1, z: 1, duration: 1, ease: "power2.out"});
+      gsap.to(camera.position, {z: 5, duration: 1, ease: "power2.inOut"});
+      updateDreamMap();
+    }});
+  }
+}
+
+function createDreamMap() {
+  const dreamMap = document.getElementById('dream-map');
+  const dreamNames = [
+    'Kaleidoscope Realm', 'Fractal Dimension', 'Cosmic Consciousness',
+    'Neon Dreamscape', 'Quantum Vortex', 'Astral Projection',
+    'Lucid Labyrinth', 'Ethereal Echoes'
+  ];
+
+  dreamNames.forEach((name, index) => {
+    const node = document.createElement('div');
+    node.className = 'map-node';
+    node.title = name;
+    node.style.left = `${Math.random() * 180 + 10}px`;
+    node.style.top = `${Math.random() * 180 + 10}px`;
+    node.addEventListener('click', () => switchDream(index));
+    dreamMap.appendChild(node);
+  });
+
+  updateDreamMap();
+}
+
+function updateDreamMap() {
+  const nodes = document.querySelectorAll('.map-node');
+  nodes.forEach((node, index) => {
+    if (index === currentDream) {
+      node.classList.add('active');
+    } else {
+      node.classList.remove('active');
+    }
+  });
+}
+
+document.getElementById('nav-left').addEventListener('click', () => {
+  switchDream((currentDream - 1 + dreamObjects.length) % dreamObjects.length);
+});
+
+document.getElementById('nav-right').addEventListener('click', () => {
+  switchDream((currentDream + 1) % dreamObjects.length);
+});
+
+document.getElementById('dream1').addEventListener('click', () => switchDream(0));
+document.getElementById('dream2').addEventListener('click', () => switchDream(1));
+document.getElementById('dream3').addEventListener('click', () => switchDream(2));
+document.getElementById('dream4').addEventListener('click', () => switchDream(3));
+document.getElementById('dream5').addEventListener('click', () => switchDream(4));
+document.getElementById('dream6').addEventListener('click', () => switchDream(5));
+document.getElementById('dream7').addEventListener('click', () => switchDream(6));
+document.getElementById('dream8').addEventListener('click', () => switchDream(7));
+
+init();
+</script>           
             <p>© 2024 inkrealm.info - All Rights Reserved</p>
         </footer>
     </div>
@@ -625,255 +898,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     </script>
-    <script>
-<script>
-let scene, camera, renderer, dreamObjects = [], currentDream = 0;
-let moveForward = false;
-let moveBackward = false;
-let moveLeft = false;
-let moveRight = false;
-let moveUp = false;
-let moveDown = false;
-let velocity = new THREE.Vector3();
-let direction = new THREE.Vector3();
-let prevTime = performance.now();
 
-function init() {
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  renderer = new THREE.WebGLRenderer({canvas: document.getElementById('dream-canvas'), antialias: true});
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  camera.position.z = 5;
-
-  window.addEventListener('resize', onWindowResize, false);
-  document.addEventListener('mousemove', onMouseMove, false);
-  document.addEventListener('mousedown', onMouseDown, false);
-  document.addEventListener('mouseup', onMouseUp, false);
-  document.addEventListener('keydown', onKeyDown, false);
-  document.addEventListener('keyup', onKeyUp, false);
-  document.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on right-click
-
-  // Lock the pointer
-  renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock ||
-                                           renderer.domElement.mozRequestPointerLock;
-  document.addEventListener('click', () => {
-    renderer.domElement.requestPointerLock();
-  });
-
-  createDreamScapes();
-  createDreamMap();
-  animate();
-}
-
-function createDreamScapes() {
-  // Kaleidoscope Realm
-  const kaleidoscopeGroup = new THREE.Group();
-  const geometry = new THREE.IcosahedronGeometry(1, 1);
-  for (let i = 0; i < 50; i++) {
-    const material = new THREE.MeshBasicMaterial({
-      color: Math.random() * 0xffffff,
-      wireframe: true
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(
-      Math.random() * 16 - 8,
-      Math.random() * 16 - 8,
-      Math.random() * 16 - 8
-    );
-    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-    kaleidoscopeGroup.add(mesh);
-  }
-  dreamObjects.push(kaleidoscopeGroup);
-
-  // Fractal Dimension
-  const fractalGroup = new THREE.Group();
-  const fractalGeometry = new THREE.TetrahedronGeometry(0.5, 3);
-  for (let i = 0; i < 100; i++) {
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      opacity: Math.random() * 0.5 + 0.5,
-      transparent: true
-    });
-    const fractal = new THREE.Mesh(fractalGeometry, material);
-    fractal.position.set(
-      Math.random() * 20 - 10,
-      Math.random() * 20 - 10,
-      Math.random() * 20 - 10
-    );
-    fractal.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-    fractal.scale.setScalar(Math.random() * 0.5 + 0.5);
-    fractalGroup.add(fractal);
-  }
-  dreamObjects.push(fractalGroup);
-
-  // Add more dreamscapes here...
-
-  // Add all dreamObjects to the scene
-  dreamObjects.forEach(obj => scene.add(obj));
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const time = performance.now();
-  const delta = (time - prevTime) / 1000;
-
-  velocity.x -= velocity.x * 10.0 * delta;
-  velocity.z -= velocity.z * 10.0 * delta;
-  velocity.y -= velocity.y * 10.0 * delta;
-
-  direction.z = Number(moveForward) - Number(moveBackward);
-  direction.x = Number(moveRight) - Number(moveLeft);
-  direction.y = Number(moveDown) - Number(moveUp);
-  direction.normalize();
-
-  if (moveForward || moveBackward) velocity.z -= direction.z * 100.0 * delta; // Reduced speed
-  if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta; // Reduced speed
-  if (moveUp || moveDown) velocity.y -= direction.y * 100.0 * delta; // Reduced speed
-
-  camera.translateX(velocity.x * delta);
-  camera.translateY(velocity.y * delta);
-  camera.translateZ(velocity.z * delta);
-
-  if (dreamObjects[currentDream]) {
-    dreamObjects[currentDream].rotation.x += 0.001;
-    dreamObjects[currentDream].rotation.y += 0.002;
-  }
-
-  renderer.render(scene, camera);
-  prevTime = time;
-}
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function onMouseMove(event) {
-  if (document.pointerLockElement === renderer.domElement) {
-    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-
-    camera.rotation.y -= movementX * 0.002;
-    camera.rotation.x += movementY * 0.002; // Inverted Y-axis movement
-    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
-  }
-}
-
-function onMouseDown(event) {
-  if (event.button === 0) { // Left mouse button
-    moveForward = true;
-  } else if (event.button === 2) { // Right mouse button
-    moveBackward = true;
-  }
-}
-
-function onMouseUp(event) {
-  if (event.button === 0) { // Left mouse button
-    moveForward = false;
-  } else if (event.button === 2) { // Right mouse button
-    moveBackward = false;
-  }
-}
-
-function onKeyDown(event) {
-  switch (event.code) {
-    case 'ArrowUp':
-      moveUp = true;
-      break;
-    case 'ArrowLeft':
-      moveRight = true;
-      break;
-    case 'ArrowDown':
-      moveDown = true;
-      break;
-    case 'ArrowRight':
-      moveLeft = true;
-      break;
-  }
-}
-
-function onKeyUp(event) {
-  switch (event.code) {
-    case 'ArrowUp':
-      moveUp = false;
-      break;
-    case 'ArrowLeft':
-      moveRight = false;
-      break;
-    case 'ArrowDown':
-      moveDown = false;
-      break;
-    case 'ArrowRight':
-      moveLeft = false;
-      break;
-  }
-}
-
-function switchDream(index) {
-  if (index >= 0 && index < dreamObjects.length) {
-    gsap.to(dreamObjects[currentDream].scale, {x: 0, y: 0, z: 0, duration: 1, ease: "power2.in"});
-    gsap.to(camera.position, {z: 10, duration: 1, ease: "power2.inOut", onComplete: () => {
-      currentDream = index;
-      gsap.to(dreamObjects[currentDream].scale, {x: 1, y: 1, z: 1, duration: 1, ease: "power2.out"});
-      gsap.to(camera.position, {z: 5, duration: 1, ease: "power2.inOut"});
-      updateDreamMap();
-    }});
-  }
-}
-
-function createDreamMap() {
-  const dreamMap = document.getElementById('dream-map');
-  const dreamNames = [
-    'Kaleidoscope Realm', 'Fractal Dimension', 'Cosmic Consciousness',
-    'Neon Dreamscape', 'Quantum Vortex', 'Astral Projection',
-    'Lucid Labyrinth', 'Ethereal Echoes'
-  ];
-
-  dreamNames.forEach((name, index) => {
-    const node = document.createElement('div');
-    node.className = 'map-node';
-    node.title = name;
-    node.style.left = `${Math.random() * 180 + 10}px`;
-    node.style.top = `${Math.random() * 180 + 10}px`;
-    node.addEventListener('click', () => switchDream(index));
-    dreamMap.appendChild(node);
-  });
-
-  updateDreamMap();
-}
-
-function updateDreamMap() {
-  const nodes = document.querySelectorAll('.map-node');
-  nodes.forEach((node, index) => {
-    if (index === currentDream) {
-      node.classList.add('active');
-    } else {
-      node.classList.remove('active');
-    }
-  });
-}
-
-document.getElementById('nav-left').addEventListener('click', () => {
-  switchDream((currentDream - 1 + dreamObjects.length) % dreamObjects.length);
-});
-
-document.getElementById('nav-right').addEventListener('click', () => {
-  switchDream((currentDream + 1) % dreamObjects.length);
-});
-
-document.getElementById('dream1').addEventListener('click', () => switchDream(0));
-document.getElementById('dream2').addEventListener('click', () => switchDream(1));
-document.getElementById('dream3').addEventListener('click', () => switchDream(2));
-document.getElementById('dream4').addEventListener('click', () => switchDream(3));
-document.getElementById('dream5').addEventListener('click', () => switchDream(4));
-document.getElementById('dream6').addEventListener('click', () => switchDream(5));
-document.getElementById('dream7').addEventListener('click', () => switchDream(6));
-document.getElementById('dream8').addEventListener('click', () => switchDream(7));
-
-init();
-</script>
 
 </html>
