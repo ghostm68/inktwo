@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
     <title>NotebookInkreaLM</title>
     <style>
 	/* width */
@@ -18,7 +21,7 @@
  
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: pink; 
+  background: blue; 
   border-radius: 10px;
 }
 
@@ -261,7 +264,7 @@
 
         #fontDropdown button:hover {
             background-color: #4527A0; /* Darker purple */
-	}
+	}	
           #dream-canvas {
     position: fixed;
   bottom: 0;
@@ -269,90 +272,49 @@ right: 0;
     width: 50%;
     height: 50%;
   }
-
-        .notebook-footer {
-            position: relative;
-            background-color: #181818;
-            padding: 12px;
-            text-align: center;
-            font-size: 12px;
-            color: #757575;
-            overflow: visible;
-        }
-
-        #fractal-container {
-            position: relative;
-            width: 100%;
-            height: 300px;
-            overflow: hidden;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-
-        #dream-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 15;
-        }
-
-        #controls button {
-            padding: 10px 15px;
-            font-size: 16px;
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        #dream-map {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 200px;
-            height: 200px;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 5px;
-            z-index: 15;
-        }
-
-        .map-node {
-            width: 10px;
-            height: 10px;
-            background-color: white;
-            border-radius: 50%;
-            position: absolute;
-            cursor: pointer;
-            transition: transform 0.3s, background-color 0.3s;
-        }
-
-        .map-node:hover {
-            transform: scale(1.5);
-        }
-
-        .map-node.active {
-            background-color: #ff00ff;
-            transform: scale(2);
-        }
+  #controls {
+    position: fixed;
+    bottom: 20px;
+    right: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+  }
+  #controls button {
+    padding: 10px 15px;
+    font-size: 16px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  #dream-map {
+    width: 200px;
+    height: 200px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    position: relative;
+  }
+  .map-node {
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    border-radius: 50%;
+    position: absolute;
+    cursor: pointer;
+    transition: transform 0.3s, background-color 0.3s;
+  }
+  .map-node:hover {
+    transform: scale(1.5);
+  }
+  .map-node.active {
+    background-color: #ff00ff;
+    transform: scale(2);
+  }
+          
     </style>
-        
-    </style>
-	
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
 </head>
 <body>
     <div class="notebook-container">
@@ -420,22 +382,21 @@ right: 0;
             <button class="toolbar-btn" id="insertList">List</button>
         </div>
 
-   <footer class="notebook-footer">
-    <div class="footer-content">
-    <p>NotebookInkreaLM is being developed. Features may evolve.</p>
-	   
-    <p>© 2024 inkrealm.info - All Rights Reserved</p> 
-    <div id="fractal-overlay">
-        <canvas id="dream-canvas"></canvas>
-        <div id="controls">
-            <button id="dream4">Neon X</button>
-            <button id="dream5">Quantum Y</button>
-            <button id="dream6">Astral Z</button>
-            </div>
-            <div id="dream-map"></div>
-        </div>
-    </div>
-</footer>
+        <footer class="notebook-footer">
+            <p>NotebookInkreaLM is being developed. Features may evolve.</p>
+            <canvas id="dream-canvas"></canvas>
+<div id="controls">
+  <button id="dream4">Neon X</button>
+  <button id="dream5">Quantum Y</button>
+  <button id="dream6">Astral Z</button>
+</div>
+<div id="navigation">
+  <div id="nav-controls">
+    <button id="nav-left">←</button>
+    <button id="nav-right">→</button>
+  </div>
+  <div id="dream-map"></div>
+</div>
      <script>
 <script>
 let scene, camera, renderer, dreamObjects = [], currentDream = 0;
@@ -450,26 +411,31 @@ let direction = new THREE.Vector3();
 let prevTime = performance.now();
 
 function init() {
-    scene = new THREE.Scene();
-    const container = document.getElementById('fractal-container');
-    camera = new THREE.PerspectiveCamera(75, container.offsetWidth / container.offsetHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({canvas: document.getElementById('dream-canvas'), alpha: true});
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({canvas: document.getElementById('dream-canvas'), antialias: true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
 
-    camera.position.z = 5;
+  camera.position.z = 5;
 
-    window.addEventListener('resize', onWindowResize, false);
-    
-    createDreamScapes();
-    createDreamMap();
-    animate();
-}
+  window.addEventListener('resize', onWindowResize, false);
+  document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('mousedown', onMouseDown, false);
+  document.addEventListener('mouseup', onMouseUp, false);
+  document.addEventListener('keydown', onKeyDown, false);
+  document.addEventListener('keyup', onKeyUp, false);
+  document.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu on right-click
 
-function onWindowResize() {
-    const container = document.getElementById('fractal-container');
-    camera.aspect = container.offsetWidth / container.offsetHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
+  // Lock the pointer
+  renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock ||
+                                           renderer.domElement.mozRequestPointerLock;
+  document.addEventListener('click', () => {
+    renderer.domElement.requestPointerLock();
+  });
+
+  createDreamScapes();
+  createDreamMap();
+  animate();
 }
 
 function createDreamScapes() {
@@ -680,7 +646,9 @@ document.getElementById('dream7').addEventListener('click', () => switchDream(6)
 document.getElementById('dream8').addEventListener('click', () => switchDream(7));
 
 init();
-</script>       
+</script>           
+            <p>© 2024 inkrealm.info - All Rights Reserved</p>
+        </footer>
     </div>
     
             <p>draw-<br>
