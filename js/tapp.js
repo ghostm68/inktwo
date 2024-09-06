@@ -1,16 +1,16 @@
-	  (function() {
-let darkMode = false;
-let fontSize = 18;
-let currentFont = 'Lora';
-let typewriterSound = false;
-let openDyslexicMode = false;
-const fonts = [
-    'Lora', 'Roboto', 'Open Sans', 'Merriweather', 'Arial', 'Helvetica', 'Times New Roman', 
-    'Courier New', 'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS', 'Trebuchet MS', 
-    'Arial Black', 'Impact'
-];
-let typewriterAudio;
-
+(function() {
+    let darkMode = false;
+    let fontSize = 18;
+    let currentFont = 'Lora';
+    let typewriterSound = false;
+    let openDyslexicMode = false;
+    const fonts = [
+        'Lora', 'Roboto', 'Open Sans', 'Merriweather', 'Arial', 'Helvetica', 'Times New Roman', 
+        'Courier New', 'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS', 'Trebuchet MS', 
+        'Arial Black', 'Impact'
+    ];
+    let typewriterAudio;
+	
 function toggleFullScreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -222,4 +222,5 @@ document.addEventListener('click', function(e) {
     }
 });
 
-initializeFeatures();
+  initializeFeatures();
+})();
