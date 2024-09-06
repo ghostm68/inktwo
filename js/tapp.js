@@ -195,32 +195,39 @@ function applyScreenplayFormat() {
 }
 
 function initializeFeatures() {
-    updateWordCount();
-    document.getElementById('editor').addEventListener('input', handleListCreation);
-}
-
-function handleListCreation(e) {
-    const cursorPosition = this.selectionStart;
-    const textBeforeCursor = this.value.substring(0, cursorPosition);
-    const lines = textBeforeCursor.split('\n');
-    const currentLine = lines[lines.length - 1];
-
-    if (currentLine === '* ') {
-        e.preventDefault();
-        this.value = textBeforeCursor.slice(0, -2) + '\n• ' + this.value.substring(cursorPosition);
-        this.selectionStart = this.selectionEnd = cursorPosition + 1;
-    } else if (currentLine === '1. ') {
-        e.preventDefault();
-        this.value = textBeforeCursor + '\n2. ' + this.value.substring(cursorPosition);
-        this.selectionStart = this.selectionEnd = cursorPosition + 4;
+        updateWordCount();
+        document.getElementById('editor').addEventListener('input', handleListCreation);
+        
+        // Add event listeners for menu items
+        document.querySelector('.menu-item:nth-child(1)').addEventListener('click', toggleFullScreen);
+        document.querySelector('.menu-item:nth-child(2)').addEventListener('click', toggleDarkMode);
+        document.querySelector('.menu-item:nth-child(3)').addEventListener('click', () => changeFontSize('+'));
+        document.querySelector('.menu-item:nth-child(4)').addEventListener('click', () => changeFontSize('-'));
+        document.querySelector('.menu-item:nth-child(5)').addEventListener('click', changeFont);
+        document.querySelector('.menu-item:nth-child(6)').addEventListener('click', toggleTypewriterSound);
+        document.querySelector('.menu-item:nth-child(7)').addEventListener('click', toggleOpenDyslexic);
+        document.querySelector('.menu-item:nth-child(8)').addEventListener('click', saveDocument);
+        document.querySelector('.menu-item:nth-child(9)').addEventListener('click', loadDocument);
+        document.querySelector('.menu-item:nth-child(10)').addEventListener('click', printDocument);
+        
+        // Add event listener for screenplay format
+        document.getElementById('screenplay-elements').addEventListener('change', applyScreenplayFormat);
+        
+        // Add event listener for editor selection
+        document.getElementById('editor').addEventListener('mouseup', showPopupToolbar);
+        
+        // Add event listeners for popup toolbar buttons
+        document.querySelectorAll('#popup-toolbar button').forEach(button => {
+            button.addEventListener('click', () => applyFormatting(button.textContent.toLowerCase()));
+        });
     }
-}
 
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('#popup-toolbar') && !e.target.closest('#editor')) {
-        document.getElementById('popup-toolbar').style.display = 'none';
-    }
-});
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#popup-toolbar') && !e.target.closest('#editor')) {
+            document.getElementById('popup-toolbar').style.display = 'none';
+        }
+    });
 
-  initializeFeatures();
+    // Call initializeFeatures when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', initializeFeatures);
 })();
