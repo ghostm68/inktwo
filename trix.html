@@ -146,11 +146,12 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             <option value="special">Special</option>
         </select>
     </div>
+    <button id="voiceButton" onclick="toggleVoiceInput()">Voice Input</button>
     <button id="resetButton" onclick="resetToDefaults()">Reset Trix</button>
     <div class="menu-item" onclick="toggleDarkMode()">Switch Screen </div>
     <div class="menu-item" onclick="changeFont()">Text Font</div>
     <div class="menu-item" onclick="toggleTypewriterSound()">"Type" Sound</div>
-    <div class="menu-item" onclick="toggleOpenDyslexic()"> OpenDyslexic Font</div>
+    <div class="menu-item" onclick="toggleOpenDyslexic()"> OpenDyslexic </div>
     <div class="menu-item" onclick="saveDocument()">Save Document</div>
     <div class="menu-item" onclick="loadDocument()">Open Document</div>
     <div class="menu-item" onclick="printDocument()">Print Document</div>
@@ -304,6 +305,57 @@ let openDyslexicMode = false;
 const fonts = ['Lora', 'Roboto', 'Open Sans', 'Merriweather', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black', 'Impact'];
 let typewriterAudio = new Audio('https://github.com/ghostm68/pantheon/raw/f6021c2d479492ddb8b08d2625f57f2ac8e4d026/typewrit.wav');
 
+let recognition;
+let isListening = false;
+
+function setupSpeechRecognition() {
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        recognition.onresult = function(event) {
+            const result = event.results[event.results.length - 1];
+            const transcript = result[0].transcript;
+            
+            if (result.isFinal) {
+                insertTextAtCursor(transcript + ' ');
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+        };
+    } else {
+        console.log('Speech recognition not supported');
+    }
+}
+
+function toggleVoiceInput() {
+    if (!recognition) {
+        setupSpeechRecognition();
+    }
+
+    if (isListening) {
+        recognition.stop();
+        isListening = false;
+        document.getElementById('voiceButton').textContent = 'Start Voice Input';
+    } else {
+        recognition.start();
+        isListening = true;
+        document.getElementById('voiceButton').textContent = 'Stop Voice Input';
+    }
+}
+
+function insertTextAtCursor(text) {
+    const editor = document.getElementById('editor');
+    const cursorPos = editor.selectionStart;
+    const textBefore = editor.value.substring(0, cursorPos);
+    const textAfter = editor.value.substring(cursorPos);
+    editor.value = textBefore + text + textAfter;
+    editor.selectionStart = editor.selectionEnd = cursorPos + text.length;
+}
+	    
 function toggleDarkMode() {
     darkMode = !darkMode;
     document.body.style.backgroundColor = darkMode ? '#222' : '#fff';
