@@ -27,7 +27,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>trix</title>
+    <title>Enhanced Matrix Writing App</title>
     <link href="https://fonts.googleapis.com/css2?family=Lora&family=Roboto&family=Open+Sans&family=Merriweather&family=OpenDyslexic:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -341,7 +341,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             document.getElementById('word-counter').textContent = `Words: ${wordCount}`;
         }
 
-function applyScreenplayFormat() {
+ function applyScreenplayFormat() {
     const editor = document.getElementById('editor');
     const format = document.getElementById('screenplay-elements').value;
     const selectionStart = editor.selectionStart;
@@ -349,9 +349,9 @@ function applyScreenplayFormat() {
     const selection = editor.value.substring(selectionStart, selectionEnd);
     let formattedText = selection;
 
-    switch (format) {
-        case 'scene':
-            formattedText = '\n' + selection.toUpperCase() + '\n\n';
+    switch(format) {
+        case 'sceneheading':
+            formattedText = selection.toUpperCase() + '\n\n';
             break;
         case 'action':
             formattedText = selection + '\n\n';
@@ -362,7 +362,7 @@ function applyScreenplayFormat() {
         case 'dialogue':
             formattedText = '    ' + selection + '\n\n';
             break;
-        case 'parenthetical':
+        case 'parentheses':
             formattedText = '    (' + selection + ')\n';
             break;
         case 'transition':
@@ -370,16 +370,39 @@ function applyScreenplayFormat() {
             break;
     }
 
-    // Replace the selected text with the formatted text
-    editor.value = editor.value.substring(0, selectionStart) + formattedText + editor.value.substring(selectionEnd);
-
-    // Move the cursor to the end of the formatted text
-    editor.selectionStart = selectionStart + formattedText.length;
-    editor.selectionEnd = selectionStart + formattedText.length;
+    editor.setRangeText(formattedText, selectionStart, selectionEnd, 'end');
     editor.focus();
 }
-    });
 
+function initializeFeatures() {
+    updateWordCount();
+    document.getElementById('editor').addEventListener('input', handleListCreation);
+}
+
+function handleListCreation(e) {
+    const cursorPosition = this.selectionStart;
+    const textBeforeCursor = this.value.substring(0, cursorPosition);
+    const lines = textBeforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+
+    if (currentLine === '* ') {
+        e.preventDefault();
+        this.value = textBeforeCursor.slice(0, -2) + '\n• ' + this.value.substring(cursorPosition);
+        this.selectionStart = this.selectionEnd = cursorPosition + 1;
+    } else if (currentLine === '1. ') {
+        e.preventDefault();
+        this.value = textBeforeCursor + '\n2. ' + this.value.substring(cursorPosition);
+        this.selectionStart = this.selectionEnd = cursorPosition + 4;
+    }
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#popup-toolbar') && !e.target.closest('#editor')) {
+        document.getElementById('popup-toolbar').style.display = 'none';
+    }
+});
+
+initializeFeatures();
     </script>
 </body>
 </html>
