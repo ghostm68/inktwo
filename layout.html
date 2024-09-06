@@ -1,5 +1,6 @@
 <!DOCTYPE html>
- 
+
+<html lang="en">
 	<!--ink city layout 010
  -Created by www.inkrealm.info 
 
@@ -26,7 +27,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matrix Writing App</title>
+    <title>Enhanced Matrix Writing App</title>
     <link href="https://fonts.googleapis.com/css2?family=Lora&family=Roboto&family=Open+Sans&family=Merriweather&family=OpenDyslexic:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -49,7 +50,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             height: 100vh;
         }
         .sidebar {
-            width: 200px;
+            width: 250px;
             background-color: rgba(0, 0, 0, 0.7);
             color: #0f0;
             padding: 20px;
@@ -59,16 +60,19 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             flex-grow: 1;
             padding: 20px;
             background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
         }
         #editor {
             width: 100%;
-            height: calc(100vh - 100px);
+            height: calc(100vh - 150px);
             border: none;
             outline: none;
             font-size: 18px;
             line-height: 1.6;
             resize: none;
             background-color: transparent;
+            margin-bottom: 10px;
         }
         .menu-item {
             margin-bottom: 15px;
@@ -78,13 +82,32 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             text-decoration: underline;
         }
         #word-counter {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
             background-color: rgba(0, 0, 0, 0.7);
             color: #0f0;
             padding: 5px 10px;
             border-radius: 5px;
+        }
+        #screenplay-format {
+            margin-top: 20px;
+        }
+        #screenplay-elements {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .popup-toolbar {
+            display: none;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .popup-toolbar button {
+            background-color: #0f0;
+            color: black;
+            border: none;
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -92,8 +115,8 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
     <canvas id="matrix-canvas"></canvas>
     <div class="container">
         <div class="sidebar">
-            <div class="menu-item" onclick="toggleMatrixAnimation()">Toggle Matrix</div>
-            <div class="menu-item" onclick="randomizeColor()">Randomize Color</div>
+            <div class="menu-item" onclick="toggleMatrixAnimation()">start-stop 'trix</div>
+            <div class="menu-item" onclick="randomizeColor()">shade</div>
             <input type="color" id="colorPicker" onchange="updateColor(this.value)">
             <div class="menu-item">
                 Speed: <input type="range" id="speedSlider" min="10" max="200" value="50" onchange="updateSpeed(this.value)">
@@ -101,18 +124,35 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             <div class="menu-item">
                 Font Size: <input type="range" id="fontSizeSlider" min="8" max="32" value="16" onchange="updateFontSize(this.value)">
             </div>
-            <div class="menu-item" onclick="toggleDarkMode()">Toggle Dark Mode</div>
-            <div class="menu-item" onclick="changeFont()">Change Font</div>
-            <div class="menu-item" onclick="toggleTypewriterSound()">Toggle Typewriter</div>
-            <div class="menu-item" onclick="toggleOpenDyslexic()">Toggle OpenDyslexic</div>
+            <div class="menu-item" onclick="toggleDarkMode()">Toggle Switch Mode</div>
+            <div class="menu-item" onclick="changeFont()">get Font</div>
+            <div class="menu-item" onclick="toggleTypewriterSound()">sound Typewriter</div>
+            <div class="menu-item" onclick="toggleOpenDyslexic()">via Dyslexic</div>
             <div class="menu-item" onclick="saveDocument()">Save</div>
             <div class="menu-item" onclick="loadDocument()">Open</div>
             <div class="menu-item" onclick="printDocument()">Print</div>
+            <div id="screenplay-format">
+                <label for="screenplay-elements">Screenplay Elements:</label>
+                <select id="screenplay-elements" onchange="applyScreenplayFormat()">
+                    <option value="">Select format</option>
+                    <option value="scene">Scene Heading</option>
+                    <option value="action">Action</option>
+                    <option value="character">Character</option>
+                    <option value="dialogue">Dialogue</option>
+                    <option value="parenthetical">Parenthetical</option>
+                    <option value="transition">Transition</option>
+                </select>
+            </div>
         </div>
         <div class="content">
-            <textarea id="editor" placeholder="Start writing here..." onkeyup="updateWordCount()"></textarea>
+            <textarea id="editor" placeholder="Start writing here..." onkeyup="updateWordCount()" onselect="showPopupToolbar(event)"></textarea>
             <div id="word-counter">Words: 0</div>
         </div>
+    </div>
+    <div class="popup-toolbar" id="popupToolbar">
+        <button onclick="applyFormatting('bold')"><strong>B</strong></button>
+        <button onclick="applyFormatting('italic')"><em>I</em></button>
+        <button onclick="applyFormatting('underline')"><u>U</u></button>
     </div>
     <script>
         // Matrix animation variables and functions
@@ -230,11 +270,22 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
 
         function saveDocument() {
             const text = document.getElementById('editor').value;
-            const blob = new Blob([text], {type: 'text/plain'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'document.txt';
-            a.click();
+            const fileType = prompt("Enter file type to save (txt or pdf):", "txt");
+            
+            if (fileType === "txt") {
+                const blob = new Blob([text], {type: 'text/plain'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'document.txt';
+                a.click();
+            } else if (fileType === "pdf") {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.text(text, 10, 10);
+                doc.save("document.pdf");
+            } else {
+                alert("Invalid file type. Please choose 'txt' or 'pdf'.");
+            }
         }
 
         function loadDocument() {
@@ -244,11 +295,38 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             input.onchange = function(event) {
                 const file = event.target.files[0];
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('editor').value = e.target.result;
-                    updateWordCount();
-                };
-                reader.readAsText(file);
+                
+                if (file.type === "text/plain") {
+                    reader.onload = function(e) {
+                        document.getElementById('editor').value = e.target.result;
+                        updateWordCount();
+                    };
+                    reader.readAsText(file);
+                } else if (file.type === "application/pdf") {
+                    reader.onload = function(e) {
+                        const typedarray = new Uint8Array(e.target.result);
+                        
+                        pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
+                            let text = '';
+                            const numPages = pdf.numPages;
+                            let loadedPages = 0;
+
+                            for (let i = 1; i <= numPages; i++) {
+                                pdf.getPage(i).then(function(page) {
+                                    page.getTextContent().then(function(textContent) {
+                                        text += textContent.items.map(item => item.str).join(' ') + '\n\n';
+                                        loadedPages++;
+                                        if (loadedPages === numPages) {
+                                            document.getElementById('editor').value = text.trim();
+                                            updateWordCount();
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+                }
             };
             input.click();
         }
@@ -263,8 +341,50 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             document.getElementById('word-counter').textContent = `Words: ${wordCount}`;
         }
 
-        // Initialize
-        updateWordCount();
+   function applyScreenplayFormat() {
+    const editor = document.getElementById('editor');
+    const format = document.getElementById('screenplay-elements').value;
+    const selectionStart = editor.selectionStart;
+    const selectionEnd = editor.selectionEnd;
+    const selection = editor.value.substring(selectionStart, selectionEnd);
+    let formattedText = selection;
+
+    switch (format) {
+        case 'scene':
+            formattedText = '\n' + selection.toUpperCase() + '\n\n';
+            break;
+        case 'action':
+            formattedText = selection + '\n\n';
+            break;
+        case 'character':
+            formattedText = '\n' + selection.toUpperCase() + '\n';
+            break;
+        case 'dialogue':
+            formattedText = '    ' + selection + '\n\n';
+            break;
+        case 'parenthetical':
+            formattedText = '    (' + selection + ')\n';
+            break;
+        case 'transition':
+            formattedText = '\n' + selection.toUpperCase() + ':\n\n';
+            break;
+    }
+
+    editor.setRangeText(formattedText, selectionStart, selectionEnd, 'end');
+    editor.focus();
+}
+
+function showPopupToolbar(event) {
+    const toolbar = document.getElementById('popupToolbar');
+    toolbar.style.display = 'block'; // Show the toolbar
+
+    // Add click event listener to close the toolbar when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#popupToolbar') && !e.target.closest('#editor')) {
+            toolbar.style.display = 'none';
+        }
+    });
+}
     </script>
 </body>
 </html>
