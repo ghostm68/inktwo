@@ -169,7 +169,180 @@ label {
 </style>
 </head>
 <body>
+<canvas id="matrix"></canvas>
+<button id="toggleToolbar" onclick="toggleToolbar()">☰</button>
+<div id="toolbar" class="hidden">
+    <button onclick="togglePause()">Pause/Resume</button>
+    <button onclick="randomizeColor()">Random Color</button>
+    <input type="color" id="colorPicker" onchange="updateColor(this.value)">
+    <label>Speed:
+        <input type="range" id="speedSlider" min="10" max="200" value="50" onchange="updateSpeed(this.value)">
+    </label>
+    <label>Font Size:
+        <input type="range" id="fontSizeSlider" min="8" max="32" value="16" onchange="updateFontSize(this.value)">
+    </label>
+    <label>Fade Speed:
+        <input type="range" id="fadeSpeedSlider" min="0.01" max="0.2" step="0.01" value="0.05" onchange="updateFadeSpeed(this.value)">
+    </label>
+    <label>Character Set:
+        <select id="charSetSelect" onchange="updateCharacterSet(this.value)">
+            <option value="matrix">Matrix (Katakana + Latin + Nums)</option>
+            <option value="binary">Binary</option>
+            <option value="ascii">ASCII</option>
+        </select>
+    </label>
+    <button id="resetButton" onclick="resetToDefaults()">Reset to Defaults</button>
+</div>
+	<script>
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
 
+canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+
+let katakana = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヰヱヲン';
+let latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let nums = '0123456789';
+
+let alphabet = katakana + latin + nums;
+
+let fontSize = 16;
+let columns = canvas.width / fontSize;
+
+let rainDrops = [];
+
+for (let x = 0; x < columns; x++) {
+    rainDrops[x] = 1;
+}
+
+let color = '#0f0';
+let speed = 50;
+let paused = false;
+let fadeSpeed = 0.05;
+
+function draw() {
+    if (paused) return;
+    
+    ctx.fillStyle = `rgba(0, 0, 0, ${fadeSpeed})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = color;
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < rainDrops.length; i++) {
+        const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+        ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+        if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            rainDrops[i] = 0;
+        }
+        rainDrops[i]++;
+    }
+}
+
+let interval = setInterval(draw, speed);
+
+window.addEventListener('resize', () => {
+    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+    columns = canvas.width / fontSize;
+    rainDrops = Array(Math.ceil(columns)).fill(1);
+});
+
+function togglePause() {
+    paused = !paused;
+}
+
+function randomizeColor() {
+    color = `#${Math.floor(Math.random()*16777215).toString(16)}`;
+    document.getElementById('colorPicker').value = color;
+    updateMenuButtonColor(color);
+}
+
+function updateColor(newColor) {
+    color = newColor;
+    updateMenuButtonColor(newColor);
+}
+
+function updateMenuButtonColor(newColor) {
+    document.getElementById('toggleToolbar').style.backgroundColor = newColor;
+    document.getElementById('toggleToolbar').style.color = getContrastColor(newColor);
+}
+
+function getContrastColor(hexcolor) {
+    // Convert hex to RGB
+    let r = parseInt(hexcolor.substr(1,2),16);
+    let g = parseInt(hexcolor.substr(3,2),16);
+    let b = parseInt(hexcolor.substr(5,2),16);
+    
+    // Calculate luminance
+    let yiq = ((r*299)+(g*587)+(b*114))/1000;
+    
+    // Return black or white depending on luminance
+    return (yiq >= 128) ? 'black' : 'white';
+}
+
+function updateSpeed(newSpeed) {
+    clearInterval(interval);
+    speed = newSpeed;
+    interval = setInterval(draw, speed);
+}
+
+function updateFontSize(newSize) {
+    fontSize = parseInt(newSize);
+    columns = canvas.width / fontSize;
+    rainDrops = Array(Math.ceil(columns)).fill(1);
+}
+
+function updateFadeSpeed(newSpeed) {
+    fadeSpeed = parseFloat(newSpeed);
+}
+
+function updateCharacterSet(set) {
+    switch(set) {
+        case 'binary':
+            alphabet = '01';
+            break;
+        case 'ascii':
+            alphabet = '';
+            for (let i = 33; i <= 126; i++) {
+                alphabet += String.fromCharCode(i);
+            }
+            break;
+        default:
+            alphabet = katakana + latin + nums;
+    }
+}
+
+function toggleToolbar() {
+    document.getElementById('toolbar').classList.toggle('hidden');
+}
+
+function resetToDefaults() {
+    color = '#0f0';
+    speed = 50;
+    fontSize = 16;
+    fadeSpeed = 0.05;
+    alphabet = katakana + latin + nums;
+
+    document.getElementById('colorPicker').value = color;
+    document.getElementById('speedSlider').value = speed;
+    document.getElementById('fontSizeSlider').value = fontSize;
+    document.getElementById('fadeSpeedSlider').value = fadeSpeed;
+    document.getElementById('charSetSelect').value = 'matrix';
+
+    updateColor(color);
+    updateSpeed(speed);
+    updateFontSize(fontSize);
+    updateFadeSpeed(fadeSpeed);
+    
+    columns = canvas.width / fontSize;
+    rainDrops = Array(Math.ceil(columns)).fill(1);
+}
+
+// Initialize menu button color
+updateMenuButtonColor(color);
+</script>
 <div class="app-wrapper">
     <div class="container">
         <div class="sidebar">
