@@ -2,7 +2,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Russia Wrote</title>
-<style>
 body, html {
   margin: 0;
   padding: 0;
@@ -13,37 +12,6 @@ body, html {
   font-family: Arial, sans-serif;
   color: white;
 }
-body.light-theme {
-  background-color: #f0f0f0;
-  color: #333;
-}
-body.light-theme .skill-card {
-  background-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-body.light-theme .skill-card:hover {
-  background-color: rgba(0, 0, 0, 0.2);
-}
-body.light-theme #instructions,
-body.light-theme #logo,
-body.light-theme .hamburger-menu {
-  background-color: rgba(255, 255, 255, 0.5);
-  color: #333;
-}
-body.light-theme .hamburger-line {
-  background-color: #333;
-}
-body.light-theme .modal-content {
-  background-color: #f0f0f0;
-  color: #333;
-}
-body.light-theme .close {
-  color: #333;
-}
-body.light-theme .close:hover,
-body.light-theme .close:focus {
-  color: #000;
-}
 canvas {
   position: absolute;
   top: 0;
@@ -53,7 +21,6 @@ canvas {
 .skill-card {
   position: absolute;
   background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   padding: 10px;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -65,7 +32,6 @@ canvas {
   align-items: center;
   text-align: center;
   font-size: 0.9em;
-  z-index: 10;
 }
 .skill-card:hover {
   transform: scale(1.1);
@@ -258,16 +224,6 @@ canvas {
 .hamburger-menu.open .hamburger-line:nth-child(3) {
   transform: translateY(-10px) rotate(-45deg);
 }
-.quote-popup {
-  position: fixed;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 10px;
-  border-radius: 5px;
-  max-width: 200px;
-  text-align: center;
-  transition: opacity 0.3s;
-}
 </style>
 </head>
 <body>
@@ -287,9 +243,16 @@ canvas {
 <div id="videoToggle" style="position: fixed; top: 20px; right: 20px; z-index: 1000; cursor: pointer; background-color: rgba(0, 0, 0, 0.5); color: white; padding: 10px; border-radius: 5px;">
   Toggle Video
 </div>
+<canvas id="canvas"></canvas>
+<div id="logo">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="5"/>
+    <path d="M30 50 L70 50 M50 30 L50 70" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  </svg>
+</div>
 <div id="instructions">
-  <h2>Russia</h2>
-  <p>Move your mouse to interact with the background mandala. Click on the writer cards to open a detailed modal slider and learn more about each author and their famous works!</p>
+  <h2>authors from russias</h2>
+  <p>Move your mouse to interact with the background mandala. Click on writer's cards to open a detailed modal slider and learn more about each one!</p>
 </div>
 <div class="hamburger-menu">
   <div class="hamburger-line"></div>
@@ -299,12 +262,12 @@ canvas {
 
 <div id="skillModal" class="modal">
   <div class="modal-content">
-    <span class="close">×</span>
+    <span class="close">&times;</span>
     <div class="slider">
       <div class="image-container">
-        <a class="prev">❮</a>
+        <a class="prev">&#10094;</a>
         <img id="sliderImage" src="" alt="">
-        <a class="next">❯</a>
+        <a class="next">&#10095;</a>
       </div>
       <div class="slides"></div>
     </div>
@@ -313,25 +276,103 @@ canvas {
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-  createSkillCards();
-  animateSkillCards();
-});
 // Separate data segment for dynamic skill-cards settings
 const cardSettings = {
   minWidth: 150,
   maxWidth: 250,
   minHeight: 200,
   maxHeight: 300,
-  minSpeed: 0.005,
-  maxSpeed: 0.01,
-  minRotationSpeed: 0.0002,
-  maxRotationSpeed: 0.0005,
-  totalCards: 10
+  minSpeed: 0.3,
+  maxSpeed: 0.8,
+  minRotationSpeed: 0.01,
+  maxRotationSpeed: 0.03,
+  totalCards: 15
 };
 
-// Russian Writers Data
-const writersData = [
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let centerX = canvas.width / 2;
+let centerY = canvas.height / 2;
+
+let hue = 0;
+let mouseX = 0;
+let mouseY = 0;
+let mouseSpeed = 0;
+let mouseDistance = 0;
+
+function drawMandala(time) {
+  const petals = 12 + Math.floor(mouseSpeed / 5);
+  const radius = Math.min(canvas.width, canvas.height) * 0.4;
+  const innerRadius = radius * 0.2;
+  
+  for (let i = 0; i < petals; i++) {
+    const angle = (Math.PI * 2 / petals) * i;
+    const petalSize = radius * (0.5 + 0.5 * Math.sin(time / 1000 + i * 0.5)) * (1 + mouseDistance / 1000);
+    
+    ctx.beginPath();
+    ctx.moveTo(centerX + innerRadius * Math.cos(angle), centerY + innerRadius * Math.sin(angle));
+    ctx.quadraticCurveTo(
+      centerX + petalSize * Math.cos(angle + Math.PI / 4),
+      centerY + petalSize * Math.sin(angle + Math.PI / 4),
+      centerX + innerRadius * Math.cos(angle + Math.PI / 2),
+      centerY + innerRadius * Math.sin(angle + Math.PI / 2)
+    );
+    ctx.quadraticCurveTo(
+      centerX + petalSize * Math.cos(angle - Math.PI / 4),
+      centerY + petalSize * Math.sin(angle - Math.PI / 4),
+      centerX + innerRadius * Math.cos(angle),
+      centerY + innerRadius * Math.sin(angle)
+    );
+    
+    ctx.strokeStyle = `hsla(${(hue + i * 360 / petals) % 360}, 100%, 50%, 0.7)`;
+    ctx.lineWidth = 2 + mouseSpeed / 20;
+    ctx.stroke();
+  }
+}
+
+function animate(time) {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawMandala(time);
+
+  hue = (hue + 1 + mouseSpeed / 5) % 360;
+
+  requestAnimationFrame(animate);
+}
+
+animate(0);
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  centerX = canvas.width / 2;
+  centerY = canvas.height / 2;
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+canvas.addEventListener('mousemove', (e) => {
+  const newMouseX = e.clientX;
+  const newMouseY = e.clientY;
+  
+  const dx = newMouseX - mouseX;
+  const dy = newMouseY - mouseY;
+  mouseSpeed = Math.sqrt(dx * dx + dy * dy);
+  mouseSpeed = Math.min(mouseSpeed, 50);  // Cap the speed
+
+  mouseDistance = Math.sqrt((newMouseX - centerX) ** 2 + (newMouseY - centerY) ** 2);
+
+  mouseX = newMouseX;
+  mouseY = newMouseY;
+});
+
+// Expanded skill cards data with more detailed information
+const skills = [
   {
     name: "Fyodor Dostoevsky",
     image: "https://websimcreationengine.com/russian-writers-gallery/dostoevsky.jpg",
@@ -414,252 +455,158 @@ const writersData = [
   }
 ];
 
-// Canvas setup
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+];
 
-// Mandala parameters
-const centerX = canvas.width / 2;
-const centerY = canvas.height / 2;
-const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
-const minRadius = maxRadius * 0.1;
-const layers = 5;
-const pointsPerLayer = 10;
-const rotationSpeed = 0.0005;  
+// Create and animate skill cards
+skills.slice(0, cardSettings.totalCards).forEach((skill, index) => {
+  const card = document.createElement('div');
+  card.className = 'skill-card';
+  
+  // Randomize card size
+  const width = Math.floor(Math.random() * (cardSettings.maxWidth - cardSettings.minWidth + 1)) + cardSettings.minWidth;
+  const height = Math.floor(Math.random() * (cardSettings.maxHeight - cardSettings.minHeight + 1)) + cardSettings.minHeight;
+  
+  card.style.width = `${width}px`;
+  card.style.height = `${height}px`;
+  
+  card.innerHTML = `
+    <img src="${skill.image}" alt="${skill.name}" width="${width - 20}" height="${Math.floor(height * 0.6)}">
+    <h3>${skill.name}</h3>
+    <p>${skill.description}</p>
+  `;
+  document.body.appendChild(card);
 
-let points = [];
-let mouseX = centerX;
-let mouseY = centerY;
+  // Set initial position
+  const angle = Math.random() * Math.PI * 2;
+  const radius = Math.random() * Math.min(window.innerWidth, window.innerHeight) * 0.4;
+  card.style.left = `${centerX + radius * Math.cos(angle) - width/2}px`;
+  card.style.top = `${centerY + radius * Math.sin(angle) - height/2}px`;
 
-// Initialize points
-for (let layer = 0; layer < layers; layer++) {
-  for (let i = 0; i < pointsPerLayer; i++) {
-    const angle = (i / pointsPerLayer) * Math.PI * 2;
-    const radius = minRadius + (maxRadius - minRadius) * (layer / (layers - 1));
-    points.push({
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
-      angle: angle,
-      layer: layer,
-      radius: radius
-    });
+  // Animate the card
+  let speedX = (Math.random() * (cardSettings.maxSpeed - cardSettings.minSpeed) + cardSettings.minSpeed) * (Math.random() < 0.5 ? 1 : -1);
+  let speedY = (Math.random() * (cardSettings.maxSpeed - cardSettings.minSpeed) + cardSettings.minSpeed) * (Math.random() < 0.5 ? 1 : -1);
+  let rotationSpeed = (Math.random() * (cardSettings.maxRotationSpeed - cardSettings.minRotationSpeed) + cardSettings.minRotationSpeed) * (Math.random() < 0.5 ? 1 : -1);
+  let rotation = 0;
+
+  function animateCard() {
+    let x = parseFloat(card.style.left);
+    let y = parseFloat(card.style.top);
+
+    x += speedX;
+    y += speedY;
+
+    // Bounce off edges
+    if (x < 0 || x > window.innerWidth - width) speedX *= -1;
+    if (y < 0 || y > window.innerHeight - height) speedY *= -1;
+
+    rotation += rotationSpeed;
+
+    card.style.left = `${x}px`;
+    card.style.top = `${y}px`;
+    card.style.transform = `rotate(${rotation}rad)`;
+
+    requestAnimationFrame(animateCard);
   }
-}
+  animateCard();
 
-// Animation function
-function animate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Update points
-  points.forEach(point => {
-    const distanceToMouse = Math.sqrt(
-      Math.pow(point.x - mouseX, 2) + Math.pow(point.y - mouseY, 2)
-    );
-    const maxDistance = Math.min(canvas.width, canvas.height) * 0.1;
-    const scaleFactor = Math.max(0, 1 - distanceToMouse / maxDistance);
-    
-    point.angle += rotationSpeed * (1 + scaleFactor);
-    point.x = centerX + Math.cos(point.angle) * (point.radius * (1 + scaleFactor * 0.2));
-    point.y = centerY + Math.sin(point.angle) * (point.radius * (1 + scaleFactor * 0.2));
-  });
-
-  // Draw connections
-  ctx.beginPath();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-  ctx.lineWidth = 1;
-
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      ctx.moveTo(points[i].x, points[i].y);
-      ctx.lineTo(points[j].x, points[j].y);
-    }
-  }
-
-  ctx.stroke();
-
-  // Draw points
-  points.forEach(point => {
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
-    ctx.fillStyle = `hsl(${(point.angle * 180) / Math.PI}, 70%, 50%)`;
-    ctx.fill();
-  });
-
-  requestAnimationFrame(animate);
-}
-
-// Start animation
-animate();
-
-// Mouse move event
-canvas.addEventListener('mousemove', (e) => {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
+  // Add click event to open modal
+  card.addEventListener('click', () => openModal(index));
 });
-
-// Create skill cards
-function createSkillCards() {
-  console.log('Creating skill cards...');
-  writersData.forEach((writer, index) => {
-    const card = document.createElement('div');
-    card.className = 'skill-card';
-    card.style.width = `${Math.random() * (cardSettings.maxWidth - cardSettings.minWidth) + cardSettings.minWidth}px`;
-    card.style.height = `${Math.random() * (cardSettings.maxHeight - cardSettings.minHeight) + cardSettings.minHeight}px`;
-    card.innerHTML = `
-      <h3>${writer.name}</h3>
-      <img src="${writer.image}" alt="${writer.name}" width="100" height="150">
-      <p>Special Power: ${writer.specialPower}</p>
-    `;
-    document.body.appendChild(card);
-
-    // Set initial position
-    const angle = (index / writersData.length) * Math.PI * 2;
-    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.3;
-    const left = window.innerWidth / 2 + Math.cos(angle) * radius - parseFloat(card.style.width) / 2;
-    const top = window.innerHeight / 2 + Math.sin(angle) * radius - parseFloat(card.style.height) / 2;
-    
-    card.style.left = `${Math.max(0, Math.min(left, window.innerWidth - parseFloat(card.style.width)))}px`;
-    card.style.top = `${Math.max(0, Math.min(top, window.innerHeight - parseFloat(card.style.height)))}px`;
-
-    // Add click event listener
-    card.addEventListener('click', (e) => {
-      e.stopPropagation(); 
-      const quote = writer.quotes[Math.floor(Math.random() * writer.quotes.length)];
-      showQuotePopup(quote, e.clientX, e.clientY);
-    });
-
-    // Add double-click event listener for opening modal
-    card.addEventListener('dblclick', () => openModal(writer));
-
-    // Animation properties
-    card.dataset.angle = angle;
-    card.dataset.radius = radius;
-    card.dataset.speed = Math.random() * (cardSettings.maxSpeed - cardSettings.minSpeed) + cardSettings.minSpeed;
-    card.dataset.rotationSpeed = Math.random() * (cardSettings.maxRotationSpeed - cardSettings.minRotationSpeed) + cardSettings.minRotationSpeed;
-  });
-  console.log(`Created ${writersData.length} skill cards.`);
-}
-
-// Show quote pop-up
-function showQuotePopup(quote, x, y) {
-  const popup = document.createElement('div');
-  popup.className = 'quote-popup';
-  popup.textContent = `"${quote}"`;
-  popup.style.left = `${x}px`;
-  popup.style.top = `${y}px`;
-  popup.style.transform = 'translate(-50%, -100%)';
-  popup.style.zIndex = '1000';
-  document.body.appendChild(popup);
-
-  setTimeout(() => {
-    popup.style.opacity = '0';
-    setTimeout(() => {
-      document.body.removeChild(popup);
-    }, 300);
-  }, 3000);
-}
-
-// Animate skill cards
-function animateSkillCards() {
-  const cards = document.querySelectorAll('.skill-card');
-  cards.forEach(card => {
-    let angle = parseFloat(card.dataset.angle);
-    const radius = parseFloat(card.dataset.radius);
-    const speed = parseFloat(card.dataset.speed);
-    const rotationSpeed = parseFloat(card.dataset.rotationSpeed);
-
-    angle += speed;
-    if (angle > Math.PI * 2) angle -= Math.PI * 2;
-
-    card.style.left = `${window.innerWidth / 2 + Math.cos(angle) * radius - card.offsetWidth / 2}px`;
-    card.style.top = `${window.innerHeight / 2 + Math.sin(angle) * radius - card.offsetHeight / 2}px`;
-    card.style.transform = `rotate(${angle * rotationSpeed}rad)`;
-
-    card.dataset.angle = angle;
-  });
-
-  requestAnimationFrame(animateSkillCards);
-}
 
 // Modal functionality
-const modal = document.getElementById('skillModal');
-const modalImage = document.getElementById('sliderImage');
+const modal = document.getElementById("skillModal");
+const closeBtn = document.getElementsByClassName("close")[0];
 const slides = document.querySelector('.slides');
-const dots = document.querySelector('.dots');
+const dotsContainer = document.querySelector('.dots');
 let currentSlide = 0;
 
-function updateModalContent(writer) {
-  modalImage.src = writer.image;
-  modalImage.alt = writer.name;
+function openModal(index) {
+  modal.style.display = "block";
+  currentSlide = index;
+  showSlides();
+}
 
-  slides.innerHTML = `
-    <div class="slide active">
-      <div class="slide-content">
-        <h2>${writer.name}</h2>
-        <p><strong>Special Power:</strong> ${writer.specialPower}</p>
-        <p><strong>Famous Work:</strong> ${writer.famousWork}</p>
-        <p>${writer.description}</p>
-      </div>
-    </div>
-    <div class="slide">
-      <div class="slide-content">
-        <h3>Notable Quotes</h3>
+closeBtn.onclick = function() {
+  modal.style.display = "none";
+}
+
+window.onclick = function(event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+  }
+}
+
+function showSlides() {
+  slides.innerHTML = '';
+  dotsContainer.innerHTML = '';
+  
+  const sliderImage = document.getElementById('sliderImage');
+  sliderImage.src = skills[currentSlide].image;
+  sliderImage.alt = skills[currentSlide].name;
+  
+  const slide = document.createElement('div');
+  slide.className = 'slide active';
+  slide.innerHTML = `
+    <div class="slide-content">
+      <h2>${skills[currentSlide].name}</h2>
+      <p>${skills[currentSlide].description}</p>
+      <div class="skill-details">
+        <h3>Details:</h3>
+        <p><strong>Definition:</strong> ${skills[currentSlide].details.definition}</p>
+        <h4>Key Features:</h4>
         <ul>
-          ${writer.quotes.map(quote => `<li>"${quote}"</li>`).join('')}
+          ${skills[currentSlide].details.keyFeatures.map(feature => `<li>${feature}</li>`).join('')}
         </ul>
+        <p><strong>Usage:</strong> ${skills[currentSlide].details.usage}</p>
+        <p><strong>Related Technologies:</strong> ${skills[currentSlide].details.relatedTechnologies.join(', ')}</p>
       </div>
     </div>
- `;
+  `;
+  slides.appendChild(slide);
 
-  dots.innerHTML = '';
-
-  for (let i = 0; i < 2; i++) {
+  skills.forEach((_, i) => {
     const dot = document.createElement('span');
-    dot.className = `dot ${i === 0 ? 'active-dot' : ''}`;
-    dot.addEventListener('click', () => {
+    dot.className = `dot ${i === currentSlide ? 'active-dot' : ''}`;
+    dot.onclick = () => {
       currentSlide = i;
-      showSlide(currentSlide);
-    });
-    dots.appendChild(dot);
-  }
-
-  currentSlide = 0;
+      showSlides();
+    };
+    dotsContainer.appendChild(dot);
+  });
 }
 
-function showSlide(n) {
-  const slides = document.querySelectorAll('.slide');
-  const dots = document.querySelectorAll('.dot');
-
-  if (n >= slides.length) currentSlide = 0;
-  if (n < 0) currentSlide = slides.length - 1;
-
-  slides.forEach(slide => slide.classList.remove('active'));
-  dots.forEach(dot => dot.classList.remove('active-dot'));
-
-  slides[currentSlide].classList.add('active');
-  dots[currentSlide].classList.add('active-dot');
-}
-
-function changeSlide(n) {
-  showSlide(currentSlide += n);
-}
-
-document.querySelector('.prev').addEventListener('click', () => changeSlide(-1));
-document.querySelector('.next').addEventListener('click', () => changeSlide(1));
-
-document.querySelector('.close').addEventListener('click', () => {
-  modal.style.display = 'none';
+document.querySelector('.prev').addEventListener('click', () => {
+  currentSlide = (currentSlide - 1 + skills.length) % skills.length;
+  showSlides();
 });
 
-window.addEventListener('click', (event) => {
-  if (event.target === modal) {
-    modal.style.display = 'none';
-  }
+document.querySelector('.next').addEventListener('click', () => {
+  currentSlide = (currentSlide + 1) % skills.length;
+  showSlides();
 });
 
-// Instructions toggle
+// Resize event listener to adjust card positions when window is resized
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  const cards = document.querySelectorAll('.skill-card');
+  cards.forEach(card => {
+    const width = parseFloat(card.style.width);
+    const height = parseFloat(card.style.height);
+    let x = parseFloat(card.style.left);
+    let y = parseFloat(card.style.top);
+
+    // Adjust position if card is out of bounds after resize
+    if (x < 0) x = 0;
+    if (x > window.innerWidth - width) x = window.innerWidth - width;
+    if (y < 0) y = 0;
+    if (y > window.innerHeight - height) y = window.innerHeight - height;
+
+    card.style.left = `${x}px`;
+    card.style.top = `${y}px`;
+  });
+});
+
+// Hamburger menu functionality
 const hamburgerMenu = document.querySelector('.hamburger-menu');
 const instructions = document.getElementById('instructions');
 
@@ -701,16 +648,6 @@ videoToggle.addEventListener('click', () => {
   }
 });
 
-
-// Initialize
-createSkillCards();
-animateSkillCards();
-
-// Resize event
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
 </script>
 
 </body></html>
