@@ -327,103 +327,164 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
   <script>
-    // Initialize Ace editor
-    const editor = ace.edit("screenplay");
-    editor.setTheme("ace/theme/terminal");
-    editor.session.setMode("ace/mode/text");
-    editor.setOptions({
-      fontFamily: "'Courier New', monospace",
-      fontSize: "14px",
-      wrap: true
-    });
+// Initialize Ace editor
+const editor = ace.edit("screenplay");
+editor.setTheme("ace/theme/terminal");
+editor.session.setMode("ace/mode/text");
+editor.setOptions({
+  fontFamily: "'Courier New', monospace",
+  fontSize: "14px",
+  wrap: true
+});
 
-    // Screenplay formatting functions
-    function formatLine(type) {
-      const cursor = editor.selection.getCursor();
-      const currentLine = editor.session.getLine(cursor.row);
-      let formattedLine = currentLine.trim();
+// Ace Editor Commands (If you don't have these already, add them)
+editor.commands.addCommand({
+  name: "sceneHeading",
+  bindKey: { win: "Ctrl-H", mac: "Command-H" }, 
+  exec: function(editor) {
+    const cursor = editor.selection.getCursor();
+    const currentLine = editor.session.getLine(cursor.row);
+    const formattedLine = currentLine.trim().toUpperCase();
+    editor.session.replace({
+      start: { row: cursor.row, column: 0 },
+      end: { row: cursor.row, column: currentLine.length }
+    }, formattedLine);
+  }
+});
 
-      switch(type) {
-        case 'scene-heading':
-          formattedLine = formattedLine.toUpperCase();
-          break;
-        case 'character':
-          formattedLine = formattedLine.toUpperCase();
-          break;
-        case 'transition':
-          formattedLine = formattedLine.toUpperCase();
-          editor.session.insert({row: cursor.row, column: 0}, "\n");
-          editor.session.insert({row: cursor.row + 1, column: 0}, formattedLine.padStart((80 - formattedLine.length) / 2 + formattedLine.length));
-          editor.session.insert({row: cursor.row + 2, column: 0}, "\n");
-          return;
-        case 'parenthetical':
-          formattedLine = `(${formattedLine})`;
-          break;
-      }
+editor.commands.addCommand({
+  name: "character",
+  bindKey: { win: "Ctrl-C", mac: "Command-C" },
+  exec: function(editor) {
+    const cursor = editor.selection.getCursor();
+    const currentLine = editor.session.getLine(cursor.row);
+    const formattedLine = currentLine.trim().toUpperCase();
+    editor.session.replace({
+      start: { row: cursor.row, column: 0 },
+      end: { row: cursor.row, column: currentLine.length }
+    }, formattedLine);
+  }
+});
 
-      editor.session.replace({
-        start: {row: cursor.row, column: 0},
-        end: {row: cursor.row, column: currentLine.length}
-      }, formattedLine);
-    }
+editor.commands.addCommand({
+  name: "dialogue",
+  bindKey: { win: "Ctrl-D", mac: "Command-D" },
+  exec: function(editor) {
+    const cursor = editor.selection.getCursor();
+    const currentLine = editor.session.getLine(cursor.row);
+    const formattedLine = currentLine.trim();
+    editor.session.replace({
+      start: { row: cursor.row, column: 0 },
+      end: { row: cursor.row, column: currentLine.length }
+    }, formattedLine);
+  }
+});
 
-    document.getElementById('scene-heading').addEventListener('click', () => formatLine('scene-heading'));
-    document.getElementById('action').addEventListener('click', () => formatLine('action'));
-    document.getElementById('character').addEventListener('click', () => formatLine('character'));
-    document.getElementById('dialogue').addEventListener('click', () => formatLine('dialogue'));
-    document.getElementById('parenthetical').addEventListener('click', () => formatLine('parenthetical'));
-    document.getElementById('transition').addEventListener('click', () => formatLine('transition'));
+editor.commands.addCommand({
+  name: "parenthetical",
+  bindKey: { win: "Ctrl-P", mac: "Command-P" },
+  exec: function(editor) {
+    const cursor = editor.selection.getCursor();
+    const currentLine = editor.session.getLine(cursor.row);
+    const formattedLine = `(${currentLine.trim()})`;
+    editor.session.replace({
+      start: { row: cursor.row, column: 0 },
+      end: { row: cursor.row, column: currentLine.length }
+    }, formattedLine);
+  }
+});
 
-    // AI Extras functionality
-    document.getElementById('generate-ideas').addEventListener('click', () => {
-      alert('Generating futuristic plot ideas using advanced AI algorithms...');
-      // Implement AI-driven plot idea generation here
-    });
+editor.commands.addCommand({
+  name: "transition",
+  bindKey: { win: "Ctrl-T", mac: "Command-T" },
+  exec: function(editor) {
+    const cursor = editor.selection.getCursor();
+    const currentLine = editor.session.getLine(cursor.row);
+    const formattedLine = currentLine.trim().toUpperCase();
+    editor.session.insert({ row: cursor.row, column: 0 }, "\n");
+    editor.session.insert({ row: cursor.row + 1, column: 0 }, formattedLine.padStart((80 - formattedLine.length) / 2 + formattedLine.length));
+    editor.session.insert({ row: cursor.row + 2, column: 0 }, "\n");
+    editor.moveCursorTo(cursor.row + 2, 0);
+  }
+});
 
-    document.getElementById('analyze-script').addEventListener('click', () => {
-      alert('Analyzing script for structure, pacing, and character arcs using AI...');
-      // Implement AI script analysis here
-    });
+// Bind commands to toolbar buttons
+document.getElementById('scene-heading').addEventListener('click', () => editor.execCommand("sceneHeading"));
+document.getElementById('action').addEventListener('click', () => editor.execCommand("action"));
+document.getElementById('character').addEventListener('click', () => editor.execCommand("character"));
+document.getElementById('dialogue').addEventListener('click', () => editor.execCommand("dialogue"));
+document.getElementById('parenthetical').addEventListener('click', () => editor.execCommand("parenthetical"));
+document.getElementById('transition').addEventListener('click', () => editor.execCommand("transition"));
 
-    document.getElementById('character-development').addEventListener('click', () => {
-      alert('Initiating AI-powered character development session...');
-      // Implement AI character development here
-    });
+// AI Extras functionality
+document.getElementById('generate-ideas').addEventListener('click', () => {
+  alert('Generating futuristic plot ideas using advanced AI algorithms...');
+  // Implement AI-driven plot idea generation here
+});
 
-    document.getElementById('download-ai-to-body').addEventListener('click', () => {
-      alert('Initiating transfer of AI consciousness to a designated physical body...');
-      // Implement AI consciousness transfer to physical body here
-    });
+document.getElementById('analyze-script').addEventListener('click', () => {
+  alert('Analyzing script for structure, pacing, and character arcs using AI...');
+  // Implement AI script analysis here
+});
 
-    // Quantum Connections functionality
-    document.getElementById('quantum-collaboration').addEventListener('click', () => {
-      alert('Establishing quantum entanglement for real-time collaboration across spacetime...');
-      // Implement quantum collaboration feature here
-    });
+document.getElementById('character-development').addEventListener('click', () => {
+  alert('Initiating AI-powered character development session...');
+  // Implement AI character development here
+});
 
-    document.getElementById('multiverse-plotting').addEventListener('click', () => {
-      alert('Accessing parallel universe plot variations using quantum computing...');
-      // Implement multiverse plotting feature here
-    });
+document.getElementById('download-ai-to-body').addEventListener('click', () => {
+  alert('Initiating transfer of AI consciousness to a designated physical body...');
+  // Implement AI consciousness transfer to physical body here
+});
 
-    document.getElementById('entangled-storytelling').addEventListener('click', () => {
-      alert('Initializing entangled storytelling mode for non-linear narrative creation...');
-      // Implement entangled storytelling feature here
-    });
+// Quantum Connections functionality
+document.getElementById('quantum-collaboration').addEventListener('click', () => {
+  alert('Establishing quantum entanglement for real-time collaboration across spacetime...');
+  // Implement quantum collaboration feature here
+});
 
-    document.getElementById('download-quantum-to-body').addEventListener('click', () => {
-      alert('Initiating transfer of quantum-enhanced consciousness to a designated physical body...');
-      // Implement quantum consciousness transfer to physical body here
-    });
+document.getElementById('multiverse-plotting').addEventListener('click', () => {
+  alert('Accessing parallel universe plot variations using quantum computing...');
+  // Implement multiverse plotting feature here
+});
 
-    // Add synthwave visual effects
-    const colors = ['#ff00ff', '#00ffff', '#9900ff'];
-    let colorIndex = 0;
+document.getElementById('entangled-storytelling').addEventListener('click', () => {
+  alert('Initializing entangled storytelling mode for non-linear narrative creation...');
+  // Implement entangled storytelling feature here
+});
 
-    setInterval(() => {
-      document.body.style.boxShadow = `0 0 10px ${colors[colorIndex]}, 0 0 20px ${colors[colorIndex]}`;
-      colorIndex = (colorIndex + 1) % colors.length;
-    }, 1000);
+document.getElementById('download-quantum-to-body').addEventListener('click', () => {
+  alert('Initiating transfer of quantum-enhanced consciousness to a designated physical body...');
+  // Implement quantum consciousness transfer to physical body here
+});
+
+// Add synthwave visual effects
+const colors = ['#ff00ff', '#00ffff', '#9900ff'];
+let colorIndex = 0;
+
+setInterval(() => {
+  document.body.style.boxShadow = `0 0 10px ${colors[colorIndex]}, 0 0 20px ${colors[colorIndex]}`;
+  colorIndex = (colorIndex + 1) % colors.length;
+}, 1000);
+
+// Export PDF functionality
+document.getElementById('export-pdf').addEventListener('click', () => {
+  // Get the script content from the Ace Editor
+  const scriptContent = editor.getValue();
+
+  // Create a new jsPDF instance
+  const doc = new jsPDF();
+
+  // Add the script content to the PDF document
+  doc.text(scriptContent, 10, 10); // Adjust position as needed
+
+  // Save the PDF file
+  doc.save('my-screenplay.pdf'); // Choose a filename
+});
+
+// PONG Game Logic (add your PONG JavaScript code here)
+// ... (your PONG game code)
+
   </script>
 
 </body>
