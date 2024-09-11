@@ -303,7 +303,66 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
     background-color: #4CAF50;
     color: #FFFF00;
   }
+.eye-container {
+    position: relative;
+    width: 60vmin;
+    height: 60vmin;
+    max-width: 300px;
+    max-height: 300px;
+}
 
+.eye {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #e0e0e0, #a0a0a0);
+    box-shadow: 0 0 20px rgba(255,255,255,0.5);
+    overflow: hidden;
+    position: relative;
+}
+
+.iris {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    position: absolute;
+    top: 20%;
+    left: 20%;
+    background: radial-gradient(circle at 50% 50%, #4a8f29, #2c5a1e);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+.pupil {
+    width: 40%;
+    height: 40%;
+    border-radius: 50%;
+    position: absolute;
+    top: 30%;
+    left: 30%;
+    background: #000;
+    transition: all 0.3s ease;
+}
+
+.reflection {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    top: 10%;
+    left: 10%;
+}
+
+.flashlight {
+    position: absolute;
+    width: 99px;
+    height: 99px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9), transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
 </style>
 </head>
 <body>  
@@ -349,10 +408,91 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
         <option value="8000">8000 Hz - Upper Hearing</option>
       </select>
 	<img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/sp.gif">    
-  <canvas id="visualizer"></canvas>
+  <canvas id="visualizer"><div class="eye-container">
+    <div class="eye">
+        <div class="iris">
+            <div class="pupil"></div>
+        </div>
+        <div class="reflection"></div>
+    </div>
+    <div class="flashlight"></div>
+</div></canvas>
     </div>
 		  </div> </div></center>
-			 	
+<script>
+const eye = document.querySelector('.eye-container');
+const pupil = document.querySelector('.pupil');
+const flashlight = document.querySelector('.flashlight');
+let isFlashlightOn = false;
+
+function updatePupilSize(x, y) {
+    const eyeRect = eye.getBoundingClientRect();
+    const eyeCenterX = eyeRect.left + eyeRect.width / 2;
+    const eyeCenterY = eyeRect.top + eyeRect.height / 2;
+    
+    const distance = Math.sqrt(Math.pow(x - eyeCenterX, 2) + Math.pow(y - eyeCenterY, 2));
+    const maxDistance = Math.max(eyeRect.width, eyeRect.height) / 2;
+    
+    const size = isFlashlightOn ? 15 : 40 - (distance / maxDistance) * 20;
+    pupil.style.width = `${size}%`;
+    pupil.style.height = `${size}%`;
+    pupil.style.top = `${50 - size / 2}%`;
+    pupil.style.left = `${50 - size / 2}%`;
+}
+
+function moveFlashlight(x, y) {
+    flashlight.style.left = `${x - eye.offsetLeft - 100}px`;
+    flashlight.style.top = `${y - eye.offsetTop - 100}px`;
+}
+
+function toggleFlashlight(x, y) {
+    isFlashlightOn = !isFlashlightOn;
+    flashlight.style.opacity = isFlashlightOn ? '1' : '0';
+    updatePupilSize(x, y);
+}
+
+eye.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    toggleFlashlight(touch.clientX, touch.clientY);
+    moveFlashlight(touch.clientX, touch.clientY);
+});
+
+eye.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    updatePupilSize(touch.clientX, touch.clientY);
+    moveFlashlight(touch.clientX, touch.clientY);
+});
+
+eye.addEventListener('touchend', () => {
+    isFlashlightOn = false;
+    flashlight.style.opacity = '0';
+    updatePupilSize(eye.offsetLeft + eye.offsetWidth / 2, eye.offsetTop + eye.offsetHeight / 2);
+});
+
+// For desktop testing
+eye.addEventListener('mousedown', (e) => {
+    toggleFlashlight(e.clientX, e.clientY);
+    moveFlashlight(e.clientX, e.clientY);
+});
+
+eye.addEventListener('mousemove', (e) => {
+    updatePupilSize(e.clientX, e.clientY);
+    if (isFlashlightOn) {
+        moveFlashlight(e.clientX, e.clientY);
+    }
+});
+
+eye.addEventListener('mouseup', () => {
+    isFlashlightOn = false;
+    flashlight.style.opacity = '0';
+    updatePupilSize(eye.offsetLeft + eye.offsetWidth / 2, eye.offsetTop + eye.offsetHeight / 2);
+});
+
+// Initial pupil size
+updatePupilSize(eye.offsetLeft + eye.offsetWidth / 2, eye.offsetTop + eye.offsetHeight / 2);
+</script>			 	
 	  <div class="grid"></div>
   <div class="sun"></div>
 	<header>
