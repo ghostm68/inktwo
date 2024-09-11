@@ -671,4 +671,478 @@ scoreElement.style.display = 'none';
 aiStrategyElement.style.display = 'none';
 drawGame();
 </script>
+</body>
+	
+<head>
+<title> Frequencies</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #000000;
+    color: #FFFF00;
+    overflow: hidden;
+    height: 100%;
+  }
+  .cosmic-container {
+    display: flex;
+    height: 100vh;
+    background: radial-gradient(circle at center, #1a0033, #000000);
+    overflow: hidden;
+    position: relative;
+  }
+  #interactiveBackground {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  .control-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(26, 26, 26, 0.8);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(255,255,0,0.5);
+    width: 80%;
+    max-width: 800px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    color: #FFFF00;
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(255,255,0,0.5);
+  }
+  #frequencySlider {
+    width: 100%;
+    margin: 10px 0;
+    -webkit-appearance: none;
+    background: linear-gradient(to right, #FF0000, #FFA500, #FFFF00, #00FF00, #00FFFF, #0000FF, #8A2BE2);
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+    border-radius: 10px;
+    height: 8px;
+  }
+  #frequencySlider:hover {
+    opacity: 1;
+  }
+  #frequencySlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #FFFF00;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid #000000;
+  }
+  #frequencySlider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #FFFF00;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid #000000;
+  }
+  #playButton, .preset-button {
+    background-color: #FFFF00;
+    border: none;
+    color: #000000;
+    padding: 10px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 25px;
+    transition: all 0.3s;
+    box-shadow: 0 0 10px rgba(255,255,0,0.7);
+  }
+  #playButton:hover, .preset-button:hover {
+    background-color: #CCCC00;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255,255,0,1);
+  }
+  #frequencyDisplay {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #FFFF00;
+    transition: color 0.3s ease;
+  }
+  #visualizer {
+    width: 100%;
+    height: 60px;
+    margin: 10px auto;
+    border: 2px solid #FFFF00;
+    border-radius: 10px;
+    background-color: #000000;
+  }
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin: 5px auto;
+    color: #FFFF00;
+    font-weight: bold;
+  }
+  #soundSelector, #significantFrequencies {
+    margin-top: 10px;
+    padding: 8px;
+    font-size: 14px;
+    background-color: #FFFF00;
+    color: #000000;
+    border: none;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+  #soundSelector option, #significantFrequencies option {
+    background-color: #000000;
+    color: #FFFF00;
+  }
+  #significantFrequencies option[selected] {
+    background-color: #4CAF50;
+    color: #FFFF00;
+  }
+</style>
+</head>
+<body>
+  <div class="cosmic-container" id="cosmicContainer">
+    <canvas id="interactiveBackground"></canvas>
+    <div class="control-panel">
+      <h1 style="background: linear-gradient(to right, #FF0000, #FFA500, #FFFF00, #00FF00, #00FFFF, #0000FF, #8A2BE2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; font-weight: bold; text-align: center;">Frequencies</h1>
+      <div id="frequencyDisplay">Frequency: 1 Hz</div>
+      <input type="range" id="frequencySlider" min="1" max="10000" value="1" step="1">
+      <div class="slider-labels">
+        <span>1 Hz</span>
+        <span>10,000 Hz</span>
+      </div>
+      <br>
+      <button id="playButton" style="background-color: #FF0000; color: #FFFFFF;">Frequency Activation</button>
+      <select id="soundSelector">
+        <option value="sine">Sine Wave</option>
+        <option value="triangle">Triangle Wave</option>
+        <option value="sawtooth">Sawtooth Wave</option>
+        <option value="square">Square Wave</option>
+        <option value="didgeridoo">Didgeridoo</option>
+        <option value="flute">Flute</option>
+      </select>
+      <select id="significantFrequencies">
+        <option value="">Select a Significant Frequency</option>
+        <option value="7.83">7.83 Hz - Schumann Resonance</option>
+        <option value="40">40 Hz - Gamma Brain Waves</option>
+        <option value="128">128 Hz - Om Frequency</option>
+        <option value="174">174 Hz - Pain Reduction</option>
+        <option value="285">285 Hz - Tissue and Cell Healing</option>
+        <option value="396">396 Hz - Liberating Guilt and Fear</option>
+        <option value="417">417 Hz - Facilitating Change</option>
+        <option value="432">432 Hz - Verdi's A</option>
+        <option value="440">440 Hz - Concert Pitch</option>
+        <option value="528">528 Hz - DNA Repair</option>
+        <option value="639">639 Hz - Relationships</option>
+        <option value="741">741 Hz - Problem Solving</option>
+        <option value="852">852 Hz - Spiritual Order</option>
+        <option value="963">963 Hz - Pineal Gland Activation</option>
+        <option value="1176">1176 Hz - Solfeggio Frequency</option>
+        <option value="4186">4186 Hz - Highest Note on Piano</option>
+        <option value="8000">8000 Hz - Upper Range of Adult Hearing</option>
+      </select>
+      <canvas id="visualizer"></canvas>
+    </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script>
+    let audioContext;
+    let oscillator;
+    let gainNode;
+    let analyser;
+    let isPlaying = false;
+
+    const frequencySlider = document.getElementById('frequencySlider');
+    const frequencyDisplay = document.getElementById('frequencyDisplay');
+    const playButton = document.getElementById('playButton');
+    const visualizer = document.getElementById('visualizer');
+    const visualizerContext = visualizer.getContext('2d');
+    const soundSelector = document.getElementById('soundSelector');
+    const significantFrequencies = document.getElementById('significantFrequencies');
+    const cosmicContainer = document.getElementById('cosmicContainer');
+    const interactiveBackground = document.getElementById('interactiveBackground');
+    const backgroundContext = interactiveBackground.getContext('2d');
+
+    frequencySlider.addEventListener('input', updateFrequency);
+    playButton.addEventListener('click', toggleSound);
+    soundSelector.addEventListener('change', updateOscillatorType);
+    significantFrequencies.addEventListener('change', updateSignificantFrequency);
+
+    function initializeFrequencyScale() {
+      // ... (remove this function as it's no longer needed)
+    }
+
+    function createStars() {
+      // ... (remove this function as it's no longer needed)
+    }
+
+    function updateFrequency() {
+      const frequency = logSlider(frequencySlider.value);
+      frequencyDisplay.textContent = `Frequency: ${frequency} Hz`;
+      if (oscillator) {
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      }
+      updateSliderColor(frequency);
+      updateCosmicBackground(frequency);
+    }
+
+    function updateCosmicBackground(frequency) {
+      const hue = (frequency / 10000) * 360;
+      cosmicContainer.style.background = `radial-gradient(circle at center, hsl(${hue}, 100%, 10%), #000000)`;
+    }
+
+    function toggleSound() {
+      if (isPlaying) {
+        stopSound();
+      } else {
+        playSound();
+      }
+    }
+
+    function playSound() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        oscillator = audioContext.createOscillator();
+        gainNode = audioContext.createGain();
+        analyser = audioContext.createAnalyser();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      }
+
+      const frequency = logSlider(frequencySlider.value);
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      updateOscillatorType();
+      oscillator.start();
+      isPlaying = true;
+      playButton.textContent = 'Stop';
+      playButton.style.backgroundColor = '#CCCC00';
+      visualize();
+      animateBackground();
+    }
+
+    function stopSound() {
+      oscillator.stop();
+      isPlaying = false;
+      playButton.textContent = 'Start';
+      playButton.style.backgroundColor = '#FFFF00';
+      cancelAnimationFrame(visualize);
+      cancelAnimationFrame(animateBackground);
+    }
+
+    function updateOscillatorType() {
+      if (oscillator) {
+        const selectedType = soundSelector.value;
+        if (selectedType === 'didgeridoo') {
+          oscillator.type = 'sawtooth';
+          const lowPass = audioContext.createBiquadFilter();
+          lowPass.type = 'lowpass';
+          lowPass.frequency.setValueAtTime(500, audioContext.currentTime);
+          oscillator.disconnect();
+          oscillator.connect(lowPass);
+          lowPass.connect(gainNode);
+        } else if (selectedType === 'flute') {
+          oscillator.type = 'sine';
+          const highPass = audioContext.createBiquadFilter();
+          highPass.type = 'highpass';
+          highPass.frequency.setValueAtTime(700, audioContext.currentTime);
+          oscillator.disconnect();
+          oscillator.connect(highPass);
+          highPass.connect(gainNode);
+        } else {
+          oscillator.type = selectedType;
+          oscillator.disconnect();
+          oscillator.connect(gainNode);
+        }
+      }
+    }
+
+    function updateSignificantFrequency() {
+      const selectedFrequency = significantFrequencies.value;
+      if (selectedFrequency) {
+        frequencySlider.value = Math.log(selectedFrequency) / Math.log(10000) * 10000;
+        updateFrequency();
+      }
+    }
+
+   function updateSliderColor(frequency) {
+  const activeChakra = chakraRanges.find(chakra => frequency >= chakra.min && frequency < chakra.max);
+  const color = activeChakra ? activeChakra.color : '#FFFF00';
+  
+  frequencySlider.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${(Math.log(frequency) / Math.log(10000)) * 100}%, #333 ${(Math.log(frequency) / Math.log(10000)) * 100}%, #333 100%)`;
+}
+
+  function visualize() {
+  visualizer.width = visualizer.clientWidth;
+  visualizer.height = visualizer.clientHeight;
+  const width = visualizer.width;
+  const height = visualizer.height;
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function draw() {
+    requestAnimationFrame(draw);
+
+    analyser.getByteTimeDomainData(dataArray);
+
+    visualizerContext.fillStyle = 'rgb(0, 0, 0)';
+    visualizerContext.fillRect(0, 0, width, height);
+
+    visualizerContext.lineWidth = 3;
+
+    visualizerContext.beginPath();
+
+    const sliceWidth = width * 1.0 / bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = v * height / 2;
+
+      if (i === 0) {
+        visualizerContext.moveTo(x, y);
+      } else {
+        visualizerContext.lineTo(x, y);
+      }
+
+      x += sliceWidth;
+    }
+
+    visualizerContext.lineTo(width, height / 2);
+    visualizerContext.stroke();
+  }
+
+  draw();
+}
+
+   function logSlider(position) {
+  const minp = 1;
+  const maxp = 10000;
+  const minv = Math.log(1);
+  const maxv = Math.log(10000);
+  const scale = (maxv - minv) / (maxp - minp);
+  return Math.round(Math.exp(minv + scale * (position - minp)));
+}
+
+      function animateBackground() {
+      interactiveBackground.width = window.innerWidth;
+      interactiveBackground.height = window.innerHeight;
+
+      const width = interactiveBackground.width;
+      const height = interactiveBackground.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      let hue = 0;
+      let particleArray = [];
+
+      class Particle {
+        constructor() {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+          this.size = Math.random() * 5 + 1;
+          this.speedX = Math.random() * 3 - 1.5;
+          this.speedY = Math.random() * 3 - 1.5;
+        }
+
+        update() {
+          this.x += this.speedX;
+          this.y += this.speedY;
+
+          if (this.size > 0.2) this.size -= 0.1;
+
+          if (this.x < 0 || this.x > width) this.speedX *= -1;
+          if (this.y < 0 || this.y > height) this.speedY *= -1;
+        }
+
+        draw() {
+          backgroundContext.fillStyle = `hsl(${hue}, 100%, 50%)`;
+          backgroundContext.beginPath();
+          backgroundContext.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          backgroundContext.fill();
+        }
+      }
+
+      function createParticles() {
+        for (let i = 0; i < 100; i++) {
+          particleArray.push(new Particle());
+        }
+      }
+
+      createParticles();
+
+      function animate() {
+        if (!isPlaying) return;
+
+        backgroundContext.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        backgroundContext.fillRect(0, 0, width, height);
+
+        analyser.getByteFrequencyData(dataArray);
+
+        let average = dataArray.reduce((a, b) => a + b) / bufferLength;
+        hue = Math.round((average / 255) * 360);
+
+        particleArray.forEach((particle, index) => {
+          particle.update();
+          particle.draw();
+
+          if (particle.size <= 0.2) {
+            particleArray.splice(index, 1);
+            particleArray.push(new Particle());
+          }
+        });
+
+        backgroundContext.fillStyle = `hsla(${hue}, 100%, 50%, 0.1)`;
+        backgroundContext.beginPath();
+        backgroundContext.arc(centerX, centerY, average, 0, Math.PI * 2);
+        backgroundContext.fill();
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
+
+    window.addEventListener('resize', () => {
+      if (isPlaying) {
+        cancelAnimationFrame(visualize);
+        cancelAnimationFrame(animateBackground);
+        visualize();
+        animateBackground();
+      }
+      interactiveBackground.width = window.innerWidth;
+      interactiveBackground.height = window.innerHeight;
+    });
+
+    // ... (remove the following lines as they are no longer needed)
+    // createStars();
+    // initializeFrequencyScale();
+
+    updateFrequency();
+  </script>
+
 </body></html>
+
