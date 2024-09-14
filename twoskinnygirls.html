@@ -107,7 +107,7 @@
 }
 </style>
 	<style>
-.gallery-container {
+  .gallery-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-start;
@@ -135,6 +135,7 @@
             align-items: center;
             opacity: 0;
             transition: opacity 0.3s ease;
+            cursor: pointer;
         }
         .gallery-item:hover .download-overlay {
             opacity: 1;
@@ -145,7 +146,6 @@
         .download-icon {
             color: white;
             font-size: 24px;
-            text-decoration: none;
         }
 		</style>
 	</head>
@@ -362,15 +362,33 @@ only death follows life...	<br>
 
         const gallery = document.getElementById('gallery');
 
+        function downloadImage(url) {
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = blobUrl;
+                    a.download = url.split('/').pop();
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(blobUrl);
+                    document.body.removeChild(a);
+                })
+                .catch(error => console.error('Error downloading image:', error));
+        }
+
         images.forEach((image, index) => {
             const item = document.createElement('div');
             item.className = 'gallery-item';
             item.innerHTML = `
                 <img src="${image}" alt="Gallery image ${index + 1}">
-                <a href="${image}" download class="download-overlay">
+                <div class="download-overlay">
                     <span class="download-icon">⬇️</span>
-                </a>
+                </div>
             `;
+            item.querySelector('.download-overlay').addEventListener('click', () => downloadImage(image));
             gallery.appendChild(item);
         });
     </script>
