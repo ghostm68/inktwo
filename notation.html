@@ -1,0 +1,376 @@
+
+
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SymphonySketch</title>
+<style>
+ @font-face {
+            font-family: 'Bravura';
+            src: url('https://github.com/ghostm68/inktwo/raw/main/fonts/Bravura.otf') format('opentype');
+        }
+        
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #1a1a1a;
+        color: #f0f0f0;
+        padding: 20px;
+    }
+    #staff-container {
+        width: 1200px;
+        height: 600px;
+        background-color: #333;
+        border: 1px solid #f0f0f0;
+        margin: 20px 0;
+        position: relative;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    .staff {
+        width: 2600px;
+        height: 40%;
+        position: relative;
+    }
+    #treble-staff {
+        position: absolute;
+        top: 0;
+    }
+    #bass-staff {
+        position: absolute;
+        bottom: 0;
+    }
+    .staff-line {
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background-color: #f0f0f0;
+    }
+    .clef {
+        position: absolute;
+        left: 10px;
+        top: 60px;
+        font-size: 120px;
+        color: #f0f0f0;
+    }
+    .bass-clef {
+        position: absolute;
+        left: 10px;
+        top: 60px;
+        font-size: 120px;
+        color: #f0f0f0;
+    }
+    .note {
+        width: 40px;
+        height: 40px;
+        position: absolute;
+        cursor: pointer;
+    }
+    .note:hover {
+        filter: brightness(0.8);
+    }
+    .note.deletable {
+        outline: 2px solid red;
+    }
+    #controls, #note-controls, #playback-controls {
+        margin-bottom: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    button {
+        font-size: 16px;
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        background-color: white;
+        color: #1a1a1a;
+    }
+    button:hover {
+        background-color: #45a049;
+    }
+    #clear {
+        background-color: #ff6b6b;
+    }
+    #clear:hover {
+        background-color: #ff4757;
+    }
+    .accidental {
+        font-size: 32px;
+        position: absolute;
+        cursor: pointer;
+    }
+    #tempo {
+        font-size: 16px;
+        padding: 5px;
+        margin: 5px;
+        background-color: #333;
+        color: #f0f0f0;
+        border: 1px solid #f0f0f0;
+    }
+    #delete-mode {
+        background-color: red;
+    }
+    #delete-mode:hover {
+        background-color: grey;
+    }
+    #delete-mode.active {
+        background-color: pink;
+    }
+    #playback-arrow {
+        position: absolute;
+        top: -30px;
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-top: 20px solid red;
+        transition: left 0.1s linear;
+    }
+    .note span {
+        position: absolute;
+        left: 0;
+        top: -10px;
+        color: #f0f0f0;
+    }
+@font-face {
+    font-family: 'Bravura';
+    src: url('path/to/Bravura.otf') format('opentype');
+}
+
+.note span {
+    font-family: 'Bravura', Arial, sans-serif;
+}
+</style>
+</head>
+<body>
+    <h1>SymphonySketch</h1>
+    <div id="controls">
+        <button id="whole">Whole</button>
+        <button id="half">Half</button>
+        <button id="quarter">Quarter</button>
+        <button id="eighth">Eighth</button>
+        <button id="sixteenth">Sixteenth</button>
+    </div>
+    <div id="note-controls">
+        <button id="natural">Natural</button>
+        <button id="sharp">Sharp (♯)</button>
+        <button id="flat">Flat (♭)</button>
+    </div>
+    <div id="playback-controls">
+        <button id="play" disabled>Play Sketch</button>
+        <button id="clear">Clear Staff</button>
+        <button id="delete-mode">Delete Mode</button>
+        <label for="tempo">Tempo (BPM):</label>
+        <input type="number" id="tempo" min="40" max="240" value="120">
+        <span id="loading-indicator" style="display: none;">Loading piano sound...</span>
+    </div>
+    <div id="staff-container">
+        <div id="treble-staff" class="staff">
+            <!-- Staff lines and treble clef will be created with JavaScript -->
+        </div>
+        <div id="bass-staff" class="staff">
+            <!-- Staff lines and bass clef will be created with JavaScript -->
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script>
+        const trebleStaff = document.getElementById('treble-staff');
+        const bassStaff = document.getElementById('bass-staff');
+        const trebleNotes = ['F5', 'E5', 'D5', 'C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4'];
+        const bassNotes = ['A3', 'G3', 'F3', 'E3', 'D3', 'C3', 'B2', 'A2', 'G2', 'F2', 'E2'];
+        let selectedNote = 'quarter';
+        let selectedAccidental = 'natural';
+        let melody = [];
+        let deleteMode = false;
+
+        const noteSymbols = {
+            'whole': '\uE1D2',
+            'half': '\uE1D3',
+            'quarter': '\uE1D5',
+            'eighth': '\uE1D7',
+            'sixteenth': '\uE1D9'
+        };
+
+        function createStaffLines(staff) {
+            for (let i = 0; i < 5; i++) {
+                const line = document.createElement('div');
+                line.className = 'staff-line';
+                line.style.top = `${80 + i * 40}px`;
+                staff.appendChild(line);
+            }
+        }
+
+        function addClef(staff, clefType) {
+            const clef = document.createElement('div');
+            clef.className = clefType === 'treble' ? 'clef' : 'bass-clef';
+            clef.innerHTML = clefType === 'treble' ? '&#119070;' : '&#119074;';
+            staff.appendChild(clef);
+        }
+
+        createStaffLines(trebleStaff);
+        createStaffLines(bassStaff);
+        addClef(trebleStaff, 'treble');
+        addClef(bassStaff, 'bass');
+
+       function addNote(x, noteIndex, staff) {
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.style.left = `${x - 20}px`;
+    note.style.top = `${noteIndex * 20 + 60}px`;
+    
+    const noteSymbol = document.createElement('span');
+    noteSymbol.textContent = noteSymbols[selectedNote];
+    note.appendChild(noteSymbol);
+
+    if (selectedAccidental !== 'natural') {
+        const accidental = document.createElement('div');
+        accidental.className = 'accidental';
+        accidental.style.left = '-25px';
+        accidental.style.top = '-15px';
+        accidental.textContent = selectedAccidental === 'sharp' ? '\uE262' : '\uE260';
+        note.appendChild(accidental);
+    }
+
+    staff.appendChild(note);
+
+    let noteName = staff === trebleStaff ? trebleNotes[noteIndex] : bassNotes[noteIndex];
+    if (selectedAccidental === 'sharp') {
+        noteName += '#';
+    } else if (selectedAccidental === 'flat') {
+        noteName = noteName.charAt(0) + 'b' + noteName.charAt(1);
+    }
+
+    melody.push({ note: noteName, duration: selectedNote, x: x, element: note, staff: staff.id });
+}
+            let noteName = staff === trebleStaff ? trebleNotes[noteIndex] : bassNotes[noteIndex];
+            if (selectedAccidental === 'sharp') {
+                noteName += '#';
+            } else if (selectedAccidental === 'flat') {
+                noteName = noteName.charAt(0) + 'b' + noteName.charAt(1);
+            }
+
+            melody.push({ note: noteName, duration: selectedNote, x: x, element: note, staff: staff.id });
+        }
+
+        trebleStaff.addEventListener('click', (e) => handleStaffClick(e, trebleStaff));
+        bassStaff.addEventListener('click', (e) => handleStaffClick(e, bassStaff));
+
+        function handleStaffClick(e, staff) {
+            if (e.target.closest('.note')) {
+                if (deleteMode) {
+                    deleteNote(e.target.closest('.note'));
+                }
+                return;
+            }
+
+            const rect = staff.getBoundingClientRect();
+            const x = e.clientX - rect.left + staff.scrollLeft;
+            const y = e.clientY - rect.top;
+            const noteIndex = Math.round((y - 60) / 20);
+            
+            const maxNoteIndex = staff === trebleStaff ? trebleNotes.length : bassNotes.length;
+            if (noteIndex >= 0 && noteIndex < maxNoteIndex && !deleteMode) {
+                addNote(x, noteIndex, staff);
+            }
+        }
+
+        function deleteNote(noteElement) {
+            noteElement.remove();
+            melody = melody.filter(item => item.element !== noteElement);
+        }
+
+        function createPlaybackArrow() {
+            const arrow = document.createElement('div');
+            arrow.id = 'playback-arrow';
+            arrow.style.display = 'none';
+            trebleStaff.appendChild(arrow);
+            return arrow;
+        }
+
+        const playbackArrow = createPlaybackArrow();
+        let pianoSampler;
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const playButton = document.getElementById('play');
+
+        loadingIndicator.style.display = 'inline';
+        playButton.disabled = true;
+
+        pianoSampler = new Tone.Sampler({
+            urls: {
+                C4: "C4.mp3",
+                "D#4": "Ds4.mp3",
+                "F#4": "Fs4.mp3",
+                A4: "A4.mp3",
+            },
+            baseUrl: "https://tonejs.github.io/audio/salamander/",
+            onload: () => {
+                loadingIndicator.style.display = 'none';
+                playButton.disabled = false;
+            }
+        }).toDestination();
+
+        document.getElementById('play').addEventListener('click', async () => {
+            await Tone.start();
+            const now = Tone.now();
+            let time = now;
+
+            const tempo = parseInt(document.getElementById('tempo').value);
+            Tone.Transport.bpm.value = tempo;
+
+            melody.sort((a, b) => a.x - b.x);
+
+            playbackArrow.style.display = 'block';
+
+            melody.forEach(({ note, duration, x, staff }, index) => {
+                let noteDuration;
+                switch (duration) {
+                    case 'whole': noteDuration = '1n'; break;
+                    case 'half': noteDuration = '2n'; break;
+                    case 'quarter': noteDuration = '4n'; break;
+                    case 'eighth': noteDuration = '8n'; break;
+                    case 'sixteenth': noteDuration = '16n'; break;
+                }
+                pianoSampler.triggerAttackRelease(note, noteDuration, time);
+                
+                Tone.Draw.schedule(() => {
+                    playbackArrow.style.left = `${x}px`;
+                    playbackArrow.style.top = staff === 'treble-staff' ? '-30px' : '270px';
+                }, time);
+
+                time += Tone.Time(noteDuration).toSeconds();
+
+                if (index === melody.length - 1) {
+                    Tone.Draw.schedule(() => {
+                        playbackArrow.style.display = 'none';
+                    }, time);
+                }
+            });
+        });
+
+        document.getElementById('clear').addEventListener('click', () => {
+            const allNotes = document.querySelectorAll('.note');
+            allNotes.forEach(note => note.remove());
+            melody = [];
+            playbackArrow.style.display = 'none';
+        });
+
+        const deleteButton = document.getElementById('delete-mode');
+        deleteButton.addEventListener('click', () => {
+            deleteMode = !deleteMode;
+            deleteButton.classList.toggle('active');
+            trebleStaff.style.cursor = deleteMode ? 'pointer' : 'default';
+            bassStaff.style.cursor = deleteMode ? 'pointer' : 'default';
+            
+            const allNotes = document.querySelectorAll('.note');
+            allNotes.forEach(note => {
+                note.classList.toggle('deletable', deleteMode);
+            });
+        });
+    </script>
+</body></html>
