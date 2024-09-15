@@ -2,6 +2,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>symphony sketch</title>
+   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/smufl-fonts/1.39.0/fonts/bravura.css">
    
  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Musical&display=swap">
@@ -150,6 +151,9 @@
         <input type="number" id="tempo" min="40" max="240" value="120">
         <span id="loading-indicator" style="display: none;">Loading piano sound...</span>
     </div>
+       <button id="download-midi">Download MIDI</button>
+    <button id="start-recording">Start Recording</button>
+    <button id="stop-recording">Stop Recording</button>
     <div id="staff-container">
         <div id="treble-staff" class="staff">
             <!-- Staff lines and treble clef will be created with JavaScript -->
@@ -357,6 +361,77 @@ document.getElementById('𝅘𝅥𝅯-sixteenth').addEventListener('click', () =
             allNotes.forEach(note => {
                 note.classList.toggle('deletable', deleteMode);
             });
+           function downloadMIDI() {
+    const midi = new Midi();
+    const track = midi.addTrack();
+    
+    melody.forEach(({ note, duration }) => {
+        const midiNote = Midi.toMidiNumber(note);
+        let durationTicks;
+        switch(duration) {
+            case 'whole': durationTicks = 384; break;
+            case 'half': durationTicks = 192; break;
+            case 'quarter': durationTicks = 96; break;
+            case 'eighth': durationTicks = 48; break;
+            case 'sixteenth': durationTicks = 24; break;
+        }
+        track.addNote({
+            midi: midiNote,
+            time: track.duration,
+            duration: durationTicks / 96
+        });
+    });
+
+    const midiData = midi.toArray();
+    const blob = new Blob([midiData], { type: 'audio/midi' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'symphony_sketch.mid';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+let mediaRecorder;
+let audioChunks = [];
+
+function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                a.href = audioUrl;
+                a.download = 'symphony_sketch_recording.wav';
+                a.click();
+                URL.revokeObjectURL(audioUrl);
+            };
+            mediaRecorder.start();
+            // Start playing the melody here
+        });
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        audioChunks = [];
+    }
+}
+
+// Add these buttons to your HTML
+document.getElementById('controls').insertAdjacentHTML('beforeend', `
+
+`);
+
+// Add event listeners for the new buttons
+document.getElementById('download-midi').addEventListener('click', downloadMIDI);
+document.getElementById('start-recording').addEventListener('click', startRecording);
+document.getElementById('stop-recording').addEventListener('click', stopRecording);
         });
     </script>
 </body></html>
