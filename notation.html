@@ -2,6 +2,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>symphony sketch</title>
+   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/smufl-fonts/1.39.0/fonts/bravura.css">
    
  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Musical&display=swap">
@@ -130,13 +131,13 @@
 </head>
 <body>
     <h1>symphony sketch</h1>
-    <div id="𝅝-controls">
-        <button id="𝅝-whole">Whole</button>
-        <button id="𝅗𝅥-half">Half</button>
-        <button id="𝅘𝅥-quarter">Quarter</button>
-        <button id="𝅘𝅥𝅮-eighth">Eighth</button>
-        <button id="𝅘𝅥𝅯-sixteenth">Sixteenth</button>
-    </div>
+  <div id="𝅝-controls">
+    <button id="𝅝-whole">Whole</button>
+    <button id="𝅗𝅥-half">Half</button>
+    <button id="𝅘𝅥-quarter">Quarter</button>
+    <button id="𝅘𝅥𝅮-eighth">Eighth</button>
+    <button id="𝅘𝅥𝅯-sixteenth">Sixteenth</button>
+</div>
     <div id="note-controls">
         <button id="natural">Natural</button>
         <button id="sharp">Sharp (♯)</button>
@@ -150,11 +151,6 @@
         <input type="number" id="tempo" min="40" max="240" value="120">
         <span id="loading-indicator" style="display: none;">Loading piano sound...</span>
     </div>
-    <div id="export-controls">
-        <button id="download-midi">Download MIDI</button>
-        <button id="start-recording">Start Recording</button>
-        <button id="stop-recording">Stop Recording</button>
-    </div>
     
     <div id="staff-container">
         <div id="treble-staff" class="staff">
@@ -164,113 +160,120 @@
             <!-- Staff lines and bass clef will be created with JavaScript -->
         </div>
     </div>
-   
-   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
+   <button id="download-midi">Download MIDI</button>
+    <button id="start-recording">Start Recording</button>
+    <button id="stop-recording">Stop Recording</button>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const trebleStaff = document.getElementById('treble-staff');
-    const bassStaff = document.getElementById('bass-staff');
-    const trebleNotes = ['F5', 'E5', 'D5', 'C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4'];
-    const bassNotes = ['A3', 'G3', 'F3', 'E3', 'D3', 'C3', 'B2', 'A2', 'G2', 'F2', 'E2'];
-    let selectedNote = 'quarter';
-    let selectedAccidental = 'natural';
-    let melody = [];
-    let deleteMode = false;
+        const trebleStaff = document.getElementById('treble-staff');
+        const bassStaff = document.getElementById('bass-staff');
+        const trebleNotes = ['F5', 'E5', 'D5', 'C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4'];
+        const bassNotes = ['A3', 'G3', 'F3', 'E3', 'D3', 'C3', 'B2', 'A2', 'G2', 'F2', 'E2'];
+        let selectedNote = 'quarter';
+        let selectedAccidental = 'natural';
+        let melody = [];
+        let deleteMode = false;
 
-    const noteSymbols = {
-        'whole': '𝅝',
-        'half': '𝅗𝅥',
-        'quarter': '𝅘𝅥',
-        'eighth': '𝅘𝅥𝅮',
-        'sixteenth': '𝅘𝅥𝅯'
-    };
+        const noteSymbols = {
+            'whole': '𝅝',
+            'half': '𝅗𝅥',
+            'quarter': '𝅘𝅥',
+            'eighth': '𝅘𝅥𝅮',
+            'sixteenth': '𝅘𝅥𝅯'
+        };
 
-    function createStaffLines(staff) {
-        for (let i = 0; i < 5; i++) {
-            const line = document.createElement('div');
-            line.className = 'staff-line';
-            line.style.top = `${20 + i * 20}px`; // Adjusted spacing
-            staff.appendChild(line);
+       document.getElementById('𝅝-whole').addEventListener('click', () => selectedNote = 'whole');
+document.getElementById('𝅗𝅥-half').addEventListener('click', () => selectedNote = 'half');
+document.getElementById('𝅘𝅥-quarter').addEventListener('click', () => selectedNote = 'quarter');
+document.getElementById('𝅘𝅥𝅮-eighth').addEventListener('click', () => selectedNote = 'eighth');
+document.getElementById('𝅘𝅥𝅯-sixteenth').addEventListener('click', () => selectedNote = 'sixteenth');
+
+        function createStaffLines(staff) {
+            for (let i = 0; i < 5; i++) {
+                const line = document.createElement('div');
+                line.className = 'staff-line';
+                line.style.top = `${80 + i * 40}px`;
+                staff.appendChild(line);
+            }
         }
-    }
 
-    function addClef(staff, clefType) {
-        const clef = document.createElement('div');
-        clef.className = clefType === 'treble' ? 'clef' : 'bass-clef';
-        clef.innerHTML = clefType === 'treble' ? '&#119070;' : '&#119074;';
-        staff.appendChild(clef);
-    }
+        function addClef(staff, clefType) {
+            const clef = document.createElement('div');
+            clef.className = clefType === 'treble' ? 'clef' : 'bass-clef';
+            clef.innerHTML = clefType === 'treble' ? '&#119070;' : '&#119074;';
+            staff.appendChild(clef);
+        }
 
-    createStaffLines(trebleStaff);
-    createStaffLines(bassStaff);
-    addClef(trebleStaff, 'treble');
-    addClef(bassStaff, 'bass');
+        createStaffLines(trebleStaff);
+        createStaffLines(bassStaff);
+        addClef(trebleStaff, 'treble');
+        addClef(bassStaff, 'bass');
 
     function addNote(x, noteIndex, staff) {
-        const note = document.createElement('div');
-        note.className = 'note';
-        note.style.left = `${x - 20}px`;
-        note.style.top = `${noteIndex * 10 + 10}px`; // Adjusted positioning
-        note.style.fontSize = '40px'; 
+  const note = document.createElement('div');
+  note.className = 'note';
+  note.style.left = `${x - 20}px`;
+  note.style.top = `${noteIndex * 20 + 60}px`;
+  note.style.fontSize = '40px'; 
 
-        const noteSymbol = document.createElement('span');
-        noteSymbol.textContent = noteSymbols[selectedNote];
-        noteSymbol.style.lineHeight = '40px';
-        noteSymbol.style.display = 'inline-block';
-        noteSymbol.style.textAlign = 'center';
-        noteSymbol.style.width = '40px';
-        noteSymbol.style.height = '40px';
-        noteSymbol.style.color = '#f0f0f0';
-        note.appendChild(noteSymbol);
+  const noteSymbol = document.createElement('span');
+  noteSymbol.textContent = noteSymbols[selectedNote]; // This will now use the correct selectedNote
+  noteSymbol.style.lineHeight = '40px';
+  noteSymbol.style.display = 'inline-block';
+  noteSymbol.style.textAlign = 'center';
+  noteSymbol.style.width = '40px';
+  noteSymbol.style.height = '40px';
+  noteSymbol.style.color = '#f0f0f0';
+  note.appendChild(noteSymbol);
+           
 
-        if (selectedAccidental !== 'natural') {
-            const accidental = document.createElement('div');
-            accidental.className = 'accidental';
-            accidental.style.left = '-25px';
-            accidental.style.top = '-15px';
-            accidental.textContent = selectedAccidental === 'sharp' ? '♯' : '♭';
-            note.appendChild(accidental);
-        }
-
-        staff.appendChild(note);
-
-        let noteName = staff === trebleStaff ? trebleNotes[noteIndex] : bassNotes[noteIndex];
-        if (selectedAccidental === 'sharp') {
-            noteName += '#';
-        } else if (selectedAccidental === 'flat') {
-            noteName = noteName.charAt(0) + 'b' + noteName.charAt(1);
-        }
-
-        melody.push({ note: noteName, duration: selectedNote, x: x, element: note, staff: staff.id });
-    }
-
-    function handleStaffClick(e, staff) {
-        if (e.target.closest('.note')) {
-            if (deleteMode) {
-                deleteNote(e.target.closest('.note'));
+            if (selectedAccidental !== 'natural') {
+                const accidental = document.createElement('div');
+                accidental.className = 'accidental';
+                accidental.style.left = '-25px';
+                accidental.style.top = '-15px';
+                accidental.textContent = selectedAccidental === 'sharp' ? '♯' : '♭';
+                note.appendChild(accidental);
             }
-            return;
+
+            staff.appendChild(note);
+
+            let noteName = staff === trebleStaff ? trebleNotes[noteIndex] : bassNotes[noteIndex];
+            if (selectedAccidental === 'sharp') {
+                noteName += '#';
+            } else if (selectedAccidental === 'flat') {
+                noteName = noteName.charAt(0) + 'b' + noteName.charAt(1);
+            }
+
+            melody.push({ note: noteName, duration: selectedNote, x: x, element: note, staff: staff.id });
         }
 
-        const rect = staff.getBoundingClientRect();
-        const x = e.clientX - rect.left + staff.scrollLeft;
-        const y = e.clientY - rect.top;
-        const noteIndex = Math.round((y - 20) / 20); // Adjusted for new spacing
-        
-        const maxNoteIndex = staff === trebleStaff ? trebleNotes.length : bassNotes.length;
-        if (noteIndex >= 0 && noteIndex < maxNoteIndex && !deleteMode) {
-            addNote(x, noteIndex, staff);
+        trebleStaff.addEventListener('click', (e) => handleStaffClick(e, trebleStaff));
+        bassStaff.addEventListener('click', (e) => handleStaffClick(e, bassStaff));
+
+        function handleStaffClick(e, staff) {
+            if (e.target.closest('.note')) {
+                if (deleteMode) {
+                    deleteNote(e.target.closest('.note'));
+                }
+                return;
+            }
+
+            const rect = staff.getBoundingClientRect();
+            const x = e.clientX - rect.left + staff.scrollLeft;
+            const y = e.clientY - rect.top;
+            const noteIndex = Math.round((y - 60) / 20);
+            
+            const maxNoteIndex = staff === trebleStaff ? trebleNotes.length : bassNotes.length;
+            if (noteIndex >= 0 && noteIndex < maxNoteIndex && !deleteMode) {
+                addNote(x, noteIndex, staff);
+            }
         }
-    }
 
-    trebleStaff.addEventListener('click', (e) => handleStaffClick(e, trebleStaff));
-    bassStaff.addEventListener('click', (e) => handleStaffClick(e, bassStaff));
-
-    function deleteNote(noteElement) {
-        noteElement.remove();
-        melody = melody.filter(item => item.element !== noteElement);
-    }
+        function deleteNote(noteElement) {
+            noteElement.remove();
+            melody = melody.filter(item => item.element !== noteElement);
+        }
 
         function createPlaybackArrow() {
             const arrow = document.createElement('div');
@@ -377,15 +380,7 @@
             time: track.duration,
             duration: durationTicks / 96
         });
-  document.getElementById('𝅝-whole').addEventListener('click', () => selectedNote = 'whole');
-    document.getElementById('𝅗𝅥-half').addEventListener('click', () => selectedNote = 'half');
-    document.getElementById('𝅘𝅥-quarter').addEventListener('click', () => selectedNote = 'quarter');
-    document.getElementById('𝅘𝅥𝅮-eighth').addEventListener('click', () => selectedNote = 'eighth');
-    document.getElementById('𝅘𝅥𝅯-sixteenth').addEventListener('click', () => selectedNote = 'sixteenth');
-
-    document.getElementById('download-midi').addEventListener('click', downloadMIDI);
-    document.getElementById('start-recording').addEventListener('click', startRecording);
-    document.getElementById('stop-recording').addEventListener('click', stopRecording);
+    });
 
     const midiData = midi.toArray();
     const blob = new Blob([midiData], { type: 'audio/midi' });
@@ -427,7 +422,16 @@ function stopRecording() {
         audioChunks = [];
     }
 }
+
+// Add these buttons to your HTML
+document.getElementById('controls').insertAdjacentHTML('beforeend', `
+
+`);
+
+// Add event listeners for the new buttons
+document.getElementById('download-midi').addEventListener('click', downloadMIDI);
+document.getElementById('start-recording').addEventListener('click', startRecording);
+document.getElementById('stop-recording').addEventListener('click', stopRecording);
         });
-      });
     </script>
 </body></html>
