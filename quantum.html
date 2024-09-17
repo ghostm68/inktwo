@@ -1,345 +1,1073 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-	/* width */
-::-webkit-scrollbar {
-  width: 20px;
-}
+<html><head><title>Block Editor Quantum Arabic Text Editor</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
-/* Track */
-::-webkit-scrollbar-track {
-  box-shadow: inset 0 0 5px tan; 
-  border-radius: 10px;
-}
- 
-/* Handle */
-::-webkit-scrollbar-thumb {
-  background: yellow; 
-  border-radius: 10px;
-}
+    :root {
+        --bg-color: #ffffff;
+        --text-color: #333333;
+        --toolbar-bg: #34495e;
+        --toolbar-text: #ffffff;
+        --accent-color: #3498db;
+        --block-placeholder: #ecf0f1;
+        --code-bg: #f8f8f8;
+        --code-border: #ddd;
+        --selection-color: rgba(52, 152, 219, 0.3);
+        --command-menu-bg: #ffffff;
+        --command-menu-border: #e0e0e0;
+        --command-menu-hover: #f5f5f5;
+        --icon-size: 16px;
+        --icon-spacing: 4px;
+    }
 
-/* Handle on hover */
-::-webkit-scrollbar-thumb:hover {
-  background: purple; 
-}
-</style>
-    <title>Quantum Realm Explorer</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(45deg, #121212, #1e1e1e, #121212);
-            background-size: 400% 400%;
-            color: #e0e0e0;
-            height: 100%;
-            overflow: visible;
-            animation: gradientShift 10s ease infinite;
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --toolbar-bg: #2c3e50;
+            --toolbar-text: #ffffff;
+            --accent-color: #3498db;
+            --block-placeholder: #2c3e50;
+            --code-bg: #2c3e50;
+            --code-border: #34495e;
+            --selection-color: rgba(52, 152, 219, 0.3);
+            --command-menu-bg: #2c3e50;
+            --command-menu-border: #34495e;
+            --command-menu-hover: #34495e;
         }
+    }
 
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+    body, html {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+    }
 
-        .container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+    .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        transition: max-width 0.3s ease;
+        padding-bottom: 60px; /* Adjust this value as needed */
+    }
 
-        h1 {
-            text-align: center;
-            color: silver;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-        }
+    .toolbar {
+        background-color: var(--toolbar-bg);
+        color: var(--toolbar-text);
+        padding: 0.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 
-        #quantum-realm {
-            flex-grow: 1;
-            background-color: #1e1e1e;
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-            display: flex;
+    .toolbar button {
+        background-color: transparent;
+        color: var(--accent-color);
+        border: none;
+        padding: 0.25rem 0.5rem;
+        margin: 0.25rem;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .toolbar button:hover {
+        background-color: var(--accent-color);
+        color: var(--toolbar-text);
+    }
+
+    .toolbar button:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--toolbar-bg);
+        color: var(--toolbar-text);
+        padding: 5px;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        z-index: 1000;
+    }
+
+    .toolbar button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .editor {
+        flex-grow: 1;
+        padding: 1rem 2rem 0; /* Remove bottom padding */
+        overflow-y: auto;
+        background-color: var(--bg-color);
+        position: relative;
+    }
+
+    .block {
+        display: flex;
+        align-items: flex-start;
+        transition: all 0.3s ease;
+        padding: 0.25rem 0;
+        border-radius: 4px;
+        position: relative;
+    }
+
+    .block.dragging {
+        opacity: 0.5;
+        background-color: var(--block-placeholder);
+    }
+
+    .block-placeholder {
+        background-color: var(--block-placeholder);
+        border: 2px dashed var(--accent-color);
+        height: 30px;
+        transition: all 0.3s ease;
+    }
+
+    .move-icon, .command-icon {
+        cursor: pointer;
+        padding: var(--icon-spacing);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        color: var(--accent-color);
+        font-size: var(--icon-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--icon-size);
+        height: var(--icon-size);
+    }
+
+    .block:hover .move-icon,
+    .block:hover .command-icon {
+        opacity: 1;
+    }
+
+    .block-content {
+        flex-grow: 1;
+        margin-left: var(--icon-spacing);
+    }
+
+    [contenteditable="true"] {
+        outline: none;
+        min-height: 1em;
+    }
+
+    [contenteditable="true"]:focus {
+        background-color: transparent;
+    }
+
+    [contenteditable="true"]:empty::before {
+        content: '';
+    }
+
+    [contenteditable="true"]:empty:hover::before {
+        content: 'Type / for commands';
+        color: #999;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    pre {
+        background-color: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin: 0;
+    }
+
+    code {
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    .selection-box {
+        position: absolute;
+        border: 1px solid var(--accent-color);
+        background-color: var(--selection-color);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .selection-box.active {
+        opacity: 1;
+    }
+
+    .block.selected {
+        background-color: var(--selection-color);
+    }
+
+    .command-menu {
+        position: absolute;
+        background-color: var(--command-menu-bg);
+        border: 1px solid var(--command-menu-border);
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: none;
+    }
+
+    .command-menu-item {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+    }
+
+    .command-menu-item:hover {
+        background-color: var(--command-menu-hover);
+    }
+
+    h1, h2, h3 {
+        margin: 0;
+        padding: 0;
+    }
+
+    .block[dir="rtl"] {
+        flex-direction: row-reverse;
+    }
+
+    .block[dir="rtl"] .move-icon,
+    .block[dir="rtl"] .command-icon {
+        margin-right: 0;
+        margin-left: var(--icon-spacing);
+    }
+
+    .block[dir="ltr"] .block-content {
+        text-align: left;
+    }
+
+    .block[dir="rtl"] .block-content {
+        text-align: right;
+        margin-right: var(--icon-spacing);
+        margin-left: 0;
+    }
+
+    .editor-bottom-area {
+        height: 100px;
+        width: 100%;
+        cursor: text;
+    }
+
+    @media (max-width: 600px) {
+        .toolbar {
+            flex-wrap: wrap;
             justify-content: center;
-            align-items: center;
         }
-
-        .pyramid {
-            position: absolute;
-            stroke: #757575;
-            fill: none;
-            opacity: 0.5;
-            transition: transform 0.3s ease, opacity 0.3s ease;
+        .toolbar button {
+            margin-bottom: 0.5rem;
         }
+    }
 
-        .pyramid:nth-child(1) {
-            width: 60px;
-            top: 20%;
-            left: 40%;
-        }
+    .material-symbols-outlined {
+      font-variation-settings:
+      'FILL' 0,
+      'wght' 400,
+      'GRAD' 0,
+      'opsz' 20
+    }
 
-        .pyramid:nth-child(2) {
-            width: 80px;
-            top: 40%;
-            left: 45%;
-        }
+    .footer {
+        background-color: var(--toolbar-bg);
+        color: var(--toolbar-text);
+        padding: 0.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        border-radius: 15px 15px 0 0;
+        box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 10px;
+    }
 
-        .pyramid:nth-child(3) {
-            width: 100px;
-            top: 30%;
-            left: 50%;
-        }
+    .footer button {
+        background-color: transparent;
+        color: var(--accent-color);
+        border: none;
+        padding: 0.25rem 0.5rem;
+        margin: 0.25rem;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
 
-        button:hover ~ #quantum-realm .pyramid {
-            transform: scale(1.1);
-            opacity: 0.7;
-        }
+    .footer button:hover {
+        background-color: var(--accent-color);
+        color: var(--toolbar-text);
+    }
 
-        #controls {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 20px;
-        }
-
-        button {
-            background-color: yellow;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: pink;
-            transform: scale(1.1);
-            box-shadow: 0px 0px 10px rgba(255, 20, 147, 0.7);
-        }
-
-     footer {
-    text-align: center;
-    padding: 10px;
-    background-color: #1e1e1e;
-    color: #e0e0e0;
-    position: relative;
-    bottom: 0;
-    width: 100%;
-    box-sizing: border-box;
-    z-index: 10; /* Ensure it appears above other content */
-}
-
-#experiment-container {
-    display: inline-block;
-    background-color: #292929;
-    padding: 10px;
-    border-radius: 5px;
-    margin-top: 10px;
-}
-
-#experiment-result {
-    font-weight: bold;
-    color: yellow;
-    margin-bottom: 10px;
-}
-
-#footer-action {
-    background-color: yellow;
-    color: #000;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-#footer-action:hover {
-    background-color: pink;
-}
-
-        #experiment-container {
-            display: inline-block;
-            background-color: #292929;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        #experiment-result {
-            font-weight: bold;
-            color: yellow;
-        }
-
-        .particle {
-            position: absolute;
-            background-color: #bb86fc;
-            border-radius: 50%;
-            opacity: 0.7;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.7; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.7; }
-        }
-    </style>
+    .footer button:hover::after {
+        content: attr(title);
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--toolbar-bg);
+        color: var(--toolbar-text);
+        padding: 5px;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        z-index: 1000;
+    }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>Quantum Realm Explorer</h1>
-        <div id="quantum-realm">
-            <!-- Multiple Pyramid Shapes -->
-            <svg class="pyramid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                <polygon points="50,10 90,90 10,90" />
-            </svg>
-            <svg class="pyramid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                <polygon points="50,20 80,80 20,80" />
-            </svg>
-            <svg class="pyramid" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                <polygon points="50,15 85,85 15,85" />
-            </svg>
+    <div class="container" id="container">
+        <div class="toolbar">
+            <button id="undoButton" title="Undo (Ctrl+Z)"><span class="material-symbols-outlined">undo</span></button>
+            <button id="redoButton" title="Redo (Ctrl+Y)"><span class="material-symbols-outlined">redo</span></button>
+            <button id="addTextBlock" title="Add Text Block"><span class="material-symbols-outlined">text_fields</span></button>
+            <button id="addImageBlock" title="Add Image Block"><span class="material-symbols-outlined">image</span></button>
+            <button id="addCodeBlock" title="Add Code Block"><span class="material-symbols-outlined">code</span></button>
+            <button id="toggleWidth" title="Toggle Width"><span class="material-symbols-outlined">open_in_full</span></button>
+            <button id="copySelectedBlocks" title="Copy Selected Blocks"><span class="material-symbols-outlined">content_copy</span></button>
+            <button id="alignLeft" title="Align Left"><span class="material-symbols-outlined">format_align_left</span></button>
+            <button id="alignCenter" title="Align Center"><span class="material-symbols-outlined">format_align_center</span></button>
+            <button id="alignRight" title="Align Right"><span class="material-symbols-outlined">format_align_right</span></button>
+            <button id="alignJustify" title="Justify"><span class="material-symbols-outlined">format_align_justify</span></button>
+            <button id="uploadButton" title="Upload Image"><span class="material-symbols-outlined">upload</span></button>
+            <button id="colorButton" title="Text Color"><span class="material-symbols-outlined">palette</span></button>
         </div>
-        <div id="controls">
-            <button id="observe">Observe</button>
-            <button id="entangle">Entangle</button>
-            <button id="superposition">Superposition</button>
+        <div class="editor" id="editor">
+            <div class="block" dir="ltr">
+                <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+                <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="block-content" contenteditable="true">Quantum Arabic Text Editor! This is a futuristic block-based text editor. Add, edit, and rearrange... or edit text directly. Hover over a block to see the move icon, which can then drag and align blocks.  "⇔"  switches between full width and narrow layouts...click and drag to select multiple blocks, press Delete to remove them, and use  Copy to mirror the text of selected blocks silently. Enter key creates a new block under the current one.</div>
+            </div>
+            <div class="block" dir="ltr">
+                <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+                <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="block-content" contenteditable="true"> Type / in an empty block to bring up a command menu...choose from different block styles, headings, and text format... plus this automatically detects Arabic text and applies right-to-left direction to those blocks only, regardless of the block style...  move icon will appear on the right for Arabic...</div>
+            </div>
+            <div class="block" dir="rtl">
+                <div class="block-content" contenteditable="true"><h1>مQuantum Arabic Text Editor</h1></div>
+                <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+            </div>
+            <div class="block" dir="rtl">
+                <div class="block-content" contenteditable="true"><h1>مرحبا بكم في محرر النصوص!</h1></div>
+                <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+            </div>
+            <div class="block" dir="rtl">
+                <div class="block-content" contenteditable="true"><strong>الذي سيتم تنسيقه تلقائيًا من اليمين إلى اليسار.</strong></div>
+                <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+            </div>
+            <div class="editor-bottom-area" id="editorBottomArea"></div>
+        </div>
+        <div class="footer">
+            <button id="qubitControlButton" title="Qubit Control"><span class="material-symbols-outlined">timeline</span></button>
+            <button id="quantumEnhanceButton" title="Quantum Enhance"><span class="material-symbols-outlined">model_training</span></button>
+            <div class="quantum-animation">
+                <svg width="200" height="60" viewBox="0 0 200 60">
+                    <path id="quantumWave1" d="M0 30 Q50 10, 100 30 T200 30" fill="none" stroke="var(--accent-color)" stroke-width="2"></path>
+                    <path id="quantumWave2" d="M0 30 Q50 50, 100 30 T200 30" fill="none" stroke="var(--accent-color)" stroke-width="2"></path>
+                </svg>
+            </div>
+            <input type="range" id="quantumSlider" min="0" max="100" value="50" step="1">
+            <style>
+                .footer {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-around;
+                    padding: 10px;
+                }
+                .quantum-animation {
+                    width: 200px;
+                    height: 60px;
+                    overflow: hidden;
+                }
+                #quantumSlider {
+                    width: 150px;
+                    margin: 0 10px;
+                }
+                #quantumWave1, #quantumWave2 {
+                    transition: all 0.3s ease;
+                }
+            </style>
+            <script>
+                const quantumSlider = document.getElementById('quantumSlider');
+                const quantumWave1 = document.getElementById('quantumWave1');
+                const quantumWave2 = document.getElementById('quantumWave2');
+                
+                quantumSlider.addEventListener('input', function() {
+                    const value = this.value;
+                    const entanglement = value / 100;
+                    const amplitude = 20 * (1 - entanglement);
+                    const frequency = 1 + entanglement;
+                    
+                    const wave1Path = `M0 30 Q${50*frequency} ${30-amplitude}, ${100*frequency} 30 T200 30`;
+                    const wave2Path = `M0 30 Q${50*frequency} ${30+amplitude}, ${100*frequency} 30 T200 30`;
+                    
+                    quantumWave1.setAttribute('d', wave1Path);
+                    quantumWave2.setAttribute('d', wave2Path);
+                    
+                    // Change color based on entanglement
+                    const hue = 200 + (entanglement * 160); // blue to red
+                    const color = `hsl(${hue}, 100%, 50%)`;
+                    quantumWave1.setAttribute('stroke', color);
+                    quantumWave2.setAttribute('stroke', color);
+                });
+            </script>
         </div>
     </div>
-  <footer>
-    <div id="experiment-container">
-        <p id="experiment-result">set</p>
-        <button id="footer-action">secret</button>
-    </div>
-</footer>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
-    <script>
-  const quantumRealm = document.getElementById('quantum-realm');
-const observeBtn = document.getElementById('observe');
-const entangleBtn = document.getElementById('entangle');
-const superpositionBtn = document.getElementById('superposition');
-const footerResult = document.getElementById('experiment-result');
-const footerAction = document.getElementById('footer-action');
+    <div class="command-menu" id="commandMenu"></div>
 
-let particles = [];
+<script>
+// Utility functions
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => document.querySelectorAll(selector);
 
-// Function to create and add a particle
-function createParticle() {
-    const particle = document.createElement('div');
-    particle.classList.add('particle');
-    particle.style.width = `${Math.random() * 10 + 5}px`;
-    particle.style.height = particle.style.width;
-    particle.style.left = `${Math.random() * 100}%`;
-    particle.style.top = `${Math.random() * 100}%`;
-    quantumRealm.appendChild(particle);
-    particles.push(particle);
-    return particle;
-}
+// Global state
+const state = {
+    draggedElement: null,
+    placeholder: null,
+    isFullWidth: false,
+    isSelecting: false,
+    selectionBox: null,
+    startX: 0,
+    startY: 0,
+    activeCommandMenu: null,
+    undoStack: [],
+    redoStack: [],
+    currentState: null
+};
 
-// Initialize particles
-function initializeParticles() {
-    for (let i = 0; i < 50; i++) {
-        createParticle();
-    }
-}
+// Constants
+const COMMAND_OPTIONS = [
+    { name: 'Text', action: () => setBlockStyle('p') },
+    { name: 'Heading 1', action: () => setBlockStyle('h1') },
+    { name: 'Heading 2', action: () => setBlockStyle('h2') },
+    { name: 'Heading 3', action: () => setBlockStyle('h3') },
+    { name: 'Bold', action: () => formatText('bold') },
+    { name: 'Italic', action: () => formatText('italic') },
+    { name: 'Underline', action: () => formatText('underline') },
+    { name: 'Strikethrough', action: () => formatText('strikethrough') },
+    { name: 'Arabic Text', action: () => createNewBlock('p', 'اكتب هنا') },
+    { name: 'Arabic Heading', action: () => createNewBlock('h2', 'عنوان عربي') }
+];
 
-// Function for the Observe button
-function observe() {
-    particles.forEach(particle => {
-        gsap.to(particle, {
-            x: Math.random() * quantumRealm.offsetWidth,
-            y: Math.random() * quantumRealm.offsetHeight,
-            duration: 1,
-            ease: "power2.out"
-        });
-    });
-    footerResult.textContent = 'Observing particles...';
-}
-
-// Function for the Entangle button
-function entangle() {
-    const pairs = [];
-    for (let i = 0; i < particles.length; i += 2) {
-        if (i + 1 < particles.length) {
-            pairs.push([particles[i], particles[i + 1]]);
+// Undo/Redo functionality
+function saveState() {
+    const editor = $('#editor');
+    if (editor) {
+        const editorContent = editor.innerHTML;
+        if (state.currentState !== editorContent) {
+            state.undoStack.push(state.currentState);
+            state.currentState = editorContent;
+            state.redoStack = [];
+            updateUndoRedoButtons();
         }
     }
+}
 
-    pairs.forEach(pair => {
-        const [p1, p2] = pair;
-        const midX = (parseFloat(p1.style.left) + parseFloat(p2.style.left)) / 2;
-        const midY = (parseFloat(p1.style.top) + parseFloat(p2.style.top)) / 2;
+function undo() {
+    if (state.undoStack.length > 0) {
+        state.redoStack.push(state.currentState);
+        state.currentState = state.undoStack.pop();
+        if ($('#editor')) {
+            $('#editor').innerHTML = state.currentState;
+        }
+        updateUndoRedoButtons();
+    }
+}
 
-        gsap.to([p1, p2], {
-            left: `${midX}%`,
-            top: `${midY}%`,
-            duration: 1,
-            ease: "elastic.out(1, 0.5)"
-        });
+function redo() {
+    if (state.redoStack.length > 0) {
+        state.undoStack.push(state.currentState);
+        state.currentState = state.redoStack.pop();
+        if ($('#editor')) {
+            $('#editor').innerHTML = state.currentState;
+        }
+        updateUndoRedoButtons();
+    }
+}
+
+function updateUndoRedoButtons() {
+    const undoButton = $('#undoButton');
+    const redoButton = $('#redoButton');
+    
+    if (undoButton) {
+        undoButton.disabled = state.undoStack.length === 0;
+    }
+    
+    if (redoButton) {
+        redoButton.disabled = state.redoStack.length === 0;
+    }
+}
+
+// Block creation and management
+function createBlock(content, tag = 'div', attributes = 'contenteditable="true"') {
+    const block = document.createElement('div');
+    block.className = 'block';
+    block.innerHTML = `
+        <div class="move-icon"><span class="material-symbols-outlined">drag_indicator</span></div>
+        <div class="command-icon"><span class="material-symbols-outlined">add_circle</span></div>
+        <div class="block-content">
+            <${tag} ${attributes}>${content}</${tag}>
+        </div>
+    `;
+    return block;
+}
+
+function addBlock(type) {
+    let block;
+    switch (type) {
+        case 'text':
+            block = createBlock('');
+            break;
+        case 'image':
+            block = createBlock('', 'img', 'src="https://via.placeholder.com/300x200" alt="Placeholder image"');
+            break;
+        case 'code':
+            block = createBlock('// Your code here', 'pre');
+            const code = document.createElement('code');
+            code.setAttribute('contenteditable', 'true');
+            block.querySelector('.block-content').appendChild(code);
+            break;
+    }
+    $('#editor').insertBefore(block, $('#editorBottomArea'));
+    addBlockListeners(block);
+    saveState();
+}
+
+function addBlockListeners(block) {
+    const moveIcon = block.querySelector('.move-icon');
+    moveIcon.addEventListener('mousedown', () => block.draggable = true);
+    moveIcon.addEventListener('mouseup', () => block.draggable = false);
+    block.addEventListener('dragstart', dragStart);
+    block.addEventListener('dragend', dragEnd);
+
+    const commandIcon = block.querySelector('.command-icon');
+    commandIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showCommandMenu(commandIcon);
     });
-    footerResult.textContent = 'Entangling particles...';
+
+    const content = block.querySelector('[contenteditable]');
+    if (content) {
+        content.addEventListener('keydown', handleKeyDown);
+        content.addEventListener('input', handleInput);
+        content.addEventListener('paste', handlePaste);
+    }
 }
 
-// Function for the Superposition button
-function superposition() {
-    particles.forEach(particle => {
-        gsap.to(particle, {
-            scale: "random(0.5, 2)",
-            opacity: "random(0.3, 1)",
-            duration: 1,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut"
+// Drag and drop functionality
+function dragStart(e) {
+    state.draggedElement = this;
+    setTimeout(() => this.classList.add('dragging'), 0);
+    
+    state.placeholder = document.createElement('div');
+    state.placeholder.className = 'block-placeholder';
+    this.parentNode.insertBefore(state.placeholder, this.nextSibling);
+}
+
+function dragEnd() {
+    this.classList.remove('dragging');
+    if (state.placeholder && state.placeholder.parentNode) {
+        state.placeholder.parentNode.insertBefore(this, state.placeholder);
+        state.placeholder.remove();
+    }
+    state.placeholder = null;
+    state.draggedElement = null;
+    this.draggable = false;
+    saveState();
+}
+
+function dragOver(e) {
+    e.preventDefault();
+    if (!state.draggedElement) return;
+
+    const afterElement = getDragAfterElement(this, e.clientY);
+    if (afterElement == null) {
+        this.insertBefore(state.placeholder, $('#editorBottomArea'));
+    } else {
+        this.insertBefore(state.placeholder, afterElement);
+    }
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.block:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+// Command menu functionality
+function showCommandMenu(target) {
+    const rect = target.getBoundingClientRect();
+    const menu = $('#commandMenu');
+    menu.style.display = 'block';
+    menu.style.top = `${rect.bottom}px`;
+    menu.style.left = `${rect.left}px`;
+    menu.innerHTML = '';
+    COMMAND_OPTIONS.forEach(option => {
+        const item = document.createElement('div');
+        item.className = 'command-menu-item';
+        item.textContent = option.name;
+        item.addEventListener('click', () => {
+            option.action();
+            hideCommandMenu();
+            target.closest('.block').querySelector('.block-content').focus();
+            saveState();
         });
+        menu.appendChild(item);
     });
-    footerResult.textContent = 'Particles in superposition...';
+    state.activeCommandMenu = target;
 }
 
-// Function for the Footer Action button
-function footerActionClick() {
-    footerResult.textContent = 'we already exist in a quantum reality!';
+function hideCommandMenu() {
+    $('#commandMenu').style.display = 'none';
+    state.activeCommandMenu = null;
 }
 
-// Initialize particles when the page loads
-initializeParticles();
+function setBlockStyle(tag) {
+    if (state.activeCommandMenu) {
+        const block = state.activeCommandMenu.closest('.block');
+        const content = block.querySelector('.block-content');
+        content.innerHTML = `<${tag} contenteditable="true"></${tag}>`;
+        content.firstChild.focus();
+        applyDirectionToBlock(block);
+        saveState();
+    }
+}
 
-// Event listeners for buttons
-observeBtn.addEventListener('click', observe);
-entangleBtn.addEventListener('click', entangle);
-superpositionBtn.addEventListener('click', superposition);
-footerAction.addEventListener('click', footerActionClick);
+function formatText(style) {
+    if (state.activeCommandMenu) {
+        document.execCommand(style, false, null);
+        const block = state.activeCommandMenu.closest('.block');
+        applyDirectionToBlock(block);
+        saveState();
+    }
+}
 
-// Initial animation for particles
-gsap.from(particles, {
-    scale: 0,
-    opacity: 0,
-    duration: 2,
-    stagger: 0.05,
-    ease: "back.out(1.7)"
+// Event handlers
+function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const current = this.closest('.block');
+        const newBlock = createBlock('');
+        current.parentNode.insertBefore(newBlock, current.nextSibling);
+        addBlockListeners(newBlock);
+        newBlock.querySelector('[contenteditable]').focus();
+        saveState();
+    } else if (e.key === 'Backspace' && this.textContent.trim() === '') {
+        e.preventDefault();
+        const currentBlock = this.closest('.block');
+        const previousBlock = currentBlock.previousElementSibling;
+        if (previousBlock && previousBlock.classList.contains('block')) {
+            const previousContent = previousBlock.querySelector('[contenteditable]');
+            if (previousContent) {
+                currentBlock.remove();
+                previousContent.focus();
+                // Move cursor to the end of the previous block
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.selectNodeContents(previousContent);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                saveState();
+            }
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        undo();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+    }
+}
+
+function handleInput() {
+    const content = this.textContent.trim();
+    if (content === '/') {
+        showCommandMenu(this.closest('.block').querySelector('.command-icon'));
+    } else {
+        hideCommandMenu();
+    }
+    applyDirectionToBlock(this.closest('.block'));
+    saveState();
+}
+
+// Selection functionality
+function startSelection(e) {
+    if (e.target.closest('.move-icon') || e.target.closest('[contenteditable]')) return;
+    state.isSelecting = true;
+    state.startX = e.clientX;
+    state.startY = e.clientY;
+    state.selectionBox = document.createElement('div');
+    state.selectionBox.className = 'selection-box';
+    $('#editor').appendChild(state.selectionBox);
+    updateSelectionBox(e);
+}
+
+function updateSelection(e) {
+    if (!state.isSelecting) return;
+    updateSelectionBox(e);
+    selectBlocks();
+}
+
+function endSelection() {
+    state.isSelecting = false;
+    if (state.selectionBox) {
+        state.selectionBox.classList.remove('active');
+        setTimeout(() => {
+            if (state.selectionBox && state.selectionBox.parentNode) {
+                state.selectionBox.remove();
+            }
+            state.selectionBox = null;
+        }, 300);
+    }
+}
+
+function updateSelectionBox(e) {
+    const rect = $('#editor').getBoundingClientRect();
+    const left = Math.min(state.startX, e.clientX) - rect.left;
+    const top = Math.min(state.startY, e.clientY) - rect.top;
+    const width = Math.abs(e.clientX - state.startX);
+    const height = Math.abs(e.clientY - state.startY);
+    
+    Object.assign(state.selectionBox.style, {
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${width}px`,
+        height: `${height}px`
+    });
+    state.selectionBox.classList.add('active');
+}
+
+function selectBlocks() {
+    const blocks = $$('.block');
+    const selectionRect = state.selectionBox.getBoundingClientRect();
+
+    blocks.forEach(block => {
+        const blockRect = block.getBoundingClientRect();
+        if (
+            blockRect.left < selectionRect.right &&
+            blockRect.right > selectionRect.left &&
+            blockRect.top < selectionRect.bottom &&
+            blockRect.bottom > selectionRect.top
+        ) {
+            block.classList.add('selected');
+            selectBlockContent(block);
+        } else {
+            block.classList.remove('selected');
+            unselectBlockContent(block);
+        }
+    });
+}
+
+function selectBlockContent(block) {
+    const content = block.querySelector('[contenteditable]');
+    if (content) {
+        const range = document.createRange();
+        range.selectNodeContents(content);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
+function unselectBlockContent(block) {
+    const content = block.querySelector('[contenteditable]');
+    if (content) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (content.contains(range.commonAncestorContainer)) {
+                selection.removeAllRanges();
+            }
+        }
+    }
+}
+
+function copySelectedBlocks() {
+    const selectedBlocks = $$('.block.selected');
+    const copiedText = Array.from(selectedBlocks)
+        .map(block => block.querySelector('.block-content').innerText)
+        .join('\n\n');
+
+    if (copiedText) {
+        navigator.clipboard.writeText(copiedText.trim())
+            .then(() => console.log('Selected blocks copied to clipboard'))
+            .catch(err => console.error('Failed to copy text: ', err));
+    }
+}
+
+function toggleWidth() {
+    state.isFullWidth = !state.isFullWidth;
+    $('#container').style.maxWidth = state.isFullWidth ? '100%' : '900px';
+    saveState();
+}
+
+function setAlignment(alignment) {
+    $$('.block-content').forEach(content => {
+        content.style.textAlign = alignment;
+    });
+    saveState();
+}
+
+function applyDirectionToBlock(block) {
+    const content = block.querySelector('.block-content');
+    const text = content.innerText || content.textContent;
+    const isArabic = /[\u0600-\u06FF]/.test(text);
+    block.dir = isArabic ? 'rtl' : 'ltr';
+    content.style.textAlign = isArabic ? 'right' : 'left';
+}
+
+function handlePaste(e) {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+    applyDirectionToBlock(e.target.closest('.block'));
+    saveState();
+}
+
+function createNewBlock(type, content = '') {
+    const block = createBlock(content, type);
+    $('#editor').insertBefore(block, $('#editorBottomArea'));
+    addBlockListeners(block);
+    applyDirectionToBlock(block);
+    observer.observe(block.querySelector('.block-content'), observerConfig);
+    saveState();
+    return block;
+}
+
+// File handling functions
+function handleImageDrop(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = document.createElement('img');
+            img.src = event.target.result;
+            img.alt = 'Dropped image';
+            const block = createBlock('', 'div');
+            block.querySelector('.block-content').appendChild(img);
+            $('#editor').insertBefore(block, $('#editorBottomArea'));
+            addBlockListeners(block);
+            saveState();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = document.createElement('img');
+            img.src = event.target.result;
+            img.alt = 'Uploaded image';
+            const block = createBlock('', 'div');
+            block.querySelector('.block-content').appendChild(img);
+            $('#editor').insertBefore(block, $('#editorBottomArea'));
+            addBlockListeners(block);
+            saveState();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Keyboard shortcut handlers
+function handleShortcuts(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+            case 'b':
+                e.preventDefault();
+                document.execCommand('bold', false, null);
+                saveState();
+                break;
+            case 'i':
+                e.preventDefault();
+                document.execCommand('italic', false, null);
+                saveState();
+                break;
+            case 'u':
+                e.preventDefault();
+                document.execCommand('underline', false, null);
+                saveState();
+                break;
+        }
+    }
+}
+
+// Color picker function
+function createColorPicker() {
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.style.display = 'none';
+    colorPicker.addEventListener('change', (e) => {
+        document.execCommand('foreColor', false, e.target.value);
+        saveState();
+    });
+    document.body.appendChild(colorPicker);
+    return colorPicker;
+}
+
+// Resize handler
+function handleResize() {
+    const container = $('#container');
+    if (window.innerWidth < 950) {
+        container.style.maxWidth = '100%';
+    } else if (!state.isFullWidth) {
+        container.style.maxWidth = '900px';
+    }
+}
+
+// Mutation observer
+const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+            const block = mutation.target.closest('.block');
+            if (block) {
+                applyDirectionToBlock(block);
+            }
+        }
+    });
+    saveState();
 });
 
-// New interactive footer experiment
-document.querySelectorAll('button').forEach(button => {
-    button.addEventListener('mouseover', () => {
-        document.getElementById('experiment-result').textContent = 'Interacting...';
+const observerConfig = {
+    childList: true,
+    characterData: true,
+    subtree: true
+};
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    $$('.block').forEach(block => {
+        addBlockListeners(block);
+        applyDirectionToBlock(block);
     });
 
-    button.addEventListener('mouseout', () => {
-        document.getElementById('experiment-result').textContent = 'true';
+    const undoButton = $('#undoButton');
+    const redoButton = $('#redoButton');
+
+    if (undoButton) {
+        undoButton.addEventListener('click', undo);
+    }
+
+    if (redoButton) {
+        redoButton.addEventListener('click', redo);
+    }
+
+    $('#addTextBlock').addEventListener('click', () => addBlock('text'));
+    $('#addImageBlock').addEventListener('click', () => addBlock('image'));
+    $('#addCodeBlock').addEventListener('click', () => addBlock('code'));
+    $('#toggleWidth').addEventListener('click', toggleWidth);
+    $('#copySelectedBlocks').addEventListener('click', copySelectedBlocks);
+    $('#alignLeft').addEventListener('click', () => setAlignment('left'));
+    $('#alignCenter').addEventListener('click', () => setAlignment('center'));
+    $('#alignRight').addEventListener('click', () => setAlignment('right'));
+    $('#alignJustify').addEventListener('click', () => setAlignment('justify'));
+    $('#uploadButton').addEventListener('click', () => $('#fileInput').click());
+    $('#colorButton').addEventListener('click', () => $('#colorPicker').click());
+
+    const editor = $('#editor');
+    editor.addEventListener('dragover', dragOver);
+    editor.addEventListener('drop', handleImageDrop);
+    editor.addEventListener('mousedown', startSelection);
+    editor.addEventListener('mousemove', updateSelection);
+    document.addEventListener('mouseup', endSelection);
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Delete') {
+            $$('.block.selected').forEach(block => block.remove());
+            saveState();
+        } else if (e.ctrlKey && e.key === 'c') {
+            copySelectedBlocks();
+        }
     });
+
+    document.addEventListener('keydown', handleShortcuts);
+
+    window.addEventListener('resize', handleResize);
+
+    const colorPicker = createColorPicker();
+    $('#colorButton').addEventListener('click', () => colorPicker.click());
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', handleFileUpload);
+    document.body.appendChild(fileInput);
+
+    $('#editor').querySelectorAll('.block-content').forEach(content => {
+        observer.observe(content, observerConfig);
+    });
+
+    handleResize();
+
+    // Add click event listener to the editor bottom area
+    $('#editorBottomArea').addEventListener('click', (e) => {
+        if (e.target === $('#editorBottomArea')) {
+            const newBlock = createBlock('');
+            $('#editor').insertBefore(newBlock, $('#editorBottomArea'));
+            addBlockListeners(newBlock);
+            newBlock.querySelector('[contenteditable]').focus();
+            saveState();
+        }
+    });
+
+    // Hide command menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.command-icon') && !e.target.closest('#commandMenu')) {
+            hideCommandMenu();
+        }
+    });
+    
+    // Qubit Control function
+    function qubitControl() {
+        console.log('Qubit Control activated');
+        alert('Qubit Control: Hypothetical quantum processing activated.');
+    }
+
+    // Quantum Enhance function
+    function quantumEnhance() {
+        console.log('Quantum Enhance activated');
+        alert('Quantum Enhance: Hypothetical quantum enhancement applied to the document.');
+    }
+
+    $('#qubitControlButton').addEventListener('click', qubitControl);
+    $('#quantumEnhanceButton').addEventListener('click', quantumEnhance);
+
+    // Initialize undo stack with current state
+    state.currentState = $('#editor').innerHTML;
+    saveState();
 });
-
-    </script>
-</body>
-</html>
+</script>
+</body></html>
