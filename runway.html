@@ -217,5 +217,305 @@
 </div>
 </main>
 </div>
+<script>
+    // State management
+let autoSaveTimeout;
+const savedState = {
+  content: '',
+  preferences: {
+    videoBackground: true,
+    customVideoUrl: '',
+    darkMode: true,
+    spellCheck: true,
+    font: 'Be Vietnam Pro'
+  }
+};
 
+// Load saved content on page load
+window.addEventListener('DOMContentLoaded', function() {
+  const savedContent = localStorage.getItem('runway-content');
+  if (savedContent) {
+    document.getElementById('editor-wrapper').innerHTML = savedContent;
+  }
+  
+  // Load saved preferences
+  const savedPrefs = localStorage.getItem('runway-preferences');
+  if (savedPrefs) {
+    Object.assign(savedState.preferences, JSON.parse(savedPrefs));
+    applyPreferences();
+  }
+  
+  updateWordCount();
+  updateClocks();
+  setInterval(updateClocks, 1000);
+});
+
+// Real-time clock updates
+function updateClocks() {
+  const now = new Date();
+  
+  // Paris (GMT+1)
+  const paris = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+  document.getElementById('paris-time').textContent = paris.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  
+  // New York (GMT-5)
+  const ny = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+  document.getElementById('ny-time').textContent = ny.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  
+  // Rome (GMT+1)
+  const rome = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Rome"}));
+  document.getElementById('rome-time').textContent = rome.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+// Text formatting functions
+function formatText(command, value = null) {
+  document.execCommand(command, false, value);
+  updateFormatButtons();
+}
+
+function updateFormatButtons() {
+  const boldBtn = document.getElementById('bold-btn');
+  const italicBtn = document.getElementById('italic-btn');
+  const underlineBtn = document.getElementById('underline-btn');
+  
+  boldBtn.classList.toggle('active', document.queryCommandState('bold'));
+  italicBtn.classList.toggle('active', document.queryCommandState('italic'));
+  underlineBtn.classList.toggle('active', document.queryCommandState('underline'));
+}
+
+// Formatting button event listeners
+document.getElementById('bold-btn').addEventListener('click', () => formatText('bold'));
+document.getElementById('italic-btn').addEventListener('click', () => formatText('italic'));
+document.getElementById('underline-btn').addEventListener('click', () => formatText('underline'));
+
+// Font selector
+document.getElementById('font-select').addEventListener('change', function(e) {
+  const font = e.target.value;
+  document.getElementById('editor-wrapper').style.fontFamily = font;
+  savedState.preferences.font = font;
+  savePreferences();
+});
+
+// Word counter and auto-save
+const editorWrapper = document.getElementById('editor-wrapper');
+editorWrapper.addEventListener('input', function() {
+  updateWordCount();
+  triggerAutoSave();
+  updateActivityBars();
+  updateFormatButtons();
+});
+
+editorWrapper.addEventListener('keyup', updateFormatButtons);
+editorWrapper.addEventListener('mouseup', updateFormatButtons);
+
+function updateWordCount() {
+  const text = editorWrapper.textContent || editorWrapper.innerText || '';
+  const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+  const maxWords = 500;
+  const percentage = Math.min((wordCount / maxWords) * 100, 100);
+  
+  document.getElementById('word-count').textContent = `${wordCount} / ${maxWords}`;
+  document.getElementById('word-progress').style.width = `${percentage}%`;
+  
+  // Change color based on word count
+  const progressBar = document.getElementById('word-progress');
+  if (percentage > 90) {
+    progressBar.style.backgroundColor = '#ef4444';
+  } else if (percentage > 75) {
+    progressBar.style.backgroundColor = '#f59e0b';
+  } else {
+    progressBar.style.backgroundColor = 'var(--primary-color)';
+  }
+}
+
+function updateActivityBars() {
+  const bars = document.querySelectorAll('#activity-bars .bar');
+  bars.forEach(bar => {
+    const randomHeight = Math.random() * 80 + 20;
+    bar.style.height = `${randomHeight}%`;
+  });
+}
+
+function triggerAutoSave() {
+  clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(autoSave, 2000); // Auto-save after 2 seconds of inactivity
+}
+
+function autoSave() {
+  const content = editorWrapper.innerHTML;
+  localStorage.setItem('runway-content', content);
+  
+  // Show auto-save indicator
+  const indicator = document.querySelector('.auto-save-indicator');
+  indicator.classList.add('show');
+  setTimeout(() => {
+    indicator.classList.remove('show');
+  }, 2000);
+}
+
+function savePreferences() {
+  localStorage.setItem('runway-preferences', JSON.stringify(savedState.preferences));
+}
+
+function applyPreferences() {
+  document.getElementById('video-bg').checked = savedState.preferences.videoBackground;
+  document.getElementById('video-url').value = savedState.preferences.customVideoUrl;
+  document.getElementById('dark-mode').checked = savedState.preferences.darkMode;
+  document.getElementById('spell-check').checked = savedState.preferences.spellCheck;
+  document.getElementById('font-select').value = savedState.preferences.font;
+  
+  document.getElementById('editor-wrapper').style.fontFamily = savedState.preferences.font;
+  document.getElementById('editor-wrapper').spellcheck = savedState.preferences.spellCheck;
+  
+  toggleVideoBackground(savedState.preferences.videoBackground);
+}
+
+// Dictionary search functionality
+const dictionarySearch = document.getElementById('dictionary-search');
+const dictionaryTerms = document.querySelectorAll('.dictionary-term');
+
+dictionarySearch.addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  
+  dictionaryTerms.forEach(term => {
+    const termText = term.textContent.toLowerCase();
+    const isVisible = termText.includes(searchTerm);
+    term.style.display = isVisible ? 'block' : 'none';
+    
+    // Highlight matching text
+    if (searchTerm && isVisible) {
+      const regex = new RegExp(`(${searchTerm})`, 'gi');
+      term.innerHTML = term.textContent.replace(regex, '<span class="search-highlight">$1</span>');
+    } else {
+      term.innerHTML = term.textContent;
+    }
+  });
+});
+
+// Dictionary term insertion
+dictionaryTerms.forEach(term => {
+  term.addEventListener('click', function(e) {
+    e.preventDefault();
+    const termText = this.textContent;
+    insertAtCursor(termText);
+  });
+});
+
+// Related terms functionality
+document.querySelectorAll('#related-terms [data-term]').forEach(term => {
+  term.addEventListener('click', function() {
+    const termText = this.textContent;
+    insertAtCursor(termText);
+  });
+});
+
+function insertAtCursor(text) {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const textNode = document.createTextNode(' ' + text + ' ');
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.setEndAfter(textNode);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  editorWrapper.focus();
+  triggerAutoSave();
+  updateWordCount();
+}
+
+// Video background controls
+document.getElementById('video-bg').addEventListener('change', function(e) {
+  savedState.preferences.videoBackground = e.target.checked;
+  toggleVideoBackground(e.target.checked);
+  savePreferences();
+});
+
+document.getElementById('video-url').addEventListener('change', function(e) {
+  savedState.preferences.customVideoUrl = e.target.value;
+  if (e.target.value && savedState.preferences.videoBackground) {
+    updateVideoUrl(e.target.value);
+  }
+  savePreferences();
+});
+
+function toggleVideoBackground(show) {
+  const videoBackground = document.getElementById('video-background');
+  videoBackground.style.display = show ? 'block' : 'none';
+}
+
+function updateVideoUrl(url) {
+  const iframe = document.getElementById('video-iframe');
+  // Convert regular YouTube URLs to embed format
+  let embedUrl = url;
+  if (url.includes('youtube.com/watch')) {
+    const videoId = url.split('v=')[1];
+    const ampersandPosition = videoId.indexOf('&');
+    const cleanVideoId = ampersandPosition !== -1 ? videoId.substring(0, ampersandPosition) : videoId;
+    embedUrl = `https://www.youtube.com/embed/${cleanVideoId}?autoplay=1&mute=1&loop=1&controls=0`;
+  } else if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1];
+    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0`;
+  }
+  iframe.src = embedUrl;
+}
+
+// Dark mode toggle
+document.getElementById('dark-mode').addEventListener('change', function(e) {
+  savedState.preferences.darkMode = e.target.checked;
+  // Note: Dark mode is currently the default, could implement light mode here
+  savePreferences();
+});
+
+// Spell check toggle
+document.getElementById('spell-check').addEventListener('change', function(e) {
+  savedState.preferences.spellCheck = e.target.checked;
+  document.getElementById('editor-wrapper').spellcheck = e.target.checked;
+  savePreferences();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.metaKey) {
+    switch(e.key) {
+      case 'b':
+        e.preventDefault();
+        formatText('bold');
+        break;
+      case 'i':
+        e.preventDefault();
+        formatText('italic');
+        break;
+      case 'u':
+        e.preventDefault();
+        formatText('underline');
+        break;
+      case 's':
+        e.preventDefault();
+        autoSave();
+        break;
+    }
+  }
+});
+
+// Initialize everything
+document.addEventListener('DOMContentLoaded', function() {
+  updateWordCount();
+  updateActivityBars();
+});
+</script>
 </body></html>
