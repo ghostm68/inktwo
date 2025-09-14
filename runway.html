@@ -1,4 +1,5 @@
 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -673,18 +674,152 @@ document.getElementById('pdf-file-input').addEventListener('change', function(e)
 });
 
 // ===============================
-// Keyboard shortcuts
+// Enhanced keyboard shortcuts with format detection
 // ===============================
 document.addEventListener('keydown', function(e) {
   if (e.ctrlKey || e.metaKey) {
     switch(e.key) {
-      case 'b': e.preventDefault(); formatText('bold'); break;
-      case 'i': e.preventDefault(); formatText('italic'); break;
-      case 'u': e.preventDefault(); formatText('underline'); break;
-      case 's': e.preventDefault(); autoSave(); break;
+      case 'b': 
+        e.preventDefault(); 
+        formatText('bold'); 
+        break;
+      case 'i': 
+        e.preventDefault(); 
+        formatText('italic'); 
+        break;
+      case 'u': 
+        e.preventDefault(); 
+        formatText('underline'); 
+        break;
+      case 's': 
+        e.preventDefault(); 
+        autoSave();
+        // Show save feedback
+        const indicator = document.querySelector('.auto-save-indicator');
+        indicator.classList.add('show');
+        setTimeout(() => indicator.classList.remove('show'), 1500);
+        break;
     }
   }
 });
+
+// ===============================
+// Enhanced text insertion for dictionary terms
+// ===============================
+function insertAtCursor(text) {
+  const editor = getEditor();
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  
+  // Add spaces around the term for better formatting
+  const textToInsert = start === 0 || editor.value[start - 1] === ' ' ? text + ' ' : ' ' + text + ' ';
+  
+  editor.value = editor.value.substring(0, start) + textToInsert + editor.value.substring(end);
+  editor.focus();
+  
+  // Position cursor after the inserted text
+  const newPosition = start + textToInsert.length;
+  editor.setSelectionRange(newPosition, newPosition);
+  
+  triggerAutoSave();
+  updateWordCount();
+  updateFormatButtons();
+}
+
+// ===============================
+// Initialize everything on load (simplified)
+// ===============================
+setTimeout(() => {
+  updateWordCount();
+  
+  // Add visual feedback for active editor
+  const editor = getEditor();
+  editor.addEventListener('focus', function() {
+    this.style.boxShadow = '0 0 0 2px var(--primary-color)';
+  });
+  
+  editor.addEventListener('blur', function() {
+    this.style.boxShadow = 'none';
+  });
+  
+}, 100);
+
+// ===============================
+// Auto-save enhanced with better feedback
+// ===============================
+function autoSave() {
+  const content = getEditor().value;
+  localStorage.setItem('runway-content', content);
+  savedState.content = content;
+
+  const indicator = document.querySelector('.auto-save-indicator');
+  indicator.classList.add('show');
+  setTimeout(() => indicator.classList.remove('show'), 2000);
+  
+  // Update save button text temporarily
+  const saveBtn = document.getElementById('save-pdf');
+  const originalText = saveBtn.innerHTML;
+  saveBtn.innerHTML = '<span class="material-symbols-outlined">cloud_done</span><span>Auto-saved</span>';
+  setTimeout(() => { saveBtn.innerHTML = originalText; }, 1000);
+}
+
+// ===============================
+// Enhanced preferences with real-time updates
+// ===============================
+function applyPreferences() {
+  document.getElementById('video-bg').checked = savedState.preferences.videoBackground;
+  document.getElementById('video-url').value = savedState.preferences.customVideoUrl;
+  document.getElementById('font-select').value = savedState.preferences.font;
+
+  const editor = getEditor();
+  editor.style.fontFamily = savedState.preferences.font;
+
+  toggleVideoBackground(savedState.preferences.videoBackground);
+  if (savedState.preferences.customVideoUrl) {
+    updateVideoUrl(savedState.preferences.customVideoUrl);
+  }
+}
+
+// ===============================
+// Real-time word count with enhanced feedback
+// ===============================
+function updateWordCount() {
+  const text = getEditor().value.trim();
+  const wordCount = text === '' ? 0 : text.split(/\s+/).length;
+  const charCount = getEditor().value.length;
+  const maxWords = 500;
+  const percentage = Math.min((wordCount / maxWords) * 100, 100);
+
+  // Update display
+  document.getElementById('word-count').textContent = `${wordCount} / ${maxWords}`;
+  document.getElementById('word-progress').style.width = `${percentage}%`;
+
+  // Color coding for progress bar
+  const progressBar = document.getElementById('word-progress');
+  if (percentage > 95) {
+    progressBar.style.backgroundColor = '#dc2626'; // red-600
+  } else if (percentage > 90) {
+    progressBar.style.backgroundColor = '#ef4444'; // red-500
+  } else if (percentage > 75) {
+    progressBar.style.backgroundColor = '#f59e0b'; // amber-500
+  } else if (percentage > 50) {
+    progressBar.style.backgroundColor = '#10b981'; // emerald-500
+  } else {
+    progressBar.style.backgroundColor = 'var(--primary-color)';
+  }
+  
+  // Add character count to word counter section
+  const wordCountElement = document.getElementById('word-count');
+  if (!wordCountElement.nextElementSibling || !wordCountElement.nextElementSibling.classList.contains('char-count')) {
+    const charCountElement = document.createElement('div');
+    charCountElement.className = 'char-count text-xs text-gray-500 mt-1';
+    charCountElement.textContent = `${charCount} characters`;
+    wordCountElement.parentNode.insertBefore(charCountElement, wordCountElement.nextSibling);
+  } else {
+    wordCountElement.nextElementSibling.textContent = `${charCount} characters`;
+  }
+}
+    });
 
 // Initialize word count on load
 setTimeout(updateWordCount, 100);
