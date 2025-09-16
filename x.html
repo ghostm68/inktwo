@@ -716,71 +716,56 @@
     closeSearchContainer(); // Initially closed
 
     // Clock and Time Chart
-    const clockElement = document.getElementById('clock');
-    const ctx = document.getElementById('timeChart').getContext('2d');
-    const timeData = {
-        labels: Array(60).fill(''),
-        datasets: [{
-            label: 'Milliseconds',
-            data: Array(60).fill(0),
-            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-            borderColor: '#3B82F6',
-            borderWidth: 1,
-            pointRadius: 0,
-            tension: 0.4,
-            fill: true,
-        }]
-    };
-    const timeChart = new Chart(ctx, {
-        type: 'line',
-        data: timeData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 1000,
-                    ticks: {
-                        display: false
+const timeChart = new Chart(ctx, {
+            type: 'line',
+            data: timeData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1000,
+                        ticks: {
+                            display: false
+                        },
+                        grid: {
+                            display: false
+                        }
                     },
-                    grid: {
-                        display: false
+                    x: {
+                        ticks: {
+                            display: false
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 },
-                x: {
-                    ticks: {
+                plugins: {
+                    legend: {
                         display: false
                     },
-                    grid: {
-                        display: false
+                    tooltip: {
+                        enabled: false
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    enabled: false
                 }
             }
+        });
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const milliseconds = now.getMilliseconds();
+            clockElement.textContent = `${hours}:${minutes}:${seconds}`;
+            // Update chart data
+            timeData.datasets[0].data.shift();
+            timeData.datasets[0].data.push(milliseconds);
+            timeChart.update('none'); // Use 'none' for a smoother animation
+            requestAnimationFrame(updateClock);
         }
-    });
-    function updateClock() {
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const milliseconds = now.getMilliseconds();
-        clockElement.textContent = `${hours}:${minutes}:${seconds}`;
-        // Update chart data
-        timeData.datasets[0].data.shift();
-        timeData.datasets[0].data.push(milliseconds);
-        timeChart.update('none'); // Use 'none' for a smoother animation
-        requestAnimationFrame(updateClock);
-    }
-    updateClock();
+        updateClock();
 
     // Ping/Latency simulation
     const pingElement = document.getElementById('ping-latency');
