@@ -82,7 +82,7 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.46/lib/web-llm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
 </head>
@@ -647,9 +647,18 @@
     // Make sure the button is properly connected
     document.addEventListener('DOMContentLoaded', function() {
         const generateBtn = document.getElementById('generate-btn');
-        if (generateBtn) {
+        if (generateBtn && !generateBtn.onclick) {
             generateBtn.onclick = generateText;
         }
+        
+        // Also ensure model change handler is connected
+        const modelSelect = document.getElementById('ai-model-select');
+        if (modelSelect && !modelSelect.onchange) {
+            modelSelect.onchange = onModelChange;
+        }
+        
+        // Initialize model status
+        onModelChange();
     });
 
     function generateMarkovText(seed, maxWords) {
@@ -714,12 +723,28 @@
             
             const modelId = modelName === 'distilgpt2' ? 'distilgpt2' : 'gpt2';
             
+            // Check if Transformers library loaded
+            if (!window.Transformers && !window.pipeline) {
+                // Try to import dynamically
+                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+                window.pipeline = pipeline;
+            }
+            
+            // Use global pipeline if available, otherwise try window.Transformers
+            const pipelineFunc = window.pipeline || window.Transformers?.pipeline;
+            
+            if (!pipelineFunc) {
+                throw new Error('Transformers.js library not loaded properly');
+            }
+            
             if (!currentPipeline || currentPipeline.model !== modelId) {
-                // Use dynamic import for Transformers.js
-                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
-                currentPipeline = await pipeline('text-generation', modelId, {
-                    revision: 'main',
-                    quantized: true
+                currentPipeline = await pipelineFunc('text-generation', modelId, {
+                    quantized: true,
+                    progress_callback: (progress) => {
+                        if (progress.status === 'downloading') {
+                            statusText.textContent = `WordStar Online - Downloading model: ${Math.round(progress.progress || 0)}%`;
+                        }
+                    }
                 });
                 currentPipeline.model = modelId;
             }
@@ -730,30 +755,31 @@
                 max_new_tokens: 30,
                 temperature: 0.7,
                 do_sample: true,
-                repetition_penalty: 1.1
+                repetition_penalty: 1.1,
+                pad_token_id: 50256
             });
             
             // Handle different response formats
             let generatedText = '';
             if (Array.isArray(result)) {
-                generatedText = result[0].generated_text || '';
-            } else if (result.generated_text) {
+                generatedText = result[0]?.generated_text || '';
+            } else if (result?.generated_text) {
                 generatedText = result.generated_text;
             } else {
-                generatedText = String(result);
+                generatedText = String(result || '');
             }
             
             // Remove the original prompt from the response if it's included
-            if (generatedText.startsWith(prompt)) {
-                generatedText = generatedText.slice(prompt.length);
+            if (generatedText.includes(prompt)) {
+                generatedText = generatedText.replace(prompt, '').trim();
             }
             
-            return generatedText.trim() || "Unable to generate text with this prompt.";
+            return generatedText || "Unable to generate text. Try a different prompt.";
             
         } catch (error) {
             console.error('Transformers error:', error);
-            // Fallback to a simple continuation
-            return `... and the story continues with new possibilities. The narrative unfolds with ${prompt.split(' ').pop()} leading to unexpected discoveries.`;
+            // Return a helpful message instead of throwing
+            return `Browser AI unavailable: ${error.message}. Try the local generators instead (Markov Chain, Word Association, etc.)`;
         }
     }
 
