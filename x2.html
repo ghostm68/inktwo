@@ -52,7 +52,7 @@
   }
 </style>
 
-<!-- TensorFlow.js -->
+<!-- TensorFlow.js (still kept, though not directly used by transformers.js pipelines) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 </head>
 <body>
@@ -62,9 +62,11 @@
 <label for="model-select">Choose AI Model:</label>
 <select id="model-select" aria-label="Choose AI Model">
   <option value="distilgpt2">DistilGPT2 (Text Generation)</option>
-  <option value="bert-fill-mask">BERT (Fill-mask)</option> <!-- Changed option value and text -->
+  <option value="llama2-stories">Llama2 Stories (Text Generation)</option> <!-- New Llama2 option -->
+  <option value="bert-fill-mask">BERT (Fill-mask)</option>
   <option value="t5-small">T5 Small (Text-to-text)</option>
   <option value="sentiment">Sentiment Analysis (Positive/Negative)</option>
+  <option value="feature-extraction">Feature Extraction (MiniLM)</option> <!-- New MiniLM option -->
 </select>
 
 <label for="prompt-input">Enter your prompt:</label>
@@ -97,9 +99,13 @@
 
       statusEl.textContent = 'Loading DistilGPT2 (Text Generation)...';
       models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2');
-      statusEl.textContent = 'DistilGPT2 loaded. Loading BERT Fill-mask...';
+      statusEl.textContent = 'DistilGPT2 loaded. Loading Llama2 Stories...';
 
-      // UPDATED: Changed from mobilebert to bert-base-multilingual-cased for fill-mask
+      // Load Llama2 Stories model
+      models['llama2-stories'] = await pipeline('text-generation', 'Xenova/llama2.c-stories110M');
+      statusEl.textContent = 'Llama2 Stories loaded. Loading BERT Fill-mask...';
+
+      statusEl.textContent = 'Loading BERT (Fill-mask)...';
       models['bert-fill-mask'] = await pipeline('fill-mask', 'Xenova/bert-base-multilingual-cased');
       statusEl.textContent = 'BERT Fill-mask loaded. Loading T5 Small...';
 
@@ -109,7 +115,11 @@
 
       statusEl.textContent = 'Loading Sentiment Analysis (Positive/Negative)...';
       models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
-      statusEl.textContent = 'Sentiment Analysis loaded.';
+      statusEl.textContent = 'Sentiment Analysis loaded. Loading Feature Extraction (MiniLM)...';
+
+      // Load Feature Extraction (MiniLM) model
+      models['feature-extraction'] = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+      statusEl.textContent = 'Feature Extraction loaded.';
 
       statusEl.textContent = 'All models loaded. Ready.';
       generateBtn.disabled = false;
@@ -134,10 +144,27 @@
 
     try {
       let output;
-      // UPDATED: Condition to use 'bert-fill-mask' model
-      if (modelKey === 'bert-fill-mask') {
+      if (modelKey === 'distilgpt2') {
+        const results = await models.distilgpt2(prompt, {
+            max_new_tokens: 50,
+            do_sample: true,
+            temperature: 0.7,
+            top_k: 50,
+            num_return_sequences: 1
+        });
+        output = results[0].generated_text;
+      } else if (modelKey === 'llama2-stories') { // Handle Llama2 Stories
+        const results = await models['llama2-stories'](prompt, {
+            max_new_tokens: 50,
+            do_sample: true,
+            temperature: 0.7,
+            top_k: 50,
+            num_return_sequences: 1
+        });
+        output = results[0].generated_text;
+      } else if (modelKey === 'bert-fill-mask') {
         const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
-        const results = await models['bert-fill-mask'](maskedPrompt, { top_k: 5 }); // Use the new model key
+        const results = await models['bert-fill-mask'](maskedPrompt, { top_k: 5 });
         output = results.map(r => `"${r.sequence}" (score: ${r.score.toFixed(4)})`).join('\n');
       } else if (modelKey === 't5-small') {
         const results = await models['t5-small'](prompt, {
@@ -147,18 +174,15 @@
             num_return_sequences: 1
         });
         output = results[0].generated_text;
-      } else if (modelKey === 'distilgpt2') {
-        const results = await models.distilgpt2(prompt, {
-            max_new_tokens: 50,
-            do_sample: true,
-            temperature: 0.7,
-            top_k: 50,
-            num_return_sequences: 1
-        });
-        output = results[0].generated_text;
       } else if (modelKey === 'sentiment') {
         const results = await models.sentiment(prompt);
         output = `Sentiment: ${results[0].label} (Score: ${results[0].score.toFixed(4)})`;
+      } else if (modelKey === 'feature-extraction') { // Handle Feature Extraction
+        const results = await models['feature-extraction'](prompt);
+        // The output is typically a tensor. Convert to Array and take a snippet.
+        const embedding = results.data; // This gets the raw float data
+        output = `Embedding (first 10 values): [${embedding.slice(0, 10).map(v => v.toFixed(4)).join(', ')}...]\n` +
+                 `Full embedding length: ${embedding.length}`;
       }
       else {
         output = `Model ${modelKey} not implemented.`;
