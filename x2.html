@@ -185,3 +185,185 @@
 </script>
 </body>
 </html>
+Key Improvements:
+DOMContentLoaded for loadModels: This is crucial. The Xenova Transformers library, being an external script, needs to be fully loaded and parsed before window.transformers.pipeline becomes available. By attaching loadModels to DOMContentLoaded, we ensure this order.
+Sentiment Analysis Model:
+Added <option value="sentiment">Sentiment Analysis (Positive/Negative)</option> to your select element.
+In the loadModels function, it now loads models.sentiment = await window.transformers.pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');.
+In generateText, there's a new else if (modelKey === 'sentiment') block that calls the sentiment pipeline and formats its output.
+Enhanced Status Messages: The statusEl will now provide more detailed feedback during the loading and generation processes, which is helpful for debugging and user experience.
+Clear Output: The aiOutput.value is cleared before each new generation to make it easier to see the new results.
+Robust Error Handling: More specific error messages are provided if window.transformers isn't found or if there's an issue during model loading or text generation.
+Now, when you run this code, it should correctly load the Xenova Transformers library and the specified models, including the new sentiment analysis model. You can select "Sentiment Analysis" from the dropdown and type in a sentence to get its sentiment.
+39.1s
+Model
+Ah, thank you for providing that error message! "Xenova Transformers library is not available. Please check the script include. Please ensure you have an internet connection and the Xenova CDN is accessible" strongly suggests that the Xenova Transformers script itself is failing to load.
+This can happen for a few reasons:
+CDN Accessibility: Your network might be blocking cdn.jsdelivr.net, or there could be a temporary issue with the CDN itself.
+Typo in Script URL: Though it looks correct, a small typo can prevent the script from loading.
+Browser Extensions: Sometimes, ad blockers or other browser extensions can interfere with external scripts.
+Local Environment Issues: If you're running this file locally, sometimes browsers have stricter security policies for local files accessing CDNs, though this is less common now.
+Let's try a common fix that often resolves these kinds of external script loading issues, especially with Xenova/transformers. Instead of relying on transformers.min.js, we can often get more reliable loading by using the full transformers.js or by ensuring the module is loaded correctly.
+I've made a crucial change in how the Xenova Transformers library is included and initialized:
+Key Change:
+Module Import: Instead of directly linking to transformers.min.js and expecting it to populate window.transformers, we will now use an import statement for the pipeline function directly within our script. This is the more modern and reliable way to use Xenova Transformers in a browser environment that supports ES modules.
+Here's the revised code. Please replace your entire HTML file with this:
+code
+Html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TF.js AI Notepad</title>
+<style>
+  body {
+    background: #121212;
+    color: #eee;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 640px;
+    margin: auto;
+  }
+  textarea, select, button {
+    width: 100%;
+    font-family: monospace;
+    font-size: 14px;
+    margin: 10px 0;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #222;
+    color: #eee;
+    resize: vertical;
+  }
+  button {
+    background: #cc0000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+  #ai-output {
+    white-space: pre-wrap;
+    padding: 10px;
+    background: #222;
+    border: 1px solid #555;
+    min-height: 150px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  #status {
+    font-size: 13px;
+    color: #aaa;
+  }
+</style>
+
+<!-- TensorFlow.js (still loaded via traditional script tag) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+
+<!-- The main script, now using 'type="module"' -->
+<script type="module">
+  // Import the pipeline function directly from the Xenova Transformers module
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0';
+
+  let models = {};
+  const statusEl = document.getElementById('status');
+  const generateBtn = document.getElementById('generate-btn');
+  const saveBtn = document.getElementById('save-btn');
+  const modelSelect = document.getElementById('model-select');
+  const promptInput = document.getElementById('prompt-input');
+  const aiOutput = document.getElementById('ai-output');
+
+  async function loadModels() {
+    statusEl.textContent = 'Initializing Xenova Transformers and loading models...';
+    try {
+      // Use the imported pipeline function directly
+      models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2');
+      statusEl.textContent = 'DistilGPT2 loaded.';
+      models.mobilebert = await pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
+      statusEl.textContent = 'MobileBERT loaded.';
+      models['t5-small'] = await pipeline('text2text-generation', 'Xenova/t5-small');
+      statusEl.textContent = 'T5 Small loaded.';
+      models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+      statusEl.textContent = 'Sentiment Analysis loaded.';
+
+      statusEl.textContent = 'All models loaded. Ready.';
+      generateBtn.disabled = false;
+    } catch(e) {
+      statusEl.textContent = 'Error loading models: ' + e.message + '. Please ensure you have an internet connection and the Xenova CDN is accessible. Check browser console for more details.';
+      generateBtn.disabled = true;
+      console.error('Model loading error:', e);
+    }
+  }
+
+  async function generateText() {
+    const modelKey = modelSelect.value;
+    const prompt = promptInput.value.trim();
+    if (!prompt) {
+      alert('Please enter a prompt.');
+      return;
+    }
+
+    generateBtn.disabled = true;
+    statusEl.textContent = `Processing with ${modelKey} model...`;
+    aiOutput.value = ''; // Clear previous output
+
+    try {
+      let output;
+      if (modelKey === 'mobilebert') {
+        const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
+        const results = await models.mobilebert(maskedPrompt, { top_k: 5 });
+        output = results.map(r => `"${r.sequence}" (score: ${r.score.toFixed(4)})`).join('\n');
+      } else if (modelKey === 't5-small') {
+        const results = await models['t5-small'](prompt, {max_length: 50});
+        output = results[0].generated_text;
+      } else if (modelKey === 'distilgpt2') {
+        const results = await models.distilgpt2(prompt, {max_length: 50, do_sample: true, temperature: 0.7});
+        output = results[0].generated_text;
+      } else if (modelKey === 'sentiment') {
+        const results = await models.sentiment(prompt);
+        output = `Sentiment: ${results[0].label} (Score: ${results[0].score.toFixed(4)})`;
+      }
+      else {
+        output = `Model ${modelKey} not implemented.`;
+      }
+      aiOutput.value = output;
+      statusEl.textContent = 'Generation complete.';
+    } catch(err) {
+      statusEl.textContent = 'Error during generation: ' + err.message;
+      console.error('Generation error:', err);
+    } finally {
+      generateBtn.disabled = false;
+    }
+  }
+
+  function saveText() {
+    const text = aiOutput.value;
+    if (!text) {
+      alert('Nothing to save!');
+      return;
+    }
+    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notepad_output.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  generateBtn.disabled = true; // disable until models load
+  generateBtn.addEventListener('click', generateText);
+  saveBtn.addEventListener('click', saveText);
+
+  // Call loadModels ONLY after the DOM is fully loaded
+  document.addEventListener('DOMContentLoaded', loadModels);
+</script>
+</body>
+</html>
