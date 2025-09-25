@@ -52,9 +52,8 @@
   }
 </style>
 
-<!-- TensorFlow.js and Xenova Transformers -->
+<!-- TensorFlow.js -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0/dist/transformers.min.js"></script>
 </head>
 <body>
 
@@ -80,7 +79,10 @@
 
 <button id="save-btn">Save to TXT</button>
 
-<script>
+<script type="module" data-cfasync="false">
+  // Import the pipeline function directly from the Xenova Transformers module
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0';
+
   let models = {};
   const statusEl = document.getElementById('status');
   const generateBtn = document.getElementById('generate-btn');
@@ -92,29 +94,21 @@
   async function loadModels() {
     statusEl.textContent = 'Initializing Xenova Transformers and loading models...';
     try {
-      // Check if window.transformers is defined before proceeding
-      if (typeof window.transformers === 'undefined' || typeof window.transformers.pipeline === 'undefined') {
-          throw new Error('Xenova Transformers library is not available. Please check the script include.');
-      }
-
-      // Load models dynamically based on selection
-      // Only load 'distilgpt2' and 'sentiment' initially for faster startup,
-      // others can be loaded on demand or user selection.
-      // For this example, let's load all of them when the page loads.
-      models.distilgpt2 = await window.transformers.pipeline('text-generation', 'Xenova/distilgpt2');
+      // We no longer need to check window.transformers as we're using the direct import 'pipeline'
+      // Load models using the imported pipeline function
+      models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2');
       statusEl.textContent = 'DistilGPT2 loaded.';
-      models.mobilebert = await window.transformers.pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
+      models.mobilebert = await pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
       statusEl.textContent = 'MobileBERT loaded.';
-      models['t5-small'] = await window.transformers.pipeline('text2text-generation', 'Xenova/t5-small');
+      models['t5-small'] = await pipeline('text2text-generation', 'Xenova/t5-small');
       statusEl.textContent = 'T5 Small loaded.';
-      models.sentiment = await window.transformers.pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+      models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
       statusEl.textContent = 'Sentiment Analysis loaded.';
-
 
       statusEl.textContent = 'All models loaded. Ready.';
       generateBtn.disabled = false;
     } catch(e) {
-      statusEl.textContent = 'Error loading models: ' + e.message + ' Please ensure you have an internet connection and the Xenova CDN is accessible.';
+      statusEl.textContent = 'Error loading models: ' + e.message + '. Please ensure you have an internet connection and the Xenova CDN is accessible. Check browser console for more details.';
       generateBtn.disabled = true;
       console.error('Model loading error:', e);
     }
@@ -134,6 +128,7 @@
 
     try {
       let output;
+      // All model calls now use `models.<modelKey>` which were initialized with `pipeline`
       if (modelKey === 'mobilebert') {
         const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
         const results = await models.mobilebert(maskedPrompt, { top_k: 5 });
@@ -180,7 +175,7 @@
   generateBtn.addEventListener('click', generateText);
   saveBtn.addEventListener('click', saveText);
 
-  // Call loadModels ONLY after the DOM is fully loaded to ensure Xenova Transformers is available
+  // Call loadModels ONLY after the DOM is fully loaded
   document.addEventListener('DOMContentLoaded', loadModels);
 </script>
 </body>
