@@ -64,6 +64,8 @@
         padding: 5px;
         margin-bottom: 5px;
         height: 60px;
+        resize: none;
+        font-family: monospace;
     }
     #dictionary-results {
         flex-grow: 1;
@@ -74,6 +76,8 @@
         font-size: 12px;
         margin-top: 10px;
         color: #f0f0f0;
+        white-space: pre-wrap;
+        height: 200px;
     }
     #notebook {
         background-color: #cc0000;
@@ -88,9 +92,17 @@
         color: black;
         border: 1px solid black;
         padding: 5px;
+        resize: none;
+        font-family: monospace;
     }
 </style>
+<!-- TensorFlow.js and Xenova Transformers -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0/dist/transformers.min.js"></script>
+
+<!-- Ace Editor -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+<!-- jsPDF for pdf export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -117,39 +129,13 @@
         <textarea id="main-text-area" style="display:none; width: 80%; height: 100%; background-color: #1e1e1e; color: #f0f0f0; border: none; resize: none; font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; padding: 10px;" placeholder="Start typing your document here..."></textarea>
         <div style="width: 18%; display: flex; flex-direction: column;">
             <select id="ai-model-select">
-                <optgroup label="Popular Models">
-                    <option value="gpt2">GPT-2</option>
-                    <option value="bert">BERT</option>
-                    <option value="t5">T5</option>
-                    <option value="roberta">RoBERTa</option>
-                    <option value="xlnet">XLNet</option>
-                    <option value="elmo">ELMo</option>
-                    <option value="distilbert">DistilBERT</option>
-                    <option value="albert">ALBERT</option>
-                    <option value="electra">ELECTRA</option>
-                </optgroup>
-                <optgroup label="Instant Local">
+                <optgroup label="Instant Local Models">
                     <option value="markov">Markov Chain</option>
                     <option value="wordassociation">Word Association</option>
                     <option value="randomsentence">Random Sentence Generator</option>
                 </optgroup>
-                <optgroup label="Open Source Large Models">
-                    <option value="gpt-neo">GPT-Neo</option>
-                    <option value="gpt-j">GPT-J</option>
-                    <option value="bloom">BLOOM</option>
-                    <option value="opt">OPT</option>
-                    <option value="llama">LLaMA</option>
-                </optgroup>
-                <optgroup label="Machine Learning Frameworks">
-                    <option value="tensorflow">TensorFlow</option>
-                    <option value="pytorch">PyTorch</option>
-                    <option value="huggingface">Hugging Face Transformers</option>
-                </optgroup>
-                <optgroup label="Emerging Models">
-                    <option value="gemma-2b">Gemma 2B</option>
-                    <option value="gemma-7b">Gemma 7B</option>
-                    <option value="palm">PaLM</option>
-                    <option value="bard">Bard</option>
+                <optgroup label="TensorFlow.js Model">
+                    <option value="distilgpt2">DistilGPT2 (TF.js Transformer)</option>
                 </optgroup>
             </select>
             <textarea id="ai-prompt" placeholder="Enter your prompt here"></textarea>
@@ -157,11 +143,10 @@
             <div id="dictionary-results">
                 <div id="ai-response">To use the text generation feature:
                     <ol>
-                        <li>Choose a language model from the dropdown menu.</li>
-                        <li>Enter a prompt in the text area.</li>
-                        <li>Click the "Create Text" button.</li>
+                        <li>Choose a model from the dropdown.</li>
+                        <li>Enter a prompt.</li>
+                        <li>Click "Create Text".</li>
                     </ol>
-                    Generated text will appear here.
                 </div>
             </div>
         </div>      
@@ -174,8 +159,8 @@
 </div>
 
 <script>
+// --- ACE Editor Setup ---
 let editor;
-
 window.onload = function() {
     editor = ace.edit("ace-editor");
     editor.setTheme("ace/theme/monokai");
@@ -185,6 +170,141 @@ window.onload = function() {
     });
     updateWordCount();
 };
+
+// --- Local Instant Models ---
+
+const markovData = {
+    "the": ["quick", "lazy", "beautiful", "mysterious", "ancient"],
+    "quick": ["brown", "silver", "golden", "dark"],
+    "brown": ["fox", "dog", "cat", "horse"],
+    "fox": ["jumps", "runs", "walks", "sleeps"],
+    "jumps": ["over", "across", "through"],
+    "over": ["the", "a", "an"],
+    "lazy": ["dog", "cat", "afternoon", "river"],
+    "beautiful": ["sunset", "morning", "garden", "melody"],
+    "mysterious": ["forest", "cave", "stranger", "light"],
+    "ancient": ["tree", "castle", "wisdom", "book"]
+};
+
+function generateMarkovText(seed, maxWords) {
+    const words = seed.toLowerCase().split(' ');
+    let result = seed;
+    let currentWord = words[words.length - 1];
+    for (let i = 0; i < maxWords && i < 30; i++) {
+        const nextWords = markovData[currentWord];
+        if (!nextWords || nextWords.length === 0) {
+            const keys = Object.keys(markovData);
+            currentWord = keys[Math.floor(Math.random() * keys.length)];
+        } else {
+            currentWord = nextWords[Math.floor(Math.random() * nextWords.length)];
+        }
+        result += ' ' + currentWord;
+    }
+    return result + '.';
+}
+
+const wordAssociations = {
+    "write": ["pen", "paper", "story", "author", "book"],
+    "story": ["tale", "narrative", "adventure", "character", "plot"],
+    "adventure": ["journey", "quest", "exploration", "discovery"],
+    "journey": ["travel", "path", "destination", "experience"],
+    "creative": ["artistic", "imaginative", "innovative", "original"],
+    "time": ["moment", "eternity", "past", "future", "present"],
+    "light": ["bright", "illumination", "dawn", "star", "hope"],
+    "hope": ["dream", "aspiration", "future", "possibility"],
+    "dream": ["vision", "imagination", "sleep", "fantasy"],
+    "nature": ["forest", "ocean", "mountain", "wildlife", "peace"]
+};
+
+function generateWordAssociation(seed, maxWords) {
+    const words = seed.toLowerCase().split(' ');
+    let result = seed;
+    let currentWord = words[words.length - 1];
+    for (let i = 0; i < maxWords && i < 20; i++) {
+        const associations = wordAssociations[currentWord];
+        if (!associations || associations.length === 0) {
+            const keys = Object.keys(wordAssociations);
+            currentWord = keys[Math.floor(Math.random() * keys.length)];
+        } else {
+            currentWord = associations[Math.floor(Math.random() * associations.length)];
+        }
+        result += ' ' + currentWord;
+    }
+    return result + '.';
+}
+
+function generateRandomSentence() {
+    const subjects = ['The writer', 'A poet', 'The storyteller', 'An author', 'The dreamer'];
+    const verbs = ['crafts', 'weaves', 'creates', 'imagines', 'discovers'];
+    const objects = ['beautiful prose', 'vivid imagery', 'compelling narratives', 'magical worlds', 'timeless stories'];
+    const endings = ['with passion', 'through dedication', 'using creativity', 'with great care', 'in quiet moments'];
+    const subject = subjects[Math.floor(Math.random() * subjects.length)];
+    const verb = verbs[Math.floor(Math.random() * verbs.length)];
+    const object = objects[Math.floor(Math.random() * objects.length)];
+    const ending = endings[Math.floor(Math.random() * endings.length)];
+    return `${subject} ${verb} ${object} ${ending}.`;
+}
+
+// --- TensorFlow.js Transformer Integration ---
+
+let transformerModel = null;
+
+async function loadTransformerModel() {
+    if (transformerModel) return;
+    updateStatusBar("Loading transformer model...");
+    transformerModel = await window.transformers.pipeline('text-generation', 'Xenova/distilgpt2');
+    updateStatusBar("Transformer model loaded.");
+}
+
+async function generateTransformerText(prompt) {
+    if (!transformerModel) await loadTransformerModel();
+    const output = await transformerModel(prompt, { max_length: 50, do_sample: true, temperature: 0.7 });
+    return output[0].generated_text;
+}
+
+// --- Main Generation Function ---
+
+let isGenerating = false;
+
+async function generateText() {
+    if (isGenerating) return;
+    const prompt = document.getElementById('ai-prompt').value.trim();
+    const model = document.getElementById('ai-model-select').value;
+    const aiResponse = document.getElementById('ai-response');
+    if (!prompt) {
+        alert("Please enter a prompt.");
+        return;
+    }
+    isGenerating = true;
+    aiResponse.textContent = "Generating text please wait...";
+    updateStatusBar("Generating text...");
+    try {
+        let generatedText = "";
+        switch (model) {
+            case "markov":
+                generatedText = generateMarkovText(prompt, 30);
+                break;
+            case "wordassociation":
+                generatedText = generateWordAssociation(prompt, 20);
+                break;
+            case "randomsentence":
+                generatedText = generateRandomSentence();
+                break;
+            case "distilgpt2":
+                generatedText = await generateTransformerText(prompt);
+                break;
+            default:
+                generatedText = `Model "${model}" is not supported for client-side generation yet.\nPrompt was:\n${prompt}`;
+        }
+        aiResponse.textContent = generatedText;
+    } catch (e) {
+        aiResponse.textContent = "Error generating text: " + e.message;
+    }
+    isGenerating = false;
+    updateStatusBar("Ready");
+}
+
+// --- UI Helpers ---
 
 function newDocument() {
     if (editor) {
@@ -196,7 +316,7 @@ function newDocument() {
 function saveDocument() {
     if (editor) {
         const content = editor.getValue();
-        const blob = new Blob([content], {type: "text/plain;charset=utf-8"});
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -213,7 +333,7 @@ function exportRtf() {
     if (editor) {
         const content = editor.getValue();
         const rtfContent = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\n\n" + content.replace(/\n/g, "\\par\n") + "}";
-        const blob = new Blob([rtfContent], {type: "application/rtf"});
+        const blob = new Blob([rtfContent], { type: "application/rtf" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -237,13 +357,13 @@ function exportPdf() {
 }
 function insertPoeticParagraph() {
     if (editor) {
-        const paragraphs = [
+        const paras = [
             "Whispers of twilight dance on autumn leaves,\nAs golden hues paint the sky's canvas,\nNature's symphony echoes through the trees,\nA moment of beauty, forever to last.",
             "Moonlit waves caress the shore,\nStars above, a cosmic dance,\nIn this quiet, forevermore,\nWe find life's gentle romance.",
             "Sunflowers reach for azure skies,\nTheir petals, a sea of gold,\nIn fields where summer never dies,\nAnd stories of light unfold."
         ];
-        const para = paragraphs[Math.floor(Math.random() * paragraphs.length)];
-        editor.insert(para + "\n\n");
+        const p = paras[Math.floor(Math.random() * paras.length)];
+        editor.insert(p + "\n\n");
         updateStatusBar("Poetic paragraph inserted");
         updateWordCount();
     }
@@ -254,8 +374,8 @@ function insertRandomScientificWord() {
             "Quantum", "Photosynthesis", "Entropy", "Mitochondria", "Neuroplasticity",
             "Genome", "Algorithm", "Nanotechnology", "Thermodynamics", "Synapse"
         ];
-        const word = words[Math.floor(Math.random() * words.length)];
-        editor.insert(word + " ");
+        const w = words[Math.floor(Math.random() * words.length)];
+        editor.insert(w + " ");
         updateStatusBar("Random scientific word inserted");
         updateWordCount();
     }
@@ -272,27 +392,17 @@ function insertNoteToEditor() {
         updateWordCount();
     }
 }
-function updateStatusBar(message) {
-    const status = document.getElementById('status-text');
-    if (status) status.textContent = "WordStar Online - " + message;
+function updateStatusBar(msg) {
+    const s = document.getElementById('status-text');
+    if (s) s.textContent = "WordStar Online - " + msg;
 }
 function updateWordCount() {
     if (editor) {
-        const content = editor.getValue();
-        const count = content.trim() ? content.trim().split(/\s+/).length : 0;
+        const text = editor.getValue();
+        const count = text.trim() ? text.trim().split(/\s+/).length : 0;
         const wc = document.getElementById('word-count');
         if (wc) wc.textContent = `Words: ${count}`;
     }
-}
-function generateText() {
-    const prompt = document.getElementById('ai-prompt').value.trim();
-    const model = document.getElementById('ai-model-select').value;
-    const responseDiv = document.getElementById('ai-response');
-    if (!prompt) {
-        alert("Please enter a prompt.");
-        return;
-    }
-    responseDiv.textContent = `Generating text using model "${model}" for prompt:\n"${prompt}"\n\n(This is a placeholder. Connect to AI models for real output.)`;
 }
 </script>
 </body>
