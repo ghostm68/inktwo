@@ -80,7 +80,6 @@
 <button id="save-btn">Save to TXT</button>
 
 <script type="module" data-cfasync="false">
-  // Import the pipeline function directly from the Xenova Transformers module
   import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0';
 
   let models = {};
@@ -92,16 +91,23 @@
   const aiOutput = document.getElementById('ai-output');
 
   async function loadModels() {
-    statusEl.textContent = 'Initializing Xenova Transformers and loading models...';
+    statusEl.textContent = 'Initializing Xenova Transformers...';
     try {
-      // We no longer need to check window.transformers as we're using the direct import 'pipeline'
-      // Load models using the imported pipeline function
+      generateBtn.disabled = true; // Disable button during loading
+
+      statusEl.textContent = 'Loading DistilGPT2 (Text Generation)...';
       models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2');
-      statusEl.textContent = 'DistilGPT2 loaded.';
+      statusEl.textContent = 'DistilGPT2 loaded. Loading MobileBERT...';
+
+      statusEl.textContent = 'Loading MobileBERT (Fill-mask)...';
       models.mobilebert = await pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
-      statusEl.textContent = 'MobileBERT loaded.';
+      statusEl.textContent = 'MobileBERT loaded. Loading T5 Small...';
+
+      statusEl.textContent = 'Loading T5 Small (Text-to-text)...';
       models['t5-small'] = await pipeline('text2text-generation', 'Xenova/t5-small');
-      statusEl.textContent = 'T5 Small loaded.';
+      statusEl.textContent = 'T5 Small loaded. Loading Sentiment Analysis...';
+
+      statusEl.textContent = 'Loading Sentiment Analysis (Positive/Negative)...';
       models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
       statusEl.textContent = 'Sentiment Analysis loaded.';
 
@@ -128,16 +134,29 @@
 
     try {
       let output;
-      // All model calls now use `models.<modelKey>` which were initialized with `pipeline`
       if (modelKey === 'mobilebert') {
         const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
         const results = await models.mobilebert(maskedPrompt, { top_k: 5 });
         output = results.map(r => `"${r.sequence}" (score: ${r.score.toFixed(4)})`).join('\n');
       } else if (modelKey === 't5-small') {
-        const results = await models['t5-small'](prompt, {max_length: 50});
+        // T5 models can be sensitive to max_length and other parameters
+        const results = await models['t5-small'](prompt, {
+            max_length: 50,
+            do_sample: true, // Allow sampling for more varied output
+            temperature: 0.8, // Adjust creativity
+            num_return_sequences: 1 // Only return one sequence
+        });
         output = results[0].generated_text;
       } else if (modelKey === 'distilgpt2') {
-        const results = await models.distilgpt2(prompt, {max_length: 50, do_sample: true, temperature: 0.7});
+        // Text generation models like GPT2 require specific parameters for good output
+        const results = await models.distilgpt2(prompt, {
+            max_new_tokens: 50, // Generate up to 50 new tokens (instead of max_length for total tokens)
+            do_sample: true, // Use sampling for more creative output
+            temperature: 0.7, // Controls randomness: lower = more focused, higher = more creative
+            top_k: 50, // Consider only the top 50 tokens with highest probability
+            num_return_sequences: 1 // Return only one generated sequence
+        });
+        // distilgpt2 results often return an array even for single generation
         output = results[0].generated_text;
       } else if (modelKey === 'sentiment') {
         const results = await models.sentiment(prompt);
@@ -150,7 +169,7 @@
       statusEl.textContent = 'Generation complete.';
     } catch(err) {
       statusEl.textContent = 'Error during generation: ' + err.message;
-      console.error('Generation error:', err);
+      console.error('Generation error for model ' + modelKey + ':', err);
     } finally {
       generateBtn.disabled = false;
     }
@@ -175,7 +194,6 @@
   generateBtn.addEventListener('click', generateText);
   saveBtn.addEventListener('click', saveText);
 
-  // Call loadModels ONLY after the DOM is fully loaded
   document.addEventListener('DOMContentLoaded', loadModels);
 </script>
 </body>
