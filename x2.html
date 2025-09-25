@@ -3,398 +3,161 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WordStar Nexus - Expanded TF.js Models</title>
+<title>TF.js AI Notepad</title>
 <style>
-  html, body {
-    margin:0; height:100%; background: #2d2d2d; color: #f0f0f0; font-family: Arial,sans-serif;
+  body {
+    background: #121212;
+    color: #eee;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 640px;
+    margin: auto;
   }
-  .container {
-    display:flex; flex-direction:column; height:100vh;
-  }
-  #toolbar {
-    background:#1e1e1e; padding:10px; display:flex; justify-content:space-between;
-  }
-  #editor-section {
-    flex-grow:1; display:flex; padding:20px; background:#1e1e1e;
-    height: calc(100vh - 130px); /* Toolbar and status bar heights */
-  }
-  #ace-editor {
-    flex:1; min-width:0;
-  }
-  #main-text-area {
-    display:none; /* fallback only */
-    width:80%; height:100%; background:#1e1e1e; color:#f0f0f0;
-    padding:10px; font-family: monospace; font-size: 16pt; font-weight: bold; border: none; resize: none;
-  }
-  #right-panel {
-    width: 25%;
-    margin-left: 10px;
-    display:flex;
-    flex-direction: column;
-  }
-  #ai-model-select, #ai-prompt {
-    margin-bottom:10px;
-    padding:5px;
+  textarea, select, button {
+    width: 100%;
     font-family: monospace;
     font-size: 14px;
-    width: 100%;
+    margin: 10px 0;
+    padding: 8px;
     box-sizing: border-box;
-  }
-  #ai-prompt {
-    height: 80px;
-    resize: none;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #222;
+    color: #eee;
+    resize: vertical;
   }
   button {
-    padding: 8px;
-    margin-bottom: 10px;
-    font-size: 14px;
-    cursor:pointer;
-    background:#cc0000;
-    color: white;
-    border:none;
+    background: #cc0000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
   }
   button:disabled {
-    background: #666;
+    background: #555;
     cursor: not-allowed;
   }
-  button:hover:not(:disabled) {
-    background: #990000;
-  }
-  #ai-response {
-    flex-grow:1;
-    background:#1e1e1e;
-    border:1px solid #444;
-    padding:10px;
-    overflow-y:auto;
-    font-size: 13px;
+  #ai-output {
     white-space: pre-wrap;
+    padding: 10px;
+    background: #222;
+    border: 1px solid #555;
     min-height: 150px;
-    color: #f0f0f0;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
   }
-  #statusbar {
-    background:#cc0000;
-    color:white;
-    padding: 7px 15px;
-    font-size: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  #status {
+    font-size: 13px;
+    color: #aaa;
   }
 </style>
 
+<!-- TensorFlow.js and Xenova Transformers -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.1.0/dist/transformers.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <div id="toolbar">
-    <div>
-      <button type="button" onclick="newDocument()">New</button>
-      <button type="button" onclick="saveDocument()">Save</button>
-      <button type="button" onclick="exportTxt()">Export TXT</button>
-      <button type="button" onclick="exportRtf()">Export RTF</button>
-      <button type="button" onclick="exportPdf()">Export PDF</button>
-      <button type="button" onclick="insertPoeticParagraph()">Insert Poetic Paragraph</button>
-      <button type="button" onclick="insertRandomScientificWord()">Random Word</button>
-    </div>
-  </div>
 
-  <div id="editor-section">
-    <div id="ace-editor"></div>
-    <textarea id="main-text-area"></textarea> <!-- fallback -->
+<h1>TF.js AI Notepad</h1>
 
-    <div id="right-panel">
-      <select id="ai-model-select" title="Select AI Model">
-        <optgroup label="Instant Local">
-          <option value="markov">Markov Chain</option>
-          <option value="wordassociation">Word Association</option>
-          <option value="randomsentence">Random Sentence</option>
-        </optgroup>
-        <optgroup label="TF.js Transformer Models">
-          <option value="distilgpt2">DistilGPT2</option>
-          <option value="mobilebert">MobileBERT (Fill-mask)</option>
-          <option value="t5-small">T5 Small (Text-to-text)</option>
-        </optgroup>
-      </select>
+<label for="model-select">Choose AI Model:</label>
+<select id="model-select" aria-label="Choose AI Model">
+  <option value="distilgpt2">DistilGPT2 (Text Generation)</option>
+  <option value="mobilebert">MobileBERT (Fill-mask)</option>
+  <option value="t5-small">T5 Small (Text-to-text)</option>
+</select>
 
-      <textarea id="ai-prompt" placeholder="Enter prompt here..."></textarea>
-      <button type="button" id="generate-btn" onclick="generateText()">Create Text</button>
+<label for="prompt-input">Enter your prompt:</label>
+<textarea id="prompt-input" rows="4" placeholder="Type your prompt here..."></textarea>
 
-      <div id="ai-response">
-        Select model and enter prompt, then click 'Create Text'.
-      </div>
-    </div>
-  </div>
+<button id="generate-btn">Generate Text</button>
 
-  <div id="statusbar">
-    <span id="status-text">WordStar Online - Ready</span>
-    <span id="word-count">Words: 0</span>
-    <span>© MMXXIV www.inkrealm.info</span>
-  </div>
-</div>
+<div id="status"></div>
+
+<h2>AI Output / Text</h2>
+<textarea id="ai-output" rows="10" placeholder="AI generated text or your writing..."></textarea>
+
+<button id="save-btn">Save to TXT</button>
 
 <script>
-let editor;
-let transformerModels = {};
-let isGenerating = false;
+  let models = {};
+  const statusEl = document.getElementById('status');
+  const generateBtn = document.getElementById('generate-btn');
+  const saveBtn = document.getElementById('save-btn');
+  const modelSelect = document.getElementById('model-select');
+  const promptInput = document.getElementById('prompt-input');
+  const aiOutput = document.getElementById('ai-output');
 
-window.onload = async () => {
-  editor = ace.edit("ace-editor");
-  editor.setTheme("ace/theme/monokai");
-  editor.session.setMode("ace/mode/text");
-  editor.session.on('change', updateWordCount);
-  updateWordCount();
-
-  // Hide fallback textarea
-  document.getElementById("main-text-area").style.display = "none";
-
-  // Begin asynchronous model loading for transformers
-  loadTransformerModels();
-};
-
-function updateStatusBar(msg) {
-  document.getElementById("status-text").textContent = "WordStar Online - " + msg;
-}
-
-function updateWordCount() {
-  if (!editor) return;
-  const text = editor.getValue();
-  const count = text.trim() ? text.trim().split(/\s+/).length : 0;
-  document.getElementById("word-count").textContent = `Words: ${count}`;
-}
-
-function newDocument() {
-  if (editor) {
-    editor.setValue("");
-    updateStatusBar("New document created");
-    updateWordCount();
-  }
-}
-
-function saveDocument() {
-  const content = editor.getValue();
-  if (!content) return;
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "document.txt";
-  a.click();
-  URL.revokeObjectURL(url);
-  updateStatusBar("Document saved");
-}
-
-function exportTxt() {
-  saveDocument();
-}
-
-function exportRtf() {
-  const content = editor.getValue();
-  const rtfContent = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\n\n" + content.replace(/\n/g, "\\par\n") + "}";
-  const blob = new Blob([rtfContent], { type: "application/rtf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "document.rtf";
-  a.click();
-  URL.revokeObjectURL(url);
-  updateStatusBar("Document exported as RTF");
-}
-
-function exportPdf() {
-  if (!window.jspdf) {
-    alert("PDF export not available.");
-    return;
-  }
-  const { jsPDF } = window.jspdf;
-  const content = editor.getValue();
-  const doc = new jsPDF();
-  const lines = doc.splitTextToSize(content, 180);
-  doc.text(lines, 10, 10);
-  doc.save("document.pdf");
-  updateStatusBar("Document exported as PDF");
-}
-
-// Simple local generators:
-
-const markovData = {
-  "the": ["quick", "lazy", "beautiful", "mysterious", "ancient"],
-  // ... truncated for brevity ...
-  "ancient": ["tree", "castle", "wisdom", "book"]
-};
-
-function generateMarkovText(seed, maxWords = 30) {
-  const words = seed.toLowerCase().split(" ");
-  let result = seed;
-  let currentWord = words[words.length - 1];
-  for (let i = 0; i < maxWords && i < 30; i++) {
-    const nextWords = markovData[currentWord];
-    if (!nextWords || nextWords.length === 0) {
-      const keys = Object.keys(markovData);
-      currentWord = keys[Math.floor(Math.random() * keys.length)];
-    } else {
-      currentWord = nextWords[Math.floor(Math.random() * nextWords.length)];
+  async function loadModels() {
+    statusEl.textContent = 'Loading AI models...';
+    try {
+      models.distilgpt2 = await window.transformers.pipeline('text-generation', 'Xenova/distilgpt2');
+      models.mobilebert = await window.transformers.pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
+      models['t5-small'] = await window.transformers.pipeline('text2text-generation', 'Xenova/t5-small');
+      statusEl.textContent = 'Models loaded. Ready.';
+      generateBtn.disabled = false;
+    } catch(e) {
+      statusEl.textContent = 'Error loading models: ' + e.message;
+      generateBtn.disabled = true;
+      console.error(e);
     }
-    result += " " + currentWord;
   }
-  return result + ".";
-}
 
-const wordAssociations = {
-  write: ["pen", "paper", "story", "author", "book"],
-  // ... truncated for brevity ...
-  nature: ["forest", "ocean", "mountain", "wildlife", "peace"]
-};
-
-function generateWordAssociation(seed, maxWords = 20) {
-  const words = seed.toLowerCase().split(" ");
-  let result = seed;
-  let currentWord = words[words.length - 1];
-  for (let i = 0; i < maxWords && i < 20; i++) {
-    const associations = wordAssociations[currentWord];
-    if (!associations || associations.length === 0) {
-      const keys = Object.keys(wordAssociations);
-      currentWord = keys[Math.floor(Math.random() * keys.length)];
-    } else {
-      currentWord = associations[Math.floor(Math.random() * associations.length)];
+  async function generateText() {
+    const modelKey = modelSelect.value;
+    const prompt = promptInput.value.trim();
+    if (!prompt) {
+      alert('Please enter a prompt.');
+      return;
     }
-    result += " " + currentWord;
-  }
-  return result + ".";
-}
-
-function generateRandomSentence() {
-  const subjects = ["The writer", "A poet", "The storyteller", "An author", "The dreamer"];
-  const verbs = ["crafts", "weaves", "creates", "imagines", "discovers"];
-  const objects = ["beautiful prose", "vivid imagery", "compelling narratives", "magical worlds", "timeless stories"];
-  const endings = ["with passion", "through dedication", "using creativity", "with great care", "in quiet moments"];
-  const subject = subjects[Math.floor(Math.random() * subjects.length)];
-  const verb = verbs[Math.floor(Math.random() * verbs.length)];
-  const object = objects[Math.floor(Math.random() * objects.length)];
-  const ending = endings[Math.floor(Math.random() * endings.length)];
-  return `${subject} ${verb} ${object} ${ending}.`;
-}
-
-
-// Asynchronously load transformer models for TF.js
-
-async function loadTransformerModels() {
-  try {
-    updateStatusBar("Loading DistilGPT2...");
-    transformerModels.distilgpt2 = await window.transformers.pipeline('text-generation', 'Xenova/distilgpt2');
-    updateStatusBar("Loading MobileBERT...");
-    transformerModels.mobilebert = await window.transformers.pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
-    updateStatusBar("Loading T5 Small...");
-    transformerModels['t5-small'] = await window.transformers.pipeline('text2text-generation', 'Xenova/t5-small');
-    updateStatusBar("All TF.js models loaded.");
-  } catch (e) {
-    updateStatusBar("Error loading transformer models.");
-    console.warn(e);
-  }
-}
-
-
-async function generateTransformerText(prompt, modelName) {
-  if (!transformerModels[modelName]) {
-    updateStatusBar("Loading model, please wait...");
-    await loadTransformerModels();
-  }
-  // Different behavior for fill-mask model
-  if (modelName === "mobilebert") {
-    // fill-mask expects [MASK] in prompt; replace last word if missing
-    const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
-    const output = await transformerModels.mobilebert(maskedPrompt, { top_k: 5 });
-    // Join top predictions
-    return output.map(item => `${item.sequence}`).join('\n');
-  } else if (modelName === "t5-small") {
-    const output = await transformerModels['t5-small'](prompt, { max_length: 50 });
-    return output[0].generated_text;
-  } else if (modelName === "distilgpt2") {
-    const output = await transformerModels.distilgpt2(prompt, { max_length: 50, do_sample: true, temperature: 0.7 });
-    return output[0].generated_text;
-  }
-  return `Model ${modelName} not supported for TF.js generation`;
-}
-
-async function generateText() {
-  if (isGenerating) return;
-  const prompt = document.getElementById('ai-prompt').value.trim();
-  const model = document.getElementById('ai-model-select').value;
-  const aiResponse = document.getElementById('ai-response');
-  if (!prompt) {
-    alert("Please enter a prompt.");
-    return;
-  }
-  isGenerating = true;
-  aiResponse.textContent = "Generating text please wait...";
-  updateStatusBar("Generating text...");
-  try {
-    let generatedText = "";
-    switch (model) {
-      case "markov":
-        generatedText = generateMarkovText(prompt);
-        break;
-      case "wordassociation":
-        generatedText = generateWordAssociation(prompt);
-        break;
-      case "randomsentence":
-        generatedText = generateRandomSentence();
-        break;
-      case "distilgpt2":
-      case "mobilebert":
-      case "t5-small":
-        generatedText = await generateTransformerText(prompt, model);
-        break;
-      default:
-        generatedText = `Model "${model}" is not supported for client-side generation.`;
+    generateBtn.disabled = true;
+    statusEl.textContent = 'Generating text...';
+    try {
+      let output;
+      if (modelKey === 'mobilebert') {
+        const maskedPrompt = prompt.includes('[MASK]') ? prompt : prompt + ' [MASK]';
+        const results = await models.mobilebert(maskedPrompt, { top_k: 5 });
+        output = results.map(r => r.sequence).join('\n');
+      } else if (modelKey === 't5-small') {
+        const results = await models['t5-small'](prompt, {max_length: 50});
+        output = results[0].generated_text;
+      } else if (modelKey === 'distilgpt2') {
+        const results = await models.distilgpt2(prompt, {max_length: 50, do_sample: true, temperature: 0.7});
+        output = results[0].generated_text;
+      } else {
+        output = `Model ${modelKey} not implemented.`;
+      }
+      aiOutput.value = output;
+      statusEl.textContent = 'Generation complete.';
+    } catch(err) {
+      statusEl.textContent = 'Error generating text: ' + err.message;
+      console.error(err);
+    } finally {
+      generateBtn.disabled = false;
     }
-    aiResponse.textContent = generatedText;
-  } catch (err) {
-    aiResponse.textContent = "Error generating text: " + err.message;
   }
-  isGenerating = false;
-  updateStatusBar("Ready");
-}
-// Insert helpers for buttons
 
-function insertPoeticParagraph() {
-  if (!editor) return;
-  const paras = [
-    "Whispers of twilight dance on autumn leaves,\nAs golden hues paint the sky's canvas,\nNature's symphony echoes through the trees,\nA moment of beauty, forever to last.",
-    "Moonlit waves caress the shore,\nStars above, a cosmic dance,\nIn this quiet, forevermore,\nWe find life's gentle romance.",
-    "Sunflowers reach for azure skies,\nTheir petals, a sea of gold,\nIn fields where summer never dies,\nAnd stories of light unfold."
-  ];
-  const para = paras[Math.floor(Math.random() * paras.length)];
-  editor.insert(para + "\n\n");
-  updateStatusBar("Poetic paragraph inserted");
-  updateWordCount();
-}
-
-function insertRandomScientificWord() {
-  if (!editor) return;
-  const words = [
-    "Quantum", "Photosynthesis", "Entropy", "Mitochondria", "Neuroplasticity",
-    "Genome", "Algorithm", "Nanotechnology", "Thermodynamics", "Synapse"
-  ];
-  const word = words[Math.floor(Math.random() * words.length)];
-  editor.insert(word + " ");
-  updateStatusBar("Random scientific word inserted");
-  updateWordCount();
-}
-
-function insertNoteToEditor() {
-  if (!editor) return;
-  const note = document.getElementById("notebookText").value;
-  if (note.trim() === "") {
-    alert("Note is empty. Please write something before inserting.");
-    return;
+  function saveText() {
+    const text = aiOutput.value;
+    if (!text) {
+      alert('Nothing to save!');
+      return;
+    }
+    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notepad_output.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
-  editor.insert(note + "\n");
-  updateStatusBar("Note inserted into main text area");
-  updateWordCount();
-}
+
+  generateBtn.disabled = true; // disable until models load
+  generateBtn.addEventListener('click', generateText);
+  saveBtn.addEventListener('click', saveText);
+
+  loadModels();
+
 </script>
 </body>
 </html>
