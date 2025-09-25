@@ -90,25 +90,33 @@
   const promptInput = document.getElementById('prompt-input');
   const aiOutput = document.getElementById('ai-output');
 
+  // YOUR HUGGING FACE TOKEN (READ-ONLY)
+  // This token should resolve the "Unauthorized access" error if it's due to rate limits or specific file access policies.
+  const HF_TOKEN = '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';
+
   async function loadModels() {
     statusEl.textContent = 'Initializing Xenova Transformers...';
     try {
       generateBtn.disabled = true; // Disable button during loading
 
+      const commonPipelineOptions = {
+          token: HF_TOKEN, // Pass the token here
+      };
+
       statusEl.textContent = 'Loading DistilGPT2 (Text Generation)...';
-      models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2');
+      models.distilgpt2 = await pipeline('text-generation', 'Xenova/distilgpt2', commonPipelineOptions);
       statusEl.textContent = 'DistilGPT2 loaded. Loading MobileBERT...';
 
       statusEl.textContent = 'Loading MobileBERT (Fill-mask)...';
-      models.mobilebert = await pipeline('fill-mask', 'Xenova/mobilebert-base-cased');
+      models.mobilebert = await pipeline('fill-mask', 'Xenova/mobilebert-base-cased', commonPipelineOptions);
       statusEl.textContent = 'MobileBERT loaded. Loading T5 Small...';
 
       statusEl.textContent = 'Loading T5 Small (Text-to-text)...';
-      models['t5-small'] = await pipeline('text2text-generation', 'Xenova/t5-small');
+      models['t5-small'] = await pipeline('text2text-generation', 'Xenova/t5-small', commonPipelineOptions);
       statusEl.textContent = 'T5 Small loaded. Loading Sentiment Analysis...';
 
       statusEl.textContent = 'Loading Sentiment Analysis (Positive/Negative)...';
-      models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+      models.sentiment = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', commonPipelineOptions);
       statusEl.textContent = 'Sentiment Analysis loaded.';
 
       statusEl.textContent = 'All models loaded. Ready.';
@@ -139,24 +147,21 @@
         const results = await models.mobilebert(maskedPrompt, { top_k: 5 });
         output = results.map(r => `"${r.sequence}" (score: ${r.score.toFixed(4)})`).join('\n');
       } else if (modelKey === 't5-small') {
-        // T5 models can be sensitive to max_length and other parameters
         const results = await models['t5-small'](prompt, {
             max_length: 50,
-            do_sample: true, // Allow sampling for more varied output
-            temperature: 0.8, // Adjust creativity
-            num_return_sequences: 1 // Only return one sequence
+            do_sample: true,
+            temperature: 0.8,
+            num_return_sequences: 1
         });
         output = results[0].generated_text;
       } else if (modelKey === 'distilgpt2') {
-        // Text generation models like GPT2 require specific parameters for good output
         const results = await models.distilgpt2(prompt, {
-            max_new_tokens: 50, // Generate up to 50 new tokens (instead of max_length for total tokens)
-            do_sample: true, // Use sampling for more creative output
-            temperature: 0.7, // Controls randomness: lower = more focused, higher = more creative
-            top_k: 50, // Consider only the top 50 tokens with highest probability
-            num_return_sequences: 1 // Return only one generated sequence
+            max_new_tokens: 50,
+            do_sample: true,
+            temperature: 0.7,
+            top_k: 50,
+            num_return_sequences: 1
         });
-        // distilgpt2 results often return an array even for single generation
         output = results[0].generated_text;
       } else if (modelKey === 'sentiment') {
         const results = await models.sentiment(prompt);
@@ -190,7 +195,7 @@
     URL.revokeObjectURL(url);
   }
 
-  generateBtn.disabled = true; // disable until models load
+  generateBtn.disabled = true;
   generateBtn.addEventListener('click', generateText);
   saveBtn.addEventListener('click', saveText);
 
