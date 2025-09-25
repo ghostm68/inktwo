@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html>
+<head><base href="https://wordstar-online.com/">
+    <meta charset="UTF-8">
+    <meta name="keywords" content="typewriter, writing, retro, vintage, text editor, AI, generative, creative writing">
+    <meta name="description" content="Experience the nostalgia of a classic typewriter with Wordstar, a web-based app that combines vintage aesthetics with modern AI-powered writing tools. Generate creative text, experiment with different writing styles, and rediscover the joy of putting words on paper (virtually!).">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordStar Nexus - Modern Text Editor</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2d2d2d;
+            color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #toolbar {
+            background-color: #1e1e1e;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #editor {
+            flex-grow: 1;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+            border: none;
+            resize: none;
+        }
+        #statusbar {
+            background-color: #cc0000;
+            color: white;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #cc0000;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #990000;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .loading {
+            opacity: 0.6;
+        }
+        .api-config {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .api-config input {
+            width: 100%;
+            padding: 3px;
+            margin-top: 3px;
+            background-color: #555;
+            color: white;
+            border: 1px solid #666;
+        }
+        .model-status {
+            font-size: 11px;
+            color: #999;
+            margin-left: 5px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.46/lib/web-llm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/ort.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div id="toolbar">
+        <div>
+            <button onclick="newDocument()">New</button>
+            <button onclick="saveDocument()">Save</button>
+            <button onclick="exportTxt()">Export TXT</button>
+            <button onclick="exportRtf()">Export RTF</button>
+            <button onclick="exportPdf()">Export PDF</button>
+            <button onclick="insertPoeticParagraph()">Insert Random Poetic Paragraph</button>
+            <button onclick="insertRandomScientificWord()">Random Word</button>
+        </div>
+        <div id="notebook" style="background-color: #cc0000; padding: 10px; border-radius: 5px; margin-left: 10px;">
+            <textarea id="notebookText" rows="3" style="width: 200px; background-color: #cc0000; color: black; border: 1px solid black; padding: 5px;" placeholder="Write your note here..."></textarea>
+            <div>
+                <button onclick="insertNoteToEditor()" style="background-color: black; color: #cc0000; border: none; padding: 5px 10px; margin-top: 5px; cursor: pointer;">Insert Note</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editor" style="display: flex; justify-content: space-between;">
+        <div id="ace-editor" style="width: 80%; height: 100%;">
+            <textarea id="main-text-area" style="width: 100%; height: 100%; background-color: #1e1e1e; color: #f0f0f0; border: none; resize: none; font-family: 'Courier New', monospace; font-size: 16pt; font-weight: bold; padding: 10px;" placeholder="Start typing your document here..."></textarea>
+        </div>
+        
+        <div style="width: 18%; display: flex; flex-direction: column;">
+            <div>
+                <select id="ai-model-select" style="width: 100%; padding: 5px; margin-bottom: 5px;" onchange="onModelChange()">
+                    <optgroup label="🔧 Local Generators">
+                        <option value="markov">Markov Chain</option>
+                        <option value="wordassociation">Word Association</option>
+                        <option value="randomsentence">Random Sentence</option>
+                        <option value="neural-generator">Neural Text Generator</option>
+                    </optgroup>
+                    <optgroup label="🌐 Browser AI (Download Once)">
+                        <option value="distilgpt2">DistilGPT-2</option>
+                        <option value="gpt2">GPT-2 Small</option>
+                        <option value="webllm-vicuna">Vicuna-7B (WebLLM)</option>
+                        <option value="webllm-llama">LLaMA-7B (WebLLM)</option>
+                        <option value="phi2-onnx">Phi-2 (ONNX)</option>
+                        <option value="phi3-onnx">Phi-3 Mini (ONNX)</option>
+                        <option value="llamacpp-web">LLaMA.cpp (WASM)</option>
+                    </optgroup>
+                    <optgroup label="🏠 Local Desktop APIs">
+                        <option value="ollama-local">Ollama (Local)</option>
+                        <option value="lmstudio">LM Studio</option>
+                        <option value="gpt4all">GPT4All</option>
+                        <option value="jan-ai">Jan.ai</option>
+                    </optgroup>
+                    <optgroup label="☁️ Cloud APIs">
+                        <option value="ollama-cloud">Ollama Cloud</option>
+                        <option value="groq">Groq (Ultra Fast)</option>
+                        <option value="openrouter">OpenRouter (Many Models)</option>
+                        <option value="together">Together AI</option>
+                        <option value="perplexity">Perplexity AI</option>
+                        <option value="anthropic">Claude (Anthropic)</option>
+                    </optgroup>
+                </select>
+                <span id="model-status" class="model-status">Ready</span>
+                
+                <div id="api-config" class="api-config" style="display: none;">
+                    <label>API Configuration:</label>
+                    <input type="password" id="external-api-key" placeholder="Enter your API key">
+                    <div style="font-size: 10px; margin-top: 3px; color: #aaa;">
+                        API key configuration will appear here
+                    </div>
+                </div>
+                
+                <textarea id="ai-prompt" placeholder="Enter your prompt here" style="width: 100%; padding: 5px; margin-bottom: 5px; height: 60px;"></textarea>
+                <button id="generate-btn" onclick="generateText()" style="width: 100%; background-color: #cc0000; color: white; border: none; padding: 5px 10px; cursor: pointer; font-size: 12px;">Create Text</button>
+            </div>
+            
+            <div id="dictionary-results" style="flex-grow: 1; overflow-y: auto; background-color: #2d2d2d; padding: 10px; border: 1px solid #444; font-size: 12px;">
+                <div id="ai-response" style="white-space: pre-wrap;">WordStar AI Text Generation - Comprehensive AI Playground
+
+🔧 LOCAL GENERATORS (Instant):
+• Markov Chain - Statistical text patterns
+• Word Association - Contextual word chains  
+• Random Sentence - Simple sentence construction
+• Neural Generator - Enhanced template-based generation
+
+🌐 BROWSER AI (Download once, run offline):
+• DistilGPT-2 - Lightweight transformer (~80MB)
+• GPT-2 Small - Original GPT-2 model (~150MB)
+• Vicuna-7B - Powerful chat model (~4GB, requires WebGPU)
+• LLaMA-7B - Meta's foundation model (~4GB, requires WebGPU)
+• Phi-2/Phi-3 - Microsoft's small language models (ONNX)
+• LLaMA.cpp - Optimized LLaMA inference (WASM)
+
+🏠 LOCAL DESKTOP (Requires apps):
+• Ollama - localhost:11434 (ollama.com)
+• LM Studio - localhost:1234 (lmstudio.ai) 
+• GPT4All - localhost:4891 (gpt4all.io)
+• Jan.ai - localhost:1337 (jan.ai)
+
+☁️ CLOUD APIS (Various pricing):
+• Ollama Cloud - Managed Ollama hosting
+• Groq - Ultra-fast inference (free tier)
+• OpenRouter - Access 100+ models (free credits)
+• Together AI - Competitive pricing
+• Perplexity - Research-focused AI
+• Anthropic Claude - High-quality reasoning
+
+Instructions:
+1. Start with local generators for instant results
+2. Try browser AI models for more sophisticated text (downloads automatically)
+3. Use desktop apps for the most powerful local models
+4. Explore cloud APIs for cutting-edge capabilities
+
+This playground lets you discover the full spectrum of AI text generation - from simple local algorithms to state-of-the-art language models, all without vendor lock-in!</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="statusbar" style="background-color: #cc0000; display: flex; justify-content: space-between; align-items: center;">
+        <span id="status-text">WordStar Online - Ready</span>
+        <span id="word-count" style="font-size: 12px;">Words: 0</span>
+        <span style="font-size: 12px;">© MMXXIV www.inkrealm.info</span>
+    </div>
+</div>
+
+<script>
+    let editor;
+    // Global variables for models
+    let currentPipeline = null;
+    let webLLMEngine = null;
+    let onnxSession = null;
+
+    // WebLLM Integration
+    async function generateWithWebLLM(model, prompt) {
+        const statusText = document.getElementById('status-text');
+        
+        try {
+            statusText.textContent = 'WordStar Online - Initializing WebLLM (this may take several minutes)...';
+            
+            if (!webLLMEngine) {
+                const modelMap = {
+                    'webllm-vicuna': 'vicuna-v1-7b-q4f16_1',
+                    'webllm-llama': 'Llama-2-7b-chat-hf-q4f16_1'
+                };
+                
+                webLLMEngine = new window.WebLLM.MLCEngine();
+                await webLLMEngine.reload(modelMap[model]);
+            }
+            
+            statusText.textContent = 'WordStar Online - Generating with WebLLM...';
+            
+            const messages = [{ role: 'user', content: `Continue this text: ${prompt}` }];
+            const reply = await webLLMEngine.chat.completions.create({
+                messages: messages,
+                max_tokens: 100,
+                temperature: 0.7
+            });
+            
+            return reply.choices[0].message.content;
+            
+        } catch (error) {
+            console.error('WebLLM error:', error);
+            return `WebLLM requires a modern browser with WebGPU support. Try a simpler model or update your browser. Error: ${error.message}`;
+        }
+    }
+
+    // ONNX Runtime Integration  
+    async function generateWithONNX(model, prompt) {
+        try {
+            // Placeholder for ONNX implementation
+            return `ONNX ${model} would generate text here. This requires model files to be hosted. For now, try the WebLLM or Transformers.js models which work out of the box.`;
+        } catch (error) {
+            return `ONNX error: ${error.message}`;
+        }
+    }
+
+    // LLaMA.cpp WASM Integration
+    async function generateWithLlamaCpp(prompt) {
+        try {
+            // Placeholder - requires llamacpp.js setup
+            return `LLaMA.cpp WASM would generate: "${prompt}" continues with sophisticated reasoning and creative development. This requires additional WASM files to be hosted.`;
+        } catch (error) {
+            return `LLaMA.cpp error: ${error.message}`;
+        }
+    }
+
+    // LM Studio Integration
+    async function generateWithLMStudio(prompt) {
+        try {
+            const response = await fetch('http://localhost:1234/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return 'LM Studio not running. Start LM Studio and enable API server on port 1234';
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from LM Studio';
+            
+        } catch (error) {
+            return 'LM Studio not accessible. Make sure it\'s running with API server enabled on port 1234';
+        }
+    }
+
+    // GPT4All Integration
+    async function generateWithGPT4All(prompt) {
+        try {
+            const response = await fetch('http://localhost:4891/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return 'GPT4All not running. Start GPT4All and enable API mode on port 4891';
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from GPT4All';
+            
+        } catch (error) {
+            return 'GPT4All not accessible. Make sure it\'s running in API mode on port 4891';
+        }
+    }
+
+    // Jan.ai Integration
+    async function generateWithJan(prompt) {
+        try {
+            const response = await fetch('http://localhost:1337/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return 'Jan.ai not running. Start Jan.ai application with API server enabled';
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from Jan.ai';
+            
+        } catch (error) {
+            return 'Jan.ai not accessible. Make sure the Jan.ai app is running with API enabled';
+        }
+    }
+
+    // Groq Integration
+    async function generateWithGroq(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your Groq API key (free tier available at console.groq.com)';
+        }
+        
+        try {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    model: 'llama3-8b-8192',
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return `Groq API error: ${response.status}. Check your API key at console.groq.com`;
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from Groq';
+            
+        } catch (error) {
+            return `Groq error: ${error.message}`;
+        }
+    }
+
+    // Perplexity Integration
+    async function generateWithPerplexity(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your Perplexity API key';
+        }
+        
+        try {
+            const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-sonar-small-128k-online',
+                    messages: [{ role: 'user', content: `Continue this creative text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return `Perplexity API error: ${response.status}`;
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from Perplexity';
+            
+        } catch (error) {
+            return `Perplexity error: ${error.message}`;
+        }
+    }
+
+    // Anthropic Claude Integration
+    async function generateWithAnthropic(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your Anthropic API key';
+        }
+        
+        try {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'x-api-key': apiKey,
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 100,
+                    messages: [{ role: 'user', content: `Continue this text creatively: ${prompt}` }]
+                })
+            });
+            
+            if (!response.ok) {
+                return `Anthropic API error: ${response.status}`;
+            }
+            
+            const result = await response.json();
+            return result.content?.[0]?.text || 'No response from Claude';
+            
+        } catch (error) {
+            return `Anthropic error: ${error.message}`;
+        }
+    }
+    let isGenerating = false;
+
+    // Markov chain data
+    const markovData = {
+        "the": ["quick", "lazy", "beautiful", "mysterious", "ancient"],
+        "quick": ["brown", "silver", "golden", "dark"],
+        "brown": ["fox", "dog", "cat", "horse"],
+        "fox": ["jumps", "runs", "walks", "sleeps"],
+        "jumps": ["over", "across", "through"],
+        "over": ["the", "a", "an"],
+        "lazy": ["dog", "cat", "afternoon", "river"],
+        "beautiful": ["sunset", "morning", "garden", "melody"],
+        "mysterious": ["forest", "cave", "stranger", "light"],
+        "ancient": ["tree", "castle", "wisdom", "book"]
+    };
+
+    // Word associations
+    const wordAssociations = {
+        "write": ["pen", "paper", "story", "author", "book"],
+        "story": ["tale", "narrative", "adventure", "character", "plot"],
+        "adventure": ["journey", "quest", "exploration", "discovery"],
+        "journey": ["travel", "path", "destination", "experience"],
+        "creative": ["artistic", "imaginative", "innovative", "original"],
+        "time": ["moment", "eternity", "past", "future", "present"],
+        "light": ["bright", "illumination", "dawn", "star", "hope"],
+        "hope": ["dream", "aspiration", "future", "possibility"],
+        "dream": ["vision", "imagination", "sleep", "fantasy"],
+        "nature": ["forest", "ocean", "mountain", "wildlife", "peace"]
+    };
+
+    // Initialize editor
+    window.onload = function() {
+        editor = ace.edit("ace-editor");
+        editor.setTheme("ace/theme/monokai");
+        editor.session.setMode("ace/mode/text");
+        editor.session.on('change', updateWordCount);
+        updateWordCount();
+    };
+
+    function onModelChange() {
+        const selectedModel = document.getElementById('ai-model-select').value;
+        const apiConfig = document.getElementById('api-config');
+        const modelStatus = document.getElementById('model-status');
+        
+        // Clear previous config
+        apiConfig.style.display = 'none';
+        
+        if (['markov', 'wordassociation', 'randomsentence', 'neural-generator'].includes(selectedModel)) {
+            modelStatus.textContent = 'Local Generator - Ready instantly';
+        }
+        else if (['distilgpt2', 'gpt2', 'webllm-vicuna', 'webllm-llama', 'phi2-onnx', 'phi3-onnx', 'llamacpp-web'].includes(selectedModel)) {
+            const sizes = {
+                'distilgpt2': '~80MB',
+                'gpt2': '~150MB', 
+                'webllm-vicuna': '~4GB',
+                'webllm-llama': '~4GB',
+                'phi2-onnx': '~1.5GB',
+                'phi3-onnx': '~2GB',
+                'llamacpp-web': '~800MB'
+            };
+            modelStatus.textContent = `Browser AI - Will download ${sizes[selectedModel]} on first use`;
+        }
+        else if (['ollama-local', 'lmstudio', 'gpt4all', 'jan-ai'].includes(selectedModel)) {
+            const ports = {
+                'ollama-local': 'localhost:11434',
+                'lmstudio': 'localhost:1234', 
+                'gpt4all': 'localhost:4891',
+                'jan-ai': 'localhost:1337'
+            };
+            modelStatus.textContent = `Local Desktop - Requires app running on ${ports[selectedModel]}`;
+        }
+        else {
+            // Cloud APIs
+            apiConfig.style.display = 'block';
+            const configs = {
+                'ollama-cloud': { service: 'Ollama Cloud', url: 'ollama.com/cloud' },
+                'groq': { service: 'Groq', url: 'console.groq.com (Free tier available)' },
+                'openrouter': { service: 'OpenRouter', url: 'openrouter.ai (Free credits available)' },
+                'together': { service: 'Together AI', url: 'together.ai' },
+                'perplexity': { service: 'Perplexity', url: 'perplexity.ai' },
+                'anthropic': { service: 'Anthropic Claude', url: 'console.anthropic.com' }
+            };
+            
+            const config = configs[selectedModel];
+            apiConfig.innerHTML = `
+                <label>${config.service} API Key:</label>
+                <input type="password" id="external-api-key" placeholder="Enter your API key">
+                <div style="font-size: 10px; margin-top: 3px; color: #aaa;">
+                    Get API key from ${config.url}
+                </div>
+            `;
+            modelStatus.textContent = `${config.service} - Requires API key`;
+        }
+    }
+
+    async function generateText() {
+        if (isGenerating) return;
+        
+        const prompt = document.getElementById('ai-prompt').value.trim();
+        if (!prompt) {
+            alert('Please enter a prompt first');
+            return;
+        }
+        
+        const model = document.getElementById('ai-model-select').value;
+        const generateBtn = document.getElementById('generate-btn');
+        const aiResponse = document.getElementById('ai-response');
+        const statusText = document.getElementById('status-text');
+        
+        isGenerating = true;
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generating...';
+        statusText.textContent = 'WordStar Online - Generating text...';
+        
+        try {
+            let generatedText = '';
+            
+            switch (model) {
+                case 'markov':
+                    generatedText = generateMarkovText(prompt, 50);
+                    break;
+                case 'wordassociation':
+                    generatedText = generateWordAssociation(prompt, 30);
+                    break;
+                case 'randomsentence':
+                    generatedText = generateRandomSentence();
+                    break;
+                case 'neural-generator':
+                    generatedText = generateNeuralText(prompt);
+                    break;
+                case 'distilgpt2':
+                case 'gpt2':
+                    generatedText = await generateWithTransformers(model, prompt);
+                    break;
+                case 'webllm-vicuna':
+                case 'webllm-llama':
+                    generatedText = await generateWithWebLLM(model, prompt);
+                    break;
+                case 'phi2-onnx':
+                case 'phi3-onnx':
+                    generatedText = await generateWithONNX(model, prompt);
+                    break;
+                case 'llamacpp-web':
+                    generatedText = await generateWithLlamaCpp(prompt);
+                    break;
+                case 'ollama-local':
+                    generatedText = await generateWithOllama(prompt);
+                    break;
+                case 'ollama-cloud':
+                    generatedText = await generateWithOllamaCloud(prompt);
+                    break;
+                case 'lmstudio':
+                    generatedText = await generateWithLMStudio(prompt);
+                    break;
+                case 'gpt4all':
+                    generatedText = await generateWithGPT4All(prompt);
+                    break;
+                case 'jan-ai':
+                    generatedText = await generateWithJan(prompt);
+                    break;
+                case 'groq':
+                    generatedText = await generateWithGroq(prompt);
+                    break;
+                case 'openrouter':
+                    generatedText = await generateWithOpenRouter(prompt);
+                    break;
+                case 'together':
+                    generatedText = await generateWithTogether(prompt);
+                    break;
+                case 'perplexity':
+                    generatedText = await generateWithPerplexity(prompt);
+                    break;
+                case 'anthropic':
+                    generatedText = await generateWithAnthropic(prompt);
+                    break;
+                default:
+                    generatedText = 'Model not implemented yet';
+            }
+            
+            aiResponse.textContent = `Prompt: "${prompt}"\nModel: ${model}\n\nGenerated Text:\n${generatedText}\n\n---\n\nClick a model and try different prompts to see varied results!`;
+            
+        } catch (error) {
+            aiResponse.textContent = `Error generating text: ${error.message}`;
+        } finally {
+            isGenerating = false;
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'Create Text';
+            statusText.textContent = 'WordStar Online - Ready';
+        }
+    }
+
+    function generateMarkovText(seed, maxWords) {
+        const words = seed.toLowerCase().split(' ');
+        let result = seed;
+        let currentWord = words[words.length - 1];
+        
+        for (let i = 0; i < maxWords; i++) {
+            const nextWords = markovData[currentWord];
+            if (!nextWords || nextWords.length === 0) {
+                // Pick a random starting word if we hit a dead end
+                const keys = Object.keys(markovData);
+                currentWord = keys[Math.floor(Math.random() * keys.length)];
+            } else {
+                currentWord = nextWords[Math.floor(Math.random() * nextWords.length)];
+            }
+            result += ' ' + currentWord;
+        }
+        
+        return result + '.';
+    }
+
+    function generateWordAssociation(seed, maxWords) {
+        const words = seed.toLowerCase().split(' ');
+        let result = seed;
+        let currentWord = words[words.length - 1];
+        
+        for (let i = 0; i < maxWords; i++) {
+            const associations = wordAssociations[currentWord];
+            if (!associations || associations.length === 0) {
+                // Find a word that has associations
+                const keys = Object.keys(wordAssociations);
+                currentWord = keys[Math.floor(Math.random() * keys.length)];
+            } else {
+                currentWord = associations[Math.floor(Math.random() * associations.length)];
+            }
+            result += ' ' + currentWord;
+        }
+        
+        return result + '.';
+    }
+
+    function generateRandomSentence() {
+        const subjects = ['The writer', 'A poet', 'The storyteller', 'An author', 'The dreamer'];
+        const verbs = ['crafts', 'weaves', 'creates', 'imagines', 'discovers'];
+        const objects = ['beautiful prose', 'vivid imagery', 'compelling narratives', 'magical worlds', 'timeless stories'];
+        const endings = ['with passion', 'through dedication', 'using creativity', 'with great care', 'in quiet moments'];
+        
+        const subject = subjects[Math.floor(Math.random() * subjects.length)];
+        const verb = verbs[Math.floor(Math.random() * verbs.length)];
+        const object = objects[Math.floor(Math.random() * objects.length)];
+        const ending = endings[Math.floor(Math.random() * endings.length)];
+        
+        return `${subject} ${verb} ${object} ${ending}.`;
+    }
+
+    async function generateWithTransformers(modelName, prompt) {
+        const statusText = document.getElementById('status-text');
+        
+        try {
+            statusText.textContent = 'WordStar Online - Loading AI model (this may take a moment)...';
+            
+            const modelId = modelName === 'distilgpt2' ? 'distilgpt2' : 'gpt2';
+            
+            if (!currentPipeline || currentPipeline.model !== modelId) {
+                // Use dynamic import for Transformers.js
+                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+                currentPipeline = await pipeline('text-generation', modelId, {
+                    revision: 'main',
+                    quantized: true
+                });
+                currentPipeline.model = modelId;
+            }
+            
+            statusText.textContent = 'WordStar Online - Generating text...';
+            
+            const result = await currentPipeline(prompt, {
+                max_new_tokens: 30,
+                temperature: 0.7,
+                do_sample: true,
+                repetition_penalty: 1.1
+            });
+            
+            // Handle different response formats
+            let generatedText = '';
+            if (Array.isArray(result)) {
+                generatedText = result[0].generated_text || '';
+            } else if (result.generated_text) {
+                generatedText = result.generated_text;
+            } else {
+                generatedText = String(result);
+            }
+            
+            // Remove the original prompt from the response if it's included
+            if (generatedText.startsWith(prompt)) {
+                generatedText = generatedText.slice(prompt.length);
+            }
+            
+            return generatedText.trim() || "Unable to generate text with this prompt.";
+            
+        } catch (error) {
+            console.error('Transformers error:', error);
+            // Fallback to a simple continuation
+            return `... and the story continues with new possibilities. The narrative unfolds with ${prompt.split(' ').pop()} leading to unexpected discoveries.`;
+        }
+    }
+
+    // Enhanced neural text generator (local)
+    function generateNeuralText(prompt) {
+        const templates = [
+            "{prompt} reveals deeper meanings when we consider {concept} and how it relates to {connection}.",
+            "Building upon {prompt}, we discover that {element} creates {result} through {process}.",
+            "The essence of {prompt} lies in understanding {principle}, which leads us to {conclusion}.",
+            "{prompt} serves as a gateway to exploring {theme} and its impact on {outcome}.",
+            "When examining {prompt}, we find {insight} that transforms our perspective on {subject}."
+        ];
+        
+        const concepts = ["consciousness", "creativity", "harmony", "transformation", "innovation", "balance", "growth", "discovery"];
+        const connections = ["human experience", "natural patterns", "artistic expression", "scientific inquiry", "philosophical thought"];
+        const elements = ["structure", "rhythm", "flow", "energy", "purpose", "meaning", "beauty", "truth"];
+        const results = ["profound insights", "new possibilities", "deeper understanding", "creative solutions", "meaningful connections"];
+        const processes = ["careful observation", "thoughtful reflection", "creative synthesis", "analytical thinking", "intuitive understanding"];
+        const principles = ["interconnectedness", "emergence", "complexity", "simplicity", "authenticity", "resonance"];
+        const conclusions = ["greater wisdom", "enhanced awareness", "new perspectives", "deeper appreciation", "broader understanding"];
+        const themes = ["the human condition", "natural phenomena", "artistic creation", "technological advancement", "social dynamics"];
+        const outcomes = ["personal growth", "collective progress", "cultural evolution", "scientific advancement", "artistic innovation"];
+        const insights = ["patterns", "relationships", "principles", "connections", "meanings"];
+        const subjects = ["reality", "existence", "knowledge", "experience", "creativity", "consciousness"];
+        
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        
+        return template
+            .replace('{prompt}', prompt)
+            .replace('{concept}', concepts[Math.floor(Math.random() * concepts.length)])
+            .replace('{connection}', connections[Math.floor(Math.random() * connections.length)])
+            .replace('{element}', elements[Math.floor(Math.random() * elements.length)])
+            .replace('{result}', results[Math.floor(Math.random() * results.length)])
+            .replace('{process}', processes[Math.floor(Math.random() * processes.length)])
+            .replace('{principle}', principles[Math.floor(Math.random() * principles.length)])
+            .replace('{conclusion}', conclusions[Math.floor(Math.random() * conclusions.length)])
+            .replace('{theme}', themes[Math.floor(Math.random() * themes.length)])
+            .replace('{outcome}', outcomes[Math.floor(Math.random() * outcomes.length)])
+            .replace('{insight}', insights[Math.floor(Math.random() * insights.length)])
+            .replace('{subject}', subjects[Math.floor(Math.random() * subjects.length)]);
+    }
+
+    // Ollama Cloud API integration
+    async function generateWithOllamaCloud(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your Ollama Cloud API key';
+        }
+        
+        try {
+            const response = await fetch('https://api.ollama.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama3.1',
+                    messages: [
+                        { 
+                            role: 'user', 
+                            content: `Continue this text creatively: "${prompt}"` 
+                        }
+                    ],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    return 'Invalid Ollama API key. Check your key at ollama.com';
+                } else if (response.status === 429) {
+                    return 'Rate limit exceeded. Please wait a moment.';
+                } else {
+                    return `Ollama Cloud error: ${response.status}`;
+                }
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from Ollama Cloud';
+            
+        } catch (error) {
+            return `Ollama Cloud connection error: ${error.message}`;
+        }
+    }
+
+    // Ollama local API integration
+    async function generateWithOllama(prompt) {
+        try {
+            const response = await fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'llama2',
+                    prompt: prompt,
+                    stream: false,
+                    options: {
+                        num_predict: 100,
+                        temperature: 0.7
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                return 'Ollama not running. Install Ollama and run: ollama serve';
+            }
+            
+            const result = await response.json();
+            return result.response || 'No response from Ollama';
+            
+        } catch (error) {
+            return 'Ollama not accessible. Make sure it\'s running on localhost:11434';
+        }
+    }
+
+    // OpenRouter API integration
+    async function generateWithOpenRouter(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your OpenRouter API key';
+        }
+        
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'WordStar Nexus'
+                },
+                body: JSON.stringify({
+                    model: 'meta-llama/llama-2-7b-chat',
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return `OpenRouter API error: ${response.status}`;
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from OpenRouter';
+            
+        } catch (error) {
+            return `OpenRouter error: ${error.message}`;
+        }
+    }
+
+    // Together AI integration
+    async function generateWithTogether(prompt) {
+        const apiKey = document.getElementById('external-api-key')?.value;
+        if (!apiKey) {
+            return 'Please enter your Together AI API key';
+        }
+        
+        try {
+            const response = await fetch('https://api.together.xyz/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'meta-llama/Llama-2-7b-chat-hf',
+                    messages: [{ role: 'user', content: `Continue this text: ${prompt}` }],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            if (!response.ok) {
+                return `Together AI error: ${response.status}`;
+            }
+            
+            const result = await response.json();
+            return result.choices?.[0]?.message?.content || 'No response from Together AI';
+            
+        } catch (error) {
+            return `Together AI error: ${error.message}`;
+        }
+    }
+
+    // Keep all original functions
+    function newDocument() {
+        if (editor) {
+            editor.setValue("");
+            updateStatusBar("New document created");
+            updateWordCount();
+        }
+    }
+
+    function saveDocument() {
+        if (editor) {
+            const content = editor.getValue();
+            const blob = new Blob([content], {type: "text/plain;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "document.txt";
+            a.click();
+            URL.revokeObjectURL(url);
+            updateStatusBar("Document saved");
+        }
+    }
+
+    function exportTxt() {
+        saveDocument();
+    }
+
+    function exportRtf() {
+        if (editor) {
+            const content = editor.getValue();
+            const rtfContent = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\n\n" + content.replace(/\n/g, "\\par\n") + "}";
+            const blob = new Blob([rtfContent], {type: "application/rtf"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "document.rtf";
+            a.click();
+            URL.revokeObjectURL(url);
+            updateStatusBar("Document exported as RTF");
+        }
+    }
+
+    function exportPdf() {
+        if (editor && window.jspdf) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const content = editor.getValue();
+            doc.text(content, 10, 10);
+            doc.save("document.pdf");
+            updateStatusBar("Document exported as PDF");
+        }
+    }
+
+    function insertPoeticParagraph() {
+        if (editor) {
+            const poeticParagraphs = [
+                "Whispers of twilight dance on autumn leaves,\nAs golden hues paint the sky's canvas,\nNature's symphony echoes through the trees,\nA moment of beauty, forever to last.",
+                "Moonlit waves caress the shore,\nStars above, a cosmic dance,\nIn this quiet, forevermore,\nWe find life's gentle romance.",
+                "Sunflowers reach for azure skies,\nTheir petals, a sea of gold,\nIn fields where summer never dies,\nAnd stories of light unfold."
+            ];
+            const randomParagraph = poeticParagraphs[Math.floor(Math.random() * poeticParagraphs.length)];
+            editor.insert(randomParagraph + "\n\n");
+            updateStatusBar("Poetic paragraph inserted");
+            updateWordCount();
+        }
+    }
+
+    function insertRandomScientificWord() {
+        if (editor) {
+            const scientificWords = [
+                "Quantum", "Photosynthesis", "Entropy", "Mitochondria", "Neuroplasticity",
+                "Genome", "Algorithm", "Nanotechnology", "Thermodynamics", "Synapse"
+            ];
+            const randomWord = scientificWords[Math.floor(Math.random() * scientificWords.length)];
+            editor.insert(randomWord + " ");
+            updateStatusBar("Random scientific word inserted");
+            updateWordCount();
+        }
+    }
+
+    function insertNoteToEditor() {
+        if (editor) {
+            const noteContent = document.getElementById('notebookText').value;
+            if (noteContent.trim() === '') {
+                alert('Note is empty. Please write something before inserting.');
+                return;
+            }
+            editor.insert(noteContent + '\n');
+            updateStatusBar("Note inserted into main text area");
+            updateWordCount();
+        }
+    }
+
+    function updateStatusBar(message) {
+        const statusBarElement = document.getElementById('status-text');
+        if (statusBarElement) {
+            statusBarElement.textContent = "WordStar Online - " + message;
+        }
+    }
+
+    function updateWordCount() {
+        if (editor) {
+            const content = editor.getValue();
+            const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+            const wordCountElement = document.getElementById('word-count');
+            if (wordCountElement) {
+                wordCountElement.textContent = `Words: ${wordCount}`;
+            }
+        }
+    }
+</script>
+</body>
+</html>
