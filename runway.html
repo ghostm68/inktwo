@@ -351,9 +351,8 @@
 </div>
 
 <script>
-// ===============================
-// FLOATING LETTERS WITH PROPER CLEANUP
-// ===============================
+// REPLACE your FloatingLetters script (the last <script> block before </body>) with THIS:
+
 class FloatingLetters {
     constructor() {
         this.canvas = document.getElementById('floatingLetters');
@@ -362,23 +361,25 @@ class FloatingLetters {
         this.ctx = this.canvas.getContext('2d');
         this.letters = [];
         this.mouse = { x: 0, y: 0, radius: 100 };
-        this.animationId = null; // Track animation frame
+        this.isRunning = true; // ADDED: Kill switch
+        this.animationFrameId = null; // ADDED: Track frame ID
         
-        this.russianLetters = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ!*/&%$#@~^';
+        this.russianLetters = '.,?!;:'"()[]{}-–—_*/&%$#@~^';
         this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
         
         this.resize();
         this.init();
         this.animate();
         
-        this.resizeHandler = () => this.resize();
-        this.mouseMoveHandler = (e) => {
+        // Store bound functions so we can remove them later
+        this.resizeBound = () => this.resize();
+        this.mouseMoveBound = (e) => {
             this.mouse.x = e.clientX;
             this.mouse.y = e.clientY;
         };
         
-        window.addEventListener('resize', this.resizeHandler);
-        window.addEventListener('mousemove', this.mouseMoveHandler);
+        window.addEventListener('resize', this.resizeBound);
+        window.addEventListener('mousemove', this.mouseMoveBound);
     }
 
     resize() {
@@ -409,7 +410,10 @@ class FloatingLetters {
     }
 
     animate() {
-        if (!this.canvas || !this.ctx) return;
+        // CRITICAL: Check if we should stop
+        if (!this.isRunning || !this.canvas || !this.ctx) {
+            return; // Stop the loop
+        }
         
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -452,53 +456,71 @@ class FloatingLetters {
             this.ctx.restore();
         });
         
-        this.animationId = requestAnimationFrame(() => this.animate());
+        // Store the frame ID so we can cancel it
+        this.animationFrameId = requestAnimationFrame(() => this.animate());
     }
-
+    
+    // ADDED: Proper destroy method
     destroy() {
-        // Cancel animation frame
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
+        this.isRunning = false;
+        
+        // Cancel the animation frame
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
         }
         
         // Remove event listeners
-        window.removeEventListener('resize', this.resizeHandler);
-        window.removeEventListener('mousemove', this.mouseMoveHandler);
+        window.removeEventListener('resize', this.resizeBound);
+        window.removeEventListener('mousemove', this.mouseMoveBound);
         
-        // Clear canvas
+        // Clear canvas one last time
         if (this.ctx && this.canvas) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
         
-        // Nullify references
+        // Nullify everything
         this.canvas = null;
         this.ctx = null;
         this.letters = [];
     }
 }
 
-// Initialize and manage splash screen
+// Initialize and manage BOTH splash screens
 let floatingLettersInstance = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const splashScreen = document.getElementById('splash-screen');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    
+    // Start the floating letters animation
     floatingLettersInstance = new FloatingLetters();
     
-    // Hide splash screen after 3 seconds
+    // Hide BOTH loaders after 3 seconds
     setTimeout(() => {
-        splashScreen.style.opacity = '0';
+        // Fade out splash screen
+        if (splashScreen) {
+            splashScreen.style.opacity = '0';
+        }
+        
+        // Also fade out loading overlay
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+        }
         
         setTimeout(() => {
-            // Properly destroy the animation
+            // Destroy the animation completely
             if (floatingLettersInstance) {
                 floatingLettersInstance.destroy();
                 floatingLettersInstance = null;
             }
             
-            // Remove from DOM
+            // Remove both from DOM
             if (splashScreen && splashScreen.parentNode) {
                 splashScreen.parentNode.removeChild(splashScreen);
+            }
+            
+            if (loadingOverlay && loadingOverlay.parentNode) {
+                loadingOverlay.parentNode.removeChild(loadingOverlay);
             }
         }, 800);
     }, 3000);
