@@ -1473,110 +1473,134 @@ setTimeout(updateWordCount, 100);
   </script>
 
 	  <script>
-    class FloatingLetters {
-        constructor() {
-            this.canvas = document.getElementById('floatingLetters');
-            this.ctx = this.canvas.getContext('2d');
-            this.letters = [];
-            this.mouse = { x: 0, y: 0, radius: 100 };
-            
-            this.russianLetters = '.,?!;:'"()[]{}-–—_*/&%$#@~^';
-            this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
-            
-            this.resize();
-            this.init();
-            this.animate();
-            
-            window.addEventListener('resize', () => this.resize());
-            window.addEventListener('mousemove', (e) => {
-                this.mouse.x = e.clientX;
-                this.mouse.y = e.clientY;
-            });
-        }
+   class FloatingLetters {
+    constructor() {
+        this.canvas = document.getElementById('floatingLetters');
+        this.ctx = this.canvas.getContext('2d');
+        this.letters = [];
+        this.mouse = { x: 0, y: 0, radius: 100 };
+        this.isActive = true; // ADDED: Kill switch
+        
+        this.russianLetters = '.,?!;:'"()[]{}-–—_*/&%$#@~^';
+        this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+        
+        this.resize();
+        this.init();
+        this.animate();
+        
+        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('mousemove', (e) => {
+            this.mouse.x = e.clientX;
+            this.mouse.y = e.clientY;
+        });
+    }
 
-        resize() {
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
-        }
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
 
-        init() {
-            const numberOfLetters = Math.min(50, Math.floor(window.innerWidth / 20));
-            
-            for (let i = 0; i < numberOfLetters; i++) {
-                this.letters.push({
-                    char: this.russianLetters[Math.floor(Math.random() * this.russianLetters.length)],
-                    x: Math.random() * this.canvas.width,
-                    y: Math.random() * this.canvas.height,
-                    size: Math.random() * 20 + 15,
-                    speedX: (Math.random() - 0.5) * 2,
-                    speedY: (Math.random() - 0.5) * 2,
-                    opacity: Math.random() * 0.5 + 0.3,
-                    color: this.colors[Math.floor(Math.random() * this.colors.length)],
-                    rotation: Math.random() * 360,
-                    rotationSpeed: (Math.random() - 0.5) * 2,
-                    targetOpacity: Math.random() * 0.5 + 0.3,
-                    changeOpacity: Math.random() * 100
-                });
-            }
-        }
-
-        animate() {
-            requestAnimationFrame(() => this.animate());
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            this.letters.forEach(letter => {
-                letter.x += letter.speedX;
-                letter.y += letter.speedY;
-                letter.rotation += letter.rotationSpeed;
-                
-                if (letter.x < 0 || letter.x > this.canvas.width) letter.speedX *= -1;
-                if (letter.y < 0 || letter.y > this.canvas.height) letter.speedY *= -1;
-                
-                const dx = letter.x - this.mouse.x;
-                const dy = letter.y - this.mouse.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < this.mouse.radius) {
-                    const angle = Math.atan2(dy, dx);
-                    const force = (this.mouse.radius - distance) / this.mouse.radius;
-                    letter.x += Math.cos(angle) * force * 5;
-                    letter.y += Math.sin(angle) * force * 5;
-                }
-                
-                letter.changeOpacity--;
-                if (letter.changeOpacity <= 0) {
-                    letter.targetOpacity = Math.random() * 0.5 + 0.3;
-                    letter.changeOpacity = Math.random() * 100 + 50;
-                }
-                
-                letter.opacity += (letter.targetOpacity - letter.opacity) * 0.05;
-                
-                this.ctx.save();
-                this.ctx.translate(letter.x, letter.y);
-                this.ctx.rotate(letter.rotation * Math.PI / 180);
-                this.ctx.globalAlpha = letter.opacity;
-                this.ctx.fillStyle = letter.color;
-                this.ctx.font = `${letter.size}px Arial`;
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                this.ctx.fillText(letter.char, 0, 0);
-                this.ctx.restore();
+    init() {
+        const numberOfLetters = Math.min(50, Math.floor(window.innerWidth / 20));
+        
+        for (let i = 0; i < numberOfLetters; i++) {
+            this.letters.push({
+                char: this.russianLetters[Math.floor(Math.random() * this.russianLetters.length)],
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                size: Math.random() * 20 + 15,
+                speedX: (Math.random() - 0.5) * 2,
+                speedY: (Math.random() - 0.5) * 2,
+                opacity: Math.random() * 0.5 + 0.3,
+                color: this.colors[Math.floor(Math.random() * this.colors.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 2,
+                targetOpacity: Math.random() * 0.5 + 0.3,
+                changeOpacity: Math.random() * 100
             });
         }
     }
 
-    // Initialize and manage splash screen
-    document.addEventListener('DOMContentLoaded', function() {
-        const splashScreen = document.getElementById('splash-screen');
-        const floatingLetters = new FloatingLetters();
+    animate() {
+        if (!this.isActive) return; // ADDED: Stop animation when killed
         
-        // Hide splash screen after 3 seconds
+        requestAnimationFrame(() => this.animate());
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.letters.forEach(letter => {
+            letter.x += letter.speedX;
+            letter.y += letter.speedY;
+            letter.rotation += letter.rotationSpeed;
+            
+            if (letter.x < 0 || letter.x > this.canvas.width) letter.speedX *= -1;
+            if (letter.y < 0 || letter.y > this.canvas.height) letter.speedY *= -1;
+            
+            const dx = letter.x - this.mouse.x;
+            const dy = letter.y - this.mouse.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.mouse.radius) {
+                const angle = Math.atan2(dy, dx);
+                const force = (this.mouse.radius - distance) / this.mouse.radius;
+                letter.x += Math.cos(angle) * force * 5;
+                letter.y += Math.sin(angle) * force * 5;
+            }
+            
+            letter.changeOpacity--;
+            if (letter.changeOpacity <= 0) {
+                letter.targetOpacity = Math.random() * 0.5 + 0.3;
+                letter.changeOpacity = Math.random() * 100 + 50;
+            }
+            
+            letter.opacity += (letter.targetOpacity - letter.opacity) * 0.05;
+            
+            this.ctx.save();
+            this.ctx.translate(letter.x, letter.y);
+            this.ctx.rotate(letter.rotation * Math.PI / 180);
+            this.ctx.globalAlpha = letter.opacity;
+            this.ctx.fillStyle = letter.color;
+            this.ctx.font = `${letter.size}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(letter.char, 0, 0);
+            this.ctx.restore();
+        });
+    }
+
+    // ADDED: Method to stop animation
+    destroy() {
+        this.isActive = false;
+        this.canvas = null;
+        this.ctx = null;
+        this.letters = [];
+    }
+}
+
+// Initialize and manage splash screen
+let floatingLetters; // CHANGED: Make it accessible
+
+document.addEventListener('DOMContentLoaded', function() {
+    const splashScreen = document.getElementById('splash-screen');
+    const loadingOverlay = document.getElementById('loading-overlay'); // ADDED
+    
+    floatingLetters = new FloatingLetters();
+    
+    // Hide BOTH loaders after 3 seconds
+    setTimeout(() => {
+        splashScreen.style.opacity = '0';
+        
         setTimeout(() => {
-            splashScreen.style.opacity = '0';
-            setTimeout(() => {
-                splashScreen.style.display = 'none';
-            }, 800);
-        }, 3000);
-    });
+            // ADDED: Properly destroy everything
+            floatingLetters.destroy();
+            splashScreen.remove();
+            
+            // ADDED: Also hide the loading overlay
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => loadingOverlay.remove(), 500);
+            }
+        }, 800);
+    }, 3000);
+});
 	  </script>
       </body></html>
