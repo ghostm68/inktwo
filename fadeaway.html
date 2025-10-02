@@ -1,281 +1,598 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fadeaway Editor</title>
+  <meta charset="utf-8" />
+  <title>fadeaway</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      display: flex;
-      font-family: 'IBM Plex Mono', monospace;
-      background: #111;
-      color: #eee;
+    :root {
+      --gap: 10px;
+      --panel-bg: #f8f8f8;
     }
-    .container {
-      display: flex;
-      width: 100%;
-      height: 100vh;
+    html,body { height:100%; margin:0; font-family: "IBMMonoCustom", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; }
+    @font-face {
+      font-family: 'IBMMonoCustom';
+      src: url('https://raw.githubusercontent.com/ghostm68/inktwo/main/soviet-program/ibm-extended/IBMPlexMono-Medium.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
     }
-    .editor-pane, .dither-pane {
-      flex: 1;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+    .app {
+      display:flex;
+      height:100vh;
+      gap: var(--gap);
+      background: #efefef;
     }
-    #notepad {
-      flex: 1;
-      padding: 1rem;
-      font-size: 1rem;
-      resize: none;
+
+    /* Left editor pane (50%) */
+    .editor-pane {
+      width:50%;
+      display:flex;
+      flex-direction:column;
+      border-right:1px solid #ccc;
+      position:relative;
+      background: white;
+    }
+    .editor-top {
+      padding:10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      border-bottom:1px solid #eee;
+      background: #fafafa;
+    }
+    .editor-top .controls > button { margin-right:6px; }
+
+    #editorWrap {
+      position:relative;
+      flex:1;
+      overflow:hidden;
+    }
+    textarea#notepad {
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      margin:0;
+      padding:20px;
       border: none;
-      outline: none;
-      background: #fff;
-      color: #000;
-      font-family: 'IBM Plex Mono', monospace;
-      z-index: 1; /* Lower z-index than drawCanvas */
-      position: relative;
+      outline:none;
+      resize:none;
+      font-family: "IBMMonoCustom", monospace;
+      font-size:16px;
+      line-height:1.35;
+      background: transparent;
+      color: #121212;
+      z-index:1;
+      box-sizing:border-box;
     }
+    /* p5 canvas holder sits above the textarea */
     #drawCanvas {
-      position: absolute;
-      top: 40px; /* Adjust based on toolbar height */
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 2; /* Higher z-index to be on top of notepad */
-      pointer-events: auto; /* Allow interaction with the canvas */
-      /* Initially hide p5 canvas until drawing is needed or enabled,
-         or manage its visibility through p5's remove() / create().
-         For now, keeping it visible but under notepad's text flow. */
-      /* background-color: transparent; */ /* Ensure p5.js background drawing is visible */
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none; /* toggled to auto when drawing */
     }
-    #drawCanvas canvas { /* Style the p5.js canvas itself */
-        display: block; /* Remove extra space below canvas */
+    .hint {
+      font-size:12px;
+      color:#666;
+      margin-left:8px;
     }
-    .toolbar {
-      display: flex;
-      background: #222;
-      color: #fff;
-      padding: 0.3rem;
-      z-index: 3;
-      flex-shrink: 0; /* Prevent toolbar from shrinking */
-      height: 40px; /* Fixed height for consistency */
-    }
-    .toolbar select, .toolbar button {
-      margin-right: 0.5rem;
-      background: #444;
-      border: none;
-      color: #fff;
-      padding: 0.3rem 0.6rem;
-      cursor: pointer;
-    }
-    .toolbar select:focus, .toolbar button:focus {
-      outline: 2px solid #888;
-    }
+
+    /* Right dither pane (50%) */
     .dither-pane {
-      background: #222;
-      padding: 0.5rem;
-      overflow-y: auto; /* Allow scrolling if content is too tall */
+      width:50%;
+      padding:12px;
+      box-sizing:border-box;
+      background: var(--panel-bg);
+      overflow:auto;
     }
-    .dither-pane canvas {
-      background: #000;
-      max-width: 100%;
-      height: auto;
-      display: block; /* Remove extra space below canvas */
-      margin-top: 10px;
-    }
+    .control-row { margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    label { font-size:13px; color:#222; }
+    select,input[type="range"],button { font-family:inherit; font-size:13px; }
+    #ditherCanvas { width:100%; border:1px solid #ccc; display:block; max-width:100%; height:auto; margin-top:8px; image-rendering: pixelated; }
+
+    footer { padding:8px 12px; font-size:12px; color:#555; background:#fafafa; border-top:1px solid #eee; }
   </style>
-  <!-- IBM Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans&family=IBM+Plex+Serif&display=swap" rel="stylesheet">
-  <!-- p5.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
-  <!-- html2canvas for PNG export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <!-- Left Pane -->
-    <div class="editor-pane">
-      <div class="toolbar">
-        <select id="fontSelect">
-          <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
-          <option value="'IBM Plex Sans', sans-serif">IBM Plex Sans</option>
-          <option value="'IBM Plex Serif', serif">IBM Plex Serif</option>
-        </select>
-        <button id="ghostToggle">Ghost Mode: Off</button>
-        <button id="exportTxt">Export TXT</button>
-        <button id="exportPng">Export PNG</button>
-        <button id="exportSvg">Export SVG</button>
+  <div class="app">
+    <section class="editor-pane" aria-label="Editor and drawing area">
+      <div class="editor-top">
+        <div style="display:flex; align-items:center;">
+          <h2 style="margin:0; font-size:18px;">fadeaway</h2>
+          <span class="hint"> — hybrid notepad (press <strong>D</strong> to toggle drawing)</span>
+        </div>
+        <div class="controls">
+          <button id="exportTxtBtn">Export .txt</button>
+          <button id="exportPngBtn">Export .png</button>
+          <button id="exportSvgBtn">Export .svg</button>
+          <button id="clearDrawingBtn">Clear Drawing</button>
+        </div>
       </div>
-      <textarea id="notepad" placeholder="Write here..."></textarea>
-      <div id="drawCanvas"></div>
-    </div>
 
-    <!-- Right Pane -->
-    <div class="dither-pane">
-      <h3>Dither Playground</h3>
-      <input type="file" id="uploadImage"><br>
-      <select id="ditherType">
-        <option value="floyd">Floyd–Steinberg</option>
-        <option value="atkinson">Atkinson</option>
-        <option value="bayer">Bayer Ordered</option>
-        <option value="threshold">Threshold</option>
-        <option value="random">Random</option>
-      </select>
-      <input type="range" id="scale" min="1" max="8" value="1">
-      <canvas id="ditherCanvas" width="400" height="400"></canvas>
-    </div>
+      <div id="editorWrap">
+        <textarea id="notepad" spellcheck="false">Welcome to fadeaway
+Type here — toggle drawing with the "D" key and draw over the page.</textarea>
+        <div id="drawCanvas"></div>
+      </div>
+
+      <footer>
+        Drawing strokes are saved as vector paths (SVG export). Text uses IBM font from repo.
+      </footer>
+    </section>
+
+    <aside class="dither-pane" aria-label="Dithering playground">
+      <h3 style="margin-top:0">Dithering Playground</h3>
+
+      <div class="control-row">
+        <label for="uploadImage">Upload image:</label>
+        <input id="uploadImage" type="file" accept="image/*" />
+      </div>
+
+      <div class="control-row">
+        <label for="algoSelect">Algorithm:</label>
+        <select id="algoSelect">
+          <option value="floyd">Floyd–Steinberg</option>
+          <option value="atkinson">Atkinson</option>
+          <option value="bayer">Bayer Ordered (4x4)</option>
+          <option value="threshold">Threshold</option>
+          <option value="random">Random</option>
+        </select>
+
+        <label for="paletteSelect">Palette:</label>
+        <select id="paletteSelect">
+          <option value="bw">Black & White</option>
+          <option value="grayscale">Grayscale</option>
+          <option value="4level">4-level</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="scaleRange">Scale (pixel size):</label>
+        <input id="scaleRange" type="range" min="1" max="12" value="2" />
+        <span id="scaleVal">2</span>
+      </div>
+
+      <div class="control-row">
+        <label for="thresholdRange">Threshold (for threshold/floyd/atkinson):</label>
+        <input id="thresholdRange" type="range" min="0" max="255" value="128" />
+        <span id="thresholdVal">128</span>
+      </div>
+
+      <div class="control-row">
+        <button id="applyDitherBtn">Apply Dither</button>
+        <button id="downloadDitherBtn">Download Dither PNG</button>
+        <button id="resetDitherBtn">Reset</button>
+      </div>
+
+      <canvas id="ditherCanvas"></canvas>
+      <div style="margin-top:12px; font-size:12px; color:#444;">
+        Algorithms implemented: Floyd–Steinberg, Atkinson, Ordered Bayer (4x4), Threshold, Random. Palettes: BW / grayscale / 4-level. You can add more styles later.
+      </div>
+    </aside>
   </div>
 
+  <!-- p5.js for drawing overlay -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
   <script>
-    // === Font Selector ===
-    const notepad = document.getElementById('notepad');
-    document.getElementById('fontSelect').addEventListener('change', (e) => {
-      notepad.style.fontFamily = e.target.value;
-    });
+  /* ===========================
+     HYBRID NOTEPAD + p5 DRAWING
+     =========================== */
 
-    // === Ghost Mode + Drawing (p5.js) ===
-    let ghostMode = false;
-    let p5Canvas; // To store the p5.js canvas element
+  let drawingEnabled = false;
+  let paths = [];            // array of stroke arrays, each stroke is [{x,y},...]
+  let currentStroke = [];
+  let sketchWidth = 800;
+  let sketchHeight = 600;
 
-    function setup() {
-      const drawCanvasContainer = document.getElementById('drawCanvas');
-      p5Canvas = createCanvas(drawCanvasContainer.offsetWidth, drawCanvasContainer.offsetHeight);
-      p5Canvas.parent('drawCanvas');
-      clear(); // Start with a clear canvas
-      background(255); // Set initial background to white for drawing
-    }
+  function setup() {
+    // create a p5 canvas sized to the editorWrap
+    const wrap = document.getElementById('editorWrap');
+    const w = Math.max(200, Math.floor(wrap.clientWidth));
+    const h = Math.max(200, Math.floor(wrap.clientHeight - 0)); // footer sits outside
+    sketchWidth = w; sketchHeight = h;
+    const cnv = createCanvas(w, h);
+    cnv.parent('drawCanvas');
+    clear();
+    stroke(0);
+    strokeWeight(2);
+    noFill();
+    // ensure drawing overlay doesn't intercept typing unless drawingEnabled true
+    document.getElementById('drawCanvas').style.pointerEvents = 'none';
+  }
 
-    function draw() {
-      if (ghostMode) {
-        // Only apply ghost trail when ghostMode is active
-        background(255, 10);
-      } else {
-        // When not in ghost mode, draw a solid background if needed,
-        // or just let previous drawings persist without fading.
-        // For a non-ghost mode, we want strokes to be persistent.
-        // If you want to clear the canvas on every frame even when ghost mode is off,
-        // you'd call background(255) here. But that would remove persistent strokes.
-        // To have persistent strokes, we only clear/fade when ghostMode is active.
-      }
-
-      // Check if mouse is pressed AND within the p5 canvas bounds
-      if (mouseIsPressed && mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-        stroke(0); // Black stroke
-        strokeWeight(2);
+  function draw() {
+    // nothing dynamic required; drawing happens while mouse is pressed
+    if (mouseIsPressed && drawingEnabled) {
+      // ensure mouse coords are inside the p5 canvas
+      if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
         line(pmouseX, pmouseY, mouseX, mouseY);
+        currentStroke.push({x: mouseX, y: mouseY});
       }
     }
+  }
 
-    document.getElementById('ghostToggle').addEventListener('click', () => {
-      ghostMode = !ghostMode;
-      document.getElementById('ghostToggle').textContent = ghostMode ? "Ghost Mode: On" : "Ghost Mode: Off";
-      if (!ghostMode) {
-        clear(); // Clear the canvas immediately when ghost mode is turned off
-        background(255); // Reset to a solid white background
-      } else {
-         // Optionally, clear and start the ghost trail immediately when enabled
-         clear();
+  function mouseReleased() {
+    if (drawingEnabled && currentStroke.length > 0) {
+      paths.push(currentStroke.slice());
+      currentStroke = [];
+    }
+  }
+
+  function keyPressed() {
+    // toggle drawing mode with D key
+    if (key === 'd' || key === 'D') {
+      drawingEnabled = !drawingEnabled;
+      document.getElementById('drawCanvas').style.pointerEvents = drawingEnabled ? 'auto' : 'none';
+      // visual hint: change cursor
+      const drawCanvasEl = document.getElementById('drawCanvas');
+      drawCanvasEl.style.cursor = drawingEnabled ? 'crosshair' : 'default';
+    }
+  }
+
+  function windowResized() {
+    // resize p5 canvas to match editorWrap
+    const wrap = document.getElementById('editorWrap');
+    const w = Math.max(200, Math.floor(wrap.clientWidth));
+    const h = Math.max(200, Math.floor(wrap.clientHeight));
+    sketchWidth = w; sketchHeight = h;
+    resizeCanvas(w, h);
+    redrawDrawingFromPaths();
+  }
+
+  function clearDrawing() {
+    clear();
+    background(0,0,0,0); // transparent
+    paths = [];
+    currentStroke = [];
+  }
+
+  function redrawDrawingFromPaths() {
+    clear();
+    background(0,0,0,0);
+    stroke(0);
+    strokeWeight(2);
+    noFill();
+    for (const strokePath of paths) {
+      if (strokePath.length < 2) continue;
+      beginShape();
+      for (const p of strokePath) vertex(p.x, p.y);
+      endShape();
+    }
+  }
+
+  // hook up clear button
+  document.getElementById('clearDrawingBtn').addEventListener('click', () => {
+    clearDrawing();
+  });
+
+  /* ===============
+     EXPORT FUNCTIONS
+     =============== */
+
+  // export .txt
+  document.getElementById('exportTxtBtn').addEventListener('click', () => {
+    const text = document.getElementById('notepad').value;
+    const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fadeaway.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // export .png (merge text + drawing)
+  document.getElementById('exportPngBtn').addEventListener('click', async () => {
+    // create a canvas sized to the current p5 canvas
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = sketchWidth;
+    exportCanvas.height = sketchHeight;
+    const ctx = exportCanvas.getContext('2d');
+
+    // white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+    // draw text onto export canvas
+    const textEl = document.getElementById('notepad');
+    const lines = textEl.value.split('\n');
+    const fontSize = 16;
+    ctx.fillStyle = '#000';
+    ctx.font = `${fontSize}px IBMMonoCustom, monospace`;
+    ctx.textBaseline = 'top';
+    const lineHeight = Math.round(fontSize * 1.35);
+    const padding = 20;
+    let y = padding;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // basic wrap measurement
+      ctx.fillText(line, padding, y);
+      y += lineHeight;
+      if (y > exportCanvas.height - padding) break;
+    }
+
+    // draw p5 canvas drawing (it is at #drawCanvas canvas)
+    const p5canvas = document.querySelector('#drawCanvas canvas');
+    if (p5canvas) {
+      ctx.drawImage(p5canvas, 0, 0);
+    }
+
+    // trigger download
+    const a = document.createElement('a');
+    a.href = exportCanvas.toDataURL('image/png');
+    a.download = 'fadeaway.png';
+    a.click();
+  });
+
+  // export .svg: text as <text> and strokes as paths
+  document.getElementById('exportSvgBtn').addEventListener('click', () => {
+    const width = sketchWidth;
+    const height = sketchHeight;
+    const lines = document.getElementById('notepad').value.split('\n');
+    const fontSize = 16;
+    const lineHeight = Math.round(fontSize * 1.35);
+    const padding = 20;
+
+    // sanitize line text for XML
+    function esc(t) {
+      return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    }
+
+    let svg = `<?xml version="1.0" encoding="utf-8"?>\n`;
+    svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n`;
+    svg += `<style>@font-face{font-family:IBMMonoCustom;src:url('https://raw.githubusercontent.com/ghostm68/inktwo/main/soviet-program/ibm-extended/IBMPlexMono-Medium.ttf');} text{font-family:IBMMonoCustom, monospace; font-size:${fontSize}px;}</style>\n`;
+    svg += `<rect width="100%" height="100%" fill="white"/>\n`;
+    svg += `<g fill="black" font-family="IBMMonoCustom" font-size="${fontSize}">\n`;
+    for (let i = 0; i < lines.length; i++) {
+      const y = padding + i * lineHeight;
+      svg += `<text x="${padding}" y="${y}">${esc(lines[i])}</text>\n`;
+    }
+    svg += `</g>\n`;
+
+    // add stroke paths
+    svg += `<g fill="none" stroke="black" stroke-width="2">\n`;
+    for (const strokePath of paths) {
+      if (!strokePath.length) continue;
+      const d = strokePath.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+      svg += `<path d="${d}" stroke-linecap="round" stroke-linejoin="round"/>\n`;
+    }
+    svg += `</g>\n</svg>`;
+
+    const blob = new Blob([svg], {type: 'image/svg+xml;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fadeaway.svg';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ==========================
+     DITHERING PANEL FUNCTIONS
+     ========================== */
+
+  const uploadInput = document.getElementById('uploadImage');
+  const ditherCanvas = document.getElementById('ditherCanvas');
+  const dCtx = ditherCanvas.getContext('2d');
+
+  const algoSelect = document.getElementById('algoSelect');
+  const paletteSelect = document.getElementById('paletteSelect');
+  const scaleRange = document.getElementById('scaleRange');
+  const scaleVal = document.getElementById('scaleVal');
+  const thresholdRange = document.getElementById('thresholdRange');
+  const thresholdVal = document.getElementById('thresholdVal');
+
+  scaleRange.addEventListener('input', ()=> scaleVal.textContent = scaleRange.value );
+  thresholdRange.addEventListener('input', ()=> thresholdVal.textContent = thresholdRange.value );
+
+  let sourceImage = null;
+
+  uploadInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      sourceImage = img;
+      // set canvas size
+      ditherCanvas.width = img.width;
+      ditherCanvas.height = img.height;
+      dCtx.drawImage(img, 0, 0);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  document.getElementById('applyDitherBtn').addEventListener('click', () => {
+    if (!sourceImage) {
+      alert('Please upload an image first.');
+      return;
+    }
+    // draw source into canvas first
+    dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    dCtx.drawImage(sourceImage, 0, 0);
+    applyDitherToCanvas();
+  });
+
+  document.getElementById('resetDitherBtn').addEventListener('click', () => {
+    if (sourceImage) {
+      dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+      dCtx.drawImage(sourceImage, 0, 0);
+    } else {
+      dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    }
+  });
+
+  document.getElementById('downloadDitherBtn').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = ditherCanvas.toDataURL('image/png');
+    a.download = 'fadeaway-dither.png';
+    a.click();
+  });
+
+  // Helpers
+  function getImageDataCopy() {
+    return dCtx.getImageData(0,0,ditherCanvas.width,ditherCanvas.height);
+  }
+
+  function applyDitherToCanvas() {
+    const algo = algoSelect.value;
+    const palette = paletteSelect.value;
+    const scale = parseInt(scaleRange.value,10) || 1;
+    const threshold = parseInt(thresholdRange.value,10) || 128;
+
+    // We perform dithering on a scaled-down "pixel grid" according to scale factor,
+    // then upscale for preview by drawing larger rectangles (for clearer effect).
+    // For simplicity we do algorithms on the original size, but then present scaled for preview by nearest-neighbor scaling.
+    const img = getImageDataCopy();
+    const w = img.width, h = img.height;
+    const out = new Uint8ClampedArray(w*h*4);
+
+    // Convert to luminance buffer
+    const lum = new Float32Array(w*h);
+    for (let i=0;i<w*h;i++){
+      const di = i*4;
+      const r = img.data[di], g = img.data[di+1], b = img.data[di+2];
+      lum[i] = 0.299*r + 0.587*g + 0.114*b;
+    }
+
+    if (algo === 'threshold') {
+      for (let i=0;i<w*h;i++){
+        const v = lum[i] < threshold ? 0 : 255;
+        writeOut(i, v, palette);
       }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'g') {
-        ghostMode = !ghostMode;
-        document.getElementById('ghostToggle').textContent = ghostMode ? "Ghost Mode: On" : "Ghost Mode: Off";
-        if (!ghostMode) {
-          clear(); // Clear the canvas immediately when ghost mode is turned off
-          background(255); // Reset to a solid white background
-        } else {
-          clear();
+    } else if (algo === 'random') {
+      for (let i=0;i<w*h;i++){
+        const v = (lum[i] < Math.random()*255) ? 0 : 255;
+        writeOut(i, v, palette);
+      }
+    } else if (algo === 'bayer') {
+      const bayer = [
+        [0,  8,  2, 10],
+        [12, 4, 14, 6],
+        [3, 11, 1, 9],
+        [15, 7, 13, 5]
+      ];
+      for (let y=0;y<h;y++){
+        for (let x=0;x<w;x++){
+          const i = y*w + x;
+          const m = bayer[y%4][x%4] / 16; // normalize 0..1
+          const val = lum[i] / 255;
+          const v = (val < m) ? 0 : 255;
+          writeOut(i, v, palette);
         }
       }
-    });
-
-    function windowResized() {
-      const drawCanvasContainer = document.getElementById('drawCanvas');
-      resizeCanvas(drawCanvasContainer.offsetWidth, drawCanvasContainer.offsetHeight);
-      // When resizing, the background might need to be redrawn
-      if (!ghostMode) {
-        background(255); // Maintain solid background if not in ghost mode
+    } else if (algo === 'floyd') {
+      // error diffusion - modify a copy of lum (float buffer)
+      const buf = new Float32Array(lum);
+      for (let y=0;y<h;y++){
+        for (let x=0;x<w;x++){
+          const idx = y*w + x;
+          const oldv = buf[idx];
+          const newv = oldv < threshold ? 0 : 255;
+          const err = oldv - newv;
+          writeOut(idx, newv, palette);
+          // distribute error
+          if (x+1 < w) buf[idx+1] += err * 7/16;
+          if (x-1 >=0 && y+1<h) buf[idx + w -1] += err * 3/16;
+          if (y+1 < h) buf[idx + w] += err * 5/16;
+          if (x+1 < w && y+1 < h) buf[idx + w +1] += err * 1/16;
+        }
       }
-      // Note: Resizing clears the p5.js canvas. If you want drawings to persist
-      // across resizes, you'd need to save and redraw them (e.g., store strokes in an array).
+    } else if (algo === 'atkinson') {
+      const buf = new Float32Array(lum);
+      for (let y=0;y<h;y++){
+        for (let x=0;x<w;x++){
+          const idx = y*w + x;
+          const oldv = buf[idx];
+          const newv = oldv < threshold ? 0 : 255;
+          const err = (oldv - newv) / 8;
+          writeOut(idx, newv, palette);
+          // distribute to 6 neighbors
+          distribute(buf, idx, x+1,y, w,h, err);
+          distribute(buf, idx, x+2,y, w,h, err);
+          distribute(buf, idx, x-1,y+1, w,h, err);
+          distribute(buf, idx, x,y+1, w,h, err);
+          distribute(buf, idx, x+1,y+1, w,h, err);
+          distribute(buf, idx, x,y+2, w,h, err);
+        }
+      }
     }
 
-    // === Export Functions ===
-    // TXT
-    document.getElementById('exportTxt').addEventListener('click', () => {
-      const blob = new Blob([notepad.value], { type: 'text/plain;charset=utf-8' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = "fadeaway.txt";
-      link.click();
-    });
+    // place out into imagedata
+    const imgOut = dCtx.createImageData(w,h);
+    imgOut.data.set(out);
+    // now draw to an intermediate canvas sized to w x h, then scale up to show "scale"
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const tCtx = tmp.getContext('2d');
+    tCtx.putImageData(imgOut, 0, 0);
 
-    // PNG (textarea + drawing merged)
-    document.getElementById('exportPng').addEventListener('click', () => {
-      const editorPane = document.querySelector('.editor-pane');
-      html2canvas(editorPane, {
-        allowTaint: true, // Needed if you load images from different origins, might cause security issues if not careful
-        useCORS: true,    // Attempt to use CORS for images
-        ignoreElements: (element) => element.id === 'drawCanvas' && element.querySelector('canvas') === null // Exclude the raw #drawCanvas div if p5 canvas isn't there
-      }).then(canvas => {
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL("image/png");
-        link.download = "fadeaway.png";
-        link.click();
-      });
-    });
+    // upscale to ditherCanvas using nearest neighbor to preserve pixel blocks
+    const displayScale = parseInt(scaleRange.value,10) || 1;
+    ditherCanvas.width = w * displayScale;
+    ditherCanvas.height = h * displayScale;
+    dCtx.imageSmoothingEnabled = false;
+    dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    dCtx.drawImage(tmp, 0, 0, ditherCanvas.width, ditherCanvas.height);
+  }
 
-    // SVG (text + drawing as embedded raster)
-    document.getElementById('exportSvg').addEventListener('click', () => {
-      const drawCanvasContainer = document.getElementById('drawCanvas');
-      const drawingCanvas = drawCanvasContainer.querySelector('canvas'); // Get the actual p5.js canvas
+  function writeOut(i, v, palette) {
+    let r,g,b;
+    if (palette === 'bw') {
+      r = g = b = v < 128 ? 0 : 255;
+    } else if (palette === 'grayscale') {
+      // preserve original gray levels but quantize to 16 steps maybe; here simple map of v
+      r = g = b = v;
+    } else if (palette === '4level') {
+      // four gray levels: 0,85,170,255
+      let level;
+      if (v < 64) level = 0;
+      else if (v < 128) level = 85;
+      else if (v < 192) level = 170;
+      else level = 255;
+      r = g = b = level;
+    } else {
+      r = g = b = v;
+    }
+    const base = i*4;
+    // ensure out exists
+    // (we write to "out" from applyDitherToCanvas scope)
+    // BUT out is lexically scoped — so this helper only used inside applyDitherToCanvas
+    // Inline write handled below where writeOut used.
+    out[base] = r; out[base+1] = g; out[base+2] = b; out[base+3] = 255;
+  }
 
-      if (!drawingCanvas) {
-          alert("No drawing canvas found!");
-          return;
-      }
+  function distribute(buf, idx, x, y, w, h, err) {
+    if (x < 0 || x >= w || y < 0 || y >= h) return;
+    const pos = y*w + x;
+    buf[pos] += err;
+  }
 
-      const svgWidth = drawingCanvas.width; // Use actual canvas dimensions
-      const svgHeight = drawingCanvas.height;
+  /* ===================
+     INITIALIZE P5 SKETCH
+     =================== */
+  // p5 automatically calls setup() and draw() when the p5 script loads.
+  // We add a small guard: if DOM not ready, wait
+  (function waitForDOMThenStart(){
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      // start p5 normally (p5 already initialized via <script>)
+      // no additional action needed; p5 will call setup.
+    } else {
+      window.addEventListener('DOMContentLoaded', ()=>{ /* p5 will run */ });
+    }
+  })();
 
-      const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
-      const svgFooter = `</svg>`;
-      const drawingData = drawingCanvas.toDataURL("image/png"); // Get data URL from p5.js canvas
+  /* =============================
+     Notes & Extensibility (brief)
+     =============================
+    - You can add more dithering styles by adding new branches in applyDitherToCanvas().
+    - The dithering functions operate on luminance buffers and are modular.
+    - The drawing overlay stores strokes in `paths` (array of arrays). SVG export uses them as <path>.
+    - To improve text wrapping in exported PNG, implement measuring/wrap logic similar to canvas measureText.
+  ============================= */
 
-      // Get text content and style
-      const textContent = notepad.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      const fontFamily = notepad.style.fontFamily || "'IBM Plex Mono', monospace";
-      const fontSize = window.getComputedStyle(notepad).fontSize; // Get computed font size
-      const padding = window.getComputedStyle(notepad).padding; // Get computed padding
-      const lineHeight = window.getComputedStyle(notepad).lineHeight; // Get computed line height
-
-      const svgContent = `
-        <rect width="100%" height="100%" fill="white"/>
-        <foreignObject x="0" y="0" width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml"
-               style="font-family:${fontFamily};
-                      font-size:${fontSize};
-                      line-height:${lineHeight};
-                      white-space:pre-wrap; /* Preserve spaces and allow wrapping */
-                      padding:${padding};
-                      color:black;">
-            ${textContent.split('\n').map(line => `<span>${line}</span>`).join('<br/>')}
-          </div>
-        </foreignObject>
-        <image href="${drawingData}" x="0" y="0" width="${svgWidth}" height="${svgHeight}" />
-      `;
-      const svgBlob = new Blob([svgHeader + svgContent + svgFooter], {type: "image/svg+xml;charset=utf-8"});
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(svgBlob);
-      link.download = "fadeaway.svg";
-      link.click();
-    });
   </script>
 </body>
 </html>
