@@ -33,7 +33,64 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <link rel="preload" href="https://fonts.gstatic.com/s/bevietnam/v2/qkBXz4hOWIKA7JZqjEzXEMj-.woff2" as="font" type="font/woff2" crossorigin w-tid="41"/>
+<style>
+/* SPLASH SCREEN STYLES - UPDATED */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a2a6c 0%, #2a5298 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.8s ease-out;
+}
 
+/* HIDE ALL CONTENT DURING SPLASH SCREEN */
+body:has(#splash-screen) > *:not(#splash-screen) {
+    visibility: hidden;
+    opacity: 0;
+}
+
+body:not(:has(#splash-screen)) > * {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.splash-content {
+    text-align: center;
+    color: white;
+    z-index: 10;
+}
+
+/* NEW LOADER - SPINNING GIF */
+.loader {
+    width: 188px;
+    height: 188px;
+    border-radius: 50%;
+    background: url('https://raw.githubusercontent.com/ghostm68/pantheon/main/myText_20251002-024217.png') center/cover;
+    animation: spin 4s linear infinite;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#floatingLetters {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+}
+	</style>
 <style type="text/tailwindcss">
     :root {
       --primary-color: #a413ec;
@@ -213,6 +270,13 @@
 		
 	  </style>
 </head>
+	  <!-- SPLASH SCREEN - ADDED AT THE VERY TOP -->
+  <div id="splash-screen">
+    <canvas id="floatingLetters"></canvas>
+    <div class="splash-content">
+      <div class="loader"></div>
+    </div>
+  </div>
 	<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col min-h-screen" w-tid="45">
     <!-- Enhanced Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-[var(--bg-primary)] z-[9999] flex items-center justify-center" w-tid="47">
@@ -1408,5 +1472,111 @@ setTimeout(updateWordCount, 100);
     }
   </script>
 
-					
+	  <script>
+    class FloatingLetters {
+        constructor() {
+            this.canvas = document.getElementById('floatingLetters');
+            this.ctx = this.canvas.getContext('2d');
+            this.letters = [];
+            this.mouse = { x: 0, y: 0, radius: 100 };
+            
+            this.russianLetters = '.,?!;:'"()[]{}-–—_*/&%$#@~^';
+            this.colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+            
+            this.resize();
+            this.init();
+            this.animate();
+            
+            window.addEventListener('resize', () => this.resize());
+            window.addEventListener('mousemove', (e) => {
+                this.mouse.x = e.clientX;
+                this.mouse.y = e.clientY;
+            });
+        }
+
+        resize() {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+        }
+
+        init() {
+            const numberOfLetters = Math.min(50, Math.floor(window.innerWidth / 20));
+            
+            for (let i = 0; i < numberOfLetters; i++) {
+                this.letters.push({
+                    char: this.russianLetters[Math.floor(Math.random() * this.russianLetters.length)],
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    size: Math.random() * 20 + 15,
+                    speedX: (Math.random() - 0.5) * 2,
+                    speedY: (Math.random() - 0.5) * 2,
+                    opacity: Math.random() * 0.5 + 0.3,
+                    color: this.colors[Math.floor(Math.random() * this.colors.length)],
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 2,
+                    targetOpacity: Math.random() * 0.5 + 0.3,
+                    changeOpacity: Math.random() * 100
+                });
+            }
+        }
+
+        animate() {
+            requestAnimationFrame(() => this.animate());
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.letters.forEach(letter => {
+                letter.x += letter.speedX;
+                letter.y += letter.speedY;
+                letter.rotation += letter.rotationSpeed;
+                
+                if (letter.x < 0 || letter.x > this.canvas.width) letter.speedX *= -1;
+                if (letter.y < 0 || letter.y > this.canvas.height) letter.speedY *= -1;
+                
+                const dx = letter.x - this.mouse.x;
+                const dy = letter.y - this.mouse.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < this.mouse.radius) {
+                    const angle = Math.atan2(dy, dx);
+                    const force = (this.mouse.radius - distance) / this.mouse.radius;
+                    letter.x += Math.cos(angle) * force * 5;
+                    letter.y += Math.sin(angle) * force * 5;
+                }
+                
+                letter.changeOpacity--;
+                if (letter.changeOpacity <= 0) {
+                    letter.targetOpacity = Math.random() * 0.5 + 0.3;
+                    letter.changeOpacity = Math.random() * 100 + 50;
+                }
+                
+                letter.opacity += (letter.targetOpacity - letter.opacity) * 0.05;
+                
+                this.ctx.save();
+                this.ctx.translate(letter.x, letter.y);
+                this.ctx.rotate(letter.rotation * Math.PI / 180);
+                this.ctx.globalAlpha = letter.opacity;
+                this.ctx.fillStyle = letter.color;
+                this.ctx.font = `${letter.size}px Arial`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(letter.char, 0, 0);
+                this.ctx.restore();
+            });
+        }
+    }
+
+    // Initialize and manage splash screen
+    document.addEventListener('DOMContentLoaded', function() {
+        const splashScreen = document.getElementById('splash-screen');
+        const floatingLetters = new FloatingLetters();
+        
+        // Hide splash screen after 3 seconds
+        setTimeout(() => {
+            splashScreen.style.opacity = '0';
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+            }, 800);
+        }, 3000);
+    });
+	  </script>
       </body></html>
