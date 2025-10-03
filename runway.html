@@ -1,1491 +1,790 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<link rel="icon" href="https://github.com/ghostm68/pantheon/raw/main/atari.gif" type="image/x-icon"/>
-	<link rel="shortcut icon" href="https://github.com/ghostm68/pantheon/raw/main/atari.gif" type="image/x-icon"/>
-<!-- SEO Meta Tags -->
-<meta name="description" content="Step back into fashion with Inkrealm's 'Runway' experience! This unique website combines a fully functional video-style word processor with all the classic features '+'. Immerse yourself in the magic of fashion computing and notes, all within a captivating pixel art design reminiscent of the cutting edge.">
-<meta name="keywords" content="Runway, Inkrealm, retro, word processor, modern, video, pixel art,literature, typing">
-
-<!-- Open Graph Meta Tags -->
-<meta property="og:title" content="Inkrealm: runway word processor">
-<meta property="og:description" content="Relish the new age of fashion and writing with Inkrealm's 'Runway'! Enjoy an easy typing experience with our fashion-inspired word processor and challenge yourself in action. All wrapped in a stunning pixel art design that captures the essence of high fashion.">
-<meta property="og:url" content="https://inkrealm.info/runway">
-<meta property="og:type" content="website">
-
-
 <head>
-<meta charset="utf-8"/>
-	  <meta name="viewport" content="width=1024">
-<title>RUNWAY</title>
-<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-	    <link href="data:image/x-icon;base64," rel="icon" type="image/x-icon" w-tid="27"/>
-    <link href="https://fonts.googleapis.com" rel="preconnect" w-tid="29"/>
-    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" w-tid="31"/>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" w-tid="33"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" w-tid="35"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" w-tid="37"></script>
-<!-- jsPDF (for PDF export) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <link rel="preload" href="https://fonts.gstatic.com/s/bevietnam/v2/qkBXz4hOWIKA7JZqjEzXEMj-.woff2" as="font" type="font/woff2" crossorigin w-tid="41"/>
-<style>
-	/* CRITICAL: LOADER MUST BE FIRST IN CSS */
-#fullscreen-loader {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(135deg, #1a2a6c 0%, #2a5298 100%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 999999;
-    transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
-}
-
-#fullscreen-loader.hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-
-#fullscreen-loader img {
-    width: 400px;
-    height: 400px;
-    max-width: 80vw;
-    max-height: 80vh;
-    object-fit: contain;
-    animation: smoothSpin 4s linear infinite;
-    filter: drop-shadow(0 0 60px rgba(255, 255, 255, 0.6)) 
-            drop-shadow(0 0 30px rgba(164, 19, 236, 0.4));
-}
-
-@keyframes smoothSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* Hide all body content until loaded */
-body:not(.loaded) > *:not(#fullscreen-loader) {
-    visibility: hidden !important;
-    opacity: 0 !important;
-}
-
-body.loaded > * {
-    visibility: visible;
-    opacity: 1;
-}
-	</style>
-<style type="text/tailwindcss">
+  <meta charset="utf-8" />
+  <title>fadeaway — hybrid notepad + dither (with Ghost Playground)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
     :root {
-      --primary-color: #a413ec;
+      --gap: 10px;
+      --panel-bg: #f8f8f8;
+      --ui-bg: #fafafa;
+      --accent: #2b6cb0;
     }
-    body {
-      font-family: 'Be Vietnam Pro', sans-serif;
+    html,body { height:100%; margin:0; font-family: "IBMMonoCustom", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+    /* load local IBM font fallback (raw GitHub) */
+    @font-face {
+      font-family: 'IBMMonoCustom';
+      src: url('https://raw.githubusercontent.com/ghostm68/inktwo/main/soviet-program/ibm-extended/IBMPlexMono-Medium.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
     }
-    .bar-graph {
-      display: flex;
-      align-items: flex-end;
-      height: 24px;
-      gap: 2px;
+    /* layout */
+    .app { display:flex; height:100vh; gap:var(--gap); background:#efefef; }
+    .editor-pane { width:50%; display:flex; flex-direction:column; border-right:1px solid #ccc; position:relative; background:white; min-width:320px; }
+    .editor-top { padding:10px; display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid #eee; background:var(--ui-bg); }
+    .editor-controls { display:flex; gap:8px; align-items:center; }
+    #editorWrap { position:relative; flex:1; overflow:hidden; min-height:220px; }
+    textarea#notepad { position:absolute; inset:0; width:100%; height:100%; margin:0; padding:20px; border:none; outline:none; resize:none; font-family:"IBMMonoCustom", monospace; font-size:16px; line-height:1.35; background:transparent; color:#121212; z-index:1; box-sizing:border-box; overflow:auto; }
+    /* p5 canvas holder sits above the textarea */
+    #drawCanvas { position:absolute; inset:0; z-index:2; pointer-events:none; }
+    .hint { font-size:12px; color:#666; margin-left:8px; }
+
+    .btn { background:#fff; border:1px solid #ccc; padding:6px 8px; cursor:pointer; border-radius:4px; }
+    .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .small { padding:4px 6px; font-size:13px; }
+
+    .dither-pane { width:50%; padding:12px; box-sizing:border-box; background:var(--panel-bg); overflow:auto; min-width:320px; }
+    .control-row { margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    label { font-size:13px; color:#222; min-width:90px; }
+    select,input[type="range"],button,input[type="file"] { font-family:inherit; font-size:13px; }
+    #ditherCanvas { width:100%; border:1px solid #ccc; display:block; max-width:100%; height:auto; margin-top:8px; image-rendering: pixelated; }
+
+    footer { padding:8px 12px; font-size:12px; color:#555; background:#fafafa; border-top:1px solid #eee; }
+
+    /* slide-out full-page ghost menu */
+    .ghost-menu {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.98);
+      box-shadow: -6px 0 18px rgba(0,0,0,0.2);
+      transition: right 320ms cubic-bezier(.2,.9,.2,1);
+      z-index:9999;
+      display:flex;
+      flex-direction:column;
     }
-    .bar {
-      width: 4px;
-      background-color: var(--primary-color);
-      animation: pulse 1.5s infinite ease-in-out;
+    .ghost-menu.open { right: 0; }
+    .ghost-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #eee; background:#fff; }
+    .ghost-controls { padding:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:#fafafa; border-bottom:1px solid #eee; }
+    .ghost-canvas-wrap { flex:1; display:flex; align-items:stretch; justify-content:center; padding:12px; }
+    #ghostCanvas { width:100%; max-width:1600px; height:100%; border:1px solid #ddd; background:#fff; }
+
+    .help { position: absolute; right:16px; bottom:16px; font-size:12px; color:#444; background: rgba(255,255,255,0.9); padding:6px 10px; border-radius:6px; border:1px solid #eee; }
+
+    @media (max-width:900px) {
+      .app { flex-direction:column; }
+      .editor-pane,.dither-pane { width:100%; height:50vh; }
     }
-    @keyframes pulse {
-      0%, 100% { transform: scaleY(0.2); }
-      50% { transform: scaleY(1); }
-    }
-    .format-button.active {
-      background-color: var(--primary-color);
-    }
-    .auto-save-indicator {
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    .auto-save-indicator.show {
-      opacity: 1;
-    }
-    .search-highlight {
-      background-color: rgba(164, 19, 236, 0.3);
-      padding: 0 2px;
-      border-radius: 2px;
-    }
-</style>
-	  <style type="text/tailwindcss" w-tid="43">
-        :root {
-          --primary-color: #a413ec;
-          --bg-primary: #100C13;
-          --bg-secondary: #1C1820;
-          --text-primary: white;
-          --text-secondary: #9CA3AF;
-          --border-color: #2A232E;
-        }
-
-        /* Light mode color scheme */
-        .light-mode {
-          --bg-primary: #F3F4F6;
-          --bg-secondary: #E5E7EB;
-          --text-primary: #111827;
-          --text-secondary: #6B7280;
-          --border-color: #D1D5DB;
-        }
-
-        body {
-          font-family: 'Be Vietnam Pro', sans-serif;
-          background-color: var(--bg-primary);
-          color: var(--text-primary);
-          transition: background-color 0.3s, color 0.3s;
-        }
-
-        /* Enhanced accessibility and theme transitions */
-        * {
-          transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-        }
-
-        /* Improved focus states */
-        :focus-visible {
-          outline: 2px solid var(--primary-color);
-          outline-offset: 2px;
-        }
-
-        /* Scrollbar styling for both themes */
-        ::-webkit-scrollbar {
-          width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-          background: var(--bg-secondary);
-        }
-        ::-webkit-scrollbar-thumb {
-          background: var(--primary-color);
-          border-radius: 4px;
-        }
-
-        /* Subtle animation for interactive elements */
-        @keyframes subtle-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-
-        .interactive-element:hover {
-          animation: subtle-pulse 0.3s ease-in-out;
-        }
-
-        /* Internationalization and collaboration styles */
-        .collaboration-cursor {
-            position: absolute;
-            border-left: 2px solid var(--primary-color);
-            animation: cursor-blink 1s infinite;
-        }
-        
-        @keyframes cursor-blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        
-        .translation-badge {
-            background-color: rgba(164, 19, 236, 0.2);
-            color: var(--primary-color);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-        }
-
-        /* Splash Page Animation */
-        @keyframes pixel-pulse {
-            0%, 100% { transform: scale(1); opacity: 0.7; }
-            50% { transform: scale(1.1); opacity: 1; }
-        }
-
-        @keyframes runway-reveal {
-            0% { 
-                letter-spacing: -0.5em; 
-                opacity: 0; 
-                transform: scale(0.5);
-            }
-            100% { 
-                letter-spacing: normal; 
-                opacity: 1; 
-                transform: scale(1);
-            }
-        }
-
-        #loading-overlay {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 2rem;
-            background: linear-gradient(135deg, #100C13 0%, #1C1820 100%);
-        }
-
-        .pixel-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 4px;
-            animation: pixel-pulse 2s infinite alternate;
-        }
-
-        .pixel {
-            width: 20px;
-            height: 20px;
-            background-color: var(--primary-color);
-            opacity: 0.7;
-            transition: all 0.3s ease;
-        }
-
-        .pixel:hover {
-            transform: scale(1.2);
-            opacity: 1;
-        }
-
-        .runway-title {
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            animation: runway-reveal 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .loading-subtitle {
-            color: var(--text-secondary);
-            animation: runway-reveal 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s backwards;
-        }
-		
-	  </style>
-</head>
-	<div id="fullscreen-loader">
-  <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/myText_20251002-024217.png" alt="Loading Runway...">
-</div>
-	<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col min-h-screen" w-tid="45">
-    <!-- Enhanced Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-[var(--bg-primary)] z-[9999] flex items-center justify-center" w-tid="47">
-        <div class="text-center" w-tid="49">
-            <div class="pixel-grid mb-8" w-tid="51">
-                <!-- Dynamically generated pixels -->
-            </div>
-            <h1 class="runway-title mb-4" w-tid="53">RUNWAY</h1>
-            <p class="loading-subtitle text-xl" w-tid="55">by inkrealm.info</p>
-        </div>
-    </div>
-<body class="bg-[#100C13] text-white">
-<div class="flex flex-col min-h-screen">
-<header class="sticky top-0 z-20 bg-[#100C13]/80 backdrop-blur-sm border-b border-[#2A232E]">
-  <div class="container mx-auto px-6 h-20 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-      <div class="flex flex-col">
-        <a class="flex items-center gap-3" href="#">
-          <span class="text-xl font-bold">.......by inkrealm.info</span>
-        </a>
-        <span class="text-xs text-gray-500">.............Powered by google stitch, JS by claude sonnet</span>
-      </div>
-      <div class="flex items-center gap-2 bg-[#2A232E] p-1 rounded-lg">
-        <select id="font-select" class="bg-transparent border-none text-white text-sm focus:ring-0 w-32">
-          <option>Be Vietnam Pro</option>
-          <option>Inter</option>
-          <option>Roboto</option>
-          <option>Lato</option>
-			  <option>Montserrat</option>
-          <option>Open Sans</option>
-          <option>Poppins</option>
-          <option>Source Sans Pro</option>
-			 <option>Work Sans</option>
-        </select>
-        <div class="border-l border-gray-600 h-6"></div>
-        <button id="bold-btn" class="format-button p-2 rounded-md hover:bg-[#3a3142] transition-colors">
-          <span class="material-symbols-outlined text-base">format_bold</span>
-        </button>
-        <button id="italic-btn" class="format-button p-2 rounded-md hover:bg-[#3a3142] transition-colors">
-          <span class="material-symbols-outlined text-base">format_italic</span>
-        </button>
-        <button id="underline-btn" class="format-button p-2 rounded-md hover:bg-[#3a3142] transition-colors">
-          <span class="material-symbols-outlined text-base">format_underlined</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-6">
-      <div class="flex items-center gap-3">
-        <div class="text-right">
-        <div class="h-8 w-px bg-[#2A232E]"></div>
-        <div class="text-right">
-          <p class="text-sm font-semibold">Rome</p>
-          <p class="text-xs text-gray-400" id="rome-time">10:45 AM</p>
-        </div>
-      </div>
-
-      <div class="auto-save-indicator text-sm text-green-400 flex items-center gap-2">
-        <span class="material-symbols-outlined text-sm">cloud_done</span>
-        <span>Auto-saved</span>
-      </div>
-    </div>
-  </div>
-</header>
-
-<main class="flex-grow container mx-auto px-6 py-8">
-  <div class="flex flex-col @container">
-    <div class="mb-8 flex justify-between items-center">
-      <h1 class="text-4xl font-bold tracking-tight"> Runway Text</h1>
-      <div class="flex items-center gap-4">
-        <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
-        <button id="save-pdf" class="flex items-center gap-2 bg-[var(--primary-color)] hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-          <span class="material-symbols-outlined">file_download</span>
-          <span>Save as PDF</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="border-b border-[#2A232E] mb-6">
-      <nav class="-mb-px flex gap-8">
-		  <a class="py-4 px-1 text-gray-400 hover:text-white border-b-2 border-transparent hover:border-gray-400 text-sm font-medium" href="">RESOURCES:</a>
-        <a class="py-4 px-1 text-gray-400 hover:text-white border-b-2 border-transparent hover:border-gray-400 text-sm font-medium" href="https://fashionmuseum.fitnyc.edu/collections" target="_blank">collections</a>
-        <a class="py-4 px-1 text-white border-b-2 border-[var(--primary-color)] text-sm font-medium" href="https://www.palaisgalliera.paris.fr/en/palais-galliera/ressources-en-ligne" target="_blank" >galliera</a>
-        <a class="py-4 px-1 text-gray-400 hover:text-white border-b-2 border-transparent hover:border-gray-400 text-sm font-medium" href="https://digimuse.westphal.drexel.edu/ddm/" target="_blank">drexel</a>
-        <a class="py-4 px-1 text-gray-400 hover:text-white border-b-2 border-transparent hover:border-gray-400 text-sm font-medium" href="https://fitnyc.libguides.com/?b=s" target="_blank">marcus</a>
-      </nav>
-    </div>
-		   
-<!-- Word Counter -->
-      <div class="col-span-1 sticky top-28 h-fit">
-        <div class="bg-[#1C1820] border border-[#2A232E] rounded-lg p-6 space-y-6">
-          <div>
-            <h3 class="text-lg font-semibold mb-4">Word Counter</h3>
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm text-gray-400">Word Count</span>
-              <span id="word-count" class="font-semibold">0 / 500</span>
-            </div>
-            <div class="bg-[#2A232E] rounded-full h-2 mb-4">
-              <div id="word-progress" class="bg-[var(--primary-color)] h-2 rounded-full" style="width: 0%;"></div>
-            </div>
-            <div class="flex items-center justify-between">
-              <div id="activity-bars" class="bar-graph w-full">
-                <div class="bar" style="height: 60%; animation-delay: -0.1s;"></div>
-                <div class="bar" style="height: 90%; animation-delay: -0.2s;"></div>
-                <div class="bar" style="height: 40%; animation-delay: -0.3s;"></div>
-                <div class="bar" style="height: 70%; animation-delay: -0.4s;"></div>
-                <div class="bar" style="height: 100%; animation-delay: -0.5s;"></div>
-                <div class="bar" style="height: 50%; animation-delay: -0.6s;"></div>
-                <div class="bar" style="height: 80%; animation-delay: -0.7s;"></div>
-                <div class="bar" style="height: 60%; animation-delay: -0.8s;"></div>
-                <div class="bar" style="height: 90%; animation-delay: -0.9s;"></div>
-                <div class="bar" style="height: 40%; animation-delay: -1.0s;"></div>
-                <div class="bar" style="height: 70%; animation-delay: -1.1s;"></div>
-                <div class="bar" style="height: 100%; animation-delay: -1.2s;"></div>
-                <div class="bar" style="height: 50%; animation-delay: -1.3s;"></div>
-                <div class="bar" style="height: 80%; animation-delay: -1.4s;"></div>
-                <div class="bar" style="height: 60%; animation-delay: -1.5s;"></div>
-                <div class="bar" style="height: 90%; animation-delay: -1.6s;"></div>
-                <div class="bar" style="height: 40%; animation-delay: -1.7s;"></div>
-                <div class="bar" style="height: 70%; animation-delay: -1.8s;"></div>
-                <div class="bar" style="height: 100%; animation-delay: -1.9s;"></div>
-                <div class="bar" style="height: 50%; animation-delay: -2.0s;"></div>
-              </div>
-              <span class="text-sm text-gray-400 ml-4 whitespace-nowrap">Live</span>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-semibold mb-4">Preferences</h3>
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <label class="text-sm text-gray-300" for="video-bg">Video Background</label>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input checked="" class="sr-only peer" id="video-bg" type="checkbox" value=""/>
-                  <div class="w-11 h-6 bg-[#2A232E] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--primary-color)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary-color)]"></div>
-                </label>
-              </div>
-
-              <div>
-                <label class="text-sm text-gray-300" for="video-url">Custom Video URL</label>
-                <input id="video-url" class="mt-1 bg-[#2A232E] border border-transparent focus:border-[var(--primary-color)] focus:ring-[var(--primary-color)] rounded-lg px-4 py-2 text-sm w-full transition-all" placeholder="Enter YouTube video or playlist URL" type="text"/>
-              </div>
-
-            </div>
-		  </div>
-
-      <!-- Editor -->
-      <div class="col-span-1 @5xl:col-span-2 relative overflow-hidden rounded-lg border border-[#2A232E]">
-        <div id="video-background" class="absolute inset-0 z-0">
-          <iframe id="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full object-cover" frameborder="0" src="https://www.youtube.com/embed/zsu2WRFaUoQ?autoplay=1&mute=1&loop=1&playlist=zsu2WRFaUoQ&controls=0"></iframe>
-          
-        </div>
-
-        <textarea id="main-editor" class="relative z-10 w-full h-full min-h-[500px] bg-transparent p-6 text-base text-gray-200 leading-relaxed placeholder-gray-400 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] transition resize-none outline-none" placeholder="Describe your collection's story, key silhouettes, and fabric choices...">A key piece in the collection is a structured bustier top, crafted from duchess satin. The intricate boning and precisely placed darts create a flattering, sculpted silhouette that references classic corsetry while feeling modern and empowered. It's paired with a high-waisted, A-line skirt in a contrasting lightweight chiffon, allowing for fluid movement. The design employs a bias cut technique on the skirt to achieve a beautiful drape that follows the body's natural curves.</textarea>
-
-        <div id="related-terms" class="absolute bottom-4 right-4 z-10 bg-[#1C1820]/80 border border-[#2A232E] rounded-lg p-3 shadow-lg flex items-center gap-3 text-sm">
-          <span class="material-symbols-outlined text-[var(--primary-color)]">lightbulb</span>
-          <span class="text-gray-300">Related:</span>
-          <span class="font-medium text-white cursor-pointer hover:underline" data-term="corset">Corset</span>
-          <span class="font-medium text-white cursor-pointer hover:underline" data-term="bodice">Bodice</span>
-          <span class="font-medium text-white cursor-pointer hover:underline" data-term="satin">Satin</span>
-        </div>
-      </div>
-        </div>
-      </div>
-     
-		   <!-- Theme and Accessibility Controls -->
-    <div class="fixed top-4 center-4 z-50 flex items-center space-x-2" w-tid="87">
-        <button id="theme-toggle" class="bg-[var(--bg-secondary)] text-[var(--text-primary)] p-2 rounded-full shadow-lg interactive-element" w-tid="89">
-            <span class="material-symbols-outlined" w-tid="91">light_mode</span>
-        </button>
-     
-    </div>
-                           
-    </div>
-  </div>
-</main>
-</div>
-<script>
-// ===============================
-// State management
-// ===============================
-let autoSaveTimeout;
-const savedState = {
-  content: '',
-  preferences: {
-    videoBackground: true,
-    customVideoUrl: 'https://www.youtube.com/watch?v=zsu2WRFaUoQ',
-    font: 'Be Vietnam Pro'
-  }
-};
-
-// ===============================
-// Fashion Dictionary
-// ===============================
-const fashionDictionary = {
-  'a-line': 'A garment silhouette that is fitted at the hips and gradually widens towards the hem, giving the impression of the shape of a capital letter A.',
-  'applique': 'A decorative design made by cutting pieces of one material and applying them to the surface of another.',
-  'avant-garde': 'New and experimental fashion ideas, often unconventional and ahead of current trends.',
-  'bias-cut': 'A technique of cutting fabric diagonally across the grain, creating garments that drape naturally with body movement.',
-  'bespoke': 'Custom-made clothing created specifically for an individual customer.',
-  'bustier': 'A form-fitting garment worn as underwear or outerwear, designed to push up the bust and define the waist.',
-  'chiffon': 'A lightweight, sheer fabric with a slightly rough texture.',
-  'dart': 'A tapered seam used to shape flat fabric to the curves of the body.',
-  'draping': 'The technique of positioning and pinning fabric on a dress form to design in 3D.',
-  'embroidery': 'Decorative needlework in which designs are formed by stitching threads onto fabric.',
-  'empire-waist': 'A style where the waistline is raised above the natural waist, just below the bust.',
-  'haute-couture': 'High-end fashion constructed by hand from start to finish.',
-  'peplum': 'A short overskirt or ruffle attached at the waist of a garment.',
-  'corset': 'A close-fitting undergarment worn to shape and support the torso.',
-  'bodice': 'The upper part of a dress or the part above the waist.',
-  'satin': 'A smooth, glossy fabric with a lustrous surface.',
-  'silhouette': 'The overall shape or outline of a garment when worn.',
-  'texture': 'The surface quality or feel of a fabric.',
-  'couture': 'High-quality, custom-fitted clothing made with attention to detail.'
-};
-
-// ===============================
-// Get editor element (fixed reference)
-// ===============================
-function getEditor() {
-  return document.getElementById('main-editor');
-}
-
-// ===============================
-// On page load
-// ===============================
-window.addEventListener('DOMContentLoaded', function() {
-  const editor = getEditor();
-  
-  // Restore saved content
-  const savedContent = localStorage.getItem('runway-content');
-  if (savedContent) {
-    editor.value = savedContent;
-  }
-
-  // Restore preferences or set defaults
-  const savedPrefs = localStorage.getItem('runway-preferences');
-  if (savedPrefs) {
-    Object.assign(savedState.preferences, JSON.parse(savedPrefs));
-    applyPreferences();
-  } else {
-    updateVideoUrl(savedState.preferences.customVideoUrl);
-  }
-
-  updateWordCount();
-  updateClocks();
-  setInterval(updateClocks, 1000);
-  updateActivityBars();
-});
-
-// ===============================
-// Real-time clocks
-// ===============================
-function updateClocks() {
-  const now = new Date();
-
-  const paris = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  document.getElementById('paris-time').textContent = paris.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
-
-  const ny = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  document.getElementById('ny-time').textContent = ny.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
-
-  const rome = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Rome" }));
-  document.getElementById('rome-time').textContent = rome.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
-}
-
-// ===============================
-// Text formatting (simplified for textarea)
-// ===============================
-function formatText(command) {
-  const editor = getEditor();
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const selectedText = editor.value.substring(start, end);
-  
-  if (selectedText) {
-    let formattedText = selectedText;
-    switch(command) {
-      case 'bold':
-        formattedText = `**${selectedText}**`;
-        break;
-      case 'italic':
-        formattedText = `*${selectedText}*`;
-        break;
-      case 'underline':
-        formattedText = `__${selectedText}__`;
-        break;
-    }
-    
-    editor.value = editor.value.substring(0, start) + formattedText + editor.value.substring(end);
-    editor.focus();
-    editor.setSelectionRange(start + formattedText.length, start + formattedText.length);
-    
-    triggerAutoSave();
-    updateWordCount();
-  }
-}
-
-// Formatting button events
-document.getElementById('bold-btn').addEventListener('click', () => formatText('bold'));
-document.getElementById('italic-btn').addEventListener('click', () => formatText('italic'));
-document.getElementById('underline-btn').addEventListener('click', () => formatText('underline'));
-
-// ===============================
-// Font selector
-// ===============================
-document.getElementById('font-select').addEventListener('change', function(e) {
-  const font = e.target.value;
-  getEditor().style.fontFamily = font;
-  savedState.preferences.font = font;
-  savePreferences();
-});
-
-// ===============================
-// Word counter + live activity bars
-// ===============================
-const editor = getEditor();
-editor.addEventListener('input', function() {
-  updateWordCount();
-  triggerAutoSave();
-  updateActivityBars();
-});
-
-function updateWordCount() {
-  const text = getEditor().value.trim();
-  const wordCount = text === '' ? 0 : text.split(/\s+/).length;
-  const maxWords = 500;
-  const percentage = Math.min((wordCount / maxWords) * 100, 100);
-
-  document.getElementById('word-count').textContent = `${wordCount} / ${maxWords}`;
-  document.getElementById('word-progress').style.width = `${percentage}%`;
-
-  const progressBar = document.getElementById('word-progress');
-  if (percentage > 90) {
-    progressBar.style.backgroundColor = '#ef4444';
-  } else if (percentage > 75) {
-    progressBar.style.backgroundColor = '#f59e0b';
-  } else {
-    progressBar.style.backgroundColor = 'var(--primary-color)';
-  }
-}
-
-function updateActivityBars() {
-  const bars = document.querySelectorAll('#activity-bars .bar');
-  bars.forEach(bar => {
-    const randomHeight = Math.random() * 80 + 20;
-    bar.style.height = `${randomHeight}%`;
-  });
-}
-
-// ===============================
-// Auto-save
-// ===============================
-function triggerAutoSave() {
-  clearTimeout(autoSaveTimeout);
-  autoSaveTimeout = setTimeout(autoSave, 2000);
-}
-
-function autoSave() {
-  const content = getEditor().value;
-  localStorage.setItem('runway-content', content);
-
-  const indicator = document.querySelector('.auto-save-indicator');
-  indicator.classList.add('show');
-  setTimeout(() => indicator.classList.remove('show'), 2000);
-}
-
-function savePreferences() {
-  localStorage.setItem('runway-preferences', JSON.stringify(savedState.preferences));
-}
-
-function applyPreferences() {
-  document.getElementById('video-bg').checked = savedState.preferences.videoBackground;
-  document.getElementById('video-url').value = savedState.preferences.customVideoUrl;
-  document.getElementById('font-select').value = savedState.preferences.font;
-
-  getEditor().style.fontFamily = savedState.preferences.font;
-
-  toggleVideoBackground(savedState.preferences.videoBackground);
-  if (savedState.preferences.customVideoUrl) {
-    updateVideoUrl(savedState.preferences.customVideoUrl);
-  }
-}
-
-// ===============================
-// Dictionary search + definition popup
-// ===============================
-const dictionarySearch = document.getElementById('dictionary-search');
-const dictionaryTerms = document.querySelectorAll('.dictionary-term');
-
-dictionarySearch.addEventListener('input', function(e) {
-  const searchTerm = e.target.value.toLowerCase();
-
-  dictionaryTerms.forEach(term => {
-    const termText = term.textContent.toLowerCase();
-    const isVisible = termText.includes(searchTerm);
-    term.style.display = isVisible ? 'block' : 'none';
-
-    if (searchTerm && isVisible) {
-      const regex = new RegExp(`(${searchTerm})`, 'gi');
-      term.innerHTML = term.textContent.replace(regex, '<span class="search-highlight">$1</span>');
-    } else {
-      term.innerHTML = term.textContent;
-    }
-  });
-});
-
-// Insert dictionary terms into editor
-dictionaryTerms.forEach(term => {
-  term.addEventListener('click', function(e) {
-    e.preventDefault();
-    const termText = this.textContent;
-    const termKey = this.getAttribute('data-term') || termText.toLowerCase();
-    insertAtCursor(termText);
-    showDefinition(termKey);
-  });
-});
-
-// Related terms
-document.querySelectorAll('#related-terms [data-term]').forEach(term => {
-  term.addEventListener('click', function(e) {
-    e.preventDefault();
-    const termText = this.textContent;
-    const termKey = this.getAttribute('data-term');
-    insertAtCursor(termText);
-    showDefinition(termKey);
-  });
-});
-
-function insertAtCursor(text) {
-  const editor = getEditor();
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  
-  editor.value = editor.value.substring(0, start) + ' ' + text + ' ' + editor.value.substring(end);
-  editor.focus();
-  editor.setSelectionRange(start + text.length + 2, start + text.length + 2);
-  
-  triggerAutoSave();
-  updateWordCount();
-}
-
-function showDefinition(term) {
-  const definition = fashionDictionary[term.toLowerCase()] || fashionDictionary[term.replace('-', '').toLowerCase()];
-  if (definition) {
-    let popup = document.getElementById('definition-popup');
-    if (!popup) {
-      popup = document.createElement('div');
-      popup.id = 'definition-popup';
-      popup.className = 'fixed bottom-20 left-6 bg-[#1C1820] border border-[#2A232E] rounded-lg p-4 max-w-sm z-30 shadow-lg';
-      document.body.appendChild(popup);
-    }
-
-    popup.innerHTML = `
-      <div class="flex justify-between items-start mb-2">
-        <h4 class="font-semibold text-[var(--primary-color)] capitalize">${term.replace('-', ' ')}</h4>
-        <button onclick="closeDefinition()" class="text-gray-400 hover:text-white">
-          <span class="material-symbols-outlined text-sm">close</span>
-        </button>
-      </div>
-      <p class="text-sm text-gray-300 leading-relaxed">${definition}</p>
-    `;
-
-    popup.style.display = 'block';
-    setTimeout(() => { if (popup) closeDefinition(); }, 8000);
-  }
-}
-
-function closeDefinition() {
-  const popup = document.getElementById('definition-popup');
-  if (popup) popup.style.display = 'none';
-}
-
-// ===============================
-// Video background controls
-// ===============================
-document.getElementById('video-bg').addEventListener('change', function(e) {
-  savedState.preferences.videoBackground = e.target.checked;
-  toggleVideoBackground(e.target.checked);
-  savePreferences();
-});
-
-document.getElementById('video-url').addEventListener('change', function(e) {
-  savedState.preferences.customVideoUrl = e.target.value;
-  if (e.target.value && savedState.preferences.videoBackground) {
-    updateVideoUrl(e.target.value);
-  }
-  savePreferences();
-});
-
-function toggleVideoBackground(show) {
-  const videoBackground = document.getElementById('video-background');
-  videoBackground.style.display = show ? 'block' : 'none';
-}
-
-function updateVideoUrl(url) {
-  const iframe = document.getElementById('video-iframe');
-  let embedUrl = url;
-
-  if (url.includes('youtube.com/watch')) {
-    const videoId = url.split('v=')[1].split('&')[0];
-    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&playlist=${videoId}`;
-  } else if (url.includes('youtu.be/')) {
-    const videoId = url.split('youtu.be/')[1].split('?')[0];
-    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&playlist=${videoId}`;
-  } else if (url.includes('youtube.com/playlist') || url.includes('list=')) {
-    const playlistId = url.split('list=')[1].split('&')[0];
-    embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1&mute=1&loop=1&controls=0`;
-  }
-
-  iframe.src = embedUrl;
-}
-
-// ===============================
-// PDF functionality
-// ===============================
-document.getElementById('save-pdf').addEventListener('click', function() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  
-  // Get content
-  const title = document.querySelector('h1').textContent;
-  const content = getEditor().value;
-  const wordCount = content.trim() === '' ? 0 : content.trim().split(/\s+/).length;
-  
-  // Add title
-  doc.setFontSize(20);
-  doc.text(title, 20, 30);
-  
-  // Add metadata
-  doc.setFontSize(10);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 45);
-  doc.text(`Word Count: ${wordCount}`, 20, 52);
-  
-  // Add content
-  doc.setFontSize(12);
-  const splitContent = doc.splitTextToSize(content, 170);
-  doc.text(splitContent, 20, 70);
-  
-  // Add dictionary terms used
-  const usedTerms = [];
-  Object.keys(fashionDictionary).forEach(term => {
-    if (content.toLowerCase().includes(term.toLowerCase()) || content.toLowerCase().includes(term.replace('-', ' ').toLowerCase())) {
-      usedTerms.push(term);
-    }
-  });
-  
-  if (usedTerms.length > 0) {
-    const contentHeight = 70 + (splitContent.length * 5);
-    doc.text('Fashion Terms Used:', 20, contentHeight + 20);
-    doc.setFontSize(10);
-    usedTerms.forEach((term, index) => {
-      const definition = fashionDictionary[term];
-      const termText = `${term.charAt(0).toUpperCase() + term.slice(1).replace('-', ' ')}: ${definition}`;
-      const splitTerm = doc.splitTextToSize(termText, 170);
-      doc.text(splitTerm, 20, contentHeight + 30 + (index * 15));
-    });
-  }
-  
-  // Save the PDF
-  doc.save('runway-project.pdf');
-  
-  // Update button feedback
-  const button = this;
-  const originalText = button.innerHTML;
-  button.innerHTML = '<span class="material-symbols-outlined">check</span><span>Saved!</span>';
-  setTimeout(() => { button.innerHTML = originalText; }, 2000);
-});
-
-document.getElementById('load-pdf').addEventListener('click', function() {
-  document.getElementById('pdf-file-input').click();
-});
-
-document.getElementById('pdf-file-input').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (file && file.type === 'application/pdf') {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      // For now, just show a message that PDF was loaded
-      // Full PDF text extraction would require additional libraries
-      const button = document.getElementById('load-pdf');
-      const originalText = button.innerHTML;
-      button.innerHTML = '<span class="material-symbols-outlined">check</span><span>PDF Loaded</span>';
-      setTimeout(() => { button.innerHTML = originalText; }, 2000);
-      
-      // You could integrate PDF.js here for full text extraction
-      alert('PDF loaded! Note: Full text extraction requires additional setup.');
-    };
-    reader.readAsArrayBuffer(file);
-  }
-});
-
-// ===============================
-// Keyboard shortcuts
-// ===============================
-document.addEventListener('keydown', function(e) {
-  if (e.ctrlKey || e.metaKey) {
-    switch(e.key) {
-      case 'b': e.preventDefault(); formatText('bold'); break;
-      case 'i': e.preventDefault(); formatText('italic'); break;
-      case 'u': e.preventDefault(); formatText('underline'); break;
-      case 's': e.preventDefault(); autoSave(); break;
-    }
-  }
-});
-
-// Initialize word count on load
-setTimeout(updateWordCount, 100);
-      </script>
-
- <footer class="bg-[#1C1820] border-t border-[#2A232E] py-8 mt-auto" w-tid="45">
-        <div class="container mx-auto px-6" w-tid="47">
-            <div class="flex flex-col md:flex-row justify-between items-center" w-tid="49">
-                <div class="text-sm text-gray-400 mb-4 md:mb-0" w-tid="51">
-                    <p w-tid="53">Get <a class="py-4 px-1 text-gray-400 hover:text-white border-b-2 border-transparent hover:border-gray-400 text-sm font-medium" href="https://liroemagazine.com/" target="_blank">liroe</a> 
-		<img width="66" height="60" src="https://github.com/ghostm68/pantheon/raw/main/liroe.inkrealm.info.runway.promotional.gif"><br> </p>
-	 <div id="search-container">
-        <input type="text" id="search-input" placeholder="Enter a word to look up">
-        <button id="search-button">Further Dictionary (w/German)</button>
-    </div>
-    <div id="result"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
-    <script>
-        const searchInput = document.getElementById('search-input');
-        const searchButton = document.getElementById('search-button');
-        const result = document.getElementById('result');
-
-        const dictionaryUrls = [
-            'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
-            'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
-            'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
-            'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json'
-        ];
-
-        async function searchDictionary(word) {
-            result.innerHTML = '<p class="loading">Searching...</p>';
-            
-            try {
-                const responses = await Promise.all(dictionaryUrls.map(url => axios.get(url)));
-                const dictionaries = responses.map(response => response.data);
-                
-                let definitionsFound = false;
-                let resultHTML = `<h2>Definitions and Translations for "${word}":</h2>`;
-
-                dictionaries.forEach((dictionary, index) => {
-                    if (index < 3) {
-                        if (dictionary[word.toLowerCase()]) {
-                            definitionsFound = true;
-                            const definition = dictionary[word.toLowerCase()];
-                            resultHTML += `
-                                <h3>English Definition (Source ${index + 1}):</h3>
-                                <p>${definition}</p>
-                            `;
-                        }
-                    } else {
-                        // German-English dictionary
-                        const germanTranslations = Object.entries(dictionary).filter(([key, value]) => 
-                            value.toLowerCase().includes(word.toLowerCase()) || key.toLowerCase() === word.toLowerCase()
-                        );
-                        if (germanTranslations.length > 0) {
-                            definitionsFound = true;
-                            resultHTML += `<h3>German Translations:</h3><ul>`;
-                            germanTranslations.forEach(([german, english]) => {
-                                resultHTML += `<li>${german} - ${english}</li>`;
-                            });
-                            resultHTML += `</ul>`;
-                        }
-                    }
-                });
-
-                if (definitionsFound) {
-                    result.innerHTML = resultHTML;
-                } else {
-                    result.innerHTML = `<p>No definition or translation found for "${word}" in any of the sources.</p>`;
-                }
-            } catch (error) {
-                console.error('Error fetching dictionary data:', error);
-                result.innerHTML = '<p>An error occurred while searching. Please try again later.</p>';
-            }
-        }
-
-        searchButton.addEventListener('click', () => {
-            const word = searchInput.value.trim();
-            if (word) {
-                searchDictionary(word);
-            }
-        });
-
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const word = searchInput.value.trim();
-                if (word) {
-                    searchDictionary(word);
-                }
-            }
-        });
-    </script>
-
-   
- <footer class="bg-[#1C1820] border-t border-[#2A232E] py-8 mt-auto" w-tid="45">
-        <div class="container mx-auto px-6" w-tid="47">
-            <div class="flex flex-col md:flex-row justify-between items-center" w-tid="49">
-                <div class="text-sm text-gray-400 mb-4 md:mb-0" w-tid="51">
-                    <p w-tid="53">© 2025 Inkrealm. All rights reserved.</p>
-                </div>
-                <div class="flex items-center space-x-4" w-tid="55">
-                    <a href="mailto:inkrealm@wordstar.nexus" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2" w-tid="57">
-                        <span class="material-symbols-outlined text-[var(--primary-color)]" w-tid="59">mail</span>
-                        inkrealm@wordstar.nexus ↗
-                    </a>
-                </div>
-                <div class="text-xs text-gray-500 mt-4 md:mt-0" w-tid="61">
-                
-                </div>
-            </div>
-        </div>
-    </footer>
-			
-            <script w-tid="155">
-        // Theme toggle functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = themeToggle.querySelector('.material-symbols-outlined');
-
-        // Check for saved theme preference or system preference
-        const savedTheme = localStorage.getItem('runway-theme') || 
-            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        
-        function setTheme(theme) {
-            if (theme === 'light') {
-                document.documentElement.classList.add('light-mode');
-                themeIcon.textContent = 'dark_mode';
-                localStorage.setItem('runway-theme', 'light');
-            } else {
-                document.documentElement.classList.remove('light-mode');
-                themeIcon.textContent = 'light_mode';
-                localStorage.setItem('runway-theme', 'dark');
-            }
-        }
-
-        // Initial theme setup
-        setTheme(savedTheme);
-
-        // Theme toggle event
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.classList.contains('light-mode') ? 'light' : 'dark';
-            setTheme(currentTheme === 'dark' ? 'light' : 'dark');
-        });
-
-        // Expand font selection
-        const fontSelect = document.getElementById('font-select');
-        const extendedFonts = [
-            'Be Vietnam Pro', 
-            'Inter', 
-            'Roboto', 
-            'Lato', 
-            'Montserrat', 
-            'Open Sans', 
-            'Poppins', 
-            'Source Sans Pro', 
-            'Work Sans'
-        ];
-
-        // Clear existing options and add extended fonts
-        fontSelect.innerHTML = extendedFonts.map(font => 
-            `<option value="${font}">${font}</option>`
-        ).join('');
-
-        // Expand fashion dictionary
-        const expandedFashionDictionary = {
-            ...fashionDictionary,  // Existing dictionary
-            // New terms
-            'minimalism': 'A design approach characterized by simplicity, clean lines, and a monochromatic palette.',
-            'sustainable-fashion': 'An approach to clothing design, production, and consumption that prioritizes environmental and social responsibility.',
-            'upcycling': 'The process of transforming by-products, waste materials, or unwanted products into new materials or products of better quality or environmental value.',
-            'gender-neutral': 'Clothing designed to be non-specific to a particular gender, focusing on universal styles and fits.',
-            'streetwear': 'Casual clothing style that originated from urban youth culture and has since become a global fashion phenomenon.',
-            'tech-wear': 'Fashion that integrates technological elements and performance materials into clothing design.',
-            'circular-fashion': 'A regenerative approach where materials are reused, recycled, and kept in use for as long as possible.',
-            'capsule-wardrobe': 'A compact collection of versatile clothing pieces that can be mixed and matched to create multiple outfits.',
-            'zero-waste-design': 'A pattern cutting and construction method that eliminates textile waste during the garment creation process.'
-        };
-
-        // Update the global fashionDictionary
-        Object.assign(fashionDictionary, expandedFashionDictionary);
-
-        // Loading Overlay and Performance Optimization
-        window.addEventListener('load', () => {
-            const loadingOverlay = document.getElementById('loading-overlay');
-            
-            // Fade out animation
-            loadingOverlay.style.transition = 'opacity 1s, visibility 1s';
-            loadingOverlay.style.opacity = '0';
-            loadingOverlay.style.visibility = 'hidden';
-            
-            setTimeout(() => {
-                loadingOverlay.style.display = 'none';
-            }, 1000);
-        });
-
-
- 
-
-        // Pixel Grid Generation
-        document.addEventListener('DOMContentLoaded', () => {
-            const pixelGrid = document.querySelector('.pixel-grid');
-            
-            // Generate 100 pixels
-            for (let i = 0; i < 100; i++) {
-                const pixel = document.createElement('div');
-                pixel.classList.add('pixel');
-                
-                // Random opacity and slight size variation
-                pixel.style.opacity = `${0.6 + Math.random() * 0.4}`;
-                pixel.style.transform = `scale(${0.9 + Math.random() * 0.2})`;
-                
-                pixelGrid.appendChild(pixel);
-            }
-        });
-    </script> 
-				
-
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  </style>
+
+  <!-- load IBM Plex alternatives from Google -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans&family=IBM+Plex+Serif&display=swap" rel="stylesheet">
+  <!-- p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <!-- html2canvas for PNG merging (fallback) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-
-  <div id="chart-creation-section">
-    <h3>Mermaid Chart Creator</h3>
-
-    <details>
-      <summary>Mermaid Cheat Sheet & Fashion Examples</summary>
-      <div class="mermaid-example">
-        <h4>Dior Collection Workflow (Flowchart)</h4>
-        <pre><code>graph TD
-            A[Concept & Inspiration] --> B{Sketching & Design};
-            B -- Approved --> C[Fabric Selection];
-            B -- Rejected --> A;
-            C --> D[Pattern Making];
-            D --> E[Sample Creation];
-            E --> F{Final Review};
-            F -- Approved --> G[Production];
-            F -- Rejected --> B;
-            style A fill:#f9f9f9,stroke:#333,stroke-width:2px
-            style B fill:#e0e0e0,stroke:#333,stroke-width:2px
-            style C fill:#f9f9f9,stroke:#333,stroke-width:2px
-        </code></pre>
-      </div>
-
-      <div class="mermaid-example">
-        <h4>Chanel Show Sequence (Sequence Diagram)</h4>
-        <pre><code>sequenceDiagram
-            participant Host
-            participant Model
-            participant Audience
-            Host->>Model: Introduction
-            Model->>Audience: Runway Walk
-            Audience-->>Model: Applause
-            Model->>Host: Final Pose
-            Host->>Audience: Thank You
-            style Host fill:#f0f0f0,stroke:#333,stroke-width:2px
-            style Model fill:#e0e0e0,stroke:#333,stroke-width:2px
-            style Audience fill:#f9f9f9,stroke:#333,stroke-width:2px
-        </code></pre>
-      </div>
-
-      <p><b>Tip:</b> Use <code>graph TD</code> for flowcharts and <code>sequenceDiagram</code> for sequence diagrams.</p>
-      <p><a href="https://mermaid.js.org/">Mermaid Documentation & Playground click here</a></p>
-		  
-    </details>
-
-    <textarea id="mermaid-code" placeholder="Enter Mermaid code here..." rows="10" cols="50"></textarea>
-	  <br>
-    <button id="insert-chart-button">Insert Chart</button>
-	  <br>
-    <button id="download-code-button">Download Code</button>
-	  <br>
-	  <img width="486" height="336" src="https://github.com/ghostm68/pantheon/raw/main/inkrealm.info.runway.mermaid.gif"><br> </p>
-	  <br>
-	
-	 inkrealm.info/runway is under construction - est. September 13, 2025
-  <br>
-	  <iframe width="486" height="436" src="https://opal.withgoogle.com/?flow=drive:/1cyNNaw8vLd8MP7S2L1VC-pECPXPRWZSe&shared&mode=app" title="opal"></iframe>
-  </div>
-		   <div class="col-span-1 @5xl:col-span-2 relative overflow-hidden rounded-lg border border-[#2A232E]">
-      <!-- Dictionary -->
-      <div class="col-span-1 @5xl:col-span-1 h-fit sticky top-28">
-        <div class="bg-[#1C1820] border border-[#2A232E] rounded-lg p-6">
-          <h3 class="text-lg font-semibold mb-4">Design Dictionary</h3>
-          <div class="relative mb-4">
-            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-            <input id="dictionary-search" class="bg-[#2A232E] border border-transparent focus:border-[var(--primary-color)] focus:ring-[var(--primary-color)] rounded-lg pl-10 pr-4 py-2 text-sm w-full transition-all" placeholder="Search terms..." type="search"/>
-          </div>
-          <div id="dictionary-list" class="space-y-3 max-h-[160px] overflow-y-auto pr-2">
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="a-line">A-line</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="applique">Appliqué</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="avant-garde">Avant-garde</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="bias-cut">Bias cut</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="bespoke">Bespoke</a>
-            <a class="dictionary-term block text-sm text-white font-medium bg-[#2A232E] p-2 rounded-md" href="#" data-term="bustier">Bustier</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="chiffon">Chiffon</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="dart">Dart</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="draping">Draping</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="embroidery">Embroidery</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="empire-waist">Empire waist</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="haute-couture">Haute Couture</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="peplum">Peplum</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="corset">Corset</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="bodice">Bodice</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="satin">Satin</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="silhouette">Silhouette</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="texture">Texture</a>
-            <a class="dictionary-term block text-sm text-gray-300 hover:text-white" href="#" data-term="couture">Couture</a>
-          </div>
-        </div>
-	  </div>
-<!-- AI Assistant Component - Add this anywhere on your page -->
-<div id="wordstar-ai-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;">
-    <button id="wordstar-ai-toggle" style="padding: 12px 16px; background: linear-gradient(135deg, #8B5CF6, #A855F7); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3); transition: all 0.2s;">
-        AI +
-    </button>
-    
-    <div id="wordstar-ai-sidebar" style="display: none; width: 350px; background: #374151; border: 2px solid #8B5CF6; border-radius: 12px; margin-top: 10px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
-        <h4 style="margin-top: 0; color: white; font-size: 12px; font-weight: 600;">AI + (BYOK, from: openrouter.ai/)</h4>
-        
-        <!-- API Key Section -->
-        <div style="margin-bottom: 15px;">
-            <input type="password" id="wordstar-api-key" placeholder="OpenRouter API Key" style="width: 100%; padding: 10px; margin-bottom: 8px; background: #4B5563; border: 1px solid #6B7280; border-radius: 6px; color: white; font-size: 13px;" autocomplete="off">
-            <button id="wordstar-save-key" style="width: 100%; padding: 10px; background: #8B5CF6; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background 0.2s;">Save Key</button>
-            <div id="wordstar-key-status" style="font-size: 12px; height: 16px; color: #D1D5DB; margin-top: 4px;"></div>
+  <div class="app">
+    <!-- LEFT: Editor + drawing overlay -->
+    <section class="editor-pane" aria-label="Editor and drawing area">
+      <div class="editor-top">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <h2 style="margin:0; font-size:18px;">fadeaway</h2>
+          <span class="hint">— hybrid notepad (press <strong>D</strong> to toggle drawing)</span>
         </div>
 
-        <!-- Model Selector -->
-        <select id="wordstar-model-select" style="width: 100%; padding: 10px; margin-bottom: 15px; background: #4B5563; border: 1px solid #6B7280; border-radius: 6px; color: white; font-size: 13px;">
-            <optgroup label="🚀 Verified Working Models (2025)">
-                <option value="meta-llama/llama-3.3-70b-instruct:free" selected>Llama 3.3 70B (prime)</option>
-                <option value="x-ai/grok-4-fast:free">Grok 4 ⚡Fast</option>
-                <option value="qwen/qwen3-235b-a22b:free">Qwen 3 235B</option>
-                <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B (wild)</option>
-            </optgroup>
-            <optgroup label="⚡ Alternative Models">
-                <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B</option>
-                <option value="microsoft/wizardlm-2-8x22b:free">WizardLM 2 8x22B</option>
-                <option value="mistralai/mistral-7b-instruct:free">Mistral 7B</option>
-                <option value="huggingfaceh4/zephyr-7b-beta:free">Zephyr 7B Beta</option>
-            </optgroup>
-            <optgroup label="📋 Diagnostic">
-                <option value="_LIST_MODELS_">📋 List Available Models</option>
-                <option value="_TEST_API_">🔧 Test API Connection</option>
-            </optgroup>
+        <div class="editor-controls">
+          <label for="fontSelect" style="margin:0;">Font</label>
+          <select id="fontSelect" title="Choose font">
+            <option value='"IBMMonoCustom", "IBM Plex Mono", monospace'>IBM Plex Mono (IBM)</option>
+            <option value='"IBM Plex Sans", sans-serif'>IBM Plex Sans</option>
+            <option value='"IBM Plex Serif", serif'>IBM Plex Serif</option>
+            <option value='monospace'>System Mono</option>
+          </select>
+
+          <button id="openGhostMenu" class="btn small">Open Ghost Playground</button>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="exportTxtBtn" class="btn small">Export .txt</button>
+            <button id="exportPngBtn" class="btn small">Export .png</button>
+            <button id="exportSvgBtn" class="btn small">Export .svg</button>
+            <button id="clearDrawingBtn" class="btn small">Clear Drawing</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="editorWrap">
+        <textarea id="notepad" spellcheck="false">Welcome to fadeaway
+Type here — toggle drawing with the "D" key and draw over the page. Use the Ghost Playground for flowfield experiments.</textarea>
+
+        <!-- main drawing canvas (global p5 sketch) -->
+        <div id="drawCanvas"></div>
+      </div>
+
+      <footer>
+        Drawing strokes saved as SVG paths. Text uses IBM font from repo. Ghost Playground is separate.
+      </footer>
+    </section>
+
+    <!-- RIGHT: Dithering playground (unchanged core) -->
+    <aside class="dither-pane" aria-label="Dithering playground">
+      <h3 style="margin-top:0">Dithering Playground</h3>
+
+      <div class="control-row">
+        <label for="uploadImage">Upload image:</label>
+        <input id="uploadImage" type="file" accept="image/*" />
+      </div>
+
+      <div class="control-row">
+        <label for="algoSelect">Algorithm:</label>
+        <select id="algoSelect">
+          <option value="floyd">Floyd–Steinberg</option>
+          <option value="atkinson">Atkinson</option>
+          <option value="bayer">Bayer Ordered (4x4)</option>
+          <option value="threshold">Threshold</option>
+          <option value="random">Random</option>
         </select>
 
-        <!-- Chat Area -->
-        <div id="wordstar-chat-history" style="height: 200px; border: 1px solid #6B7280; border-radius: 6px; padding: 12px; overflow-y: auto; margin-bottom: 12px; font-size: 13px; background: #1F2937; scrollbar-width: thin; scrollbar-color: #8B5CF6 #374151;"></div>
-        
-        <textarea id="wordstar-user-input" placeholder="Your message..." style="width: 100%; height: 60px; padding: 10px; margin-bottom: 10px; background: #4B5563; border: 1px solid #6B7280; border-radius: 6px; color: white; font-size: 13px; resize: vertical;" autocomplete="off"></textarea>
-        <button id="wordstar-send-btn" style="width: 100%; padding: 12px; background: #8B5CF6; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; margin-bottom: 8px; transition: background 0.2s;">Send</button>
-        <button id="wordstar-insert-btn" style="width: 100%; padding: 12px; background: #A855F7; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; display: none; transition: background 0.2s;">Insert Text</button>
+        <label for="paletteSelect">Palette:</label>
+        <select id="paletteSelect">
+          <option value="bw">Black & White</option>
+          <option value="grayscale">Grayscale</option>
+          <option value="4level">4-level</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="scaleRange">Scale (pixel size):</label>
+        <input id="scaleRange" type="range" min="1" max="12" value="2" />
+        <span id="scaleVal">2</span>
+      </div>
+
+      <div class="control-row">
+        <label for="thresholdRange">Threshold:</label>
+        <input id="thresholdRange" type="range" min="0" max="255" value="128" />
+        <span id="thresholdVal">128</span>
+      </div>
+
+      <div class="control-row">
+        <button id="applyDitherBtn" class="btn small primary">Apply Dither</button>
+        <button id="downloadDitherBtn" class="btn small">Download Dither PNG</button>
+        <button id="resetDitherBtn" class="btn small">Reset</button>
+      </div>
+
+      <canvas id="ditherCanvas"></canvas>
+
+      <div style="margin-top:12px; font-size:12px; color:#444;">
+        Algorithms: Floyd–Steinberg, Atkinson, Ordered Bayer, Threshold, Random. Palettes: BW / grayscale / 4-level.
+      </div>
+    </aside>
+  </div>
+
+  <!-- FULL-PAGE GHOST PLAYGROUND (slide-out) -->
+  <div id="ghostMenu" class="ghost-menu" aria-hidden="true">
+    <div class="ghost-header">
+      <div>
+        <strong>Ghost Playground</strong>
+        <span style="margin-left:8px; color:#666; font-size:13px;">flowfield & particle trails</span>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="ghostEnableBtn" class="btn small">Enable Ghost</button>
+        <button id="ghostResetBtn" class="btn small">Reset</button>
+        <button id="closeGhostMenu" class="btn small">Close</button>
+      </div>
     </div>
-</div>
-<script>
-(function() {
-    const loader = document.getElementById('fullscreen-loader');
-    const body = document.body;
-    
-    // Preload the image
-    const img = new Image();
-    img.src = 'https://raw.githubusercontent.com/ghostm68/pantheon/main/myText_20251002-024217.png';
-    
-    // Wait for page to fully load
-    window.addEventListener('load', function() {
-        // Show loader for minimum 2.5 seconds
-        setTimeout(function() {
-            // Add hidden class to trigger fade out
-            loader.classList.add('hidden');
-            body.classList.add('loaded');
-            
-            // Remove loader from DOM after transition
-            setTimeout(function() {
-                if (loader && loader.parentNode) {
-                    loader.parentNode.removeChild(loader);
-                }
-            }, 1000);
-        }, 2500);
-    });
-})();
-</script>
 
-<script>
-// WordStar AI Assistant - Standalone Component
-(function() {
-    let currentApiKey = '';
-    let lastAIResponse = '';
-    const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    
-    // Initialize
-    const savedKey = localStorage.getItem('wordstarOpenRouterKey');
-    if (savedKey) {
-        currentApiKey = savedKey;
-        document.getElementById('wordstar-api-key').value = '••••••••' + savedKey.slice(-4);
-        document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key loaded</span>';
-    }
-    
-    // Add hover effects
-    const toggleBtn = document.getElementById('wordstar-ai-toggle');
-    toggleBtn.addEventListener('mouseenter', () => {
-        toggleBtn.style.transform = 'translateY(-1px)';
-        toggleBtn.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-    });
-    toggleBtn.addEventListener('mouseleave', () => {
-        toggleBtn.style.transform = 'translateY(0)';
-        toggleBtn.style.boxShadow = '0 2px 8px rgba(139, 92, 246, 0.3)';
-    });
-    
-    // Event handlers
-    document.getElementById('wordstar-ai-toggle').addEventListener('click', function() {
-        const sidebar = document.getElementById('wordstar-ai-sidebar');
-        sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
-    });
-    
-    document.getElementById('wordstar-save-key').addEventListener('click', function() {
-        const keyInput = document.getElementById('wordstar-api-key');
-        const key = keyInput.value.trim();
-        
-        if (key && !key.startsWith('••••••••')) {
-            currentApiKey = key;
-            localStorage.setItem('wordstarOpenRouterKey', key);
-            keyInput.value = '••••••••' + key.slice(-4);
-            document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key saved</span>';
-        }
-    });
-    
-    document.getElementById('wordstar-save-key').addEventListener('mouseenter', function() {
-        this.style.background = '#7C3AED';
-    });
-    document.getElementById('wordstar-save-key').addEventListener('mouseleave', function() {
-        this.style.background = '#8B5CF6';
-    });
-    
-    document.getElementById('wordstar-send-btn').addEventListener('click', sendMessage);
-    document.getElementById('wordstar-insert-btn').addEventListener('click', insertText);
-    
-    document.getElementById('wordstar-user-input').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    
-    async function sendMessage() {
-        const message = document.getElementById('wordstar-user-input').value.trim();
-        if (!message || !currentApiKey) {
-            if (!currentApiKey) {
-                document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #EF4444;">⚠ API key required</span>';
-            }
-            return;
-        }
-        
-        addMessage('user', message);
-        document.getElementById('wordstar-user-input').value = '';
-        document.getElementById('wordstar-send-btn').disabled = true;
-        document.getElementById('wordstar-send-btn').textContent = 'Thinking...';
-        document.getElementById('wordstar-send-btn').style.background = '#6B7280';
-        
-        try {
-            const model = document.getElementById('wordstar-model-select').value;
-            const response = await fetch(OPENROUTER_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${currentApiKey}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': window.location.href,
-                    'X-Title': 'WordStar'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: message }],
-                    temperature: 0.7,
-                    max_tokens: 1000,
-                    stream: false
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            if (data.error) {
-                throw new Error(data.error.message || 'API Error');
-            }
-            
-            lastAIResponse = data.choices[0].message.content;
-            addMessage('assistant', lastAIResponse);
-            document.getElementById('wordstar-insert-btn').style.display = 'block';
-            
-        } catch (error) {
-            console.error('API Error:', error);
-            addMessage('system', 'Error: ' + error.message);
-        } finally {
-            document.getElementById('wordstar-send-btn').disabled = false;
-            document.getElementById('wordstar-send-btn').textContent = 'Send';
-            document.getElementById('wordstar-send-btn').style.background = '#8B5CF6';
-        }
-    }
-    
-    function addMessage(role, content) {
-        const chat = document.getElementById('wordstar-chat-history');
-        const msg = document.createElement('div');
-        
-        let bgColor, textColor;
-        if (role === 'user') {
-            bgColor = '#4B5563';
-            textColor = '#F3F4F6';
-        } else if (role === 'assistant') {
-            bgColor = '#1F2937';
-            textColor = '#D1D5DB';
-        } else {
-            bgColor = '#7F1D1D';
-            textColor = '#FEF2F2';
-        }
-        
-        msg.innerHTML = `<div style="margin-bottom: 10px; padding: 8px 10px; background: ${bgColor}; border-radius: 6px; border-left: 3px solid ${role === 'user' ? '#8B5CF6' : role === 'assistant' ? '#A855F7' : '#EF4444'};">
-            <strong style="color: ${role === 'user' ? '#C4B5FD' : role === 'assistant' ? '#DDD6FE' : '#FCA5A5'}; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">${role === 'user' ? 'You' : role === 'assistant' ? 'AI' : 'System'}</strong>
-            <div style="color: ${textColor}; margin-top: 4px; line-height: 1.4; white-space: pre-wrap;">${content}</div>
-        </div>`;
-        
-        chat.appendChild(msg);
-        chat.scrollTop = chat.scrollHeight;
-    }
-    
-    function insertText() {
-        if (!lastAIResponse) return;
-        
-        // Fixed: Use the correct textarea ID
-        const editor = document.getElementById('main-editor');
-        if (editor) {
-            const startPos = editor.selectionStart;
-            const endPos = editor.selectionEnd;
-            const beforeText = editor.value.substring(0, startPos);
-            const afterText = editor.value.substring(endPos);
-            
-            editor.value = beforeText + lastAIResponse + afterText;
-            
-            // Set cursor position after inserted text
-            const newPosition = startPos + lastAIResponse.length;
-            editor.setSelectionRange(newPosition, newPosition);
-            
-            // Trigger input event for editor reactivity
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            editor.focus();
-            
-            // Hide insert button after use
-            document.getElementById('wordstar-insert-btn').style.display = 'none';
-            
-            // Visual feedback
-            const insertBtn = document.getElementById('wordstar-insert-btn');
-            const originalText = insertBtn.textContent;
-            insertBtn.textContent = 'Inserted!';
-            insertBtn.style.background = '#10B981';
-            setTimeout(() => {
-                insertBtn.textContent = originalText;
-                insertBtn.style.background = '#A855F7';
-            }, 1500);
-        } else {
-            addMessage('system', 'Editor not found. Make sure the textarea has ID "main-editor".');
-        }
-    }
-    
-    // Add button hover effects
-    document.getElementById('wordstar-send-btn').addEventListener('mouseenter', function() {
-        if (!this.disabled) this.style.background = '#7C3AED';
-    });
-    document.getElementById('wordstar-send-btn').addEventListener('mouseleave', function() {
-        if (!this.disabled) this.style.background = '#8B5CF6';
-    });
-    
-    document.getElementById('wordstar-insert-btn').addEventListener('mouseenter', function() {
-        this.style.background = '#9333EA';
-    });
-    document.getElementById('wordstar-insert-btn').addEventListener('mouseleave', function() {
-        this.style.background = '#A855F7';
-    });
-    
-})();
-</script>
+    <div class="ghost-controls">
+      <label>Particles</label>
+      <input id="ghostParticles" type="range" min="10" max="800" value="120" />
+      <span id="ghostParticlesVal">120</span>
+
+      <label>Speed</label>
+      <input id="ghostSpeed" type="range" min="0.1" max="3" step="0.1" value="0.8" />
+      <span id="ghostSpeedVal">0.8</span>
+
+      <label>Trail fade</label>
+      <input id="ghostFade" type="range" min="2" max="60" step="1" value="18" />
+      <span id="ghostFadeVal">18</span>
+    </div>
+
+    <div class="ghost-canvas-wrap">
+      <div id="ghostCanvas" style="width:100%; height:100%;"></div>
+    </div>
+  </div>
+
+  <div class="help">Hotkeys: D = Draw, G = Toggle Ghost in Playground</div>
+
+  <!-- SCRIPT: full app logic (commented) -->
   <script>
-    const mermaidCodeTextarea = document.getElementById('mermaid-code');
-    const insertChartButton = document.getElementById('insert-chart-button');
-    const mermaidIframe = document.getElementById('mermaid-iframe');
-    const downloadCodeButton = document.getElementById('download-code-button');
+  /* ====================================================
+     Fadeaway — combined script
+     - Global p5 sketch for main drawing overlay (keeps original behaviour)
+     - p5 instance for Ghost Playground in slide menu (isolated)
+     - Font selector, exports, dithering, and controls wired
+     ==================================================== */
 
-    insertChartButton.addEventListener('click', () => {
-      const mermaidCode = mermaidCodeTextarea.value;
-      const iframeSrc = `https://mermaid.live/?mermaid=${encodeURIComponent(mermaidCode)}`;
-      mermaidIframe.src = iframeSrc;
+  // ---------- UTIL ----------
+  function $id(id){ return document.getElementById(id); }
+  function $(sel){ return document.querySelector(sel); }
 
-      // TODO: Implement logic to insert the chart (image or link) into the main editor
-    });
+  // Basic UI refs
+  const notepad = $id('notepad');
+  const fontSelect = $id('fontSelect');
+  const exportTxtBtn = $id('exportTxtBtn');
+  const exportPngBtn = $id('exportPngBtn');
+  const exportSvgBtn = $id('exportSvgBtn');
+  const clearDrawingBtn = $id('clearDrawingBtn');
 
-    downloadCodeButton.addEventListener('click', exportMermaidCode);
+  const openGhostMenuBtn = $id('openGhostMenu');
+  const ghostMenu = $id('ghostMenu');
+  const closeGhostMenuBtn = $id('closeGhostMenu');
+  const ghostEnableBtn = $id('ghostEnableBtn');
+  const ghostResetBtn = $id('ghostResetBtn');
+  const ghostParticlesSlider = $id('ghostParticles');
+  const ghostParticlesVal = $id('ghostParticlesVal');
+  const ghostSpeedSlider = $id('ghostSpeed');
+  const ghostSpeedVal = $id('ghostSpeedVal');
+  const ghostFadeSlider = $id('ghostFade');
+  const ghostFadeVal = $id('ghostFadeVal');
 
-    function exportMermaidCode() {
-      const mermaidCode = mermaidCodeTextarea.value;
-      const blob = new Blob([mermaidCode], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "mermaid_chart.txt";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+  // Dither refs
+  const uploadInput = $id('uploadImage');
+  const ditherCanvas = $id('ditherCanvas');
+  const dCtx = ditherCanvas.getContext('2d');
+  const algoSelect = $id('algoSelect');
+  const paletteSelect = $id('paletteSelect');
+  const scaleRange = $id('scaleRange');
+  const scaleVal = $id('scaleVal');
+  const thresholdRange = $id('thresholdRange');
+  const thresholdVal = $id('thresholdVal');
+  const applyDitherBtn = $id('applyDitherBtn');
+  const downloadDitherBtn = $id('downloadDitherBtn');
+  const resetDitherBtn = $id('resetDitherBtn');
+
+  scaleVal.textContent = scaleRange.value;
+  thresholdVal.textContent = thresholdRange.value;
+  scaleRange.addEventListener('input', ()=> scaleVal.textContent = scaleRange.value );
+  thresholdRange.addEventListener('input', ()=> thresholdVal.textContent = thresholdRange.value );
+
+  // ---------- STATE for main editor/drawing ----------
+  let drawingEnabled = false;       // toggled via D key
+  let paths = [];                   // recorded strokes (arrays of points)
+  let currentStroke = [];           // building stroke
+  let sketchW = 800, sketchH = 600; // canvas size used for export
+  // main p5 canvas is created in global mode (so p5 calls setup/draw automatically)
+
+  // font selector wiring (applies to textarea)
+  fontSelect.addEventListener('change', (e)=> { notepad.style.fontFamily = e.target.value; });
+  // apply initial font
+  notepad.style.fontFamily = fontSelect.value;
+
+  /* ============================
+     MAIN DRAWING SKETCH (global p5)
+     - lightweight drawing overlay for the notepad
+     - no flowfield here (that lives in the Ghost Playground)
+     ============================ */
+  function setup(){
+    // size to editorWrap
+    const wrap = document.getElementById('editorWrap');
+    const rect = wrap.getBoundingClientRect();
+    sketchW = Math.max(240, Math.floor(rect.width));
+    sketchH = Math.max(160, Math.floor(rect.height));
+    const cnv = createCanvas(sketchW, sketchH);
+    cnv.parent('drawCanvas');
+    clear(); // transparent
+    stroke(0);
+    strokeWeight(2);
+    noFill();
+    // drawing overlay should not block typing by default
+    document.getElementById('drawCanvas').style.pointerEvents = 'none';
+  }
+
+  function draw(){
+    // main draw loop doesn't animate anything — just leaves current pixels (so strokes persist)
+    // nothing to update here unless user is drawing (handled in mouseDragged)
+  }
+
+  function mouseDragged(){
+    if (!drawingEnabled) return;
+    // only draw when mouse is over the canvas area
+    if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) return;
+    line(pmouseX, pmouseY, mouseX, mouseY);
+    currentStroke.push({ x: mouseX, y: mouseY });
+  }
+
+  function mouseReleased(){
+    if (currentStroke.length > 0) {
+      paths.push(currentStroke.slice());
+      currentStroke = [];
     }
+  }
+
+  function keyPressed(evt){
+    // toggle drawing with D
+    if (key === 'd' || key === 'D') {
+      drawingEnabled = !drawingEnabled;
+      document.getElementById('drawCanvas').style.pointerEvents = drawingEnabled ? 'auto' : 'none';
+      document.getElementById('drawCanvas').style.cursor = drawingEnabled ? 'crosshair' : 'default';
+    }
+    // if user presses G while ghost playground open, forward to ghost instance via event (below)
+  }
+
+  // redraw recorded strokes (used after resize)
+  function redrawDrawingFromPaths(){
+    clear();
+    stroke(0);
+    strokeWeight(2);
+    noFill();
+    for (const strokePath of paths){
+      if (!strokePath || strokePath.length < 2) continue;
+      beginShape();
+      for (const p of strokePath) vertex(p.x, p.y);
+      endShape();
+    }
+  }
+
+  // clear drawing button clears recorded strokes and canvas, but not notepad text
+  clearDrawingBtn.addEventListener('click', ()=> {
+    paths = [];
+    currentStroke = [];
+    clear();
+    redrawDrawingFromPaths();
+    // Also stop ghost playground if open (non-destructive)
+    if (ghostInstance && ghostInstance.isRunning) {
+      ghostInstance.disable(); // defined in ghost instance interface below
+    }
+  });
+
+  // handle window resize for main canvas
+  window.addEventListener('resize', ()=> {
+    setTimeout(()=> {
+      const wrap = document.getElementById('editorWrap');
+      const rect = wrap.getBoundingClientRect();
+      sketchW = Math.max(240, Math.floor(rect.width));
+      sketchH = Math.max(160, Math.floor(rect.height));
+      resizeCanvas(sketchW, sketchH);
+      // redraw existing strokes scaled approx. (we keep same coords so just replay)
+      redrawDrawingFromPaths();
+    }, 80);
+  });
+
+  /* ============================
+     EXPORTS (TXT, PNG, SVG)
+     - PNG merges textarea (rendered text) + p5 canvas drawing
+     - SVG builds vector paths for strokes + text as <text> with IBM font
+     ============================ */
+
+  // TXT export
+  exportTxtBtn.addEventListener('click', ()=> {
+    const blob = new Blob([notepad.value], { type:'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fadeaway.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // PNG export: render text onto temp canvas then draw p5 canvas on top
+  exportPngBtn.addEventListener('click', async ()=> {
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = sketchW;
+    exportCanvas.height = sketchH;
+    const ctx = exportCanvas.getContext('2d');
+
+    // white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,exportCanvas.width, exportCanvas.height);
+
+    // draw text (basic wrapping)
+    const textLines = notepad.value.split('\n');
+    const fontSize = 16;
+    ctx.fillStyle = '#000';
+    // use the chosen font
+    const fontFamily = (notepad.style.fontFamily || 'IBMMonoCustom, monospace').replace(/"/g,'');
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textBaseline = 'top';
+    const lineHeight = Math.round(fontSize * 1.35);
+    const padding = 20;
+    let y = padding;
+    for (let i=0;i<textLines.length;i++){
+      const txt = textLines[i];
+      if (ctx.measureText(txt).width <= exportCanvas.width - padding*2) {
+        ctx.fillText(txt, padding, y);
+        y += lineHeight;
+      } else {
+        let remaining = txt;
+        while (remaining.length > 0 && y < exportCanvas.height - padding) {
+          let fit = remaining;
+          while (ctx.measureText(fit).width > exportCanvas.width - padding*2 && fit.length>1) fit = fit.slice(0,-1);
+          ctx.fillText(fit, padding, y);
+          remaining = remaining.slice(fit.length);
+          y += lineHeight;
+        }
+      }
+      if (y > exportCanvas.height - padding) break;
+    }
+
+    // draw p5 canvas onto export
+    const p5canvas = document.querySelector('#drawCanvas canvas');
+    if (p5canvas) ctx.drawImage(p5canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+    const a = document.createElement('a');
+    a.href = exportCanvas.toDataURL('image/png');
+    a.download = 'fadeaway.png';
+    a.click();
+  });
+
+  // SVG export: text as <text>, strokes as <path>
+  exportSvgBtn.addEventListener('click', ()=> {
+    const width = sketchW, height = sketchH;
+    const lines = notepad.value.split('\n');
+    const fontSize = 16;
+    const lineHeight = Math.round(fontSize * 1.35);
+    const padding = 20;
+
+    function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+
+    let svg = `<?xml version="1.0" encoding="utf-8"?>\n`;
+    svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n`;
+    svg += `<style>@font-face{font-family:IBMMonoCustom;src:url('https://raw.githubusercontent.com/ghostm68/inktwo/main/soviet-program/ibm-extended/IBMPlexMono-Medium.ttf');} text{font-family:IBMMonoCustom, monospace; font-size:${fontSize}px;}</style>\n`;
+    svg += `<rect width="100%" height="100%" fill="white"/>\n`;
+    svg += `<g fill="black" font-family="IBMMonoCustom" font-size="${fontSize}">\n`;
+    for (let i=0;i<lines.length;i++){
+      const y = padding + i*lineHeight;
+      svg += `<text x="${padding}" y="${y}">${esc(lines[i])}</text>\n`;
+    }
+    svg += `</g>\n`;
+
+    svg += `<g fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n`;
+    for (const s of paths){
+      if (!s || s.length === 0) continue;
+      const d = s.map((p,i)=> (i===0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+      svg += `<path d="${d}"/>\n`;
+    }
+    svg += `</g>\n</svg>`;
+
+    const blob = new Blob([svg], { type:'image/svg+xml;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fadeaway.svg';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ============================
+     DITHERING PANEL Implementation
+     (same approach as before; modular algorithms)
+     ============================ */
+  let sourceImage = null;
+  uploadInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      sourceImage = img;
+      const maxW = Math.min(img.width, 1200);
+      const ratio = img.width > maxW ? maxW / img.width : 1;
+      ditherCanvas.width = Math.round(img.width * ratio);
+      ditherCanvas.height = Math.round(img.height * ratio);
+      dCtx.imageSmoothingEnabled = false;
+      dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+      dCtx.drawImage(img, 0, 0, ditherCanvas.width, ditherCanvas.height);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  applyDitherBtn.addEventListener('click', () => {
+    if (!sourceImage) { alert('Please upload an image first.'); return; }
+    dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    dCtx.drawImage(sourceImage, 0, 0, ditherCanvas.width, ditherCanvas.height);
+    applyDitherToCanvas();
+  });
+
+  resetDitherBtn.addEventListener('click', () => {
+    if (sourceImage) {
+      dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+      dCtx.drawImage(sourceImage, 0, 0, ditherCanvas.width, ditherCanvas.height);
+    } else {
+      dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    }
+  });
+
+  downloadDitherBtn.addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = ditherCanvas.toDataURL('image/png');
+    a.download = 'fadeaway-dither.png';
+    a.click();
+  });
+
+  function getImageDataCopy(){
+    try { return dCtx.getImageData(0,0,ditherCanvas.width,ditherCanvas.height); }
+    catch (e) { alert('Unable to read pixels from this image (CORS). Use a local image or same-origin resource.'); throw e; }
+  }
+
+  function applyDitherToCanvas(){
+    const algo = algoSelect.value;
+    const palette = paletteSelect.value;
+    const displayScale = parseInt(scaleRange.value,10) || 1;
+    const threshold = parseInt(thresholdRange.value,10) || 128;
+    const src = getImageDataCopy();
+    const w = src.width, h = src.height;
+    const lum = new Float32Array(w*h);
+    for (let i=0;i<w*h;i++){
+      const di = i*4;
+      const r = src.data[di], g = src.data[di+1], b = src.data[di+2];
+      lum[i] = 0.299*r + 0.587*g + 0.114*b;
+    }
+    const out = new Uint8ClampedArray(w*h*4);
+    // algorithms
+    if (algo === 'threshold') {
+      for (let i=0;i<w*h;i++){ const v = lum[i] < threshold ? 0 : 255; writeOutTo(out, i, v, palette); }
+    } else if (algo === 'random') {
+      for (let i=0;i<w*h;i++){ const v = (lum[i] < Math.random()*255) ? 0 : 255; writeOutTo(out, i, v, palette); }
+    } else if (algo === 'bayer') {
+      const bayer = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+      for (let y=0;y<h;y++) for (let x=0;x<w;x++){ const i = y*w+x; const m = bayer[y%4][x%4]/16; const val = lum[i]/255; const v = (val < m)?0:255; writeOutTo(out,i,v,palette); }
+    } else if (algo === 'floyd') {
+      const buf = new Float32Array(lum);
+      for (let y=0;y<h;y++) for (let x=0;x<w;x++){ const idx=y*w+x; const oldv=buf[idx]; const newv=oldv<threshold?0:255; const err=oldv-newv; writeOutTo(out, idx, newv, palette); if (x+1<w) buf[idx+1]+=err*7/16; if (x-1>=0&&y+1<h) buf[idx+w-1]+=err*3/16; if (y+1<h) buf[idx+w]+=err*5/16; if (x+1<w && y+1<h) buf[idx+w+1]+=err*1/16; }
+    } else if (algo === 'atkinson') {
+      const buf = new Float32Array(lum);
+      for (let y=0;y<h;y++) for (let x=0;x<w;x++){ const idx=y*w+x; const oldv=buf[idx]; const newv=oldv<threshold?0:255; const err=(oldv-newv)/8; writeOutTo(out, idx, newv, palette); distribute(buf,x+1,y,w,h,err); distribute(buf,x+2,y,w,h,err); distribute(buf,x-1,y+1,w,h,err); distribute(buf,x,y+1,w,h,err); distribute(buf,x+1,y+1,w,h,err); distribute(buf,x,y+2,w,h,err); }
+    }
+    const imgOut = new ImageData(out, w, h);
+    const tmp = document.createElement('canvas'); tmp.width=w; tmp.height=h; const tCtx = tmp.getContext('2d'); tCtx.putImageData(imgOut,0,0);
+    dCtx.imageSmoothingEnabled = false;
+    ditherCanvas.width = w*displayScale; ditherCanvas.height = h*displayScale;
+    dCtx.clearRect(0,0,ditherCanvas.width,ditherCanvas.height);
+    dCtx.drawImage(tmp, 0, 0, ditherCanvas.width, ditherCanvas.height);
+  }
+
+  function writeOutTo(outArr, i, v, palette){
+    let r,g,b;
+    if (palette === 'bw') { r=g=b = v < 128 ? 0 : 255; }
+    else if (palette === 'grayscale') { r=g=b = Math.round(v); }
+    else if (palette === '4level') { let level; if (v<64) level=0; else if (v<128) level=85; else if (v<192) level=170; else level=255; r=g=b=level; }
+    else { r=g=b=v; }
+    const base = i*4; outArr[base]=r; outArr[base+1]=g; outArr[base+2]=b; outArr[base+3]=255;
+  }
+
+  function distribute(buf, x, y, w, h, err){ if (x<0||x>=w||y<0||y>=h) return; const pos=y*w+x; buf[pos]+=err; }
+
+  /* ============================
+     GHOST PLAYGROUND: p5 instance
+     - isolated from main drawing
+     - controls: enable, particle count, speed, fade, reset
+     - interface exposed via ghostInstance object
+     ============================ */
+  let ghostInstance = null;
+  (function createGhostInstance(){
+    // define instance mode sketch
+    const sketch = (p) => {
+      // state inside instance
+      let particles = [];
+      let field = [];
+      let cols = 0, rows = 0;
+      let scl = 20;
+      let noiseZ = 0;
+      p.isRunning = false; // track whether ghost enabled
+      p.particleCount = parseInt(ghostParticlesSlider.value,10);
+      p.speedMult = parseFloat(ghostSpeedSlider.value);
+      p.fadeAlpha = parseInt(ghostFadeSlider.value,10);
+
+      p.setup = function(){
+        const container = document.getElementById('ghostCanvas');
+        // create canvas sized to container
+        const rect = container.getBoundingClientRect();
+        const w = Math.max(320, Math.floor(rect.width));
+        const h = Math.max(240, Math.floor(rect.height));
+        p.cnv = p.createCanvas(w, h);
+        p.cnv.parent('ghostCanvas');
+        p.background(255);
+        p.pixelDensity(1);
+        // init
+        cols = Math.ceil(p.width / scl);
+        rows = Math.ceil(p.height / scl);
+        field = new Array(cols*rows).fill(0);
+        p.initParticles();
+      };
+
+      p.initParticles = function(){
+        particles = [];
+        for (let i=0;i<p.particleCount;i++){
+          particles.push({
+            x: Math.random()*p.width,
+            y: Math.random()*p.height,
+            vx:0, vy:0
+          });
+        }
+      };
+
+      p.updateField = function(){
+        let i=0;
+        let inc = 0.12;
+        for (let y=0;y<rows;y++){
+          for (let x=0;x<cols;x++){
+            const nx = x*inc;
+            const ny = y*inc;
+            const angle = p.noise(nx, ny, noiseZ) * p.TWO_PI * 2;
+            field[i++] = angle;
+          }
+        }
+        noiseZ += 0.006 * p.speedMult;
+      };
+
+      p.runParticles = function(){
+        p.stroke(30,30,30,100);
+        p.strokeWeight(1.2);
+        for (const pt of particles){
+          const col = Math.floor(pt.x / scl);
+          const row = Math.floor(pt.y / scl);
+          const idx = Math.max(0, Math.min(field.length-1, row*cols + col));
+          const angle = field[idx] || 0;
+          const ax = Math.cos(angle) * 0.3 * p.speedMult;
+          const ay = Math.sin(angle) * 0.3 * p.speedMult;
+          pt.vx = (pt.vx + ax) * 0.96;
+          pt.vy = (pt.vy + ay) * 0.96;
+          const px = pt.x, py = pt.y;
+          pt.x += pt.vx; pt.y += pt.vy;
+          if (pt.x < 0) pt.x = p.width;
+          if (pt.x > p.width) pt.x = 0;
+          if (pt.y < 0) pt.y = p.height;
+          if (pt.y > p.height) pt.y = 0;
+          p.line(px, py, pt.x, pt.y);
+        }
+      };
+
+      p.draw = function(){
+        if (!p.isRunning) return;
+        // fade rectangle to create trail effect
+        p.noStroke();
+        p.fill(255, p.fadeAlpha); // trail fade value controls how quickly trailing disappears
+        p.rect(0,0,p.width,p.height);
+        // update field & run particles
+        p.updateField();
+        p.runParticles();
+      };
+
+      // external controls
+      p.enable = function(){
+        p.isRunning = true;
+        p.loop();
+      };
+      p.disable = function(){
+        p.isRunning = false;
+        p.noLoop();
+      };
+      p.reset = function(){
+        p.clear();
+        p.background(255);
+        p.initParticles();
+        p.disable();
+      };
+      p.setParticleCount = function(n){
+        p.particleCount = n;
+        p.initParticles();
+      };
+      p.setSpeed = function(s){
+        p.speedMult = s;
+      };
+      p.setFade = function(f){
+        p.fadeAlpha = f;
+      };
+
+      p.windowResized = function(){
+        // resize to container
+        const container = document.getElementById('ghostCanvas');
+        const rect = container.getBoundingClientRect();
+        const w = Math.max(320, Math.floor(rect.width));
+        const h = Math.max(240, Math.floor(rect.height));
+        p.resizeCanvas(w,h);
+        cols = Math.ceil(p.width / scl);
+        rows = Math.ceil(p.height / scl);
+        p.initParticles();
+      };
+    }; // end sketch
+
+    // create instance but keep it disabled initially
+    ghostInstance = new p5(sketch);
+    // start disabled
+    ghostInstance.disable();
+    // set some props accessible externally
+    ghostInstance.isRunning = false;
+    // wire UI sliders -> reflect default values
+    ghostParticlesVal.textContent = ghostParticlesSlider.value;
+    ghostSpeedVal.textContent = ghostSpeedSlider.value;
+    ghostFadeVal.textContent = ghostFadeSlider.value;
+  })();
+
+  // Ghost control UI wiring
+  openGhostMenuBtn.addEventListener('click', ()=> {
+    ghostMenu.classList.add('open'); ghostMenu.setAttribute('aria-hidden','false');
+  });
+  closeGhostMenuBtn.addEventListener('click', ()=> {
+    ghostMenu.classList.remove('open'); ghostMenu.setAttribute('aria-hidden','true');
+  });
+
+  ghostEnableBtn.addEventListener('click', ()=> {
+    if (!ghostInstance) return;
+    if (!ghostInstance.isRunning) {
+      ghostInstance.setParticleCount(parseInt(ghostParticlesSlider.value,10));
+      ghostInstance.setSpeed(parseFloat(ghostSpeedSlider.value));
+      ghostInstance.setFade(parseInt(ghostFadeSlider.value,10));
+      ghostInstance.enable();
+      ghostInstance.isRunning = true;
+      ghostEnableBtn.textContent = 'Disable Ghost';
+    } else {
+      ghostInstance.disable();
+      ghostInstance.isRunning = false;
+      ghostEnableBtn.textContent = 'Enable Ghost';
+    }
+  });
+
+  ghostResetBtn.addEventListener('click', ()=> {
+    if (!ghostInstance) return;
+    ghostInstance.reset();
+    // reset UI
+    ghostEnableBtn.textContent = 'Enable Ghost';
+    ghostParticlesSlider.value = 120; ghostParticlesVal.textContent = 120;
+    ghostSpeedSlider.value = 0.8; ghostSpeedVal.textContent = 0.8;
+    ghostFadeSlider.value = 18; ghostFadeVal.textContent = 18;
+  });
+
+  ghostParticlesSlider.addEventListener('input', (e)=> {
+    const n = parseInt(e.target.value,10);
+    ghostParticlesVal.textContent = n;
+    if (ghostInstance) ghostInstance.setParticleCount(n);
+  });
+  ghostSpeedSlider.addEventListener('input', (e)=> {
+    const s = parseFloat(e.target.value);
+    ghostSpeedVal.textContent = s.toFixed(1);
+    if (ghostInstance) ghostInstance.setSpeed(s);
+  });
+  ghostFadeSlider.addEventListener('input', (e)=> {
+    const f = parseInt(e.target.value,10);
+    ghostFadeVal.textContent = f;
+    if (ghostInstance) ghostInstance.setFade(f);
+  });
+
+  // forward global 'g' key to ghostInstance toggle when menu open
+  window.addEventListener('keydown', (ev)=> {
+    if ((ev.key === 'g' || ev.key === 'G') && ghostMenu.classList.contains('open')) {
+      ghostEnableBtn.click();
+    }
+  });
+
+  /* ============================
+     Initialization / DOM readiness
+     ============================ */
+  (function ready(){
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ()=> {
+        // make sure p5 setup runs after DOM ready; p5 global already calls setup when loaded
+        // apply font selection
+        notepad.style.fontFamily = fontSelect.value;
+      });
+    } else {
+      notepad.style.fontFamily = fontSelect.value;
+    }
+  })();
+
+  console.log('Fadeaway (with Ghost Playground) loaded — ready.');
+
   </script>
-
-					
-      </body></html>
-
+</body>
+</html>
