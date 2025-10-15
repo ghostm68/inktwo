@@ -755,18 +755,16 @@ love time handle whore
         </section>
 
         <!-- Swag Gallery Section -->
-        <section id="swag" class="glitch-section">
-            <div class="max-w-6xl mx-auto px-6">
-                <h2 class="glitch-title mb-12 text-center" data-text="SWAG" data-i18n="section-swag">SWAG</h2>
-                
-                <div class="gallery-grid">
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        <!-- JavaScript populates here -->
-                    </div>
-                </div>
+       <section id="swag" class="glitch-section">
+    <div class="max-w-6xl mx-auto px-6">
+        <h2 class="glitch-title mb-12 text-center" data-text="SWAG" data-i18n="section-swag">SWAG</h2>
+        <div class="gallery-grid">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <!-- JavaScript populates here -->
             </div>
-        </section>
+        </div>
     </div>
+</section>
 
    
 
@@ -928,7 +926,7 @@ love time handle whore
             new MusicPlayer();
         });
     </script>
-	<script>
+<script>
 // Clean Swag Gallery - No Filters
 class CleanSwagGallery {
     constructor() {
@@ -957,10 +955,15 @@ class CleanSwagGallery {
     
     renderGallery() {
         const grid = document.querySelector('.gallery-grid .grid');
+        if (!grid) {
+            console.error('Gallery grid not found!');
+            return;
+        }
+        
         grid.innerHTML = this.images.map((image, index) => `
             <div class="gallery-item" data-index="${index}">
                 <img src="${image}" alt="TSG Swag ${index + 1}" loading="lazy">
-                <div class="download-overlay" onclick="event.stopPropagation(); cleanGallery.downloadImage('${image}')">
+                <div class="download-overlay" onclick="event.stopPropagation(); window.cleanGallery.downloadImage('${image}')">
                     <span class="download-icon">⬇️</span>
                 </div>
             </div>
@@ -1024,7 +1027,7 @@ class CleanSwagGallery {
     
     setupKeyboardNavigation() {
         document.addEventListener('keydown', (e) => {
-            if (this.modal.classList.contains('active')) {
+            if (this.modal && this.modal.classList.contains('active')) {
                 switch(e.key) {
                     case 'ArrowLeft': this.previousImage(); break;
                     case 'ArrowRight': this.nextImage(); break;
@@ -1056,7 +1059,21 @@ class CleanSwagGallery {
     }
     
     downloadImage(url) {
-        this.showDownloadToast('Downloading...', 'var(--neon-blue)');
+        const messages = {
+            en: {
+                downloading: 'Downloading...',
+                success: 'Download started!', 
+                error: 'Download failed!'
+            },
+            ru: {
+                downloading: 'Загружаем...',
+                success: 'Загрузка началась!',
+                error: 'Ошибка загрузки!'
+            }
+        };
+        
+        const lang = localStorage.getItem('preferred-language') || 'en';
+        this.showDownloadToast(messages[lang].downloading, 'var(--neon-blue)');
         
         fetch(url)
             .then(response => response.blob())
@@ -1071,34 +1088,38 @@ class CleanSwagGallery {
                 window.URL.revokeObjectURL(blobUrl);
                 document.body.removeChild(a);
                 
-                this.showDownloadToast('Download started!', 'var(--neon-green)');
+                this.showDownloadToast(messages[lang].success, 'var(--neon-green)');
             })
             .catch(error => {
                 console.error('Error downloading image:', error);
-                this.showDownloadToast('Download failed!', 'var(--neon-pink)');
+                this.showDownloadToast(messages[lang].error, 'var(--neon-pink)');
                 setTimeout(() => window.open(url, '_blank'), 500);
             });
     }
     
-    const messages = {
-    en: {
-        downloading: 'Downloading...',
-        success: 'Download started!', 
-        error: 'Download failed!'
-    },
-    ru: {
-        downloading: 'Загружаем...',
-        success: 'Загрузка началась!',
-        error: 'Ошибка загрузки!'
+    showDownloadToast(message, color) {
+        const existingToast = document.querySelector('.download-toast');
+        if (existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'download-toast';
+        toast.textContent = message;
+        toast.style.background = color;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 2000);
     }
-};
+}
 
-const lang = localStorage.getItem('preferred-language') || 'en';
-this.showDownloadToast(messages[lang].success, 'var(--neon-green)');
-// Initialize the clean gallery
-let cleanGallery;
+// Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    cleanGallery = new CleanSwagGallery();
+    // Initialize language manager
+    if (typeof RussianLanguageManager !== 'undefined') {
+        new RussianLanguageManager();
+    }
+    
+    // Initialize gallery
+    window.cleanGallery = new CleanSwagGallery();
 });
 	</script>
 	<script>
