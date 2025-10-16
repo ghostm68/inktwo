@@ -15,6 +15,46 @@
             background-color: #000;
             color: #fff;
             overflow-x: hidden;
+            position: relative;
+        }
+        /* Noise and scanlines overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            mix-blend-mode: overlay;
+            opacity: 0.1;
+            background-image:
+                radial-gradient(ellipse at 20% 20%, #fff 0%, transparent 30%),
+                linear-gradient(to bottom, transparent 49%, rgba(255, 255, 255, 0.1) 50%, transparent 51%);
+            background-size: 100px 100px, 100% 2px;
+        }
+        /* Scanlines animation */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1001;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 1px,
+                rgba(255, 255, 255, 0.05) 1px,
+                rgba(255, 255, 255, 0.05) 2px
+            );
+            animation: scanlineMove 0.1s linear infinite;
+            opacity: 0.3;
+        }
+        @keyframes scanlineMove {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
         }
         .header {
             position: fixed;
@@ -188,41 +228,109 @@
                 transform: translateY(0);
             }
         }
-        .carousel-container {
-            width: 100%;
-            overflow: hidden;
-            margin: 2rem 0;
-        }
-        .carousel {
-            display: flex;
+        /* Card Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 2rem;
-            padding: 1rem 0;
+            margin-top: 2rem;
         }
-        .carousel-card {
+        .card {
             background-color: #111;
             border-radius: 10px;
-            padding: 1rem;
-            min-width: 300px;
-            height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            overflow: hidden;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+            cursor: pointer;
         }
-        .carousel-card img {
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card img {
             width: 100%;
-            height: 150px;
+            height: 200px;
             object-fit: cover;
-            border-radius: 10px;
         }
-        .carousel-card h3 {
-            margin-top: 1rem;
+        .card-content {
+            padding: 1rem;
+        }
+        .card h3 {
+            margin-bottom: 0.5rem;
+        }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            z-index: 2000;
+            opacity: 0;
+        }
+        .modal-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #222;
+            border-radius: 10px;
+            padding: 2rem;
+            max-width: 800px;
+            width: 90%;
+            display: none;
+            opacity: 0;
+            scale: 0.8;
+            z-index: 2001;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+        }
+        .close-modal {
+            background: none;
+            border: none;
             color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-content {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            overflow: hidden;
+            background-color: #000;
+            border-radius: 5px;
+        }
+        .modal-iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
         }
     </style>
 </head>
 <body>
+    <!-- Noise and static scanlines overlay -->
+    <div class="noise-overlay"></div>
+    <div class="scanlines"></div>
+
     <div class="splash" id="splash">
         <div class="loading-overlay">
             <div class="loading-spinner"></div>
@@ -255,47 +363,47 @@
             </section>
             <section id="works" class="section">
                 <h2>Featured Works</h2>
-                <div class="works-grid">
-                    <div class="work-item">
-                        <img src="https://via.placeholder.com/300x200?text=Book+Cover" alt="Book Cover">
-                        <h3>Classic Literature</h3>
-                        <p>Explore the timeless works of classic literature that have shaped our cultural heritage.</p>
+                <div class="cards-grid">
+                    <div class="card" data-url="https://example.com/work1" data-title="Classic Literature">
+                        <img src="https://via.placeholder.com/300x200?text=Classic+Literature" alt="Classic Literature">
+                        <div class="card-content">
+                            <h3>Classic Literature</h3>
+                            <p>Explore timeless works that have shaped our cultural heritage.</p>
+                        </div>
                     </div>
-                    <div class="work-item">
-                        <img src="https://via.placeholder.com/300x200?text=Book+Cover" alt="Book Cover">
-                        <h3>Modern Bestsellers</h3>
-                        <p>Discover the latest bestsellers and contemporary masterpieces.</p>
+                    <div class="card" data-url="https://example.com/work2" data-title="Modern Bestsellers">
+                        <img src="https://via.placeholder.com/300x200?text=Modern+Bestsellers" alt="Modern Bestsellers">
+                        <div class="card-content">
+                            <h3>Modern Bestsellers</h3>
+                            <p>Discover the latest bestsellers and contemporary masterpieces.</p>
+                        </div>
                     </div>
-                    <div class="work-item">
-                        <img src="https://via.placeholder.com/300x200?text=Book+Cover" alt="Book Cover">
-                        <h3>Poetry Collection</h3>
-                        <p>Immerse yourself in the world of poetry with our curated collection.</p>
+                    <div class="card" data-url="https://example.com/work3" data-title="Poetry Collection">
+                        <img src="https://via.placeholder.com/300x200?text=Poetry+Collection" alt="Poetry Collection">
+                        <div class="card-content">
+                            <h3>Poetry Collection</h3>
+                            <p>Immerse yourself in the world of poetry with our curated collection.</p>
+                        </div>
                     </div>
-                </div>
-            </section>
-            <section id="carousel" class="section">
-                <h2>Carousel</h2>
-                <div class="carousel-container">
-                    <div class="carousel" id="carousel">
-                        <div class="carousel-card">
-                            <img src="https://via.placeholder.com/300x150?text=Card+1" alt="Card 1">
-                            <h3>Card 1</h3>
+                    <div class="card" data-url="https://example.com/work4" data-title="Historical Novels">
+                        <img src="https://via.placeholder.com/300x200?text=Historical+Novels" alt="Historical Novels">
+                        <div class="card-content">
+                            <h3>Historical Novels</h3>
+                            <p>Journey through different eras with our historical fiction selection.</p>
                         </div>
-                        <div class="carousel-card">
-                            <img src="https://via.placeholder.com/300x150?text=Card+2" alt="Card 2">
-                            <h3>Card 2</h3>
+                    </div>
+                    <div class="card" data-url="https://example.com/work5" data-title="Sci-Fi Adventures">
+                        <img src="https://via.placeholder.com/300x200?text=Sci-Fi+Adventures" alt="Sci-Fi Adventures">
+                        <div class="card-content">
+                            <h3>Sci-Fi Adventures</h3>
+                            <p>Explore futuristic worlds and technological marvels.</p>
                         </div>
-                        <div class="carousel-card">
-                            <img src="https://via.placeholder.com/300x150?text=Card+3" alt="Card 3">
-                            <h3>Card 3</h3>
-                        </div>
-                        <div class="carousel-card">
-                            <img src="https://via.placeholder.com/300x150?text=Card+4" alt="Card 4">
-                            <h3>Card 4</h3>
-                        </div>
-                        <div class="carousel-card">
-                            <img src="https://via.placeholder.com/300x150?text=Card+5" alt="Card 5">
-                            <h3>Card 5</h3>
+                    </div>
+                    <div class="card" data-url="https://example.com/work6" data-title="Fantasy Realms">
+                        <img src="https://via.placeholder.com/300x200?text=Fantasy+Realms" alt="Fantasy Realms">
+                        <div class="card-content">
+                            <h3>Fantasy Realms</h3>
+                            <p>Escape to magical worlds filled with mythical creatures and epic quests.</p>
                         </div>
                     </div>
                 </div>
@@ -318,6 +426,24 @@
             </svg>
         </div>
     </footer>
+
+    <!-- Modal Elements -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-container" id="modalContainer">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Modal Title</h2>
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="loading-spinner"></div>
+                    <p>Loading...</p>
+                </div>
+                <iframe class="modal-iframe" id="modalIframe" frameborder="0" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
     <script>
         // Hide splash screen after loading
@@ -325,28 +451,91 @@
             document.getElementById('splash').style.display = 'none';
         }, 3000);
 
-        // GSAP Carousel Animation
-        document.addEventListener('DOMContentLoaded', function() {
-            const carousel = document.getElementById('carousel');
-            const cards = carousel.querySelectorAll('.carousel-card');
-            let currentIndex = 0;
+        // Get modal elements
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalIframe = document.getElementById('modalIframe');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cards = document.querySelectorAll('.card');
 
-            gsap.set(cards, { x: function(i) { return i * 320; } });
+        // Open modal with GSAP animation
+        function openModal(url, title) {
+            modalTitle.textContent = title;
+            modalIframe.src = url;
 
-            function animateCarousel() {
-                currentIndex = (currentIndex + 1) % cards.length;
-                gsap.to(carousel, {
-                    x: `-=${320}px`,
-                    duration: 1,
-                    ease: "power2.inOut",
-                    onComplete: function() {
-                        carousel.appendChild(cards[0]);
-                        gsap.set(carousel, { x: 0 });
+            // Show elements
+            modalOverlay.style.display = 'block';
+            modalContainer.style.display = 'block';
+            loadingIndicator.style.display = 'block';
+            modalIframe.style.display = 'none';
+
+            // GSAP animation
+            gsap.timeline()
+                .to(modalOverlay, {
+                    opacity: 1,
+                    duration: 0.3,
+                    ease: 'power2.out'
+                })
+                .to(modalContainer, {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.4,
+                    ease: 'back.out(1.7)'
+                }, '-=0.2');
+        }
+
+        // Close modal with GSAP animation
+        function closeModal() {
+            gsap.timeline()
+                .to(modalContainer, {
+                    opacity: 0,
+                    scale: 0.8,
+                    duration: 0.3,
+                    ease: 'back.in(1.7)'
+                })
+                .to(modalOverlay, {
+                    opacity: 0,
+                    duration: 0.2,
+                    ease: 'power2.in',
+                    onComplete: () => {
+                        modalOverlay.style.display = 'none';
+                        modalContainer.style.display = 'none';
+                        modalIframe.src = '';
                     }
-                });
-            }
+                }, '-=0.1');
+        }
 
-            setInterval(animateCarousel, 3000);
+        // Iframe load event
+        modalIframe.addEventListener('load', function() {
+            loadingIndicator.style.display = 'none';
+            modalIframe.style.display = 'block';
+            gsap.from(modalIframe, {
+                opacity: 0,
+                duration: 0.3,
+                ease: 'power2.out'
+            });
+        });
+
+        // Add click events to all cards
+        cards.forEach(card => {
+            card.addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                const title = this.getAttribute('data-title');
+                openModal(url, title);
+            });
+        });
+
+        // Close modal events
+        closeModalBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', closeModal);
+
+        // ESC key to close
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modalContainer.style.display === 'block') {
+                closeModal();
+            }
         });
     </script>
 </body>
