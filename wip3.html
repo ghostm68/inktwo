@@ -736,163 +736,48 @@
             }
         });
     </script>
-
-        <script>
+<script>
 class TextScramble {
   constructor(el) {
     this.el = el;
-    this.chars = '!<>-_\\/[]{}—=+*^#$@?%'; // Characters for the scramble effect
+    this.chars = '!<>-_\\/[]{}—=+*^?#@%&';
     this.update = this.update.bind(this);
-    this.originalText = el.innerText; // Store the original text
-    this.frame = 0;
-    this.queue = [];
-  }
-  
-  // Method to start the animation
-  scramble() {
-    this.setText(this.originalText);
-  }
-
-  // Method to set the final target text and start the scrambling
-  setText(newText) {
-    // Reset any ongoing animation
-    if (this.frameRequest) {
-      cancelAnimationFrame(this.frameRequest);
-    }
-    
-    // Create the queue of characters for the animation
-    const oldText = this.el.innerText;
-    const length = Math.max(oldText.length, newText.length);
-    
-    this.queue = [];
-    for (let i = 0; i < length; i++) {
-      const from = oldText[i] || '';
-      const to = newText[i] || '';
-      const start = Math.floor(Math.random() * 40); // Random delay start
-      const end = start + Math.floor(Math.random() * 40); // Random duration end
-      
-      this.queue.push({ from, to, start, end });
-    }
-    
-    this.frame = 0;
-    this.update();
-  }
-
-  // The main animation loop using requestAnimationFrame
-  update() {
-    let output = '';
-    let complete = 0;
-
-    for (let i = 0, n = this.queue.length; i < n; i++) {
-      let { from, to, start, end } = this.queue[i];
-
-      if (this.frame >= end) {
-        // Character is done scrambling
-        complete++;
-        output += to;
-      } else if (this.frame >= start) {
-        // Character is currently scrambling
-        if (to === ' ') {
-            output += ' '; // Keep spaces as spaces
-        } else {
-            // Pick a random scramble character
-            output += this.chars[Math.floor(Math.random() * this.chars.length)];
-        }
-      } else {
-        // Character is waiting for the scramble to start
-        output += from;
-      }
-    }
-
-    this.el.innerText = output;
-    
-    if (complete !== this.queue.length) {
-      this.frameRequest = requestAnimationFrame(this.update);
-      this.frame++;
-    }
-  }
-}
-
-// --- INITIALIZATION AND EVENT LISTENERS ---
-
-// 1. Find all elements with the data-scramble attribute
-const elements = document.querySelectorAll('[data-scramble]');
-
-// 2. Create an instance of the TextScramble class for each element
-const scramblers = Array.from(elements).map(el => new TextScramble(el));
-
-// 3. Attach event listeners
-elements.forEach((el, index) => {
-    // On mouse enter, trigger the scramble effect
-    el.addEventListener('mouseenter', () => {
-        // The scrambler automatically handles the animation to the original text
-        scramblers[index].scramble(); 
-    });
-    
-    // On mouse leave, you typically do nothing, 
-    // as the scramble completes and settles on the original text.
-});
-
-// A specific listener for the Contact/Recruit buttons where the text is inside a span
-// This targets the parent button to trigger the effect on its child text span
-const contactButtons = document.querySelectorAll('.Footer__contact_button');
-
-contactButtons.forEach(button => {
-    // Find the text element inside the button
-    const textEl = button.querySelector('.Footer__contact_button_text');
-    
-    if (textEl && textEl.hasAttribute('data-scramble')) {
-        const scrambler = scramblers.find(s => s.el === textEl);
-        
-        button.addEventListener('mouseenter', () => {
-             if (scrambler) scrambler.scramble(); 
-        });
-    }
-});
-    </script>
-     <script>
-class TextScramble {
-  constructor(el) {
-    this.el = el;
-    this.chars = '!<>-_\\/[]{}—=+*^#$@%&?'; // scrambled character set
-    this.update = this.update.bind(this);
-    this.frame = 0;
-    this.queue = [];
-    this.originalText = el.innerText;
     this.isAnimating = false;
   }
 
-  // Core scramble method
   setText(newText, callback) {
-    if (this.frameRequest) cancelAnimationFrame(this.frameRequest);
+    cancelAnimationFrame(this.frameRequest);
     const oldText = this.el.innerText;
     const length = Math.max(oldText.length, newText.length);
     this.queue = [];
 
+    // ⚡ Fast scramble — resolves in ~0.8s
     for (let i = 0; i < length; i++) {
       const from = oldText[i] || "";
       const to = newText[i] || "";
-      const start = Math.floor(Math.random() * 40);
-      const end = start + Math.floor(Math.random() * 40);
+      const start = Math.floor(Math.random() * 5);
+      const end = start + Math.floor(Math.random() * 10) + 5;
       this.queue.push({ from, to, start, end });
     }
 
     this.frame = 0;
-    this.resolve = callback;
-    this.update();
+    this.update(callback);
   }
 
-  update() {
+  update(callback) {
     let output = "";
     let complete = 0;
 
     for (let i = 0, n = this.queue.length; i < n; i++) {
-      let { from, to, start, end } = this.queue[i];
+      let { from, to, start, end, char } = this.queue[i];
       if (this.frame >= end) {
         complete++;
         output += to;
       } else if (this.frame >= start) {
-        output += this.chars[Math.floor(Math.random() * this.chars.length)];
+        if (!char || Math.random() < 0.35)
+          char = this.chars[Math.floor(Math.random() * this.chars.length)];
+        output += char;
+        this.queue[i].char = char;
       } else {
         output += from;
       }
@@ -901,20 +786,18 @@ class TextScramble {
     this.el.innerText = output;
 
     if (complete === this.queue.length) {
-      if (this.resolve) this.resolve();
+      if (callback) callback();
       return;
     }
 
     this.frame++;
-    this.frameRequest = requestAnimationFrame(this.update);
+    this.frameRequest = requestAnimationFrame(() => this.update(callback));
   }
 }
 
-// Initialize scramblers
-const siteName = "INKREALM"; // The central brand word
-const links = document.querySelectorAll(".scramble-link");
-
-links.forEach(link => {
+// --- Initialize and bind hover animation ---
+const siteName = "INKREALM";
+document.querySelectorAll(".scramble-link").forEach(link => {
   const scrambler = new TextScramble(link);
   const original = link.textContent;
 
@@ -922,18 +805,18 @@ links.forEach(link => {
     if (scrambler.isAnimating) return;
     scrambler.isAnimating = true;
 
-    // Step 1: scramble to INKREALM
     scrambler.setText(siteName, () => {
-      // Step 2: hold briefly, then scramble back
       setTimeout(() => {
         scrambler.setText(original, () => {
           scrambler.isAnimating = false;
         });
-      }, 600);
+      }, 250); // quick pause
     });
   });
 });
 </script>
+
+
 
 </body>
 </html>
