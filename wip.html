@@ -439,6 +439,36 @@
       }
     }
   </style>
+  <style>
+  /* Noise + Scanline overlay */
+  .static-overlay {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.03) 0px,
+        rgba(255,255,255,0.03) 1px,
+        transparent 2px,
+        transparent 3px
+      ),
+      url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==');
+    mix-blend-mode: screen;
+    animation: flicker 0.15s infinite, scanline 8s linear infinite;
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 0.04; }
+    50% { opacity: 0.08; }
+  }
+
+  @keyframes scanline {
+    0% { background-position: 0 -100vh, 0 0; }
+    100% { background-position: 0 100vh, 0 0; }
+  }
+</style>
 </head>
 <body>
   <!-- Splash Screen -->
@@ -452,7 +482,7 @@
     </div>
     <div class="progress-percent" id="progress-percent">0%</div>
   </div>
-
+<div class="static-overlay"></div>
   <!-- Hero Section -->
   <section class="hero">
     <div class="hero-video-container">
@@ -670,5 +700,80 @@
       });
     });
   </script>
+  <script>
+/* 🔤 Text Scrambler Class */
+class TextScramble {
+  constructor(el) {
+    this.el = el;
+    this.chars = '!<>-_\\/[]{}—=+*^?#@%&';
+    this.update = this.update.bind(this);
+  }
+
+  setText(newText, callback) {
+    const oldText = this.el.innerText;
+    const length = Math.max(oldText.length, newText.length);
+    const promise = new Promise(resolve => (this.resolve = resolve));
+    this.queue = [];
+    for (let i = 0; i < length; i++) {
+      const from = oldText[i] || '';
+      const to = newText[i] || '';
+      const start = Math.floor(Math.random() * 40);
+      const end = start + Math.floor(Math.random() * 40);
+      this.queue.push({ from, to, start, end });
+    }
+    cancelAnimationFrame(this.frameRequest);
+    this.frame = 0;
+    this.update(callback);
+    return promise;
+  }
+
+  update(callback) {
+    let output = '';
+    let complete = 0;
+    for (let i = 0, n = this.queue.length; i < n; i++) {
+      let { from, to, start, end, char } = this.queue[i];
+      if (this.frame >= end) {
+        complete++;
+        output += to;
+      } else if (this.frame >= start) {
+        if (!char || Math.random() < 0.28)
+          char = this.chars[Math.floor(Math.random() * this.chars.length)];
+        output += `<span class="glitch">${char}</span>`;
+        this.queue[i].char = char;
+      } else {
+        output += from;
+      }
+    }
+    this.el.innerHTML = output;
+    if (complete === this.queue.length) {
+      if (this.resolve) this.resolve();
+      if (callback) callback();
+    } else {
+      this.frame++;
+      this.frameRequest = requestAnimationFrame(() => this.update(callback));
+    }
+  }
+}
+
+/* ✨ Apply to Footer Links */
+document.querySelectorAll('.footer-link').forEach(link => {
+  const text = link.getAttribute('data-text');
+  link.textContent = text;
+  const scrambler = new TextScramble(link);
+  const original = text;
+
+  link.addEventListener('mouseenter', () => {
+    if (link.classList.contains('scrambling')) return;
+    link.classList.add('scrambling');
+    scrambler.setText('WORDSTAR', () => {
+      setTimeout(() => {
+        scrambler.setText(original, () => {
+          link.classList.remove('scrambling');
+        });
+      }, 500);
+    });
+  });
+});
+</script>
 </body>
 </html>
