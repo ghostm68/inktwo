@@ -8,12 +8,13 @@
     <script type="importmap">
     {
       "imports": {
-        "jspdf": "https://esm.sh/jspdf@2.5.1",
-        "fountain-js": "https://esm.sh/fountain-js@1.6.10"
+        "jspdf": "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js",
+        "fountain-js": "https://cdn.jsdelivr.net/npm/fountain-js@1.6.10/src/fountain.js"
       }
     }
     </script>
     <style>
+        /* Your existing CSS remains the same */
         :root {
             --bg: #0E0E0E;
             --panel: #1A1A1A;
@@ -542,7 +543,7 @@ Write in Fountain format."></textarea>
             <div class="ws-block">
                 <h3 class="ws-block-title">Model</h3>
                 <label for="wordstar-model-select" class="sr-only">AI Model Selection</label>
-                <select id="wordstar-model-select" name="wordstar-model-select">
+                <select id="wordstar-model-select" name="wordstar-model-select" class="ws-menu">
                     <optgroup label="🚀 Verified Working Models">
                         <option value="meta-llama/llama-3.3-70b-instruct:free" selected>Llama 3.3 70B</option>
                         <option value="x-ai/grok-4-fast:free">Grok 4 ⚡Fast</option>
@@ -589,11 +590,30 @@ Write in Fountain format."></textarea>
     </main>
 
     <script type="module">
-        import { jsPDF } from "jspdf";
-        import fountain from "fountain-js";
+        // Import the libraries with error handling
+        let jsPDF;
+        try {
+            const jsPDFModule = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
+            jsPDF = jsPDFModule.default;
+        } catch (error) {
+            console.error('Error loading jsPDF:', error);
+            // Fallback: Create a dummy jsPDF for basic functionality
+            jsPDF = class {
+                constructor() { 
+                    console.warn('jsPDF not available - using fallback');
+                }
+                setFont() {}
+                setFontSize() {}
+                text() {}
+                addPage() {}
+                save() { alert('PDF export not available - jsPDF failed to load'); }
+            };
+        }
 
         // Utility function
         function insertAtCursor(el, text) {
+            if (!el) return;
+            
             const start = el.selectionStart ?? el.value.length;
             const end = el.selectionEnd ?? el.value.length;
             const before = el.value.substring(0, start);
@@ -605,487 +625,577 @@ Write in Fountain format."></textarea>
             el.focus();
         }
 
-        // Insert buttons
-        document.getElementById('insert-scene-heading').addEventListener('click', () => {
-            const editor = document.getElementById('main-editor');
-            insertAtCursor(editor, "\nINT. LOCATION - DAY\n\n");
-        });
-        
-        document.getElementById('insert-dialogue').addEventListener('click', () => {
-            const editor = document.getElementById('main-editor');
-            insertAtCursor(editor, "\nCHARACTER\nDialog line here.\n\n");
-        });
-
-        // Character management
-        document.getElementById('add-character').addEventListener('click', () => {
-            const wrap = document.getElementById('characters');
-            const row = document.createElement('div');
-            row.className = 'char-row';
-            row.innerHTML = `
-                <input class="ws-input char-name" placeholder="Name">
-                <input class="ws-input char-goal" placeholder="Goal">
-                <input class="ws-input char-flaw" placeholder="Flaw">
-            `;
-            wrap.appendChild(row);
-        });
-
-        // Helper functions
-        function collectCharacters() {
-            const rows = [...document.querySelectorAll('.char-row')];
-            return rows.map(r => {
-                const n = r.querySelector('.char-name')?.value || '';
-                const g = r.querySelector('.char-goal')?.value || '';
-                const f = r.querySelector('.char-flaw')?.value || '';
-                return `- ${n} | goal: ${g} | flaw: ${f}`;
-            }).join('\n');
-        }
-
-        function collectActs() {
-            const acts = [...document.querySelectorAll('#acts .act')];
-            return acts.map(a => {
-                const t = a.querySelector('.act-title')?.value || '';
-                const n = a.querySelector('.act-notes')?.value || '';
-                return `${t}\n${n}\n`;
-            }).join('\n');
-        }
-
-        function formatFountainForPdf(text) {
-            const left = 108, dialog = 158, parenth = 137, char = 237, margin = 72;
-            return text.split('\n').map(l => {
-                const t = l.trimEnd();
-                if (!t) return { txt: '', x: left };
-                if (/^(INT\.|EXT\.)/.test(t)) return { txt: t.toUpperCase(), x: left };
-                if (/^[A-Z0-9 ()'".\-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
-                    return { txt: t.toUpperCase(), x: char };
-                if (/^\(.*\)$/.test(t)) return { txt: t, x: parenth };
-                if (/:$/.test(t)) return { txt: t, x: 612 - margin, align: 'right' };
-                return { txt: t, x: dialog };
-            });
-        }
-
-        // AI helpers
-        const aiInput = document.getElementById('wordstar-user-input');
-        const sendBtn = document.getElementById('wordstar-send-btn');
-
-        document.getElementById('generate-outline').addEventListener('click', () => {
-            const title = document.getElementById('project-title').value || 'Untitled';
-            const logline = document.getElementById('project-logline').value || '';
-            const chars = collectCharacters();
+        // Initialize event listeners when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Insert buttons
+            const insertSceneBtn = document.getElementById('insert-scene-heading');
+            const insertDialogueBtn = document.getElementById('insert-dialogue');
             
-            aiInput.value = `You are a professional screenwriting assistant. Create a detailed 3-act outline for "${title}".
-
-Logline: ${logline}
-
-Characters:
-${chars}
-
-Structure your outline with:
-- ACT I (pages 1-30): Setup, inciting incident, first turning point
-- ACT II (pages 30-90): Rising action, midpoint reversal, obstacles, second turning point  
-- ACT III (pages 90-120): Climax, resolution, denouement
-
-Return numbered beat sheets for each act with specific story moments.`;
-            sendBtn.click();
-        });
-
-        document.getElementById('generate-scenes').addEventListener('click', () => {
-            const acts = collectActs();
-            const chars = collectCharacters();
-            const title = document.getElementById('project-title').value || 'Untitled';
-            const currentPageCount = document.getElementById('page-count').textContent;
+            if (insertSceneBtn) {
+                insertSceneBtn.addEventListener('click', () => {
+                    const editor = document.getElementById('main-editor');
+                    insertAtCursor(editor, "\nINT. LOCATION - DAY\n\n");
+                });
+            }
             
-            aiInput.value = `Generate Fountain-formatted scenes for "${title}" (currently ${currentPageCount} pages).
+            if (insertDialogueBtn) {
+                insertDialogueBtn.addEventListener('click', () => {
+                    const editor = document.getElementById('main-editor');
+                    insertAtCursor(editor, "\nCHARACTER\nDialog line here.\n\n");
+                });
+            }
 
-Characters & Arcs:
-${chars}
+            // Character management
+            const addCharacterBtn = document.getElementById('add-character');
+            if (addCharacterBtn) {
+                addCharacterBtn.addEventListener('click', () => {
+                    const wrap = document.getElementById('characters');
+                    if (!wrap) return;
+                    
+                    const row = document.createElement('div');
+                    row.className = 'char-row';
+                    row.innerHTML = `
+                        <input class="ws-input char-name" placeholder="Name">
+                        <input class="ws-input char-goal" placeholder="Goal">
+                        <input class="ws-input char-flaw" placeholder="Flaw">
+                    `;
+                    wrap.appendChild(row);
+                });
+            }
 
-Act Structure:
-${acts}
+            // Helper functions
+            function collectCharacters() {
+                const rows = [...document.querySelectorAll('.char-row')];
+                return rows.map(r => {
+                    const n = r.querySelector('.char-name')?.value || '';
+                    const g = r.querySelector('.char-goal')?.value || '';
+                    const f = r.querySelector('.char-flaw')?.value || '';
+                    return `- ${n} | goal: ${g} | flaw: ${f}`;
+                }).join('\n');
+            }
 
-Requirements:
-- Use proper Fountain format (scene headings, action, dialogue)
-- Show character goals/flaws through action and dialogue
-- Keep scenes concise (2-3 pages each)
-- Include visual storytelling, not just talking heads
-- Advance the plot while developing character arcs`;
-            sendBtn.click();
-        });
+            function collectActs() {
+                const acts = [...document.querySelectorAll('#acts .act')];
+                return acts.map(a => {
+                    const t = a.querySelector('.act-title')?.value || '';
+                    const n = a.querySelector('.act-notes')?.value || '';
+                    return `${t}\n${n}\n`;
+                }).join('\n');
+            }
 
-        document.getElementById('polish-pass').addEventListener('click', () => {
-            const current = document.getElementById('main-editor').value;
-            aiInput.value = `Polish the following Fountain screenplay for clarity, pacing, and formatting. Return Fountain only.
+            function formatFountainForPdf(text) {
+                const left = 108, dialog = 158, parenth = 137, char = 237, margin = 72;
+                return text.split('\n').map(l => {
+                    const t = l.trimEnd();
+                    if (!t) return { txt: '', x: left };
+                    if (/^(INT\.|EXT\.)/.test(t)) return { txt: t.toUpperCase(), x: left };
+                    if (/^[A-Z0-9 ()'".\-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
+                        return { txt: t.toUpperCase(), x: char };
+                    if (/^\(.*\)$/.test(t)) return { txt: t, x: parenth };
+                    if (/:$/.test(t)) return { txt: t, x: 612 - margin, align: 'right' };
+                    return { txt: t, x: dialog };
+                });
+            }
 
-${current}`;
-            sendBtn.click();
-        });
+            // AI helpers
+            const aiInput = document.getElementById('wordstar-user-input');
+            const sendBtn = document.getElementById('wordstar-send-btn');
 
-        // Export PDF
-        // Export PDF
-        document.getElementById('export-pdf').addEventListener('click', () => {
-            try {
-                const text = document.getElementById('main-editor').value;
-                if (!text || !text.trim()) {
-                    alert('Please write something in the editor first!');
+            const generateOutlineBtn = document.getElementById('generate-outline');
+            if (generateOutlineBtn) {
+                generateOutlineBtn.addEventListener('click', () => {
+                    const title = document.getElementById('project-title')?.value || 'Untitled';
+                    const logline = document.getElementById('project-logline')?.value || '';
+                    const chars = collectCharacters();
+                    
+                    if (aiInput) {
+                        aiInput.value = `You are a professional screenwriting assistant. Create a detailed 3-act outline for "${title}".
+
+        Logline: ${logline}
+
+        Characters:
+        ${chars}
+
+        Structure your outline with:
+        - ACT I (pages 1-30): Setup, inciting incident, first turning point
+        - ACT II (pages 30-90): Rising action, midpoint reversal, obstacles, second turning point  
+        - ACT III (pages 90-120): Climax, resolution, denouement
+
+        Return numbered beat sheets for each act with specific story moments.`;
+                        if (sendBtn) sendBtn.click();
+                    }
+                });
+            }
+
+            const generateScenesBtn = document.getElementById('generate-scenes');
+            if (generateScenesBtn) {
+                generateScenesBtn.addEventListener('click', () => {
+                    const acts = collectActs();
+                    const chars = collectCharacters();
+                    const title = document.getElementById('project-title')?.value || 'Untitled';
+                    const currentPageCount = document.getElementById('page-count')?.textContent || '0';
+                    
+                    if (aiInput) {
+                        aiInput.value = `Generate Fountain-formatted scenes for "${title}" (currently ${currentPageCount} pages).
+
+        Characters & Arcs:
+        ${chars}
+
+        Act Structure:
+        ${acts}
+
+        Requirements:
+        - Use proper Fountain format (scene headings, action, dialogue)
+        - Show character goals/flaws through action and dialogue
+        - Keep scenes concise (2-3 pages each)
+        - Include visual storytelling, not just talking heads
+        - Advance the plot while developing character arcs`;
+                        if (sendBtn) sendBtn.click();
+                    }
+                });
+            }
+
+            const polishPassBtn = document.getElementById('polish-pass');
+            if (polishPassBtn) {
+                polishPassBtn.addEventListener('click', () => {
+                    const current = document.getElementById('main-editor')?.value || '';
+                    if (aiInput) {
+                        aiInput.value = `Polish the following Fountain screenplay for clarity, pacing, and formatting. Return Fountain only.
+
+        ${current}`;
+                        if (sendBtn) sendBtn.click();
+                    }
+                });
+            }
+
+            // Export PDF
+            const exportPdfBtn = document.getElementById('export-pdf');
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener('click', async () => {
+                    try {
+                        const text = document.getElementById('main-editor')?.value || 'No content';
+                        
+                        if (!text || text === 'No content') {
+                            alert('Please write something first!');
+                            return;
+                        }
+                        
+                        const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+                        const margin = 72;
+                        doc.setFont('courier', 'normal');
+                        doc.setFontSize(12);
+
+                        const lines = formatFountainForPdf(text);
+                        let y = margin;
+                        
+                        lines.forEach(({ txt, x, align }) => {
+                            if (y > doc.internal.pageSize.getHeight() - margin) {
+                                doc.addPage();
+                                y = margin;
+                            }
+                            doc.text(txt, x, y, { align: align || 'left' });
+                            y += 16;
+                        });
+
+                        const title = document.getElementById('project-title')?.value || 'screenplay';
+                        doc.save(`${title}.pdf`);
+                    } catch (error) {
+                        console.error('PDF Export Error:', error);
+                        alert('Error exporting PDF: ' + error.message);
+                    }
+                });
+            }
+
+            // Font controls
+            const fontSizeSelect = document.getElementById('ws-font-size');
+            if (fontSizeSelect) {
+                fontSizeSelect.addEventListener('change', (e) => {
+                    const editor = document.getElementById('main-editor');
+                    if (editor) editor.style.fontSize = `${e.target.value}px`;
+                });
+            }
+
+            const fontFamilySelect = document.getElementById('ws-font-family');
+            if (fontFamilySelect) {
+                fontFamilySelect.addEventListener('change', (e) => {
+                    const fam = e.target.value;
+                    const editor = document.getElementById('main-editor');
+                    if (editor) editor.style.fontFamily = `"${fam}", monospace`;
+                });
+            }
+
+            // Insert menu
+            const insertMenu = document.getElementById('ws-insert');
+            if (insertMenu) {
+                insertMenu.addEventListener('change', () => {
+                    if (!insertMenu.value) return;
+                    const v = insertMenu.value;
+                    const editor = document.getElementById('main-editor');
+                    const extraNL = (v.startsWith('INT.') || v.startsWith('EXT.')) ? '\n\n' : '\n';
+                    insertAtCursor(editor, `${v}${extraNL}`);
+                    insertMenu.selectedIndex = 0;
+                });
+            }
+
+            // Project view switcher
+            const viewSelect = document.getElementById('project-view-select');
+            const sections = {
+                overview: document.getElementById('project-overview'),
+                structure: document.getElementById('project-structure'),
+                characters: document.getElementById('project-characters')
+            };
+            
+            if (viewSelect) {
+                viewSelect.addEventListener('change', () => {
+                    Object.values(sections).forEach(s => {
+                        if (s) s.style.display = 'none';
+                    });
+                    if (sections[viewSelect.value]) {
+                        sections[viewSelect.value].style.display = 'block';
+                    }
+                });
+            }
+
+            // Index cards
+            const cardsGrid = document.getElementById('cards-grid');
+
+            function loadCards() {
+                if (!cardsGrid) return;
+                
+                try {
+                    const data = JSON.parse(localStorage.getItem('wsCards') || '[]');
+                    cardsGrid.innerHTML = '';
+                    data.forEach((t) => addCard(t));
+                } catch (e) {
+                    console.error('Error loading cards:', e);
+                    cardsGrid.innerHTML = '';
+                }
+            }
+
+            function saveCards() {
+                if (!cardsGrid) return;
+                
+                try {
+                    const texts = [...cardsGrid.querySelectorAll('textarea')].map(t => t.value);
+                    localStorage.setItem('wsCards', JSON.stringify(texts));
+                } catch (e) {
+                    console.error('Error saving cards:', e);
+                }
+            }
+
+            function addCard(text = '') {
+                if (!cardsGrid) return;
+                
+                const wrap = document.createElement('div');
+                wrap.className = 'card';
+                wrap.innerHTML = `<textarea>${text}</textarea><div style="display:flex; gap:6px; margin-top:8px;">
+                    <button class="ws-btn tertiary" data-del>Delete</button>
+                    <button class="ws-btn secondary" data-insert>Insert</button>
+                </div>`;
+                
+                const textarea = wrap.querySelector('textarea');
+                if (textarea) {
+                    textarea.addEventListener('input', saveCards);
+                }
+                
+                const delBtn = wrap.querySelector('[data-del]');
+                if (delBtn) {
+                    delBtn.addEventListener('click', () => {
+                        wrap.remove();
+                        saveCards();
+                    });
+                }
+                
+                const insertBtn = wrap.querySelector('[data-insert]');
+                if (insertBtn) {
+                    insertBtn.addEventListener('click', () => {
+                        const editor = document.getElementById('main-editor');
+                        const cardText = wrap.querySelector('textarea')?.value || '';
+                        insertAtCursor(editor, cardText + '\n');
+                    });
+                }
+                
+                cardsGrid.appendChild(wrap);
+            }
+
+            const addCardBtn = document.getElementById('add-card');
+            if (addCardBtn) {
+                addCardBtn.addEventListener('click', () => {
+                    addCard('');
+                    saveCards();
+                });
+            }
+
+            const clearCardsBtn = document.getElementById('clear-cards');
+            if (clearCardsBtn) {
+                clearCardsBtn.addEventListener('click', () => {
+                    if (cardsGrid) cardsGrid.innerHTML = '';
+                    saveCards();
+                });
+            }
+
+            loadCards();
+
+            // Progress Tracker
+            const editor = document.getElementById('main-editor');
+            
+            function updateProgressTracker() {
+                const text = editor ? editor.value : '';
+                const lines = text.split('\n');
+                
+                const sceneCount = lines.filter(line => /^(INT\.|EXT\.)/.test(line.trim())).length;
+                const pageCount = Math.max(1, Math.ceil(lines.length / 55));
+                const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+                const charCount = text.length;
+                
+                const pageCountEl = document.getElementById('page-count');
+                const sceneCountEl = document.getElementById('scene-count');
+                const wordCountEl = document.getElementById('word-count');
+                const charCountDisplayEl = document.getElementById('char-count-display');
+                
+                if (pageCountEl) pageCountEl.textContent = pageCount;
+                if (sceneCountEl) sceneCountEl.textContent = sceneCount;
+                if (wordCountEl) wordCountEl.textContent = wordCount.toLocaleString();
+                if (charCountDisplayEl) charCountDisplayEl.textContent = charCount.toLocaleString();
+                
+                const progress = Math.min(100, (pageCount / 120) * 100);
+                const act1Progress = Math.min(100, (progress / 25) * 100);
+                const act2Progress = Math.min(100, Math.max(0, ((progress - 25) / 50) * 100));
+                const act3Progress = Math.min(100, Math.max(0, ((progress - 75) / 25) * 100));
+                
+                const act1Bar = document.getElementById('act1-bar');
+                const act2Bar = document.getElementById('act2-bar');
+                const act3Bar = document.getElementById('act3-bar');
+                
+                if (act1Bar) {
+                    act1Bar.style.background = 
+                        `linear-gradient(to right, var(--accent-red) ${act1Progress}%, rgba(200, 75, 75, 0.3) ${act1Progress}%)`;
+                }
+                if (act2Bar) {
+                    act2Bar.style.background = 
+                        `linear-gradient(to right, var(--accent-red) ${act2Progress}%, rgba(200, 75, 75, 0.3) ${act2Progress}%)`;
+                }
+                if (act3Bar) {
+                    act3Bar.style.background = 
+                        `linear-gradient(to right, var(--accent-red) ${act3Progress}%, rgba(200, 75, 75, 0.3) ${act3Progress}%)`;
+                }
+            }
+            
+            let progressTimeout;
+            if (editor) {
+                editor.addEventListener('input', () => {
+                    clearTimeout(progressTimeout);
+                    progressTimeout = setTimeout(updateProgressTracker, 300);
+                });
+            }
+            
+            updateProgressTracker();
+
+            // AI Assistant
+            let currentApiKey = '';
+            let lastAIResponse = '';
+            
+            const savedKey = localStorage.getItem('wordstarOpenRouterKey');
+            if (savedKey) {
+                currentApiKey = savedKey;
+                const apiKeyInput = document.getElementById('wordstar-api-key');
+                if (apiKeyInput) {
+                    apiKeyInput.value = '••••••••' + savedKey.slice(-4);
+                }
+                const keyStatus = document.getElementById('wordstar-key-status');
+                if (keyStatus) {
+                    keyStatus.innerHTML = '<span style="color: #10B981;">✓ Key loaded</span>';
+                }
+            }
+            
+            const aiToggleBtn = document.getElementById('wordstar-ai-toggle');
+            if (aiToggleBtn) {
+                aiToggleBtn.addEventListener('click', function() {
+                    const sidebar = document.getElementById('wordstar-ai-sidebar');
+                    const layout = document.querySelector('.ws-layout');
+                    if (sidebar && layout) {
+                        sidebar.classList.toggle('active');
+                        layout.classList.toggle('sidebar-active');
+                    }
+                });
+            }
+            
+            const saveKeyBtn = document.getElementById('wordstar-save-key');
+            if (saveKeyBtn) {
+                saveKeyBtn.addEventListener('click', function() {
+                    const keyInput = document.getElementById('wordstar-api-key');
+                    if (!keyInput) return;
+                    
+                    const key = keyInput.value.trim();
+                    
+                    if (key && !key.startsWith('••••••••')) {
+                        currentApiKey = key;
+                        localStorage.setItem('wordstarOpenRouterKey', key);
+                        keyInput.value = '••••••••' + key.slice(-4);
+                        const keyStatus = document.getElementById('wordstar-key-status');
+                        if (keyStatus) {
+                            keyStatus.innerHTML = '<span style="color: #10B981;">✓ Key saved</span>';
+                        }
+                    }
+                });
+            }
+            
+            const sendBtnAI = document.getElementById('wordstar-send-btn');
+            if (sendBtnAI) {
+                sendBtnAI.addEventListener('click', sendMessage);
+            }
+            
+            const insertBtnAI = document.getElementById('wordstar-insert-btn');
+            if (insertBtnAI) {
+                insertBtnAI.addEventListener('click', insertText);
+            }
+            
+            const userInputAI = document.getElementById('wordstar-user-input');
+            if (userInputAI) {
+                userInputAI.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+            
+            async function sendMessage() {
+                const message = userInputAI ? userInputAI.value.trim() : '';
+                if (!message || !currentApiKey) {
+                    if (!currentApiKey) {
+                        const keyStatus = document.getElementById('wordstar-key-status');
+                        if (keyStatus) {
+                            keyStatus.innerHTML = '<span style="color: #EF4444;">⚠ API key required</span>';
+                        }
+                    }
                     return;
                 }
-
-                // 1. Use fountain-js to parse the entire script into structured tokens
-                const scriptOutput = fountain.parse(text);
-                const tokens = scriptOutput.tokens;
-
-                // 2. Setup the PDF document
-                const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-                const margin = 72;
-                const pageHeight = doc.internal.pageSize.getHeight();
-                const pageWidth = doc.internal.pageSize.getWidth();
-                let y = margin; // Start position for the first line
-
-                doc.setFont('courier', 'normal');
-                doc.setFontSize(12);
                 
-                // 3. Define standard screenplay x-axis positions (in points)
-                const positions = {
-                    scene_heading: 108,
-                    action: 108,
-                    character: 264,
-                    parenthetical: 204,
-                    dialogue: 180,
-                    transition: 432,
-                    centered: pageWidth / 2 // For centered text
-                };
+                if (!sendBtnAI) return;
+                
+                addMessage('user', message);
+                if (userInputAI) userInputAI.value = '';
+                sendBtnAI.disabled = true;
+                sendBtnAI.textContent = 'Thinking...';
+                
+                try {
+                    const modelSelect = document.getElementById('wordstar-model-select');
+                    const model = modelSelect ? modelSelect.value : 'meta-llama/llama-3.3-70b-instruct:free';
 
-                // 4. Loop through each token from the parsed script
-                tokens.forEach(token => {
-                    // Skip tokens that don't have text
-                    if (!token.text || !token.text.trim()) {
-                        // Treat empty lines as a line break
-                        y += 16;
+                    if (model === '_LIST_MODELS_') {
+                        addMessage('assistant', 'Visit https://openrouter.ai/models to view available models.');
+                        sendBtnAI.disabled = false;
+                        sendBtnAI.textContent = 'Send';
                         return;
                     }
-
-                    const x = positions[token.type] || positions.action; // Default to 'action' style
-                    let textToPrint = token.text;
-
-                    // Apply standard screenplay formatting rules
-                    if (token.type === 'scene_heading' || token.type === 'character' || token.type === 'transition') {
-                        textToPrint = textToPrint.toUpperCase();
-                    }
-                    
-                    // Handle centered text for title pages, etc.
-                    const align = token.type === 'centered' ? 'center' : 'left';
-
-                    // Use jsPDF's built-in text wrapping
-                    const lines = doc.splitTextToSize(textToPrint, pageWidth - margin - x);
-                    
-                    // 5. Check for page breaks BEFORE writing new lines
-                    if (y + (lines.length * 16) > pageHeight - margin) {
-                        doc.addPage();
-                        y = margin;
+                    if (model === '_TEST_API_') {
+                        addMessage('assistant', 'Testing API key... Making a simple request...');
                     }
 
-                    // 6. Write each line to the PDF
-                    lines.forEach(line => {
-                        doc.text(line, x, y, { align: align });
-                        y += 16; // Increment y position for the next line
+                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${currentApiKey}`,
+                            'Content-Type': 'application/json',
+                            'HTTP-Referer': window.location.href,
+                            'X-Title': 'WordStar'
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [
+                                { role: 'system', content: 'You are a highly advanced AI screenwriting assistant. Use industry-standard screenplay conventions (Fountain format when generating script pages). Provide structured, actionable outputs.' },
+                                { role: 'user', content: message }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 1800
+                        })
                     });
-                });
-
-                const title = document.getElementById('project-title').value.trim() || 'screenplay';
-                doc.save(`${title}.pdf`);
-
-            } catch (error) {
-                console.error('PDF Export Error:', error);
-                alert('An error occurred while exporting the PDF: ' + error.message);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error.message || 'API Error');
+                    }
+                    
+                    const aiResponse = data.choices[0].message.content;
+                    lastAIResponse = aiResponse;
+                    addMessage('assistant', aiResponse);
+                    if (insertBtnAI) {
+                        insertBtnAI.style.display = 'block';
+                    }
+                    
+                } catch (error) {
+                    console.error('API Error:', error);
+                    addMessage('system', 'Error: ' + error.message);
+                } finally {
+                    sendBtnAI.disabled = false;
+                    sendBtnAI.textContent = 'Send';
+                }
             }
-        });
-
-        // Font controls
-        document.getElementById('ws-font-size').addEventListener('change', (e) => {
-            const editor = document.getElementById('main-editor');
-            editor.style.fontSize = `${e.target.value}px`;
-        });
-
-        document.getElementById('ws-font-family').addEventListener('change', (e) => {
-            const fam = e.target.value;
-            document.getElementById('main-editor').style.fontFamily = `"${fam}", monospace`;
-        });
-
-        // Insert menu
-        document.getElementById('ws-insert').addEventListener('change', () => {
-            const el = document.getElementById('ws-insert');
-            if (!el.value) return;
-            const v = el.value;
-            const editor = document.getElementById('main-editor');
-            const extraNL = (v.startsWith('INT.') || v.startsWith('EXT.')) ? '\n\n' : '\n';
-            insertAtCursor(editor, `${v}${extraNL}`);
-            el.selectedIndex = 0;
-        });
-
-        // Project view switcher
-        const viewSelect = document.getElementById('project-view-select');
-        const sections = {
-            overview: document.getElementById('project-overview'),
-            structure: document.getElementById('project-structure'),
-            characters: document.getElementById('project-characters')
-        };
-        viewSelect.addEventListener('change', () => {
-            Object.values(sections).forEach(s => s.style.display = 'none');
-            sections[viewSelect.value].style.display = 'block';
-        });
-
-        // Index cards
-        const cardsGrid = document.getElementById('cards-grid');
-
-        function loadCards() {
-            const data = JSON.parse(localStorage.getItem('wsCards') || '[]');
-            cardsGrid.innerHTML = '';
-            data.forEach((t) => addCard(t));
-        }
-
-        function saveCards() {
-            const texts = [...cardsGrid.querySelectorAll('textarea')].map(t => t.value);
-            localStorage.setItem('wsCards', JSON.stringify(texts));
-        }
-
-        function addCard(text = '') {
-            const wrap = document.createElement('div');
-            wrap.className = 'card';
-            wrap.innerHTML = `<textarea>${text}</textarea><div style="display:flex; gap:6px; margin-top:8px;">
-                <button class="ws-btn tertiary" data-del>Delete</button>
-                <button class="ws-btn secondary" data-insert>Insert</button>
-            </div>`;
-            wrap.querySelector('textarea').addEventListener('input', saveCards);
-            wrap.querySelector('[data-del]').addEventListener('click', () => {
-                wrap.remove();
-                saveCards();
-            });
-            wrap.querySelector('[data-insert]').addEventListener('click', () => {
+            
+            function addMessage(role, content) {
+                const chat = document.getElementById('wordstar-chat-history');
+                if (!chat) return;
+                
+                const msg = document.createElement('div');
+                let bgColor, borderColor, labelColor, textColor;
+                
+                if (role === 'user') {
+                    bgColor = '#2A2A2A';
+                    borderColor = '#C84B4B';
+                    labelColor = '#E86A6A';
+                    textColor = '#E6E6E6';
+                } else if (role === 'assistant') {
+                    bgColor = '#1F1F1F';
+                    borderColor = '#4A4A4A';
+                    labelColor = '#A0A0A0';
+                    textColor = '#D9D9D9';
+                } else {
+                    bgColor = '#252525';
+                    borderColor = '#5A5A5A';
+                    labelColor = '#B0B0B0';
+                    textColor = '#F0F0F0';
+                }
+                
+                msg.innerHTML = `<div style="margin-bottom:12px; padding:10px 12px; background:${bgColor}; border-radius:6px; border-left:3px solid ${borderColor};">
+                    <strong style="color:${labelColor}; font-size:10px; text-transform:uppercase; letter-spacing:0.8px; font-family:'Nova Square', monospace;">${role === 'user' ? 'You' : role === 'assistant' ? 'AI' : 'System'}</strong>
+                    <div style="color:${textColor}; margin-top:6px; line-height:1.6; white-space:pre-wrap; font-family:'Nova Mono', monospace; font-size:12px;">${content}</div>
+                </div>`;
+                chat.appendChild(msg);
+                chat.scrollTop = chat.scrollHeight;
+            }
+            
+            function insertText() {
+                if (!lastAIResponse) return;
                 const editor = document.getElementById('main-editor');
-                insertAtCursor(editor, wrap.querySelector('textarea').value + '\n');
-            });
-            cardsGrid.appendChild(wrap);
-        }
-
-        document.getElementById('add-card').addEventListener('click', () => {
-            addCard('');
-            saveCards();
-        });
-
-        document.getElementById('clear-cards').addEventListener('click', () => {
-            cardsGrid.innerHTML = '';
-            saveCards();
-        });
-
-        loadCards();
-
-        // Progress Tracker
-       function updateProgressTracker() {
-            const text = editor.value;
-            
-            // Use fountain-js to parse the script!
-            const fountainOutput = fountain.parse(text);
-            const tokens = fountainOutput.tokens || [];
-
-            const sceneCount = tokens.filter(t => t.type === 'scene_heading').length;
-            const characterTokens = tokens.filter(t => t.type === 'character');
-            // Get a unique list of characters
-            const uniqueCharacters = [...new Set(characterTokens.map(t => t.text.replace(/ \(.+\)/, '')))];
-
-            const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-            const pageCount = Math.max(1, Math.ceil(text.split('\n').length / 55)); // Page count is an approximation
-            
-            document.getElementById('page-count').textContent = pageCount;
-            document.getElementById('scene-count').textContent = sceneCount;
-            document.getElementById('word-count').textContent = wordCount.toLocaleString();
-            // Display the count of unique characters found in the script
-            document.getElementById('char-count-display').textContent = uniqueCharacters.length;
-            
-            const progress = Math.min(100, (pageCount / 120) * 100);
-            const act1Progress = Math.min(100, (progress / 25) * 100);
-            const act2Progress = Math.min(100, Math.max(0, ((progress - 25) / 50) * 100));
-            const act3Progress = Math.min(100, Math.max(0, ((progress - 75) / 25) * 100));
-            
-            document.getElementById('act1-bar').style.background = 
-                `linear-gradient(to right, var(--accent-red) ${act1Progress}%, rgba(200, 75, 75, 0.3) ${act1Progress}%)`;
-            document.getElementById('act2-bar').style.background = 
-                `linear-gradient(to right, var(--accent-red) ${act2Progress}%, rgba(200, 75, 75, 0.3) ${act2Progress}%)`;
-            document.getElementById('act3-bar').style.background = 
-                `linear-gradient(to right, var(--accent-red) ${act3Progress}%, rgba(200, 75, 75, 0.3) ${act3Progress}%)`;
-        }
-        
-        let progressTimeout;
-        editor.addEventListener('input', () => {
-            clearTimeout(progressTimeout);
-            progressTimeout = setTimeout(updateProgressTracker, 300);
-        });
-        
-        updateProgressTracker();
-
-        // AI Assistant
-        let currentApiKey = '';
-        let lastAIResponse = '';
-        
-        const savedKey = localStorage.getItem('wordstarOpenRouterKey');
-        if (savedKey) {
-            currentApiKey = savedKey;
-            document.getElementById('wordstar-api-key').value = '••••••••' + savedKey.slice(-4);
-            document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key loaded</span>';
-        }
-        
-        document.getElementById('wordstar-ai-toggle').addEventListener('click', function() {
-            const sidebar = document.getElementById('wordstar-ai-sidebar');
-            const layout = document.querySelector('.ws-layout');
-            sidebar.classList.toggle('active');
-            layout.classList.toggle('sidebar-active');
-        });
-        
-        document.getElementById('wordstar-save-key').addEventListener('click', function() {
-            const keyInput = document.getElementById('wordstar-api-key');
-            const key = keyInput.value.trim();
-            
-            if (key && !key.startsWith('••••••••')) {
-                currentApiKey = key;
-                localStorage.setItem('wordstarOpenRouterKey', key);
-                keyInput.value = '••••••••' + key.slice(-4);
-                document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key saved</span>';
-            }
-        });
-        
-        document.getElementById('wordstar-send-btn').addEventListener('click', sendMessage);
-        document.getElementById('wordstar-insert-btn').addEventListener('click', insertText);
-        
-        document.getElementById('wordstar-user-input').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        
-        async function sendMessage() {
-            const message = document.getElementById('wordstar-user-input').value.trim();
-            if (!message || !currentApiKey) {
-                if (!currentApiKey) {
-                    document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #EF4444;">⚠ API key required</span>';
-                }
-                return;
-            }
-            
-            const sendBtn = document.getElementById('wordstar-send-btn');
-            addMessage('user', message);
-            document.getElementById('wordstar-user-input').value = '';
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Thinking...';
-            
-            try {
-                const model = document.getElementById('wordstar-model-select').value;
-
-                if (model === '_LIST_MODELS_') {
-                    addMessage('assistant', 'Visit https://openrouter.ai/models to view available models.');
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'Send';
-                    return;
-                }
-                if (model === '_TEST_API_') {
-                    addMessage('assistant', 'Testing API key... Making a simple request...');
-                }
-
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${currentApiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.href,
-                        'X-Title': 'WordStar'
-                    },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: [
-                            { role: 'system', content: 'You are a highly advanced AI screenwriting assistant. Use industry-standard screenplay conventions (Fountain format when generating script pages). Provide structured, actionable outputs.' },
-                            { role: 'user', content: message }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 1800
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error.message || 'API Error');
-                }
-                
-                const aiResponse = data.choices[0].message.content;
-                lastAIResponse = aiResponse;
-                addMessage('assistant', aiResponse);
-                document.getElementById('wordstar-insert-btn').style.display = 'block';
-                
-            } catch (error) {
-                console.error('API Error:', error);
-                addMessage('system', 'Error: ' + error.message);
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
-            }
-        }
-        
-        function addMessage(role, content) {
-            const chat = document.getElementById('wordstar-chat-history');
-            const msg = document.createElement('div');
-            let bgColor, borderColor, labelColor, textColor;
-            
-            if (role === 'user') {
-                bgColor = '#2A2A2A';
-                borderColor = '#C84B4B';
-                labelColor = '#E86A6A';
-                textColor = '#E6E6E6';
-            } else if (role === 'assistant') {
-                bgColor = '#1F1F1F';
-                borderColor = '#4A4A4A';
-                labelColor = '#A0A0A0';
-                textColor = '#D9D9D9';
-            } else {
-                bgColor = '#252525';
-                borderColor = '#5A5A5A';
-                labelColor = '#B0B0B0';
-                textColor = '#F0F0F0';
-            }
-            
-            msg.innerHTML = `<div style="margin-bottom:12px; padding:10px 12px; background:${bgColor}; border-radius:6px; border-left:3px solid ${borderColor};">
-                <strong style="color:${labelColor}; font-size:10px; text-transform:uppercase; letter-spacing:0.8px; font-family:'Nova Square', monospace;">${role === 'user' ? 'You' : role === 'assistant' ? 'AI' : 'System'}</strong>
-                <div style="color:${textColor}; margin-top:6px; line-height:1.6; white-space:pre-wrap; font-family:'Nova Mono', monospace; font-size:12px;">${content}</div>
-            </div>`;
-            chat.appendChild(msg);
-            chat.scrollTop = chat.scrollHeight;
-        }
-        
-        function insertText() {
-            if (!lastAIResponse) return;
-            const editor = document.getElementById('main-editor');
-            if (editor) {
-                const startPos = editor.selectionStart;
-                const endPos = editor.selectionEnd;
-                const beforeText = editor.value.substring(0, startPos);
-                const afterText = editor.value.substring(endPos);
-                editor.value = beforeText + lastAIResponse + afterText;
-                const newPosition = startPos + lastAIResponse.length;
-                editor.setSelectionRange(newPosition, newPosition);
-                editor.dispatchEvent(new Event('input', { bubbles: true }));
-                editor.focus();
-                
                 const insertBtn = document.getElementById('wordstar-insert-btn');
-                const originalBg = insertBtn.style.background;
-                insertBtn.textContent = 'Inserted!';
-                insertBtn.style.background = '#10B981';
-                setTimeout(() => {
-                    insertBtn.textContent = 'Insert to Script';
-                    insertBtn.style.background = originalBg;
-                    insertBtn.style.display = 'none';
-                }, 1500);
+                
+                if (editor && insertBtn) {
+                    const startPos = editor.selectionStart;
+                    const endPos = editor.selectionEnd;
+                    const beforeText = editor.value.substring(0, startPos);
+                    const afterText = editor.value.substring(endPos);
+                    editor.value = beforeText + lastAIResponse + afterText;
+                    const newPosition = startPos + lastAIResponse.length;
+                    editor.setSelectionRange(newPosition, newPosition);
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                    editor.focus();
+                    
+                    const originalBg = insertBtn.style.background;
+                    insertBtn.textContent = 'Inserted!';
+                    insertBtn.style.background = '#10B981';
+                    setTimeout(() => {
+                        insertBtn.textContent = 'Insert to Script';
+                        insertBtn.style.background = originalBg;
+                        insertBtn.style.display = 'none';
+                    }, 1500);
+                }
             }
-        }
+        });
     </script>
 </body>
 </html>
