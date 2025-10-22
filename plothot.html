@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WordStar Screenwriter</title>
     <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Nova+Square&family=Nova+Slim&family=Nova+Flat&display=swap" rel="stylesheet">
+    <script type="importmap">
+    {
+      "imports": {
+        "jspdf": "https://esm.sh/jspdf@2.5.1",
+        "fountain-js": "https://esm.sh/fountain-js@1.6.10"
+      }
+    }
+    </script>
     <style>
         :root {
             --bg: #0E0E0E;
@@ -360,13 +368,59 @@
             white-space: nowrap;
             border-width: 0;
         }
+
+        /* Import/Export styles */
+        .file-input {
+            display: none;
+        }
+
+        .fountain-preview {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: "Nova Mono", monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .fountain-element {
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 3px;
+        }
+
+        .fountain-scene {
+            background: rgba(200, 75, 75, 0.2);
+            font-weight: bold;
+        }
+
+        .fountain-character {
+            background: rgba(75, 200, 75, 0.2);
+            margin-left: 20px;
+        }
+
+        .fountain-dialogue {
+            background: rgba(75, 75, 200, 0.2);
+            margin-left: 40px;
+        }
+
+        .fountain-action {
+            background: rgba(200, 200, 75, 0.2);
+        }
     </style>
+<base target="_blank">
 </head>
 <body>
     <header class="ws-header">
         <div class="ws-brand">WordStar</div>
         <div class="ws-actions">
+            <button id="import-script" class="ws-btn secondary">Import</button>
             <button id="export-pdf" class="ws-btn">Export PDF</button>
+            <button id="export-fountain" class="ws-btn secondary">Export Fountain</button>
             <button id="wordstar-ai-toggle" class="ws-btn">AI Assistant</button>
         </div>
     </header>
@@ -428,6 +482,7 @@
                     <option value="overview" selected>Overview</option>
                     <option value="structure">Structure</option>
                     <option value="characters">Characters</option>
+                    <option value="fountain">Fountain</option>
                 </select>
             </div>
 
@@ -511,6 +566,24 @@
                 </div>
                 <button id="add-character" class="ws-btn tertiary" style="margin-top: 8px; width: 100%;">Add Character</button>
             </div>
+
+            <div id="project-fountain" class="ws-block" style="display:none;">
+                <h3 class="ws-block-title">Fountain Analysis</h3>
+                <div id="fountain-stats" class="mono" style="font-size: 11px; line-height: 1.4;">
+                    <div>Scenes: <span id="fountain-scenes">0</span></div>
+                    <div>Characters: <span id="fountain-characters">0</span></div>
+                    <div>Dialogue Blocks: <span id="fountain-dialogue">0</span></div>
+                    <div>Action Lines: <span id="fountain-action">0</span></div>
+                </div>
+                <div class="ws-grid" style="margin-top: 12px;">
+                    <button id="parse-fountain" class="ws-btn secondary">Parse Script</button>
+                    <button id="validate-fountain" class="ws-btn secondary">Validate</button>
+                </div>
+                <div id="fountain-preview" class="fountain-preview" style="display:none;">
+                    <h4 style="color: var(--accent-red); margin-bottom: 8px; font-size: 12px;">Fountain Structure Preview:</h4>
+                    <div id="fountain-elements"></div>
+                </div>
+            </div>
         </aside>
 
         <section class="ws-editor">
@@ -519,6 +592,7 @@
                 <div class="ws-editor-tools">
                     <button id="insert-scene-heading" class="ws-btn ghost">@ Scene Heading</button>
                     <button id="insert-dialogue" class="ws-btn ghost">Character + Dialogue</button>
+                    <button id="fountain-help" class="ws-btn ghost">Fountain Help</button>
                 </div>
             </div>
             <textarea id="main-editor" class="ws-textarea editor" placeholder="INT. LOCATION - DAY
@@ -527,7 +601,15 @@ CHARACTER
 This is dialogue.
 
 # Notes:
-Write in Fountain format."></textarea>
+Write in Fountain format.
+
+Fountain Formatting Guide:
+- Scene headings: INT. or EXT. (uppercase)
+- Character names: UPPERCASE
+- Dialogue: indented automatically
+- Action: regular text
+- Parentheticals: (parentheses)
+- Transitions: UPPERCASE followed by : or TO:"></textarea>
         </section>
 
         <aside id="wordstar-ai-sidebar" class="ws-panel right">
@@ -580,12 +662,10 @@ Write in Fountain format."></textarea>
         </aside>
     </main>
 
-    <script src="https://unpkg.com/fountain-js@1.6.10/dist/fountain.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script>
-  const { jsPDF } = window.jspdf;
-  const fountain = window.fountain;
+    <!-- Hidden file input for import -->
+    <input type="file" id="file-input" class="file-input" accept=".fountain,.txt,.md">
 
+    <script type="module">
         import { jsPDF } from "jspdf";
         import fountain from "fountain-js";
 
@@ -602,6 +682,9 @@ Write in Fountain format."></textarea>
             el.focus();
         }
 
+        // Initialize Fountain parser
+        const fountainParser = new fountain();
+
         // Insert buttons
         document.getElementById('insert-scene-heading').addEventListener('click', () => {
             const editor = document.getElementById('main-editor');
@@ -611,6 +694,40 @@ Write in Fountain format."></textarea>
         document.getElementById('insert-dialogue').addEventListener('click', () => {
             const editor = document.getElementById('main-editor');
             insertAtCursor(editor, "\nCHARACTER\nDialog line here.\n\n");
+        });
+
+        document.getElementById('fountain-help').addEventListener('click', () => {
+            const helpText = `FOUNTAIN FORMATTING GUIDE:
+
+SCENE HEADINGS:
+INT. KITCHEN - DAY
+EXT. FOREST - NIGHT
+
+CHARACTER NAMES:
+JOHN
+MARY (V.O.)
+
+DIALOGUE:
+Character name in caps, dialogue on next line
+
+ACTION:
+Regular text describes action
+
+PARENTHETICALS:
+(bappy)
+(whispering)
+
+TRANSITIONS:
+CUT TO:
+FADE OUT.
+
+NOTES:
+[[This is a note]]
+
+For more: https://fountain.io/syntax`;
+            
+            const editor = document.getElementById('main-editor');
+            insertAtCursor(editor, helpText);
         });
 
         // Character management
@@ -652,12 +769,65 @@ Write in Fountain format."></textarea>
                 const t = l.trimEnd();
                 if (!t) return { txt: '', x: left };
                 if (/^(INT\.|EXT\.)/.test(t)) return { txt: t.toUpperCase(), x: left };
-                if (/^[A-Z0-9 ()'".\-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
+                if (/^[A-Z0-9 ()'".-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
                     return { txt: t.toUpperCase(), x: char };
                 if (/^\(.*\)$/.test(t)) return { txt: t, x: parenth };
                 if (/:$/.test(t)) return { txt: t, x: 612 - margin, align: 'right' };
                 return { txt: t, x: dialog };
             });
+        }
+
+        // Fountain parsing functions
+        function parseFountainScript(text) {
+            try {
+                const parsed = fountainParser.parse(text);
+                return parsed;
+            } catch (error) {
+                console.error('Fountain parsing error:', error);
+                return null;
+            }
+        }
+
+        function updateFountainStats() {
+            const text = document.getElementById('main-editor').value;
+            const parsed = parseFountainScript(text);
+            
+            if (parsed) {
+                const scenes = parsed.filter(token => token.type === 'scene_heading').length;
+                const characters = [...new Set(parsed.filter(token => token.type === 'character').map(token => token.text))].length;
+                const dialogue = parsed.filter(token => token.type === 'dialogue').length;
+                const action = parsed.filter(token => token.type === 'action').length;
+                
+                document.getElementById('fountain-scenes').textContent = scenes;
+                document.getElementById('fountain-characters').textContent = characters;
+                document.getElementById('fountain-dialogue').textContent = dialogue;
+                document.getElementById('fountain-action').textContent = action;
+            }
+        }
+
+        function previewFountainElements() {
+            const text = document.getElementById('main-editor').value;
+            const parsed = parseFountainScript(text);
+            const preview = document.getElementById('fountain-elements');
+            
+            if (parsed && parsed.length > 0) {
+                preview.innerHTML = '';
+                parsed.slice(0, 20).forEach(token => {
+                    const div = document.createElement('div');
+                    div.className = `fountain-element fountain-${token.type}`;
+                    div.textContent = `${token.type.toUpperCase()}: ${token.text.substring(0, 50)}${token.text.length > 50 ? '...' : ''}`;
+                    preview.appendChild(div);
+                });
+                
+                if (parsed.length > 20) {
+                    const more = document.createElement('div');
+                    more.className = 'fountain-element';
+                    more.textContent = `... and ${parsed.length - 20} more elements`;
+                    preview.appendChild(more);
+                }
+                
+                document.getElementById('fountain-preview').style.display = 'block';
+            }
         }
 
         // AI helpers
@@ -716,7 +886,40 @@ ${current}`;
             sendBtn.click();
         });
 
-        // Export PDF
+        // Fountain parsing buttons
+        document.getElementById('parse-fountain').addEventListener('click', () => {
+            updateFountainStats();
+            previewFountainElements();
+        });
+
+        document.getElementById('validate-fountain').addEventListener('click', () => {
+            const text = document.getElementById('main-editor').value;
+            const parsed = parseFountainScript(text);
+            
+            if (parsed) {
+                const issues = [];
+                const scenes = parsed.filter(token => token.type === 'scene_heading');
+                const characters = parsed.filter(token => token.type === 'character');
+                
+                if (scenes.length === 0) {
+                    issues.push('No scene headings found');
+                }
+                
+                if (characters.length === 0) {
+                    issues.push('No character names found');
+                }
+                
+                const message = issues.length > 0 ? 
+                    `Validation Issues:\n${issues.join('\n')}` : 
+                    'Script appears to be properly formatted!';
+                
+                alert(message);
+            } else {
+                alert('Unable to parse script. Check Fountain syntax.');
+            }
+        });
+
+        // Export functions
         document.getElementById('export-pdf').addEventListener('click', async () => {
             try {
                 const text = document.getElementById('main-editor').value || 'No content';
@@ -751,6 +954,58 @@ ${current}`;
             }
         });
 
+        document.getElementById('export-fountain').addEventListener('click', () => {
+            const text = document.getElementById('main-editor').value;
+            const title = document.getElementById('project-title').value || 'screenplay';
+            
+            if (!text.trim()) {
+                alert('No content to export!');
+                return;
+            }
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title}.fountain`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Import function
+        document.getElementById('import-script').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    const editor = document.getElementById('main-editor');
+                    
+                    if (confirm('This will replace the current script content. Continue?')) {
+                        editor.value = content;
+                        editor.dispatchEvent(new Event('input', { bubbles: true }));
+                        updateProgressTracker();
+                        updateFountainStats();
+                        
+                        // Show success message
+                        const status = document.getElementById('wordstar-key-status');
+                        const originalText = status.innerHTML;
+                        status.innerHTML = '<span style="color: #10B981;">✓ Script imported successfully</span>';
+                        setTimeout(() => {
+                            status.innerHTML = originalText;
+                        }, 3000);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
         // Font controls
         document.getElementById('ws-font-size').addEventListener('change', (e) => {
             const editor = document.getElementById('main-editor');
@@ -778,7 +1033,8 @@ ${current}`;
         const sections = {
             overview: document.getElementById('project-overview'),
             structure: document.getElementById('project-structure'),
-            characters: document.getElementById('project-characters')
+            characters: document.getElementById('project-characters'),
+            fountain: document.getElementById('project-fountain')
         };
         viewSelect.addEventListener('change', () => {
             Object.values(sections).forEach(s => s.style.display = 'none');
@@ -863,10 +1119,14 @@ ${current}`;
         let progressTimeout;
         editor.addEventListener('input', () => {
             clearTimeout(progressTimeout);
-            progressTimeout = setTimeout(updateProgressTracker, 300);
+            progressTimeout = setTimeout(() => {
+                updateProgressTracker();
+                updateFountainStats();
+            }, 300);
         });
         
         updateProgressTracker();
+        updateFountainStats();
 
         // AI Assistant
         let currentApiKey = '';
@@ -1033,6 +1293,11 @@ ${current}`;
                 }, 1500);
             }
         }
+
+        // Initialize fountain stats on load
+        setTimeout(() => {
+            updateFountainStats();
+        }, 100);
     </script>
 </body>
 </html>
