@@ -91,7 +91,7 @@
         /* Layout */
         .ws-layout {
             display: grid;
-            grid-template-columns: 340px 1fr 380px;
+            grid-template-columns: 340px 1fr;
             gap: 0;
             height: calc(100vh - 130px);
         }
@@ -109,6 +109,19 @@
 
         .ws-panel.right {
             border-right: 1px solid var(--border);
+        }
+        
+        /* Show right panel when active */
+        #wordstar-ai-sidebar {
+            display: none;
+        }
+        
+        #wordstar-ai-sidebar.active {
+            display: block;
+        }
+        
+        .ws-layout.sidebar-active {
+            grid-template-columns: 340px 1fr 380px;
         }
 
         /* Editor Section */
@@ -567,7 +580,7 @@ This is dialogue.
 Write in Fountain format."></textarea>
         </section>
 
-        <aside id="wordstar-ai-sidebar" class="ws-panel right" style="display:none;">
+        <aside id="wordstar-ai-sidebar" class="ws-panel right">
             <div class="ws-block">
                 <h3 class="ws-block-title">Model</h3>
                 <select id="wordstar-model-select">
@@ -670,8 +683,7 @@ Structure your outline with:
 Return numbered beat sheets for each act with specific story moments.`;
     sendBtn.click();
 });
-
-       document.getElementById('generate-scenes').addEventListener('click', () => {
+        document.getElementById('generate-scenes').addEventListener('click', () => {
     const acts = collectActs();
     const chars = collectCharacters();
     const title = document.getElementById('project-title').value || 'Untitled';
@@ -704,28 +716,33 @@ ${current}`;
 
         // Export PDF
         document.getElementById('export-pdf').addEventListener('click', async () => {
-            const text = document.getElementById('main-editor').value || '';
-            const parsed = await parseFountain(text);
-            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-            const margin = 72;
-            doc.setFont('courier', 'normal');
-            doc.setFontSize(12);
+            try {
+                const text = document.getElementById('main-editor').value || '';
+                const parsed = await parseFountain(text);
+                const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+                const margin = 72;
+                doc.setFont('courier', 'normal');
+                doc.setFontSize(12);
 
-            const content = parsed.html ? stripHtml(parsed.html) : text;
-            const lines = formatFountainForPdf(content);
+                const content = parsed.html ? stripHtml(parsed.html) : text;
+                const lines = formatFountainForPdf(content);
 
-            let y = margin;
-            lines.forEach(({ txt, x, align }) => {
-                if (y > doc.internal.pageSize.getHeight() - margin) {
-                    doc.addPage();
-                    y = margin;
-                }
-                doc.text(txt, x, y, { align: align || 'left' });
-                y += 16;
-            });
+                let y = margin;
+                lines.forEach(({ txt, x, align }) => {
+                    if (y > doc.internal.pageSize.getHeight() - margin) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    doc.text(txt, x, y, { align: align || 'left' });
+                    y += 16;
+                });
 
-            const title = document.getElementById('project-title').value || 'screenplay';
-            doc.save(`${title}.pdf`);
+                const title = document.getElementById('project-title').value || 'screenplay';
+                doc.save(`${title}.pdf`);
+            } catch (error) {
+                console.error('PDF Export Error:', error);
+                alert('Error exporting PDF. Check console for details.');
+            }
         });
 
         // Utilities
@@ -929,9 +946,18 @@ ${current}`;
                 document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key loaded</span>';
             }
             
+            // Toggle sidebar functionality
             document.getElementById('wordstar-ai-toggle').addEventListener('click', function() {
                 const sidebar = document.getElementById('wordstar-ai-sidebar');
-                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+                const layout = document.querySelector('.ws-layout');
+                
+                if (sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                    layout.classList.remove('sidebar-active');
+                } else {
+                    sidebar.classList.add('active');
+                    layout.classList.add('sidebar-active');
+                }
             });
             
             document.getElementById('wordstar-save-key').addEventListener('click', function() {
