@@ -720,37 +720,82 @@ ${current}`;
         });
 
         // Export PDF
-        document.getElementById('export-pdf').addEventListener('click', async () => {
+        // Export PDF
+        document.getElementById('export-pdf').addEventListener('click', () => {
             try {
-                const text = document.getElementById('main-editor').value || 'No content';
-                
-                if (!text || text === 'No content') {
-                    alert('Please write something first!');
+                const text = document.getElementById('main-editor').value;
+                if (!text || !text.trim()) {
+                    alert('Please write something in the editor first!');
                     return;
                 }
-                
+
+                // 1. Use fountain-js to parse the entire script into structured tokens
+                const scriptOutput = fountain.parse(text);
+                const tokens = scriptOutput.tokens;
+
+                // 2. Setup the PDF document
                 const doc = new jsPDF({ unit: 'pt', format: 'letter' });
                 const margin = 72;
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const pageWidth = doc.internal.pageSize.getWidth();
+                let y = margin; // Start position for the first line
+
                 doc.setFont('courier', 'normal');
                 doc.setFontSize(12);
-
-                const lines = formatFountainForPdf(text);
-                let y = margin;
                 
-                lines.forEach(({ txt, x, align }) => {
-                    if (y > doc.internal.pageSize.getHeight() - margin) {
+                // 3. Define standard screenplay x-axis positions (in points)
+                const positions = {
+                    scene_heading: 108,
+                    action: 108,
+                    character: 264,
+                    parenthetical: 204,
+                    dialogue: 180,
+                    transition: 432,
+                    centered: pageWidth / 2 // For centered text
+                };
+
+                // 4. Loop through each token from the parsed script
+                tokens.forEach(token => {
+                    // Skip tokens that don't have text
+                    if (!token.text || !token.text.trim()) {
+                        // Treat empty lines as a line break
+                        y += 16;
+                        return;
+                    }
+
+                    const x = positions[token.type] || positions.action; // Default to 'action' style
+                    let textToPrint = token.text;
+
+                    // Apply standard screenplay formatting rules
+                    if (token.type === 'scene_heading' || token.type === 'character' || token.type === 'transition') {
+                        textToPrint = textToPrint.toUpperCase();
+                    }
+                    
+                    // Handle centered text for title pages, etc.
+                    const align = token.type === 'centered' ? 'center' : 'left';
+
+                    // Use jsPDF's built-in text wrapping
+                    const lines = doc.splitTextToSize(textToPrint, pageWidth - margin - x);
+                    
+                    // 5. Check for page breaks BEFORE writing new lines
+                    if (y + (lines.length * 16) > pageHeight - margin) {
                         doc.addPage();
                         y = margin;
                     }
-                    doc.text(txt, x, y, { align: align || 'left' });
-                    y += 16;
+
+                    // 6. Write each line to the PDF
+                    lines.forEach(line => {
+                        doc.text(line, x, y, { align: align });
+                        y += 16; // Increment y position for the next line
+                    });
                 });
 
-                const title = document.getElementById('project-title').value || 'screenplay';
+                const title = document.getElementById('project-title').value.trim() || 'screenplay';
                 doc.save(`${title}.pdf`);
+
             } catch (error) {
                 console.error('PDF Export Error:', error);
-                alert('Error exporting PDF: ' + error.message);
+                alert('An error occurred while exporting the PDF: ' + error.message);
             }
         });
 
@@ -834,21 +879,26 @@ ${current}`;
         loadCards();
 
         // Progress Tracker
-        const editor = document.getElementById('main-editor');
-        
-        function updateProgressTracker() {
+       function updateProgressTracker() {
             const text = editor.value;
-            const lines = text.split('\n');
             
-            const sceneCount = lines.filter(line => /^(INT\.|EXT\.)/.test(line.trim())).length;
-            const pageCount = Math.max(1, Math.ceil(lines.length / 55));
+            // Use fountain-js to parse the script!
+            const fountainOutput = fountain.parse(text);
+            const tokens = fountainOutput.tokens || [];
+
+            const sceneCount = tokens.filter(t => t.type === 'scene_heading').length;
+            const characterTokens = tokens.filter(t => t.type === 'character');
+            // Get a unique list of characters
+            const uniqueCharacters = [...new Set(characterTokens.map(t => t.text.replace(/ \(.+\)/, '')))];
+
             const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-            const charCount = text.length;
+            const pageCount = Math.max(1, Math.ceil(text.split('\n').length / 55)); // Page count is an approximation
             
             document.getElementById('page-count').textContent = pageCount;
             document.getElementById('scene-count').textContent = sceneCount;
             document.getElementById('word-count').textContent = wordCount.toLocaleString();
-            document.getElementById('char-count-display').textContent = charCount.toLocaleString();
+            // Display the count of unique characters found in the script
+            document.getElementById('char-count-display').textContent = uniqueCharacters.length;
             
             const progress = Math.min(100, (pageCount / 120) * 100);
             const act1Progress = Math.min(100, (progress / 25) * 100);
