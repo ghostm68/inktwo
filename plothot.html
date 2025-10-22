@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordStar Screenwriter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Nova+Square&family=Nova+Slim&family=Nova+Flat&display=swap" rel="stylesheet">
+    <script type="importmap">
+    {
+      "imports": {
+        "jspdf": "https://esm.sh/jspdf@2.5.1",
+        "fountain-js": "https://esm.sh/fountain-js@1.6.10"
+      }
+    }
+    </script>
+    <style>
+        :root {
+            --bg: #0E0E0E;
+            --panel: #1A1A1A;
+            --editor-bg: #2B2B2B;
+            --border: #3A3A3A;
+            --text: #EAEAEA;
+            --text-dim: #B0B0B0;
+            --muted: #808080;
+            --accent-red: #C84B4B;
+            --accent-red-hover: #D65C5C;
+            --accent-red-dark: #A83A3A;
+            --input-bg: #252525;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Nova Mono", monospace;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .ws-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 2px solid var(--border);
+            background: linear-gradient(135deg, #1A1A1A 0%, #0E0E0E 100%);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .ws-brand {
+            font-family: "Nova Square", monospace;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: 1.2px;
+            background: linear-gradient(135deg, var(--accent-red) 0%, #E86A6A 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .ws-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Top Menu */
+        .ws-topmenu {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--panel);
+        }
+
+        .ws-topmenu-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ws-topmenu-group label {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-family: "Nova Slim", monospace;
+        }
+
+        /* Layout */
+        .ws-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr 380px;
+            gap: 0;
+            height: calc(100vh - 130px);
+        }
+
+        .ws-panel {
+            background: var(--panel);
+            padding: 16px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border);
+        }
+
+        .ws-panel.left {
+            border-left: 1px solid var(--border);
+        }
+
+        .ws-panel.right {
+            border-right: 1px solid var(--border);
+        }
+
+        /* Editor Section */
+        .ws-editor {
+            background: var(--editor-bg);
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid var(--accent-red-dark);
+            border-right: 2px solid var(--accent-red-dark);
+        }
+
+        .ws-editor-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border);
+            background: rgba(0,0,0,0.3);
+        }
+
+        .ws-editor-bar .mono {
+            font-family: "Nova Flat", monospace;
+            color: var(--accent-red);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ws-editor-tools {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Text Input Styles */
+        .ws-input, .ws-textarea, .ws-menu {
+            width: 100%;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            outline: none;
+            font-size: 13px;
+            font-family: "Nova Mono", monospace;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .ws-input:focus, .ws-textarea:focus, .ws-menu:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 2px rgba(200, 75, 75, 0.15);
+        }
+
+        .ws-textarea {
+            min-height: 80px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        /* Main Editor - Inverted Style */
+        .ws-textarea.editor {
+            flex: 1;
+            background: #F5F5F5;
+            color: #1A1A1A;
+            font-family: "Nova Mono", monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            border: none;
+            border-radius: 0;
+            padding: 24px;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .ws-textarea.editor::placeholder {
+            color: #666;
+        }
+
+        .ws-textarea.editor::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .ws-textarea.editor::-webkit-scrollbar-track {
+            background: #E0E0E0;
+        }
+
+        .ws-textarea.editor::-webkit-scrollbar-thumb {
+            background: var(--accent-red);
+            border-radius: 6px;
+        }
+
+        /* Buttons */
+        .ws-btn {
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-family: "Nova Mono", monospace;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(200, 75, 75, 0.3);
+        }
+
+        .ws-btn:hover {
+            background: var(--accent-red-hover);
+            box-shadow: 0 4px 16px rgba(200, 75, 75, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .ws-btn:active {
+            transform: translateY(0);
+        }
+
+        .ws-btn.secondary {
+            background: #3A3A3A;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .ws-btn.secondary:hover {
+            background: #4A4A4A;
+        }
+
+        .ws-btn.tertiary {
+            background: #2A2A2A;
+            box-shadow: none;
+        }
+
+        .ws-btn.tertiary:hover {
+            background: #353535;
+        }
+
+        .ws-btn.ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            box-shadow: none;
+        }
+
+        .ws-btn.ghost:hover {
+            background: rgba(200, 75, 75, 0.1);
+            border-color: var(--accent-red);
+            color: var(--text);
+        }
+
+        /* Block Sections */
+        .ws-block {
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .ws-block-title {
+            font-family: "Nova Square", monospace;
+            font-size: 13px;
+            color: var(--accent-red);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Grid Layouts */
+        .ws-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .ws-grid.api {
+            grid-template-columns: 2fr 1fr;
+            align-items: center;
+        }
+
+        /* Character & Act Management */
+        .act {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-red);
+        }
+
+        .char-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* Index Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .card {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-red);
+        }
+
+        .card textarea {
+            width: 100%;
+            min-height: 90px;
+            resize: vertical;
+            background: transparent;
+            color: var(--text);
+            border: none;
+            outline: none;
+            font-family: "Nova Mono", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* Chat Interface */
+        .chat {
+            height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            background: rgba(0,0,0,0.4);
+            margin-bottom: 10px;
+        }
+
+        .chat::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .chat::-webkit-scrollbar-thumb {
+            background: var(--accent-red);
+            border-radius: 4px;
+        }
+
+        .status {
+            font-size: 11px;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-family: "Nova Slim", monospace;
+        }
+
+        /* Utilities */
+        .mono {
+            font-family: "Nova Mono", monospace;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        /* Model Select Enhancement */
+        #wordstar-model-select {
+            background: var(--input-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12px;
+            font-family: "Nova Mono", monospace;
+            margin-bottom: 12px;
+        }
+
+        #wordstar-model-select:focus {
+            border-color: var(--accent-red);
+            outline: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1400px) {
+            .ws-layout {
+                grid-template-columns: 300px 1fr 340px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="ws-header">
+        <div class="ws-brand">WordStar</div>
+        <div class="ws-actions">
+            <button id="export-pdf" class="ws-btn">Export PDF</button>
+            <button id="wordstar-ai-toggle" class="ws-btn">AI Assistant</button>
+        </div>
+    </header>
+
+    <nav class="ws-topmenu">
+        <div class="ws-topmenu-group">
+            <label>Font Family</label>
+            <select id="ws-font-family" class="ws-menu">
+                <option value="Nova Mono" selected>Nova Mono</option>
+                <option value="Nova Square">Nova Square</option>
+                <option value="Nova Slim">Nova Slim</option>
+                <option value="Nova Flat">Nova Flat</option>
+            </select>
+        </div>
+        <div class="ws-topmenu-group">
+            <label>Font Size</label>
+            <select id="ws-font-size" class="ws-menu">
+                <option value="12">12px</option>
+                <option value="14" selected>14px</option>
+                <option value="16">16px</option>
+                <option value="18">18px</option>
+                <option value="20">20px</option>
+            </select>
+        </div>
+        <div class="ws-topmenu-group">
+            <label>Insert</label>
+            <select id="ws-insert" class="ws-menu">
+                <optgroup label="Transitions">
+                    <option value="FADE IN:">FADE IN:</option>
+                    <option value="CUT TO:">CUT TO:</option>
+                    <option value="FADE OUT.">FADE OUT.</option>
+                    <option value="SMASH CUT TO:">SMASH CUT TO:</option>
+                </optgroup>
+                <optgroup label="Cues">
+                    <option value="(beat)">(beat)</option>
+                    <option value="(whisper)">(whisper)</option>
+                    <option value="(O.S.)">(O.S.)</option>
+                    <option value="(V.O.)">(V.O.)</option>
+                </optgroup>
+                <optgroup label="Action">
+                    <option value="Action line here.">Action line</option>
+                    <option value="He sprints toward the exit.">Sample action</option>
+                </optgroup>
+                <optgroup label="Setting">
+                    <option value="INT. LOCATION - DAY">INT. LOCATION - DAY</option>
+                    <option value="EXT. LOCATION - NIGHT">EXT. LOCATION - NIGHT</option>
+                </optgroup>
+            </select>
+        </div>
+    </nav>
+
+    <main class="ws-layout">
+        <aside class="ws-panel left">
+            <div class="ws-block">
+                <h3 class="ws-block-title">Project</h3>
+                <select id="project-view-select" class="ws-menu">
+                    <option value="overview" selected>Overview</option>
+                    <option value="structure">Structure</option>
+                    <option value="characters">Characters</option>
+                </select>
+            </div>
+
+            <div id="project-overview" class="ws-block">
+                <input id="project-title" class="ws-input" placeholder="Title">
+                <input id="project-logline" class="ws-input" placeholder="Logline" style="margin-top: 8px;">
+                
+                <!-- Progress Tracker -->
+                <div style="margin-top: 16px; padding: 12px; background: rgba(200, 75, 75, 0.1); border: 1px solid var(--accent-red-dark); border-radius: 6px;">
+                    <div style="font-family: 'Nova Square', monospace; font-size: 11px; color: var(--accent-red); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Progress</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: 'Nova Mono', monospace; font-size: 12px;">
+                        <div>
+                            <div style="color: var(--muted); font-size: 10px;">Pages</div>
+                            <div id="page-count" style="color: var(--text); font-size: 16px; font-weight: 600;">0</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--muted); font-size: 10px;">Scenes</div>
+                            <div id="scene-count" style="color: var(--text); font-size: 16px; font-weight: 600;">0</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--muted); font-size: 10px;">Words</div>
+                            <div id="word-count" style="color: var(--text); font-size: 16px; font-weight: 600;">0</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--muted); font-size: 10px;">Characters</div>
+                            <div id="char-count-display" style="color: var(--text); font-size: 16px; font-weight: 600;">0</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+                        <div style="color: var(--muted); font-size: 10px; margin-bottom: 4px;">Screenplay Structure</div>
+                        <div style="display: flex; gap: 4px; height: 20px;">
+                            <div id="act1-bar" style="flex: 1; background: rgba(200, 75, 75, 0.3); border-radius: 3px; position: relative;">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 9px; color: var(--text);">I</div>
+                            </div>
+                            <div id="act2-bar" style="flex: 2; background: rgba(200, 75, 75, 0.3); border-radius: 3px; position: relative;">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 9px; color: var(--text);">II</div>
+                            </div>
+                            <div id="act3-bar" style="flex: 1; background: rgba(200, 75, 75, 0.3); border-radius: 3px; position: relative;">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 9px; color: var(--text);">III</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 9px; color: var(--muted); font-family: 'Nova Slim', monospace;">
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ws-grid" style="margin-top: 12px;">
+                    <button id="generate-outline" class="ws-btn secondary">Generate Outline</button>
+                    <button id="generate-scenes" class="ws-btn secondary">Generate Scenes</button>
+                    <button id="polish-pass" class="ws-btn secondary" style="grid-column: 1 / -1;">Polish Pass</button>
+                </div>
+            </div>
+
+            <div id="project-structure" class="ws-block" style="display:none;">
+                <div id="acts">
+                    <div class="act">
+                        <input class="ws-input act-title" placeholder="Act I" style="margin-bottom: 8px;">
+                        <textarea class="ws-textarea act-notes" placeholder="Inciting incident, setup..."></textarea>
+                    </div>
+                    <div class="act">
+                        <input class="ws-input act-title" placeholder="Act II" style="margin-bottom: 8px;">
+                        <textarea class="ws-textarea act-notes" placeholder="Rising conflict, midpoint..."></textarea>
+                    </div>
+                    <div class="act">
+                        <input class="ws-input act-title" placeholder="Act III" style="margin-bottom: 8px;">
+                        <textarea class="ws-textarea act-notes" placeholder="Climax, resolution..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div id="project-characters" class="ws-block" style="display:none;">
+                <div id="characters">
+                    <div class="char-row">
+                        <input class="ws-input char-name" placeholder="Name">
+                        <input class="ws-input char-goal" placeholder="Goal">
+                        <input class="ws-input char-flaw" placeholder="Flaw">
+                    </div>
+                </div>
+                <button id="add-character" class="ws-btn tertiary" style="margin-top: 8px; width: 100%;">Add Character</button>
+            </div>
+        </aside>
+
+        <section class="ws-editor">
+            <div class="ws-editor-bar">
+                <div class="mono">Fountain Screenplay Editor</div>
+                <div class="ws-editor-tools">
+                    <button id="insert-scene-heading" class="ws-btn ghost">@ Scene Heading</button>
+                    <button id="insert-dialogue" class="ws-btn ghost">Character + Dialogue</button>
+                </div>
+            </div>
+            <textarea id="main-editor" class="ws-textarea editor" placeholder="INT. LOCATION - DAY
+
+CHARACTER
+This is dialogue.
+
+# Notes:
+Write in Fountain format."></textarea>
+        </section>
+
+        <aside id="wordstar-ai-sidebar" class="ws-panel right" style="display:none;">
+            <div class="ws-block">
+                <h3 class="ws-block-title">Model</h3>
+                <select id="wordstar-model-select">
+                    <optgroup label="🚀 Verified Working Models">
+                        <option value="meta-llama/llama-3.3-70b-instruct:free" selected>Llama 3.3 70B</option>
+                        <option value="x-ai/grok-4-fast:free">Grok 4 ⚡Fast</option>
+                        <option value="qwen/qwen3-235b-a22b:free">Qwen 3 235B</option>
+                        <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B</option>
+                    </optgroup>
+                    <optgroup label="⚡ Alternative Models">
+                        <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B</option>
+                        <option value="microsoft/wizardlm-2-8x22b:free">WizardLM 2 8x22B</option>
+                        <option value="mistralai/mistral-7b-instruct:free">Mistral 7B</option>
+                        <option value="huggingfaceh4/zephyr-7b-beta:free">Zephyr 7B Beta</option>
+                    </optgroup>
+                    <optgroup label="📋 Diagnostic">
+                        <option value="_LIST_MODELS_">📋 List Available Models</option>
+                        <option value="_TEST_API_">🔧 Test API Connection</option>
+                    </optgroup>
+                </select>
+                <div class="ws-grid api">
+                    <input id="wordstar-api-key" class="ws-input" placeholder="OpenRouter API Key">
+                    <button id="wordstar-save-key" class="ws-btn">Save</button>
+                </div>
+                <div id="wordstar-key-status" class="status mono"></div>
+            </div>
+
+            <div class="ws-block">
+                <h3 class="ws-block-title">Assistant</h3>
+                <div id="wordstar-chat-history" class="chat"></div>
+                <textarea id="wordstar-user-input" class="ws-textarea" placeholder="Ask for beats, scenes, dialogue, or formatting help..."></textarea>
+                <div class="ws-grid" style="margin-top: 10px;">
+                    <button id="wordstar-send-btn" class="ws-btn">Send</button>
+                    <button id="wordstar-insert-btn" class="ws-btn" style="display:none;">Insert to Script</button>
+                </div>
+            </div>
+
+            <div class="ws-block">
+                <h3 class="ws-block-title">Index Cards</h3>
+                <div id="cards-grid" class="cards-grid"></div>
+                <div class="ws-grid" style="margin-top: 10px;">
+                    <button id="add-card" class="ws-btn secondary">Add Card</button>
+                    <button id="clear-cards" class="ws-btn tertiary">Clear</button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script type="module">
+        import { jsPDF } from "jspdf";
+        import fountain from "fountain-js";
+
+        // Quick inserts
+        document.getElementById('insert-scene-heading').addEventListener('click', () => {
+            const editor = document.getElementById('main-editor');
+            const template = "\nINT. LOCATION - DAY\n\n";
+            insertAtCursor(editor, template);
+        });
+        
+        document.getElementById('insert-dialogue').addEventListener('click', () => {
+            const editor = document.getElementById('main-editor');
+            const template = "\nCHARACTER\nDialog line here.\n\n";
+            insertAtCursor(editor, template);
+        });
+
+        // Character management
+        document.getElementById('add-character').addEventListener('click', () => {
+            const wrap = document.getElementById('characters');
+            const row = document.createElement('div');
+            row.className = 'char-row';
+            row.innerHTML = `
+                <input class="ws-input char-name" placeholder="Name">
+                <input class="ws-input char-goal" placeholder="Goal">
+                <input class="ws-input char-flaw" placeholder="Flaw">
+            `;
+            wrap.appendChild(row);
+        });
+
+        // AI helpers
+        const aiInput = document.getElementById('wordstar-user-input');
+        const sendBtn = document.getElementById('wordstar-send-btn');
+
+        document.getElementById('generate-outline').addEventListener('click', () => {
+            const title = document.getElementById('project-title').value || 'Untitled';
+            const logline = document.getElementById('project-logline').value || '';
+            const chars = collectCharacters();
+            aiInput.value = `You are a professional screenwriting assistant. Using industry-standard structure, create a 3-act outline with beats for "${title}".
+
+Logline: ${logline}
+
+Characters:
+${chars}
+
+Return numbered beats with act headings and turning points.`;
+            sendBtn.click();
+        });
+
+        document.getElementById('generate-scenes').addEventListener('click', () => {
+            const acts = collectActs();
+            const title = document.getElementById('project-title').value || 'Untitled';
+            aiInput.value = `Generate Fountain-formatted scene pages for "${title}" based on this act structure:
+
+${acts}
+
+Use proper scene headings, action lines, and dialogue. Keep it concise but cinematic.`;
+            sendBtn.click();
+        });
+
+        document.getElementById('polish-pass').addEventListener('click', () => {
+            const current = document.getElementById('main-editor').value;
+            aiInput.value = `Polish the following Fountain screenplay for clarity, pacing, and formatting. Return Fountain only.
+
+${current}`;
+            sendBtn.click();
+        });
+
+        // Export PDF
+        document.getElementById('export-pdf').addEventListener('click', async () => {
+            const text = document.getElementById('main-editor').value || '';
+            const parsed = await parseFountain(text);
+            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+            const margin = 72;
+            doc.setFont('courier', 'normal');
+            doc.setFontSize(12);
+
+            const content = parsed.html ? stripHtml(parsed.html) : text;
+            const lines = formatFountainForPdf(content);
+
+            let y = margin;
+            lines.forEach(({ txt, x, align }) => {
+                if (y > doc.internal.pageSize.getHeight() - margin) {
+                    doc.addPage();
+                    y = margin;
+                }
+                doc.text(txt, x, y, { align: align || 'left' });
+                y += 16;
+            });
+
+            const title = document.getElementById('project-title').value || 'screenplay';
+            doc.save(`${title}.pdf`);
+        });
+
+        // Utilities
+        function insertAtCursor(el, text) {
+            const start = el.selectionStart ?? el.value.length;
+            const end = el.selectionEnd ?? el.value.length;
+            const before = el.value.substring(0, start);
+            const after = el.value.substring(end);
+            el.value = before + text + after;
+            const pos = start + text.length;
+            el.setSelectionRange(pos, pos);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.focus();
+        }
+
+        function collectCharacters() {
+            const rows = [...document.querySelectorAll('.char-row')];
+            return rows.map(r => {
+                const n = r.querySelector('.char-name')?.value || '';
+                const g = r.querySelector('.char-goal')?.value || '';
+                const f = r.querySelector('.char-flaw')?.value || '';
+                return `- ${n} | goal: ${g} | flaw: ${f}`;
+            }).join('\n');
+        }
+
+        function collectActs() {
+            const acts = [...document.querySelectorAll('#acts .act')];
+            return acts.map(a => {
+                const t = a.querySelector('.act-title')?.value || '';
+                const n = a.querySelector('.act-notes')?.value || '';
+                return `${t}\n${n}\n`;
+            }).join('\n');
+        }
+
+        function parseFountain(text) {
+            return new Promise((resolve) => {
+                fountain.parse(text, (res) => resolve(res));
+            });
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return (div.textContent || div.innerText || '').replace(/\u00A0/g, ' ');
+        }
+
+        function formatFountainForPdf(text) {
+            const left = 108, dialog = 158, parenth = 137, char = 237, margin = 72;
+            return text.split('\n').map(l => {
+                const t = l.trimEnd();
+                if (!t) return { txt: '', x: left };
+                if (/^(INT\.|EXT\.)/.test(t)) return { txt: t.toUpperCase(), x: left };
+                if (/^[A-Z0-9 ()'".\-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
+                    return { txt: t.toUpperCase(), x: char };
+                if (/^\(.*\)$/.test(t)) return { txt: t, x: parenth };
+                if (/:$/.test(t)) return { txt: t, x: 612 - margin, align: 'right' };
+                return { txt: t, x: dialog };
+            });
+        }
+
+        // Font controls
+        document.getElementById('ws-font-size').addEventListener('change', (e) => {
+            const editor = document.getElementById('main-editor');
+            editor.style.fontSize = `${e.target.value}px`;
+        });
+
+        document.getElementById('ws-font-family').addEventListener('change', (e) => {
+            const fam = e.target.value;
+            document.getElementById('main-editor').style.fontFamily = `"${fam}", monospace`;
+        });
+
+        // Insert menu
+        document.getElementById('ws-insert').addEventListener('change', () => {
+            const el = document.getElementById('ws-insert');
+            if (!el.value) return;
+            const v = el.value;
+            const editor = document.getElementById('main-editor');
+            const extraNL = (v.startsWith('INT.') || v.startsWith('EXT.')) ? '\n\n' : '\n';
+            insertAtCursor(editor, `${v}${extraNL}`);
+            el.selectedIndex = 0;
+        });
+
+        // Project view switcher
+        const viewSelect = document.getElementById('project-view-select');
+        const sections = {
+            overview: document.getElementById('project-overview'),
+            structure: document.getElementById('project-structure'),
+            characters: document.getElementById('project-characters')
+        };
+        viewSelect.addEventListener('change', () => {
+            Object.values(sections).forEach(s => s.style.display = 'none');
+            sections[viewSelect.value].style.display = 'block';
+        });
+
+        // Index cards
+        const cardsGrid = document.getElementById('cards-grid');
+        const addCardBtn = document.getElementById('add-card');
+        const clearCardsBtn = document.getElementById('clear-cards');
+
+        function loadCards() {
+            const data = JSON.parse(localStorage.getItem('wsCards') || '[]');
+            cardsGrid.innerHTML = '';
+            data.forEach((t) => addCard(t));
+        }
+
+        function saveCards() {
+            const texts = [...cardsGrid.querySelectorAll('textarea')].map(t => t.value);
+            localStorage.setItem('wsCards', JSON.stringify(texts));
+        }
+
+        function addCard(text = '') {
+            const wrap = document.createElement('div');
+            wrap.className = 'card';
+            wrap.innerHTML = `<textarea>${text}</textarea><div style="display:flex; gap:6px; margin-top:8px;">
+                <button class="ws-btn tertiary" data-del>Delete</button>
+                <button class="ws-btn secondary" data-insert>Insert</button>
+            </div>`;
+            wrap.querySelector('textarea').addEventListener('input', saveCards);
+            wrap.querySelector('[data-del]').addEventListener('click', () => {
+                wrap.remove();
+                saveCards();
+            });
+            wrap.querySelector('[data-insert]').addEventListener('click', () => {
+                const editor = document.getElementById('main-editor');
+                insertAtCursor(editor, wrap.querySelector('textarea').value + '\n');
+            });
+            cardsGrid.appendChild(wrap);
+        }
+
+        addCardBtn.addEventListener('click', () => {
+            addCard('');
+            saveCards();
+        });
+
+        clearCardsBtn.addEventListener('click', () => {
+            cardsGrid.innerHTML = '';
+            saveCards();
+        });
+
+        loadCards();
+
+        // Progress Tracker - Live Updates
+        const editor = document.getElementById('main-editor');
+        
+        function updateProgressTracker() {
+            const text = editor.value;
+            const lines = text.split('\n');
+            
+            // Count scenes (lines starting with INT. or EXT.)
+            const sceneCount = lines.filter(line => /^(INT\.|EXT\.)/.test(line.trim())).length;
+            
+            // Estimate pages (standard screenplay: ~55 lines per page)
+            const pageCount = Math.max(1, Math.ceil(lines.length / 55));
+            
+            // Word count
+            const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+            
+            // Character count
+            const charCount = text.length;
+            
+            // Update displays
+            document.getElementById('page-count').textContent = pageCount;
+            document.getElementById('scene-count').textContent = sceneCount;
+            document.getElementById('word-count').textContent = wordCount.toLocaleString();
+            document.getElementById('char-count-display').textContent = charCount.toLocaleString();
+            
+            // Update act progress bars (visual indicator)
+            const progress = Math.min(100, (pageCount / 120) * 100); // 120 pages = feature length
+            const act1Progress = Math.min(100, (progress / 25) * 100);
+            const act2Progress = Math.min(100, Math.max(0, ((progress - 25) / 50) * 100));
+            const act3Progress = Math.min(100, Math.max(0, ((progress - 75) / 25) * 100));
+            
+            document.getElementById('act1-bar').style.background = 
+                `linear-gradient(to right, var(--accent-red) ${act1Progress}%, rgba(200, 75, 75, 0.3) ${act1Progress}%)`;
+            document.getElementById('act2-bar').style.background = 
+                `linear-gradient(to right, var(--accent-red) ${act2Progress}%, rgba(200, 75, 75, 0.3) ${act2Progress}%)`;
+            document.getElementById('act3-bar').style.background = 
+                `linear-gradient(to right, var(--accent-red) ${act3Progress}%, rgba(200, 75, 75, 0.3) ${act3Progress}%)`;
+        }
+        
+        // Update on input with debounce
+        let progressTimeout;
+        editor.addEventListener('input', () => {
+            clearTimeout(progressTimeout);
+            progressTimeout = setTimeout(updateProgressTracker, 300);
+        });
+        
+        // Initial update
+        updateProgressTracker();
+
+        // AI Assistant functionality
+        (function() {
+            let currentApiKey = '';
+            let lastAIResponse = '';
+            const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+            
+            const savedKey = localStorage.getItem('wordstarOpenRouterKey');
+            if (savedKey) {
+                currentApiKey = savedKey;
+                document.getElementById('wordstar-api-key').value = '••••••••' + savedKey.slice(-4);
+                document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key loaded</span>';
+            }
+            
+            document.getElementById('wordstar-ai-toggle').addEventListener('click', function() {
+                const sidebar = document.getElementById('wordstar-ai-sidebar');
+                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            document.getElementById('wordstar-save-key').addEventListener('click', function() {
+                const keyInput = document.getElementById('wordstar-api-key');
+                const key = keyInput.value.trim();
+                
+                if (key && !key.startsWith('••••••••')) {
+                    currentApiKey = key;
+                    localStorage.setItem('wordstarOpenRouterKey', key);
+                    keyInput.value = '••••••••' + key.slice(-4);
+                    document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #10B981;">✓ Key saved</span>';
+                }
+            });
+            
+            document.getElementById('wordstar-send-btn').addEventListener('click', sendMessage);
+            document.getElementById('wordstar-insert-btn').addEventListener('click', insertText);
+            
+            document.getElementById('wordstar-user-input').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            async function sendMessage() {
+                const message = document.getElementById('wordstar-user-input').value.trim();
+                if (!message || !currentApiKey) {
+                    if (!currentApiKey) {
+                        document.getElementById('wordstar-key-status').innerHTML = '<span style="color: #EF4444;">⚠ API key required</span>';
+                    }
+                    return;
+                }
+                
+                addMessage('user', message);
+                document.getElementById('wordstar-user-input').value = '';
+                document.getElementById('wordstar-send-btn').disabled = true;
+                document.getElementById('wordstar-send-btn').textContent = 'Thinking...';
+                
+                try {
+                    const model = document.getElementById('wordstar-model-select').value;
+
+                    if (model === '_LIST_MODELS_') {
+                        addMessage('assistant', 'Visit https://openrouter.ai/models to view available models.');
+                        return;
+                    }
+                    if (model === '_TEST_API_') {
+                        addMessage('assistant', 'Testing API key... If no error appears, your key is valid.');
+                    }
+
+                    const response = await fetch(OPENROUTER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${currentApiKey}`,
+                            'Content-Type': 'application/json',
+                            'HTTP-Referer': window.location.href,
+                            'X-Title': 'WordStar'
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [
+                                { role: 'system', content: 'You are a highly advanced AI screenwriting assistant. Use industry-standard screenplay conventions (Fountain format when generating script pages). Provide structured, actionable outputs.' },
+                                { role: 'user', content: message }
+                            ],
+                            temperature: 0.7,
+                            max_tokens: 1800,
+                            stream: false
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error.message || 'API Error');
+                    }
+                    
+                    lastAIResponse = data.choices[0].message.content;
+                    addMessage('assistant', lastAIResponse);
+                    document.getElementById('wordstar-insert-btn').style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('API Error:', error);
+                    addMessage('system', 'Error: ' + error.message);
+                } finally {
+                    document.getElementById('wordstar-send-btn').disabled = false;
+                    document.getElementById('wordstar-send-btn').textContent = 'Send';
+                }
+            }
+            
+            function addMessage(role, content) {
+                const chat = document.getElementById('wordstar-chat-history');
+                const msg = document.createElement('div');
+                let bgColor, borderColor, labelColor, textColor;
+                
+                if (role === 'user') {
+                    bgColor = '#2A2A2A';
+                    borderColor = '#C84B4B';
+                    labelColor = '#E86A6A';
+                    textColor = '#E6E6E6';
+                } else if (role === 'assistant') {
+                    bgColor = '#1F1F1F';
+                    borderColor = '#4A4A4A';
+                    labelColor = '#A0A0A0';
+                    textColor = '#D9D9D9';
+                } else {
+                    bgColor = '#252525';
+                    borderColor = '#5A5A5A';
+                    labelColor = '#B0B0B0';
+                    textColor = '#F0F0F0';
+                }
+                
+                msg.innerHTML = `<div style="margin-bottom:12px; padding:10px 12px; background:${bgColor}; border-radius:6px; border-left:3px solid ${borderColor};">
+                    <strong style="color:${labelColor}; font-size:10px; text-transform:uppercase; letter-spacing:0.8px; font-family:'Nova Square', monospace;">${role === 'user' ? 'You' : role === 'assistant' ? 'AI' : 'System'}</strong>
+                    <div style="color:${textColor}; margin-top:6px; line-height:1.6; white-space:pre-wrap; font-family:'Nova Mono', monospace; font-size:12px;">${content}</div>
+                </div>`;
+                chat.appendChild(msg);
+                chat.scrollTop = chat.scrollHeight;
+            }
+            
+            function insertText() {
+                if (!lastAIResponse) return;
+                const editor = document.getElementById('main-editor');
+                if (editor) {
+                    const startPos = editor.selectionStart;
+                    const endPos = editor.selectionEnd;
+                    const beforeText = editor.value.substring(0, startPos);
+                    const afterText = editor.value.substring(endPos);
+                    editor.value = beforeText + lastAIResponse + afterText;
+                    const newPosition = startPos + lastAIResponse.length;
+                    editor.setSelectionRange(newPosition, newPosition);
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                    editor.focus();
+                    
+                    const insertBtn = document.getElementById('wordstar-insert-btn');
+                    const originalBg = insertBtn.style.background;
+                    insertBtn.textContent = 'Inserted!';
+                    insertBtn.style.background = '#10B981';
+                    setTimeout(() => {
+                        insertBtn.textContent = 'Insert to Script';
+                        insertBtn.style.background = originalBg;
+                        insertBtn.style.display = 'none';
+                    }, 1500);
+                } else {
+                    addMessage('system', 'Editor not found.');
+                }
+            }
+        })();
+    </script>
+</body>
+</html>
