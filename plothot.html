@@ -661,9 +661,10 @@ Fountain Formatting Guide:
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/fountain-js@1.6.10/dist/fountain.min.js"></script>
 
-<script type="module" data-cfasync="false">
-  const jsPDF = window.jspdf.jsPDF;
-  const fountain = window.fountain;  
+ <script type="module">
+        import { jsPDF } from "jspdf";
+        import fountain from "fountain-js";
+
         // Utility function
         function insertAtCursor(el, text) {
             const start = el.selectionStart ?? el.value.length;
@@ -675,6 +676,23 @@ Fountain Formatting Guide:
             el.setSelectionRange(pos, pos);
             el.dispatchEvent(new Event('input', { bubbles: true }));
             el.focus();
+        }
+
+        // Fountain parser wrapper with error handling
+        function parseFountainSafe(text) {
+            try {
+                // fountain-js exports a parse function, not a constructor
+                if (typeof fountain === 'function') {
+                    return fountain.parse(text, true);
+                } else if (fountain.parse) {
+                    return fountain.parse(text, true);
+                }
+                console.warn('Fountain parser not available');
+                return null;
+            } catch (error) {
+                console.error('Fountain parse error:', error);
+                return null;
+            }
         }
 
         // Initialize Fountain parser
