@@ -661,9 +661,49 @@ Fountain Formatting Guide:
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/fountain-js@1.6.10/dist/fountain.min.js"></script>
 
- <script type="module">
-        import { jsPDF } from "jspdf";
-        import fountain from "fountain-js";
+<script type="module">
+        import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.es.min.js";
+        
+        // Fountain-js alternative - using a simpler parser
+        const fountain = {
+            parse: function(text, getTokens = false) {
+                const tokens = [];
+                const lines = text.split('\n');
+                
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    
+                    // Scene heading
+                    if (/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/.test(trimmed)) {
+                        tokens.push({ type: 'scene_heading', text: trimmed });
+                    }
+                    // Character name
+                    else if (/^[A-Z][A-Z\s]*$/.test(trimmed) && trimmed.length > 0 && trimmed.length < 30 && !trimmed.includes('.')) {
+                        tokens.push({ type: 'character', text: trimmed });
+                    }
+                    // Parenthetical
+                    else if (/^\(.*\)$/.test(trimmed)) {
+                        tokens.push({ type: 'parenthetical', text: trimmed });
+                    }
+                    // Transition
+                    else if (/^[A-Z\s]+TO:$/.test(trimmed) || trimmed === 'FADE OUT.' || trimmed === 'FADE IN:') {
+                        tokens.push({ type: 'transition', text: trimmed });
+                    }
+                    // Dialogue or action
+                    else if (trimmed) {
+                        // If previous token was character, this is dialogue
+                        const prevToken = tokens[tokens.length - 1];
+                        if (prevToken && prevToken.type === 'character') {
+                            tokens.push({ type: 'dialogue', text: trimmed });
+                        } else {
+                            tokens.push({ type: 'action', text: trimmed });
+                        }
+                    }
+                });
+                
+                return getTokens ? { tokens } : tokens;
+            }
+        };
 
         // Utility function
         function insertAtCursor(el, text) {
