@@ -322,127 +322,186 @@
             </div>
         </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlInput = document.getElementById('url');
-            const downloadBtn = document.getElementById('download-btn');
-            const loading = document.querySelector('.loading');
-            const errorMessage = document.getElementById('error-message');
-            const successMessage = document.getElementById('success-message');
-            const result = document.getElementById('result');
-            const videoPreview = document.getElementById('video-preview');
-            const qualityButtons = document.querySelectorAll('.quality-btn');
-            
-            // Function to validate TikTok URL
-            function isValidTikTokUrl(url) {
-                const tiktokRegex = /^https?:\/\/(www\.)?tiktok\.com\/.+/;
-                return tiktokRegex.test(url);
-            }
-            
-            // Function to simulate video processing
-            function processVideo(url) {
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        if (isValidTikTokUrl(url)) {
-                            resolve({
-                                hd: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-                                sd: 'https://sample-videos.com/zip/10/mp4/SampleVideo_640x360_1mb.mp4'
-                            });
-                        } else {
-                            reject('Invalid URL');
-                        }
-                    }, 2000);
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlInput = document.getElementById('url');
+        const downloadBtn = document.getElementById('download-btn');
+        const loading = document.querySelector('.loading');
+        const errorMessage = document.getElementById('error-message');
+        const successMessage = document.getElementById('success-message');
+        const result = document.getElementById('result');
+        const videoPreview = document.getElementById('video-preview');
+        const qualityButtons = document.querySelectorAll('.quality-btn');
+        
+        // API configuration
+        const API_CONFIG = {
+            host: 'tiktok-api23.p.rapidapi.com',
+            key: 'fab34f4c89msh1e74696eb520e5dp124310jsn0f52d769fe30',
+            endpoint: 'https://tiktok-api23.p.rapidapi.com/api/download/video'
+        };
+        
+        // Function to validate TikTok URL
+        function isValidTikTokUrl(url) {
+            const tiktokRegex = /^https?:\/\/(www\.)?tiktok\.com\/.+/;
+            return tiktokRegex.test(url);
+        }
+        
+        // Function to get real TikTok video data
+        async function getTikTokVideo(url) {
+            try {
+                // Encode the URL parameter
+                const encodedUrl = encodeURIComponent(url);
+                const apiUrl = `${API_CONFIG.endpoint}?url=${encodedUrl}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'x-rapidapi-host': API_CONFIG.host,
+                        'x-rapidapi-key': API_CONFIG.key
+                    }
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Log the response to see the structure
+                console.log('API Response:', data);
+                
+                // Parse the response based on the API structure
+                if (data && data.data) {
+                    // Try different possible response structures
+                    const videoUrl = data.data.play || data.data.download || data.data.videoUrl;
+                    
+                    if (videoUrl) {
+                        return {
+                            hd: videoUrl,
+                            sd: videoUrl // Same URL for both since API might not provide separate qualities
+                        };
+                    }
+                }
+                
+                throw new Error('No video URL found in API response');
+                
+            } catch (error) {
+                console.error('API Error:', error);
+                throw new Error('Failed to download video: ' + error.message);
+            }
+        }
+        
+        // Event listener for download button
+        downloadBtn.addEventListener('click', async function() {
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('Please enter a TikTok URL');
+                return;
             }
             
-            // Event listener for download button
-            downloadBtn.addEventListener('click', async function() {
-                const url = urlInput.value.trim();
+            if (!isValidTikTokUrl(url)) {
+                showError('Please enter a valid TikTok URL');
+                return;
+            }
+            
+            // Show loading state
+            downloadBtn.disabled = true;
+            loading.style.display = 'block';
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            result.style.display = 'none';
+            
+            try {
+                const videoData = await getTikTokVideo(url);
                 
-                if (!url) {
-                    showError('Please enter a TikTok URL');
-                    return;
+                if (!videoData.hd) {
+                    throw new Error('No video URL received from API');
                 }
                 
-                if (!isValidTikTokUrl(url)) {
-                    showError('Please enter a valid TikTok URL');
-                    return;
-                }
+                // Set video source
+                videoPreview.src = videoData.hd;
                 
-                // Show loading state
-                downloadBtn.disabled = true;
-                loading.style.display = 'block';
-                errorMessage.style.display = 'none';
-                successMessage.style.display = 'none';
-                result.style.display = 'none';
+                // Store video data for download
+                videoPreview.dataset.hdUrl = videoData.hd;
+                videoPreview.dataset.sdUrl = videoData.sd || videoData.hd;
                 
-                try {
-                    const videoData = await processVideo(url);
-                    
-                    // Set video source
-                    videoPreview.src = videoData.hd;
-                    
-                    // Store video data for download
-                    videoPreview.dataset.hdUrl = videoData.hd;
-                    videoPreview.dataset.sdUrl = videoData.sd;
-                    
+                // Wait for video to load
+                videoPreview.onloadeddata = function() {
                     // Show success and result
                     loading.style.display = 'none';
                     successMessage.style.display = 'block';
                     result.style.display = 'block';
-                } catch (error) {
-                    loading.style.display = 'none';
-                    showError(error);
-                } finally {
-                    downloadBtn.disabled = false;
+                };
+                
+                videoPreview.onerror = function() {
+                    throw new Error('Failed to load video preview');
+                };
+                
+            } catch (error) {
+                loading.style.display = 'none';
+                showError(error.message);
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        });
+        
+        // Function to show error
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+            result.style.display = 'none';
+        }
+        
+        // Event listeners for quality buttons
+        qualityButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                qualityButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Change video source based on quality
+                const quality = this.dataset.quality;
+                const videoUrl = quality === 'hd' ? videoPreview.dataset.hdUrl : videoPreview.dataset.sdUrl;
+                
+                if (!videoUrl) {
+                    showError('Video URL not available');
+                    return;
                 }
-            });
-            
-            // Function to show error
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-                successMessage.style.display = 'none';
-                result.style.display = 'none';
-            }
-            
-            // Event listeners for quality buttons
-            qualityButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    // Remove active class from all buttons
-                    qualityButtons.forEach(btn => btn.classList.remove('active'));
-                    
-                    // Add active class to clicked button
-                    this.classList.add('active');
-                    
-                    // Change video source based on quality
-                    const quality = this.dataset.quality;
-                    if (quality === 'hd') {
-                        videoPreview.src = videoPreview.dataset.hdUrl;
-                    } else {
-                        videoPreview.src = videoPreview.dataset.sdUrl;
-                    }
-                    
-                    // Trigger download
-                    triggerDownload(videoPreview.src);
-                });
-            });
-            
-            // Function to trigger download
-            function triggerDownload(url) {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'tiktok-video.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-            
-            // Clear error when user starts typing
-            urlInput.addEventListener('input', function() {
-                errorMessage.style.display = 'none';
+                
+                videoPreview.src = videoUrl;
+                
+                // Trigger download
+                triggerDownload(videoUrl);
             });
         });
-    </script>
+        
+        // Function to trigger download
+        function triggerDownload(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'tiktok-video.mp4';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        // Clear error when user starts typing
+        urlInput.addEventListener('input', function() {
+            errorMessage.style.display = 'none';
+        });
+        
+        // Handle Enter key press
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                downloadBtn.click();
+            }
+        });
+    });
+</script>
 </body>
 </html>
