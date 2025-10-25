@@ -277,11 +277,11 @@
             <div class="instructions">
                 <h3>How to use:</h3>
                 <ol>
-                    <li>Copy the TikTok video URL from the app</li>
-                    <li>Paste it in the input field below</li>
+                    <font color="brown">
+                    <li>Paste url in the input field below</li>
                     <li>Click the Download button</li>
                     <li>Choose your preferred video quality</li>
-                </ol>
+                </ol> </font color="brown">
             </div>
             
             <div class="input-group">
@@ -321,7 +321,6 @@
                 </div>
             </div>
         </div>
-
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const urlInput = document.getElementById('url');
@@ -330,7 +329,7 @@
         const errorMessage = document.getElementById('error-message');
         const successMessage = document.getElementById('success-message');
         const result = document.getElementById('result');
-        const videoPreview = document.getElementById('video-previw');
+        const videoPreview = document.getElementById('video-preview');
         const qualityButtons = document.querySelectorAll('.quality-btn');
         
         // API configuration
@@ -372,27 +371,20 @@
                 // Log the complete API response to see its structure
                 console.log('Full API Response:', data);
                 
-                // Try to find the video URL in different possible locations
+                // Based on your console output, the video URL is directly in the response
                 let videoUrl = null;
                 
-                // Check various possible response structures
-                if (data.data && data.data.play) {
-                    videoUrl = data.data.play;
-                } else if (data.data && data.data.download) {
-                    videoUrl = data.data.download;
-                } else if (data.data && data.data.videoUrl) {
-                    videoUrl = data.data.videoUrl;
+                // Try to find the video URL in different possible locations
+                if (data.play) {
+                    videoUrl = data.play;
+                } else if (data.url) {
+                    videoUrl = data.url;
                 } else if (data.video_url) {
                     videoUrl = data.video_url;
                 } else if (data.download_url) {
                     videoUrl = data.download_url;
-                } else if (data.url) {
-                    videoUrl = data.url;
-                } else if (data.data && data.data.videos) {
-                    // Some APIs return multiple quality videos
-                    videoUrl = data.data.videos.hd || data.data.videos.sd || data.data.videos.play;
-                } else if (data.play) {
-                    videoUrl = data.play;
+                } else if (data.data && data.data.play) {
+                    videoUrl = data.data.play;
                 }
                 
                 console.log('Found video URL:', videoUrl);
@@ -403,12 +395,7 @@
                         sd: videoUrl
                     };
                 } else {
-                    // Log what we actually received to help debug
-                    console.log('Available data keys:', Object.keys(data));
-                    if (data.data) {
-                        console.log('Available data.data keys:', Object.keys(data.data));
-                    }
-                    throw new Error('No video URL found in API response. Check console for details.');
+                    throw new Error('No video URL found in API response');
                 }
                 
             } catch (error) {
@@ -445,6 +432,8 @@
                     throw new Error('No video URL received from API');
                 }
                 
+                console.log('Setting video source to:', videoData.hd);
+                
                 // Set video source
                 videoPreview.src = videoData.hd;
                 
@@ -453,16 +442,18 @@
                 videoPreview.dataset.sdUrl = videoData.sd || videoData.hd;
                 
                 // Wait for video to load
-                videoPreview.onloadeddata = function() {
-                    // Show success and result
-                    loading.style.display = 'none';
-                    successMessage.style.display = 'block';
-                    result.style.display = 'block';
-                };
+                await new Promise((resolve, reject) => {
+                    videoPreview.onloadeddata = resolve;
+                    videoPreview.onerror = () => reject(new Error('Failed to load video preview'));
+                    
+                    // Timeout after 10 seconds
+                    setTimeout(() => reject(new Error('Video loading timeout')), 10000);
+                });
                 
-                videoPreview.onerror = function() {
-                    throw new Error('Failed to load video preview');
-                };
+                // Show success and result
+                loading.style.display = 'none';
+                successMessage.style.display = 'block';
+                result.style.display = 'block';
                 
             } catch (error) {
                 loading.style.display = 'none';
@@ -489,7 +480,7 @@
                 // Add active class to clicked button
                 this.classList.add('active');
                 
-                // Change video source based on quality
+                // Get the video URL based on quality
                 const quality = this.dataset.quality;
                 const videoUrl = quality === 'hd' ? videoPreview.dataset.hdUrl : videoPreview.dataset.sdUrl;
                 
@@ -498,6 +489,7 @@
                     return;
                 }
                 
+                // Update video source to show the selected quality
                 videoPreview.src = videoUrl;
                 
                 // Trigger download
@@ -507,6 +499,7 @@
         
         // Function to trigger download
         function triggerDownload(url) {
+            console.log('Starting download:', url);
             const a = document.createElement('a');
             a.href = url;
             a.download = 'tiktok-video.mp4';
@@ -519,8 +512,23 @@
         // Clear error when user starts typing
         urlInput.addEventListener('input', function() {
             errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
         });
+        
+        // Handle Enter key press
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                downloadBtn.click();
+            }
+        });
+        
+        // Initialize - hide loading and error states
+        loading.style.display = 'none';
+        errorMessage.style.display = 'none';
+        successMessage.style.display = 'none';
+        result.style.display = 'none';
     });
 </script>
+
 </body>
 </html>
