@@ -230,6 +230,31 @@
             border-left: 3px solid #e63946;
         }
 
+        .result-item.success {
+            border-left-color: #2ecc71;
+        }
+
+        .result-item.error {
+            border-left-color: #e63946;
+        }
+
+        .download-link {
+            display: inline-block;
+            margin-top: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #e63946 0%, #c1121f 100%);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(230, 57, 70, 0.4);
+        }
+
         .loading {
             text-align: center;
             padding: 2rem;
@@ -301,7 +326,7 @@
         <!-- Content -->
         <div class="content">
             <h1>🎵 TikTok Downloader</h1>
-            <p class="subtitle">_____________</p>
+            <p class="subtitle">life attracts hotels</p>
             
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('single')">Single/Multiple Videos</button>
@@ -318,6 +343,8 @@
     </div>
 
     <script>
+        let currentMode = 'single';
+
         // Handle video and image loading
         document.addEventListener('DOMContentLoaded', function() {
             const video = document.getElementById('bgVideo');
@@ -359,39 +386,76 @@
             }, 5000);
         });
 
-        function switchTab(tab) {
+        function switchTab(mode) {
+            currentMode = mode;
             const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
             const textarea = document.getElementById('urls');
-            if (tab === 'single') {
-                textarea.placeholder = 'Paste TikTok URLs here (one per line for multiple videos)...';
+            if (mode === 'profile') {
+                textarea.placeholder = 'Paste TikTok profile URL (e.g., https://www.tiktok.com/@username)';
             } else {
-                textarea.placeholder = 'Paste TikTok profile URL here...';
+                textarea.placeholder = 'Paste TikTok URLs here (one per line for multiple videos)...';
             }
         }
 
-        function startDownload() {
-            const urls = document.getElementById('urls').value;
-            const results = document.getElementById('results');
-            const btn = document.getElementById('downloadBtn');
+        async function startDownload() {
+            const urlsText = document.getElementById('urls').value.trim();
+            const downloadBtn = document.getElementById('downloadBtn');
+            const resultsDiv = document.getElementById('results');
             
-            if (!urls.trim()) {
-                results.innerHTML = '<div class="result-item">⚠️ Please enter at least one URL</div>';
-                results.classList.add('show');
+            if (!urlsText) {
+                resultsDiv.innerHTML = '<div class="result-item">⚠️ Please paste some TikTok URLs</div>';
+                resultsDiv.classList.add('show');
                 return;
             }
-
-            btn.disabled = true;
-            results.innerHTML = '<div class="loading"><div class="spinner"></div><p>Processing your request...</p></div>';
-            results.classList.add('show');
-
-            // Replace this with your actual API call to /static/js/app.js or backend endpoint
-            setTimeout(() => {
-                results.innerHTML = '<div class="result-item">✅ Download initiated! Check your downloads folder.</div>';
-                btn.disabled = false;
-            }, 2000);
+            
+            const urls = urlsText.split('\n').filter(url => url.trim());
+            
+            downloadBtn.disabled = true;
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>⏳ Downloading videos...</p></div>';
+            resultsDiv.classList.add('show');
+            
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        urls: urls,
+                        type: currentMode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = '';
+                data.results.forEach(result => {
+                    const div = document.createElement('div');
+                    div.className = 'result-item ' + result.status;
+                    
+                    if (result.status === 'success') {
+                        if (result.type === 'profile') {
+                            div.innerHTML = '✅ <strong>' + result.title + '</strong>';
+                        } else {
+                            div.innerHTML = '✅ <strong>' + result.title + '</strong><br>' +
+                                '<a href="/get-file/' + encodeURIComponent(result.filename) + 
+                                '" class="download-link" download>📥 Download File</a>';
+                        }
+                    } else {
+                        div.innerHTML = '❌ <strong>Error:</strong> ' + result.error;
+                    }
+                    
+                    resultsDiv.appendChild(div);
+                });
+                
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="result-item error">❌ <strong>Error:</strong> ' + error.message + '</div>';
+            } finally {
+                downloadBtn.disabled = false;
+            }
         }
     </script>
 </body>
