@@ -330,7 +330,7 @@
         const errorMessage = document.getElementById('error-message');
         const successMessage = document.getElementById('success-message');
         const result = document.getElementById('result');
-        const videoPreview = document.getElementById('video-preview');
+        const videoPreview = document.getElementById('video-previw');
         const qualityButtons = document.querySelectorAll('.quality-btn');
         
         // API configuration
@@ -353,6 +353,8 @@
                 const encodedUrl = encodeURIComponent(url);
                 const apiUrl = `${API_CONFIG.endpoint}?url=${encodedUrl}`;
                 
+                console.log('Making API request to:', apiUrl);
+                
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
@@ -367,23 +369,47 @@
                 
                 const data = await response.json();
                 
-                // Log the response to see the structure
-                console.log('API Response:', data);
+                // Log the complete API response to see its structure
+                console.log('Full API Response:', data);
                 
-                // Parse the response based on the API structure
-                if (data && data.data) {
-                    // Try different possible response structures
-                    const videoUrl = data.data.play || data.data.download || data.data.videoUrl;
-                    
-                    if (videoUrl) {
-                        return {
-                            hd: videoUrl,
-                            sd: videoUrl // Same URL for both since API might not provide separate qualities
-                        };
-                    }
+                // Try to find the video URL in different possible locations
+                let videoUrl = null;
+                
+                // Check various possible response structures
+                if (data.data && data.data.play) {
+                    videoUrl = data.data.play;
+                } else if (data.data && data.data.download) {
+                    videoUrl = data.data.download;
+                } else if (data.data && data.data.videoUrl) {
+                    videoUrl = data.data.videoUrl;
+                } else if (data.video_url) {
+                    videoUrl = data.video_url;
+                } else if (data.download_url) {
+                    videoUrl = data.download_url;
+                } else if (data.url) {
+                    videoUrl = data.url;
+                } else if (data.data && data.data.videos) {
+                    // Some APIs return multiple quality videos
+                    videoUrl = data.data.videos.hd || data.data.videos.sd || data.data.videos.play;
+                } else if (data.play) {
+                    videoUrl = data.play;
                 }
                 
-                throw new Error('No video URL found in API response');
+                console.log('Found video URL:', videoUrl);
+                
+                if (videoUrl) {
+                    return {
+                        hd: videoUrl,
+                        sd: videoUrl
+                    };
+                } else {
+                    // Log what we actually received to help debug
+                    console.log('Available data keys:', Object.keys(data));
+                    if (data.data) {
+                        console.log('Available data.data keys:', Object.keys(data.data));
+                    }
+                    throw new Error('No video URL found in API response. Check console for details.');
+                }
                 
             } catch (error) {
                 console.error('API Error:', error);
@@ -493,13 +519,6 @@
         // Clear error when user starts typing
         urlInput.addEventListener('input', function() {
             errorMessage.style.display = 'none';
-        });
-        
-        // Handle Enter key press
-        urlInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                downloadBtn.click();
-            }
         });
     });
 </script>
