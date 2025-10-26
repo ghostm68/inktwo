@@ -1,110 +1,112 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file
 import yt_dlp
 import os
-import glob
+import uuid
+from pathlib import Path
 
 app = Flask(__name__)
 
-DOWNLOAD_DIR = 'downloads'
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# Configuration
+DOWNLOAD_FOLDER = Path(__file__).parent / 'downloads'
+DOWNLOAD_FOLDER.mkdir(exist_ok=True)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+def download_tiktok(urls, download_type='single'):
+    """Download TikTok videos using yt-dlp"""
+    try:
+        # Generate unique session ID for this download batch
+        session_id = str(uuid.uuid4())[:8]
+        output_path = DOWNLOAD_FOLDER / session_id
+        output_path.mkdir(exist_ok=True)
+        
+        ydl_opts = {
+            'outtmpl': str(output_path / '%(title)s.%(ext)s'),
+            'format': 'best',
+            'quiet': False,
+            'no_warnings': False,
+        }
+        
+        # Add profile-specific options
+        if download_type == 'profile':
+            ydl_opts['playlistend'] = 50  # Limit to 50 videos
+        
+        downloaded_files = []
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            for url in urls:
+                try:
+                    info = ydl.extract_info(url, download=True)
+                    
+                    # Handle playlist (profile) downloads
+                    if 'entries' in info:
+                        for entry in info['entries']:
+                            if entry:
+                                filename = ydl.prepare_filename(entry)
+                                downloaded_files.append(os.path.basename(filename))
+                    else:
+                        filename = ydl.prepare_filename(info)
+                        downloaded_files.append(os.path.basename(filename))
+                        
+                except Exception as e:
+                    print(f"Error downloading {url}: {str(e)}")
+                    continue
+        
+        return {
+            'success': True,
+            'session_id': session_id,
+            'files': downloaded_files,
+            'count': len(downloaded_files)
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 @app.route('/download', methods=['POST'])
 def download():
-    data = request.json
-    urls = data.get('urls', [])
-    download_type = data.get('type', 'single')
-    
-    if not urls:
-        return jsonify({'error': 'No URLs provided'}), 400
-    
-    results = []
-    
-    for url in urls:
-        url = url.strip()
-        if not url:
-            continue
-            
-        # Check if it's a profile URL
-        if download_type == 'profile' or ('@' in url and '/video/' not in url):
-            # Download all videos from profile
-            ydl_opts = {
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(uploader)s_%(title)s.%(ext)s'),
-                'format': 'best',
-                'quiet': True,
-                'ignoreerrors': True,
-            }
-            
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    if 'entries' in info:
-                        count = len([e for e in info['entries'] if e])
-                        results.append({
-                            'url': url,
-                            'status': 'success',
-                            'title': f"Downloaded {count} videos from profile",
-                            'type': 'profile'
-                        })
-                    else:
-                        results.append({
-                            'url': url,
-                            'status': 'success',
-                            'title': info.get('title', 'Video'),
-                            'filename': f"{info.get('uploader', 'user')}_{info.get('title', 'video')}.{info.get('ext', 'mp4')}",
-                            'type': 'single'
-                        })
-            except Exception as e:
-                results.append({
-                    'url': url,
-                    'status': 'error',
-                    'error': str(e),
-                    'type': 'profile'
-                })
+    """Handle download requests"""
+    try:
+        data = request.get_json()
+        urls = data.get('urls', [])
+        download_type = data.get('type', 'single')
+        
+        if not urls:
+            return jsonify({'success': False, 'error': 'No URLs provided'}), 400
+        
+        result = download_tiktok(urls, download_type)
+        
+        if result['success']:
+            return jsonify(result), 200
         else:
-            # Download single video
-            ydl_opts = {
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                'format': 'best',
-                'quiet': True,
-            }
+            return jsonify(result), 500
             
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    filename = f"{info.get('title', 'video')}.{info.get('ext', 'mp4')}"
-                    results.append({
-                        'url': url,
-                        'title': info.get('title', 'Unknown'),
-                        'status': 'success',
-                        'filename': filename,
-                        'type': 'single'
-                    })
-            except Exception as e:
-                results.append({
-                    'url': url,
-                    'status': 'error',
-                    'error': str(e),
-                    'type': 'single'
-                })
-    
-    return jsonify({'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/get-file/<path:filename>')
-def get_file(filename):
-    filepath = os.path.join(DOWNLOAD_DIR, filename)
-    if os.path.exists(filepath):
-        return send_file(filepath, as_attachment=True)
-    return jsonify({'error': 'File not found'}), 404
+@app.route('/get-file/<session_id>/<filename>', methods=['GET'])
+def get_file(session_id, filename):
+    """Serve downloaded files"""
+    try:
+        file_path = DOWNLOAD_FOLDER / session_id / filename
+        
+        if not file_path.exists():
+            return jsonify({'error': 'File not found'}), 404
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/list-files')
-def list_files():
-    files = glob.glob(os.path.join(DOWNLOAD_DIR, '*'))
-    file_list = [os.path.basename(f) for f in files]
-    return jsonify({'files': file_list})
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'service': 'tiktok-downloader'}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use 0.0.0.0 to allow external connections
+    app.run(host='0.0.0.0', port=5000, debug=False)
