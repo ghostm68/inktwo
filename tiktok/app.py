@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 import yt_dlp
 import os
 import uuid
@@ -59,9 +59,16 @@ def download_tiktok(urls, download_type='single'):
             'error': str(e)
         }
 
+# --- Web Page Route ---
+@app.route('/')
+def home():
+    """Serves the main index.html page."""
+    return render_template('index.html')
+
+# --- API Endpoints ---
 @app.route('/download', methods=['POST'])
 def download():
-    """Handle download requests"""
+    """Handle download requests from the frontend"""
     try:
         data = request.get_json()
         urls = data.get('urls', [])
@@ -82,7 +89,7 @@ def download():
 
 @app.route('/get-file/<session_id>/<filename>', methods=['GET'])
 def get_file(session_id, filename):
-    """Serve downloaded files"""
+    """Serve downloaded files to the user"""
     try:
         file_path = DOWNLOAD_FOLDER / session_id / filename
         
@@ -100,20 +107,10 @@ def get_file(session_id, filename):
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
+    """Health check endpoint for Render or other services"""
     return jsonify({'status': 'healthy', 'service': 'tiktok-downloader'}), 200
 
+# --- Main Execution Block ---
 if __name__ == '__main__':
+    # This part is used for local testing, not by Render's server.
     app.run(host='0.0.0.0', port=5000, debug=False)
-
-@app.route('/tiktok')
-def tiktok_downloader():
-    return render_template('index.html')
-
-@app.route('/health')
-def health_check():
-    return "OK"
-
-@app.route('/')
-def home():
-    return "tiktok/templates/index.html"
