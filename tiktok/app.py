@@ -116,4 +116,4 @@ def health_check():
 
 @app.route('/')
 def home():
-    return "TikTok Downloader API is running. Use /health to check status."
+    return "tiktok/templates/index.html"
