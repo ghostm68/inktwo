@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Downloader - InkRealm</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a0000 0%, #4a0000 50%, #8b0000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(220, 20, 60, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 0, 0, 0.1) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(220, 20, 60, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #dc143c;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(220, 20, 60, 0.5);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .download-type {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .type-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(220, 20, 60, 0.1);
+            border: 2px solid rgba(220, 20, 60, 0.3);
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .type-btn:hover {
+            background: rgba(220, 20, 60, 0.2);
+            border-color: rgba(220, 20, 60, 0.5);
+        }
+
+        .type-btn.active {
+            background: #dc143c;
+            border-color: #dc143c;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(220, 20, 60, 0.3);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #dc143c;
+            box-shadow: 0 0 20px rgba(220, 20, 60, 0.3);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #dc143c 0%, #8b0000 100%);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(220, 20, 60, 0.4);
+        }
+
+        .download-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #0f0;
+        }
+
+        .status.error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #f00;
+        }
+
+        .status.info {
+            background: rgba(220, 20, 60, 0.1);
+            border: 1px solid rgba(220, 20, 60, 0.3);
+            color: #dc143c;
+        }
+
+        .download-list {
+            margin-top: 15px;
+        }
+
+        .download-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .download-link {
+            color: #dc143c;
+            text-decoration: none;
+            padding: 5px 15px;
+            background: rgba(220, 20, 60, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .download-link:hover {
+            background: rgba(220, 20, 60, 0.4);
+        }
+
+        .loader {
+            border: 3px solid rgba(220, 20, 60, 0.3);
+            border-top: 3px solid #dc143c;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 TikTok Downloader</h1>
+        <p class="subtitle">Download your favorite TikTok videos instantly</p>
+
+        <div class="download-type">
+            <button class="type-btn active" data-type="single">Single Video</button>
+            <button class="type-btn" data-type="multiple">Multiple Videos</button>
+            <button class="type-btn" data-type="profile">Profile/Playlist</button>
+        </div>
+
+        <div class="input-group">
+            <label id="input-label">TikTok Video URL</label>
+            <input 
+                type="text" 
+                id="url-input" 
+                placeholder="https://www.tiktok.com/@user/video/123456789"
+                class="single-input"
+            >
+            <textarea 
+                id="urls-input" 
+                placeholder="Enter multiple TikTok URLs (one per line)"
+                class="hidden multiple-input"
+            ></textarea>
+        </div>
+
+        <button class="download-btn" id="download-btn">
+            <span id="btn-text">Download</span>
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const API_BASE = '/tiktok/api'; // Proxied through nginx
+        
+        let currentType = 'single';
+        const typeButtons = document.querySelectorAll('.type-btn');
+        const urlInput = document.getElementById('url-input');
+        const urlsInput = document.getElementById('urls-input');
+        const inputLabel = document.getElementById('input-label');
+        const downloadBtn = document.getElementById('download-btn');
+        const btnText = document.getElementById('btn-text');
+        const status = document.getElementById('status');
+
+        // Type selection
+        typeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                typeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentType = btn.dataset.type;
+                updateInputs();
+            });
+        });
+
+        function updateInputs() {
+            if (currentType === 'single') {
+                urlInput.classList.remove('hidden');
+                urlsInput.classList.add('hidden');
+                inputLabel.textContent = 'TikTok Video URL';
+                urlInput.placeholder = 'https://www.tiktok.com/@user/video/123456789';
+            } else if (currentType === 'multiple') {
+                urlInput.classList.add('hidden');
+                urlsInput.classList.remove('hidden');
+                inputLabel.textContent = 'TikTok Video URLs (one per line)';
+            } else {
+                urlInput.classList.remove('hidden');
+                urlsInput.classList.add('hidden');
+                inputLabel.textContent = 'TikTok Profile URL';
+                urlInput.placeholder = 'https://www.tiktok.com/@username';
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            status.className = `status ${type}`;
+            status.innerHTML = message;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                downloadBtn.disabled = true;
+                btnText.innerHTML = '<span class="loader"></span>Processing...';
+            } else {
+                downloadBtn.disabled = false;
+                btnText.textContent = 'Download';
+            }
+        }
+
+        async function startDownload() {
+            hideStatus();
+            
+            let urls = [];
+            
+            if (currentType === 'multiple') {
+                urls = urlsInput.value
+                    .split('\n')
+                    .map(url => url.trim())
+                    .filter(url => url.length > 0);
+            } else {
+                const url = urlInput.value.trim();
+                if (url) urls = [url];
+            }
+
+            if (urls.length === 0) {
+                showStatus('Please enter at least one URL', 'error');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const response = await fetch(`${API_BASE}/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        urls: urls,
+                        type: currentType
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    let message = `<div><strong>✓ Successfully downloaded ${data.count} file(s)!</strong></div>`;
+                    
+                    if (data.files && data.files.length > 0) {
+                        message += '<div class="download-list">';
+                        data.files.forEach(file => {
+                            const downloadUrl = `${API_BASE}/get-file/${data.session_id}/${encodeURIComponent(file)}`;
+                            message += `
+                                <div class="download-item">
+                                    <span>${file}</span>
+                                    <a href="${downloadUrl}" class="download-link" download>Download</a>
+                                </div>
+                            `;
+                        });
+                        message += '</div>';
+                    }
+                    
+                    showStatus(message, 'success');
+                } else {
+                    showStatus(`❌ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        downloadBtn.addEventListener('click', startDownload);
+
+        // Enter key support
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startDownload();
+        });
+    </script>
+</body>
+</html>
