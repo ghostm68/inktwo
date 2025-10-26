@@ -7,13 +7,12 @@ from pathlib import Path
 app = Flask(__name__)
 
 # Configuration
-DOWNLOAD_FOLDER = Path(__file__).parent / 'downloads'
+DOWNLOAD_FOLDER = Path('/workspaces/inktwo/tiktok/downloads')
 DOWNLOAD_FOLDER.mkdir(exist_ok=True)
 
 def download_tiktok(urls, download_type='single'):
     """Download TikTok videos using yt-dlp"""
     try:
-        # Generate unique session ID for this download batch
         session_id = str(uuid.uuid4())[:8]
         output_path = DOWNLOAD_FOLDER / session_id
         output_path.mkdir(exist_ok=True)
@@ -22,12 +21,10 @@ def download_tiktok(urls, download_type='single'):
             'outtmpl': str(output_path / '%(title)s.%(ext)s'),
             'format': 'best',
             'quiet': False,
-            'no_warnings': False,
         }
         
-        # Add profile-specific options
         if download_type == 'profile':
-            ydl_opts['playlistend'] = 50  # Limit to 50 videos
+            ydl_opts['playlistend'] = 50
         
         downloaded_files = []
         
@@ -36,7 +33,6 @@ def download_tiktok(urls, download_type='single'):
                 try:
                     info = ydl.extract_info(url, download=True)
                     
-                    # Handle playlist (profile) downloads
                     if 'entries' in info:
                         for entry in info['entries']:
                             if entry:
@@ -108,5 +104,4 @@ def health():
     return jsonify({'status': 'healthy', 'service': 'tiktok-downloader'}), 200
 
 if __name__ == '__main__':
-    # Use 0.0.0.0 to allow external connections
     app.run(host='0.0.0.0', port=5000, debug=False)
