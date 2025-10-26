@@ -7,7 +7,7 @@ from pathlib import Path
 app = Flask(__name__)
 
 # Configuration
-DOWNLOAD_FOLDER = Path('/workspaces/inktwo/tiktok/downloads')
+DOWNLOAD_FOLDER = Path(__file__).parent / 'downloads'
 DOWNLOAD_FOLDER.mkdir(exist_ok=True)
 
 def download_tiktok(urls, download_type='single'):
