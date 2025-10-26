@@ -106,6 +106,6 @@ def health():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
 
-@app.route('/')
+@app.route('/tiktok/templates/index.html')
 def home():
     return "TikTok Downloader API is running. Use /health to check status."
