@@ -373,6 +373,43 @@
             animation: fadeInUp 0.6s ease forwards;
             opacity: 0;
         }
+        .video-element {
+    border-radius: 4px;
+    border: 1px solid #333;
+    background: #1a1a1a;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s ease;
+}
+
+.show-card:hover .video-element {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Remove the play button overlay from actual video elements */
+.video-element::after {
+    display: none !important;
+}
+
+/* Keep the play button only for thumbnail placeholders */
+.video-thumb::after {
+    content: '▶';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    background: rgba(0,0,0,0.8);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    pointer-events: none;
+}
     </style>
 </head>
 <body>
@@ -1717,30 +1754,37 @@
                 return card;
             }
 
-            renderMediaSlot(mediaHtml) {
-                if (!mediaHtml) return '';
-                
-                const isVideo = mediaHtml.includes('<video');
-                const isIframe = mediaHtml.includes('<iframe');
-                
-                let processedHtml = mediaHtml;
-                
-                if (mediaHtml.includes('<img')) {
-                    processedHtml = mediaHtml.replace(/width="[^"]*"/g, 'width="100"');
-                    processedHtml = processedHtml.replace(/height="[^"]*"/g, 'height="75"');
-                    processedHtml = processedHtml.replace(/<img/g, '<img class="show-image"');
-                }
-                
-                if (isVideo && !isIframe) {
-                    processedHtml = mediaHtml.replace(/<video[^>]*>/g, '<video width="100" height="75" class="show-image video-thumb">');
-                }
-                
-                if (isIframe) {
-                    processedHtml = '<div class="media-slot video-thumb"><img src="https://github.com/ghostm68/pantheon/raw/main/video-thumb-placeholder.jpg" class="show-image" alt="Video"></div>';
-                }
+          renderMediaSlot(mediaHtml) {
+    if (!mediaHtml) return '';
+    
+    const isVideo = mediaHtml.includes('<video');
+    const isIframe = mediaHtml.includes('<iframe');
+    const isYouTube = mediaHtml.includes('youtube.com') || mediaHtml.includes('youtu.be');
+    
+    let processedHtml = mediaHtml;
+    
+    // Handle images
+    if (mediaHtml.includes('<img') && !mediaHtml.includes('video-thumb-placeholder')) {
+        processedHtml = mediaHtml.replace(/width="[^"]*"/g, 'width="100"');
+        processedHtml = processedHtml.replace(/height="[^"]*"/g, 'height="75"');
+        processedHtml = processedHtml.replace(/<img/g, '<img class="show-image"');
+    }
+    
+    // Handle native video elements
+    if (isVideo && !isIframe) {
+        processedHtml = mediaHtml.replace(/<video[^>]*>/g, '<video width="100" height="75" controls class="show-image video-element">');
+    }
+    
+    // Handle iframes (YouTube, etc.)
+    if (isIframe) {
+        // Keep the original iframe but resize it
+        processedHtml = mediaHtml.replace(/width="[^"]*"/g, 'width="100"');
+        processedHtml = processedHtml.replace(/height="[^"]*"/g, 'height="75"');
+        processedHtml = processedHtml.replace(/<iframe/g, '<iframe class="show-image video-element"');
+    }
 
-                return `<div class="media-slot">${processedHtml}</div>`;
-            }
+    return `<div class="media-slot">${processedHtml}</div>`;
+}
 
             setupEventListeners() {
                 document.querySelectorAll('.view-btn').forEach(btn => {
@@ -1767,40 +1811,40 @@
                 });
             }
 
-            animateCardHover(card, isHovering) {
-                const images = card.querySelectorAll('.show-image, video');
-                const container = card.querySelector('.images-container');
+           animateCardHover(card, isHovering) {
+    const mediaElements = card.querySelectorAll('.show-image, video, iframe');
+    const container = card.querySelector('.images-container');
 
-                if (isHovering) {
-                    gsap.to(container, {
-                        height: 'auto',
-                        duration: CONFIG.animationDuration,
-                        ease: "power2.out"
-                    });
-                    
-                    gsap.to(images, {
-                        opacity: 1,
-                        y: 0,
-                        duration: CONFIG.animationDuration - 0.1,
-                        stagger: 0.08,
-                        ease: "power2.out"
-                    });
-                } else {
-                    gsap.to(container, {
-                        height: 0,
-                        duration: CONFIG.animationDuration - 0.1,
-                        ease: "power2.in"
-                    });
-                    
-                    gsap.to(images, {
-                        opacity: 0,
-                        y: 8,
-                        duration: CONFIG.animationDuration - 0.2,
-                        stagger: 0.03,
-                        ease: "power2.in"
-                    });
-                }
-            }
+    if (isHovering) {
+        gsap.to(container, {
+            height: 'auto',
+            duration: CONFIG.animationDuration,
+            ease: "power2.out"
+        });
+        
+        gsap.to(mediaElements, {
+            opacity: 1,
+            y: 0,
+            duration: CONFIG.animationDuration - 0.1,
+            stagger: 0.08,
+            ease: "power2.out"
+        });
+    } else {
+        gsap.to(container, {
+            height: 0,
+            duration: CONFIG.animationDuration - 0.1,
+            ease: "power2.in"
+        });
+        
+        gsap.to(mediaElements, {
+            opacity: 0,
+            y: 8,
+            duration: CONFIG.animationDuration - 0.2,
+            stagger: 0.03,
+            ease: "power2.in"
+        });
+    }
+}
 
             setupAnimations() {
                 gsap.from('.show-card', {
