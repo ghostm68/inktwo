@@ -351,22 +351,27 @@
            
 
         <!-- ✅ API KEY SECTION - Only shown when authenticated -->
-       <div id="apiKeySection" class="card">
+      <div id="apiKeySection" class="card">
     <h2 class="card-title">🗝️ Your NVIDIA API Key</h2>
-            <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem;">
-                Enter your API key for direct image generation. Get a free trial key at <a href="https://build.nvidia.com/explore/generative-models" target="_blank" style="color: #f59e0b; text-decoration: underline;">build.nvidia.com</a>
-            </p>
-            <input type="password" id="apiKeyInput" class="form-input" placeholder="nvapi-xxxxxxxxxxxxxxxxxxxxxxxxx">
-            <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.5rem;">Key stored in browser only, never sent to any server except NVIDIA</p>
-        </div>
+    <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem;">
+        Enter your API key for direct image generation. Get a free trial key at <a href="https://build.nvidia.com/explore/generative-models" target="_blank" style="color: #f59e0b; text-decoration: underline;">build.nvidia.com</a>
+    </p>
+    
+    <div style="display: flex; gap: 0.75rem;">
+        <input type="password" id="apiKeyInput" class="form-input" placeholder="nvapi-xxxxxxxxxxxxxxxxxxxxxxxxx" style="flex: 1;">
+        <button id="activateKeyBtn" class="btn btn-secondary">Activate Key</button> <!-- NEW BUTTON -->
+    </div>
+    
+    <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.5rem;">Key is used only for the current session.</p>
+</div>
 
         <div style="margin-top: 2rem; text-align: center; color: #64748b; font-size: 0.875rem;">
             <p>Part of the inkrealm.info writing tools suite</p>
         </div>
     </div>
 
-    <script>
-        // ✅ Your working pattern - direct DOM manipulation
+  <script>
+        // Global state
         let formData = {
             title: '',
             author: '',
@@ -376,13 +381,10 @@
             colorScheme: 'noir',
             elements: ''
         };
-       let isAuthenticated = true; // <-- SET TO TRUE BY DEFAULT
-        let apiKey = '';
+        let isAuthenticated = true; // Image generation is unlocked by default
+        let apiKey = ''; // Key is NOT loaded or saved
 
-        // ✅ FIXED: Password constant - if this fails, it's definitely not the code
-        const CORRECT_PASSWORD = "ParisTexas66KingSWUnitATorontoONM5V1K3";
-
-        // DOM elements
+        // DOM elements (Cleaned up list)
         const elements = {
             title: document.getElementById('titleInput'),
             author: document.getElementById('authorInput'),
@@ -404,16 +406,11 @@
             imageBox: document.getElementById('imageBox'),
             generatedImage: document.getElementById('generatedImage'),
             downloadBtn: document.getElementById('downloadBtn'),
-            passwordInput: document.getElementById('passwordInput'),
-            unlockBtn: document.getElementById('unlockBtn'),
-            authMessageBox: document.getElementById('authMessageBox'),
-            authMessageText: document.getElementById('authMessageText'),
-            apiKeySection: document.getElementById('apiKeySection'),
             apiKeyInput: document.getElementById('apiKeyInput'),
-            authSection: document.getElementById('authSection')
+            activateKeyBtn: document.getElementById('activateKeyBtn') // NEW CLEAN ELEMENT
         };
 
-        // Event listeners
+        // Event listeners (Form Data)
         elements.title.addEventListener('input', (e) => formData.title = e.target.value);
         elements.author.addEventListener('input', (e) => formData.author = e.target.value);
         elements.genre.addEventListener('change', (e) => formData.genre = e.target.value);
@@ -422,22 +419,28 @@
         elements.colorScheme.addEventListener('change', (e) => formData.colorScheme = e.target.value);
         elements.elementsInput.addEventListener('input', (e) => formData.elements = e.target.value);
 
+        // Event listeners (Actions)
         elements.generateBtn.addEventListener('click', generatePrompt);
         elements.resetBtn.addEventListener('click', resetForm);
         elements.copyBtn.addEventListener('click', copyToClipboard);
         elements.downloadBtn.addEventListener('click', downloadImage);
+        elements.activateKeyBtn.addEventListener('click', activateKey); // NEW ACTIVATION LISTENER
 
-        // Load saved API key
-        const savedKey = localStorage.getItem('nvidia_api_key');
-        if (savedKey) {
-            apiKey = savedKey;
-            elements.apiKeyInput.value = savedKey;
+        // Function to handle key activation
+        function activateKey() {
+            const key = elements.apiKeyInput.value.trim();
+            // Simple validation: key is long and starts with the expected prefix
+            if (key.length > 50 && key.startsWith('nvapi-')) { 
+                apiKey = key; // Store key in memory (RAM)
+                showMessage('🔑 API Key activated! Click Generate Prompt to use it.');
+                elements.apiKeyInput.disabled = true; // Lock the field
+                elements.activateKeyBtn.disabled = true; // Disable the button
+            } else {
+                showError('Invalid Key. Key should be ~70 characters and start with "nvapi-".');
+            }
         }
-
-        elements.apiKeyInput.addEventListener('change', (e) => {
-            apiKey = e.target.value;
-            localStorage.setItem('nvidia_api_key', apiKey);
-        });
+        
+        // --- Utility Functions (showMessage, showError, hideMessages) ---
 
         function showMessage(text) {
             elements.messageText.textContent = text;
@@ -456,10 +459,7 @@
             elements.errorBox.classList.add('hidden');
         }
 
-        function showAuthError(text) {
-            elements.authMessageText.textContent = text;
-            elements.authMessageBox.classList.remove('hidden');
-        }
+        // --- Main Logic (generatePrompt, resetForm, copyToClipboard, generateImage, downloadImage) ---
 
         function generatePrompt() {
             console.log('Generating prompt with data:', formData);
@@ -475,18 +475,14 @@
             elements.generateBtn.disabled = true;
             elements.loadingDiv.classList.remove('hidden');
 
-            // Simulate async generation
-            setTimeout(() => {
-                const prompt = `Professional book cover design for ${formData.genre}:
-
+            // --- PROMPT GENERATION (Fast) ---
+            const prompt = `Professional book cover design for ${formData.genre}:
 Title: "${formData.title || '[Your Title]'}" in bold, elegant typography
 Author: "${formData.author || '[Author Name]'}"
-
 Style: ${formData.style}
 Mood: ${formData.mood} and atmospheric
 Color palette: ${formData.colorScheme}
 ${formData.elements ? `Key visual elements: ${formData.elements}` : ''}
-
 Composition rules:
 - Rule of thirds layout
 - Clear space for title at top third
@@ -496,30 +492,29 @@ Composition rules:
 - Trending contemporary book design aesthetic
 - No text rendering (text will be added separately)
 - Clean margins and bleed areas
-
 Technical specs:
 --ar 2:3 (portrait book cover ratio)
 --style raw
 --quality 2
-
 Additional context: Evoke the feeling of browsing a bookstore and this cover makes you stop and pick it up. It should feel premium, intriguing, and genre-appropriate while standing out from competitors.`;
 
-                elements.promptOutput.textContent = prompt;
-                elements.outputBox.classList.remove('hidden');
-                elements.copyBtn.classList.remove('hidden');
+            elements.promptOutput.textContent = prompt;
+            elements.outputBox.classList.remove('hidden');
+            elements.copyBtn.classList.remove('hidden');
+            
+            // --- IMAGE GENERATION (Slower, Async) ---
+            if (apiKey) {
+                showMessage('✅ Prompt generated! Now generating image...');
+                generateImage(prompt); // This handles its own loading state
+            } else {
+                showMessage('✅ Prompt generated! Please click "Activate Key" above to enable image generation.');
                 elements.generateBtn.disabled = false;
                 elements.loadingDiv.classList.add('hidden');
-
-                showMessage('✅ Prompt generated!' + (apiKey && isAuthenticated ? ' Generating image...' : ' Add API key for image generation.'));
-
-                // Generate image if API key present and unlocked
-                if (apiKey && isAuthenticated) {
-                    generateImage(prompt);
-                }
-            }, 500);
+            }
         }
 
         function resetForm() {
+            // ... (Your reset logic is correct) ...
             formData = {
                 title: '',
                 author: '',
@@ -555,49 +550,11 @@ Additional context: Evoke the feeling of browsing a bookstore and this cover mak
             });
         }
 
-        // ✅ FIXED: Password check that CANNOT fail unless password is wrong
-    // ✅ FIXED: Password check that CANNOT fail unless password is wrong
-        function handlePasswordCheck() {
-            // Get raw value directly from DOM
-            const rawPassword = elements.passwordInput.value;
-            
-            // Trim and replace all internal whitespace (spaces, tabs, newlines)
-            const entered = rawPassword.trim().replace(/\s+/g, '');
-            const correct = CORRECT_PASSWORD.trim().replace(/\s+/g, '');
-            
-            console.log('--- PASSWORD CHECK ---');
-            console.log('Raw input:', JSON.stringify(rawPassword));
-            console.log('Trimmed input:', JSON.stringify(entered));
-            console.log('Correct password:', JSON.stringify(correct));
-            console.log('Match:', entered === correct);
-            console.log('Length: entered=' + entered.length + ', correct=' + correct.length);
-            
-            if (entered === correct) {
-                isAuthenticated = true;
-                elements.apiKeySection.classList.remove('hidden');
-                // Use a proper CSS class or just set display: none on the parent section
-                elements.authSection.classList.add('hidden'); // Use hidden class to hide the auth card
-                
-                showMessage('🔓 Unlocked successfully! You can now enter your API Key.');
-                console.log('✅ Authentication successful');
-            } else {
-                showAuthError(`Password incorrect. You entered ${entered.length} chars, expected ${correct.length} chars. Check for spelling or invisible spaces.`);
-                console.error('❌ Authentication failed');
-                
-                // Clear the field to prevent accumulation
-                elements.passwordInput.value = '';
-            }
-        }
-
         async function generateImage(prompt) {
-            if (!apiKey) {
-                showMessage('⚠️ Add your NVIDIA API key to generate images');
-                return;
-            }
-
             elements.loadingDiv.classList.remove('hidden');
             elements.imageBox.classList.add('hidden');
             elements.downloadBtn.classList.add('hidden');
+            elements.generateBtn.disabled = true; // Disable main button during image gen
 
             try {
                 const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-3-medium');
@@ -640,6 +597,7 @@ Additional context: Evoke the feeling of browsing a bookstore and this cover mak
                 console.error('Image gen error:', err);
             } finally {
                 elements.loadingDiv.classList.add('hidden');
+                elements.generateBtn.disabled = false; // Re-enable main button
             }
         }
 
@@ -657,7 +615,7 @@ Additional context: Evoke the feeling of browsing a bookstore and this cover mak
 
         // Initial state
         console.log('✅ Script loaded successfully');
-        console.log('Password ready:', CORRECT_PASSWORD);
+        elements.outputBox.classList.add('hidden'); // Ensure output is hidden on load
         hideMessages();
     </script>
 </body>
