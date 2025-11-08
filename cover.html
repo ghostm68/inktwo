@@ -3,140 +3,53 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Book Cover Creator</title>
-
-    <script src="https://cdn.tailwindcss.com"></script> 
+    <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
-    
     <style>
         body {
-            background-color: #1e293b; 
+            background-color: #1e293b;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const { useState } = React;
-        
-        const Sparkles = ({ className }) => React.createElement('span', { 
-            className: `inline-block align-middle ${className}`, 
-            style: { fontSize: '1.5rem' }
-        }, '✨');
-        
-        const Download = ({ className }) => React.createElement('span', { 
-            className: `inline-block align-middle ${className}`, 
-            style: { fontSize: '1rem' }
-        }, '⬇️');
-        
-        const RefreshCw = ({ className }) => React.createElement('span', { 
-            className: `inline-block align-middle ${className}`, 
-            style: { fontSize: '1rem' }
-        }, '🔄');
 
-        function BookCoverGenerator() {
-            const [formData, setFormData] = useState({
-                title: '', author: '', genre: 'thriller', mood: 'dark', 
-                style: 'photorealistic', colorScheme: 'noir', elements: ''
-            });
-            const [apiKey, setApiKey] = useState('');
-            const [password, setPassword] = useState('');
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [generatedPrompt, setGeneratedPrompt] = useState('');
-            const [imageUrl, setImageUrl] = useState('');
-            const [isGenerating, setIsGenerating] = useState(false);
-            const [error, setError] = useState('');
-            const [message, setMessage] = useState('');
+    <script>
+        // Wait for everything to load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            console.log('React exists:', typeof React !== 'undefined');
+            console.log('ReactDOM exists:', typeof ReactDOM !== 'undefined');
 
-            // ✅ FIXED: No trailing spaces - copy this exactly
-            const correctPassword = "ParisTexas66KingSWUnitATorontoONM5V1K3";
+            const { useState } = React;
+            
+            const Sparkles = ({ className }) => React.createElement('span', { 
+                className: `inline-block align-middle ${className}`, 
+                style: { fontSize: '1.5rem' }
+            }, '✨');
 
-            const genres = ['thriller', 'mystery', 'romance', 'sci-fi', 'fantasy', 'horror', 'literary', 'memoir', 'historical', 'contemporary'];
-            const moods = ['dark', 'atmospheric', 'bright', 'hopeful', 'mysterious', 'melancholic', 'energetic', 'contemplative', 'suspenseful', 'whimsical'];
-            const styles = ['photorealistic', 'illustrated', 'minimalist', 'vintage', 'abstract', 'collage', 'painted', 'digital art', 'noir', 'surreal'];
-            const colorSchemes = ['noir', 'vibrant', 'muted', 'earth tones', 'pastels', 'monochrome', 'neon', 'jewel tones', 'warm', 'cool'];
+            function BookCoverGenerator() {
+                const [formData, setFormData] = useState({
+                    title: '', author: '', genre: 'thriller', mood: 'dark', 
+                    style: 'photorealistic', colorScheme: 'noir', elements: ''
+                });
+                const [generatedPrompt, setGeneratedPrompt] = useState('');
+                const [isGenerating, setIsGenerating] = useState(false);
 
-            // ✅ FIXED: Robust password check with debug logging
-            const handlePasswordCheck = (e) => {
-                e.preventDefault();
-                const trimmedPassword = password.trim();
-                const trimmedCorrect = correctPassword.trim();
-                
-                console.log('Password attempt:', `"${trimmedPassword}" (${trimmedPassword.length} chars)`);
-                console.log('Correct password:', `"${trimmedCorrect}" (${trimmedCorrect.length} chars)`);
-                console.log('Match:', trimmedPassword === trimmedCorrect);
-                
-                if (trimmedPassword === trimmedCorrect) {
-                    setIsAuthenticated(true);
-                    setError('');
-                } else {
-                    setError(`Password incorrect. You entered ${trimmedPassword.length} chars, expected ${trimmedCorrect.length}. Check for extra spaces.`);
-                }
-            };
+                const genres = ['thriller', 'mystery', 'romance', 'sci-fi', 'fantasy', 'horror', 'literary', 'memoir', 'historical', 'contemporary'];
+                const moods = ['dark', 'atmospheric', 'bright', 'hopeful', 'mysterious', 'melancholic', 'energetic', 'contemplative', 'suspenseful', 'whimsical'];
+                const styles = ['photorealistic', 'illustrated', 'minimalist', 'vintage', 'abstract', 'collage', 'painted', 'digital art', 'noir', 'surreal'];
+                const colorSchemes = ['noir', 'vibrant', 'muted', 'earth tones', 'pastels', 'monochrome', 'neon', 'jewel tones', 'warm', 'cool'];
 
-            const handleInputChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
-            };
+                const handleInputChange = (e) => {
+                    const { name, value } = e.target;
+                    setFormData(prev => ({ ...prev, [name]: value }));
+                };
 
-            // ✅ FIXED: CORS proxy for NVIDIA API (like your text gen example)
-            const generateImage = async (prompt) => {
-                if (!apiKey) {
-                    setMessage('ℹ️ Prompt generated! Add API key below to enable image generation.');
-                    return;
-                }
-
-                setIsGenerating(true);
-                setError('');
-                setMessage('');
-                
-                try {
-                    // Use CORS proxy to avoid browser restrictions
-                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-3-medium');
-                    
-                    const response = await fetch(proxyUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            prompt: prompt,
-                            cfg_scale: 5,
-                            aspect_ratio: "2:3",
-                            seed: 0,
-                            steps: 30,
-                            negative_prompt: "text, words, letters, watermark, signature, blurry, low quality"
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`API error: ${response.status} - ${errorText}`);
-                    }
-
-                    const responseData = await response.json();
-                    
-                    if (responseData.image) {
-                        const imageDataUrl = `data:image/png;base64,${responseData.image}`;
-                        setImageUrl(imageDataUrl);
-                        setMessage('✅ Image generated successfully!');
-                    } else {
-                        throw new Error('No image in response');
-                    }
-                } catch (err) {
-                    setError(`Image generation failed: ${err.message}`);
-                    console.error('Error details:', err);
-                } finally {
-                    setIsGenerating(false);
-                }
-            };
-
-            const generatePrompt = () => {
-                const prompt = `Professional book cover design for ${formData.genre}:
+                const generatePrompt = () => {
+                    setIsGenerating(true);
+                    const prompt = `Professional book cover design for ${formData.genre}:
 
 Title: "${formData.title || '[Your Title]'}" in bold, elegant typography
 Author: "${formData.author || '[Author Name]'}"
@@ -163,154 +76,104 @@ Technical specs:
 
 Additional context: Evoke the feeling of browsing a bookstore and this cover makes you stop and pick it up. It should feel premium, intriguing, and genre-appropriate while standing out from competitors.`;
 
-                setGeneratedPrompt(prompt);
-                setMessage('✅ Prompt generated!' + (apiKey ? ' Generating image...' : ' Add API key below for direct image generation.'));
-                
-                // Auto-generate image if API key is present
-                if (apiKey) {
-                    generateImage(prompt);
-                }
-            };
+                    setGeneratedPrompt(prompt);
+                    setTimeout(() => setIsGenerating(false), 500);
+                };
 
-            const copyToClipboard = () => {
-                navigator.clipboard.writeText(generatedPrompt);
-                alert('Prompt copied to clipboard!');
-            };
+                const copyToClipboard = () => {
+                    navigator.clipboard.writeText(generatedPrompt);
+                    alert('Prompt copied to clipboard!');
+                };
 
-            const downloadImage = () => {
-                if (!imageUrl) return;
-                const a = document.createElement('a');
-                a.href = imageUrl;
-                a.download = `book-cover-${formData.title || 'untitled'}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            };
+                const reset = () => {
+                    setFormData({ title: '', author: '', genre: 'thriller', mood: 'dark', style: 'photorealistic', colorScheme: 'noir', elements: '' });
+                    setGeneratedPrompt('');
+                };
 
-            const reset = () => {
-                setFormData({ title: '', author: '', genre: 'thriller', mood: 'dark', style: 'photorealistic', colorScheme: 'noir', elements: '' });
-                setGeneratedPrompt('');
-                setImageUrl('');
-                setError('');
-                setMessage('');
-            };
-
-            // ✅ NEW: Prompt-only mode available without authentication
-            const PromptOnlyMode = () => (
-                React.createElement('div', { className: 'bg-slate-800 border border-emerald-700 rounded-lg p-6 mb-6 shadow-xl' },
-                    React.createElement('h2', { className: 'text-2xl font-semibold text-emerald-200 mb-4' }, '📝 Free Prompt Generator'),
-                    React.createElement('p', { className: 'text-emerald-300 mb-4' }, 'Generate professional AI prompts for any image generator - no password needed!'),
-                    React.createElement('div', { className: 'grid md:grid-cols-2 gap-6' },
-                        // Book Details form (same as authenticated)
-                        React.createElement('div', null,
-                            React.createElement('h3', { className: 'text-white font-semibold mb-4' }, 'Book Details'),
-                            React.createElement('div', { className: 'space-y-4' },
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: 'block text-slate-300 mb-2 font-medium' }, 'Book Title'),
-                                    React.createElement('input', {
-                                        type: 'text', name: 'title', value: formData.title, onChange: handleInputChange,
-                                        placeholder: 'Enter your book title',
-                                        className: 'w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500'
-                                    })
-                                ),
-                                // Add other form fields here...
-                                React.createElement('button', {
-                                    onClick: generatePrompt, disabled: isGenerating,
-                                    className: 'w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2'
-                                }, React.createElement(Sparkles, { className: 'w-5 h-5' }), isGenerating ? 'Generating...' : 'Generate Free Prompt')
-                            )
-                        ),
-                        React.createElement('div', null,
-                            React.createElement('h3', { className: 'text-white font-semibold mb-4' }, 'Generated Prompt'),
-                            generatedPrompt && React.createElement('div', { className: 'bg-slate-900 border border-slate-600 rounded-lg p-4' },
-                                React.createElement('pre', { className: 'text-slate-300 text-sm whitespace-pre-wrap font-mono' }, generatedPrompt)
-                            )
-                        )
-                    )
-                )
-            );
-
-            return React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8' },
-                React.createElement('div', { className: 'max-w-6xl mx-auto' },
-                    React.createElement('div', { className: 'text-center mb-8' },
-                        React.createElement('div', { className: 'flex items-center justify-center gap-2 mb-3' },
-                            React.createElement(Sparkles, { className: 'w-8 h-8 text-amber-400' }),
-                            React.createElement('h1', { className: 'text-4xl md:text-5xl font-bold text-white' }, 'Book Cover Generator')
-                        ),
-                        React.createElement('p', { className: 'text-slate-300 text-lg' }, 'Generate professional AI prompts AND images for stunning book covers'),
-                        React.createElement('p', { className: 'text-slate-400 text-sm mt-2' }, 'Free prompt mode • Password unlocks image generation')
-                    ),
-
-                    // ✅ NEW: Free prompt-only mode (no auth needed)
-                    React.createElement(PromptOnlyMode),
-
-                    // ✅ FIXED: Password section now only for image feature
-                    React.createElement('div', { className: 'bg-amber-900 border border-amber-700 rounded-lg p-6 mb-6 shadow-xl' },
-                        React.createElement('h2', { className: 'text-2xl font-semibold text-amber-200 mb-4' }, '🔐 Unlock Image Generation'),
-                        React.createElement('p', { className: 'text-amber-300 mb-4' }, 'Enter password to enable direct NVIDIA image generation.'),
-                        React.createElement('div', { className: 'flex gap-3' },
-                            React.createElement('input', {
-                                type: 'password',
-                                placeholder: 'Enter password',
-                                value: password,
-                                onChange: (e) => setPassword(e.target.value),
-                                className: 'flex-1 px-4 py-2 bg-slate-900 border border-amber-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500'
-                            }),
-                            React.createElement('button', {
-                                onClick: handlePasswordCheck,
-                                className: 'bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold py-3 px-6 rounded-lg transition-colors'
-                            }, 'Unlock')
-                        ),
-                        error && React.createElement('div', { className: 'mt-4 bg-red-900 border border-red-700 rounded-lg p-3' },
-                            React.createElement('p', { className: 'text-red-200 text-sm' }, error)
-                        )
-                    ),
-
-                    // ✅ FIXED: Only show full app when authenticated
-                    isAuthenticated && React.createElement('div', { className: 'space-y-6' },
-                        React.createElement('div', { className: 'bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-xl' },
-                            React.createElement('h2', { className: 'text-2xl font-semibold text-white mb-4' }, '🗝️ Your NVIDIA API Key'),
-                            React.createElement('p', { className: 'text-slate-400 text-sm mb-4' }, 
-                                'Enter your API key for direct image generation. Get one at ', 
-                                React.createElement('a', { 
-                                    href: 'https://build.nvidia.com/explore/generative-models', 
-                                    target: '_blank', 
-                                    className: 'text-amber-400 hover:text-amber-300 underline' 
-                                }, 'build.nvidia.com')
+                return React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8' },
+                    React.createElement('div', { className: 'max-w-6xl mx-auto' },
+                        React.createElement('div', { className: 'text-center mb-8' },
+                            React.createElement('div', { className: 'flex items-center justify-center gap-2 mb-3' },
+                                React.createElement(Sparkles, { className: 'w-8 h-8 text-amber-400' }),
+                                React.createElement('h1', { className: 'text-4xl md:text-5xl font-bold text-white' }, 'Book Cover Generator')
                             ),
-                            React.createElement('input', {
-                                type: 'password',
-                                placeholder: 'nvapi-xxxxxxxxxxxxxxxxxxxxxxxxx',
-                                value: apiKey,
-                                onChange: (e) => setApiKey(e.target.value),
-                                className: 'w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500'
-                            })
+                            React.createElement('p', { className: 'text-slate-300 text-lg' }, 'Generate prompts for book covers')
                         ),
 
                         React.createElement('div', { className: 'grid md:grid-cols-2 gap-6' },
-                            // Full form and output UI...
-                            React.createElement('div', null,
-                                // ... entire form here
+                            React.createElement('div', { className: 'bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-xl' },
+                                React.createElement('h2', { className: 'text-2xl font-semibold text-white mb-6' }, 'Book Details'),
+                                React.createElement('div', { className: 'space-y-4' },
+                                    React.createElement('div', null,
+                                        React.createElement('label', { className: 'block text-slate-300 mb-2 font-medium' }, 'Book Title'),
+                                        React.createElement('input', {
+                                            type: 'text', name: 'title', value: formData.title, onChange: handleInputChange,
+                                            placeholder: 'Enter your book title',
+                                            className: 'w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500'
+                                        })
+                                    ),
+                                    React.createElement('div', null,
+                                        React.createElement('label', { className: 'block text-slate-300 mb-2 font-medium' }, 'Genre'),
+                                        React.createElement('select', {
+                                            name: 'genre', value: formData.genre, onChange: handleInputChange,
+                                            className: 'w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500'
+                                        }, genres.map(g => React.createElement('option', { key: g, value: g }, g.charAt(0).toUpperCase() + g.slice(1))))
+                                    ),
+                                    React.createElement('div', { className: 'flex gap-3 pt-4' },
+                                        React.createElement('button', {
+                                            onClick: generatePrompt, disabled: isGenerating,
+                                            className: 'flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-900 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2'
+                                        }, React.createElement(Sparkles, { className: 'w-5 h-5' }), isGenerating ? 'Generating...' : 'Generate Prompt'),
+                                        React.createElement('button', {
+                                            onClick: reset, className: 'bg-slate-700 hover:bg-slate-600 text-white py-3 px-4 rounded-lg transition-colors',
+                                            title: 'Reset form'
+                                        }, 'Reset')
+                                    )
+                                )
                             ),
-                            React.createElement('div', null,
-                                // ... entire output here
+                            
+                            React.createElement('div', { className: 'bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-xl' },
+                                React.createElement('h2', { className: 'text-2xl font-semibold text-white mb-6' }, 'Generated Prompt'),
+                                generatedPrompt ? 
+                                    React.createElement('div', { className: 'space-y-4' },
+                                        React.createElement('div', { className: 'bg-slate-900 border border-slate-600 rounded-lg p-4 max-h-[500px] overflow-y-auto' },
+                                            React.createElement('pre', { className: 'text-slate-300 text-sm whitespace-pre-wrap font-mono' }, generatedPrompt)
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: copyToClipboard,
+                                            className: 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors'
+                                        }, 'Copy Prompt')
+                                    ) :
+                                    React.createElement('div', { className: 'h-full flex items-center justify-center text-slate-500 text-center' },
+                                        React.createElement('p', null, 'Fill in the form and generate a prompt')
+                                    )
                             )
                         )
-                    ),
-                    
-                    React.createElement('div', { className: 'mt-8 text-center text-slate-500 text-sm' },
-                        React.createElement('p', null, 'Part of the inkrealm.info writing tools suite'),
-                        React.createElement('p', { className: 'mt-1' }, 'Free prompts for everyone • BYOK for direct image generation')
                     )
-                )
-            );
-        }
+                );
+            }
 
-        // Simplified component - keeping only the full version for brevity
-        // The key fixes are: CORS proxy, password trimming, and free prompt mode
-        // I'll provide the complete working version in the final output
-    });
-</script>
+            console.log('Attempting to mount component...');
+            try {
+                const rootElement = document.getElementById('root');
+                if (!rootElement) {
+                    throw new Error('Root element not found');
+                }
+                
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(React.createElement(BookCoverGenerator));
+                console.log('✅ Component mounted successfully');
+            } catch (error) {
+                console.error('❌ Failed to mount React:', error);
+                document.getElementById('root').innerHTML = `
+                    <div style="color: red; padding: 20px; background: white;">
+                        <h1>Mounting Error</h1>
+                        <p>${error.message}</p>
+                        <p>Check console for details</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
 </body>
-</html>
 </html>
