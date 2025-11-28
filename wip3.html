@@ -1,822 +1,521 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html xml:lang="en" lang="en" dir="ltr" >
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
- 
-    <title>Inkrealm</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            padding: 0;
-            margin: 0;
-        }
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #000;
-            color: #fff;
-            overflow-x: hidden;
-            position: relative;
-        }
-        /* Noise and scanlines overlay */
-        .noise-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1000;
-            mix-blend-mode: overlay;
-            opacity: 0.1;
-            background-image:
-                radial-gradient(ellipse at 20% 20%, #fff 0%, transparent 30%),
-                linear-gradient(to bottom, transparent 49%, rgba(255, 255, 255, 0.1) 50%, transparent 51%);
-            background-size: 100px 100px, 100% 2px;
-        }
-        /* Scanlines animation */
-        .scanlines {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1001;
-            background: repeating-linear-gradient(
-                to bottom,
-                transparent,
-                transparent 1px,
-                rgba(255, 255, 255, 0.05) 1px,
-                rgba(255, 255, 255, 0.05) 2px
-            );
-            animation: scanlineMove 0.1s linear infinite;
-            opacity: 0.3;
-        }
-        @keyframes scanlineMove {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: rgba(0, 0, 0, 0.9);
-            padding: 1rem 2rem;
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-        }
-        .logo svg {
-            height: 40px;
-            fill: white;
-        }
-        .nav {
-            display: flex;
-            gap: 2rem;
-        }
-        .nav a {
-            color: #fff;
-            text-decoration: none;
-            font-size: 1rem;
-            position: relative;
-        }
-        .main {
-            margin-top: 80px;
-            min-height: 100vh;
-            position: relative;
-        }
-        .splash {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: #000;
-            z-index: 100;
-        }
-        .scrolling-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: -1;
-        }
-        .scrolling-text {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            animation: scroll 20s linear infinite;
-            font-size: 2rem;
-            color: #ccc;
-            white-space: nowrap;
-        }
-        @keyframes scroll {
-            0% { transform: translateY(100%); }
-            100% { transform: translateY(-100%); }
-        }
-        .loading-overlay {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
-        }
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #fff;
-            border-top: 5px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 1rem;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .content {
-            padding: 2rem;
-            z-index: 10;
-            position: relative;
-        }
-        /* Section background images */
-        #about {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                        url('https://via.placeholder.com/1920x1080?text=About+Background') center/cover no-repeat;
-            padding: 4rem 2rem;
-            margin-bottom: 0;
-        }
-        #works {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                        url('https://via.placeholder.com/1920x1080?text=Works+Background') center/cover no-repeat;
-            padding: 4rem 2rem;
-            margin-bottom: 0;
-        }
-        #contact {
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                        url('https://via.placeholder.com/1920x1080?text=Contact+Background') center/cover no-repeat;
-            padding: 4rem 2rem;
-            margin-bottom: 0;
-        }
-        .section {
-            margin-bottom: 4rem;
-        }
-        .section h2,
-        .section p,
-        .card {
-            position: relative;
-            z-index: 1;
-        }
-        .section h2 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-        .section p {
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
-        /* Original scramble effect */
-               .scramble-link {
-            position: relative;
-            display: inline-block;
-        }
-        .scramble-link::after {
-            content: attr(data-text);
-            position: absolute;
-            left: 0;
-            top: 0;
-            color: #fff;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        .scramble-link:hover::after {
-            animation: scramble 0.5s forwards;
-        }
-        @keyframes scramble {
-            30% {
-                transform: translateY(100%);
-            }
-            60% {
-                transform: translateY(0);
-            }
-        }
-        .works-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        .work-item {
-            background-color: #111;
-            padding: 1rem;
-            border-radius: 5px;
-        }
-        .work-item img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 5px;
-        }
-        /* Footer Styles */
-        .footer {
-            background-color: #111;
-            padding: 2rem;
-            margin-top: 4rem;
-        }
-        .footer__inner {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .footer__top {
-            margin-bottom: 2rem;
-        }
-        .footer__top_links {
-            display: flex;
-            gap: 4rem;
-            margin-bottom: 3rem;
-        }
-        .footer__column {
-            flex: 1;
-        }
-        .footer__pageLink {
-            display: block;
-            color: #fff;
-            text-decoration: none;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-        }
-        .footer__linksTitle {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-        .footer__linkList {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .footer__link {
-            color: #fff;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-        .footer__social {
-            display: flex;
-            gap: 1rem;
-            margin-top: 0.5rem;
-        }
-        .footer__top_contact {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2rem;
-        }
-        .footer__contact {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .footer__contact_button {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #fff;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-        .footer__privacyLicense {
-            display: flex;
-            gap: 2rem;
-            font-size: 0.8rem;
-        }
-        .footer__privacyLicense_link {
-            color: #fff;
-            text-decoration: none;
-        }
-        .footer__copyright {
-            font-size: 0.8rem;
-            margin-bottom: 2rem;
-        }
-        .footer__logo {
-            margin-top: 2rem;
-        }
-        .footer__logo svg {
-            height: 30px;
-            fill: white;
-        }
-        /* Card Grid */
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        .card {
-            background-color: #111;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease;
-            cursor: pointer;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-        }
-        .card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-        .card-content {
-            padding: 1rem;
-        }
-        .card h3 {
-            margin-bottom: 0.5rem;
-        }
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: none;
-            z-index: 2000;
-            opacity: 0;
-        }
-        .modal-container {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #222;
-            border-radius: 10px;
-            padding: 2rem;
-            max-width: 800px;
-            width: 90%;
-            display: none;
-            opacity: 0;
-            scale: 0.8;
-            z-index: 2001;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .modal-title {
-            font-size: 1.5rem;
-        }
-        .close-modal {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-        .modal-content {
-            position: relative;
-            width: 100%;
-            height: 0;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-            overflow: hidden;
-            background-color: #000;
-            border-radius: 5px;
-        }
-        .modal-iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-        }
-        .loading-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: none;
-        }
-        /* Responsive footer */
-        @media (max-width: 768px) {
-            .footer__top_links {
-                flex-direction: column;
-                gap: 2rem;
-            }
-            .footer__top_contact {
-                flex-direction: column;
-                gap: 2rem;
-            }
-            .footer__privacyLicense {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        /* Add this to your <style> block or CSS file */
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="x-ua-compatible" content="ie=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=1"/>
+			
+	<!-- title & meta -->
+	<title>inkrealm: Pro-form Nasa</title>
+		
+		<meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif" />
+		<meta itemprop="image" content="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif" />
+	
+		    <meta data-rh="true" name="description" content="A writer's website, featuring an extensive list of films about the craft with posters and original art as well as artifacts. Video and audio downloads. The TWO SKINNY GIRLS often places covers and even new songs on the homepage. Inkrealm includes tools for TIKTOK and an AMSR site for MEDITATION. A unique place for creative souls. A Portal to escape the ordinary. Eclectic and frequently updated."/><meta data-rh="true" property="og:url" content="https://www.inkrealm.info"/><meta data-rh="true" property="og:type" content="website"/><meta data-rh="true" property="og:title" content="INKREALM - writing, music, and the visual arts"/>
+<meta http-equiv="onion-location" content="http://ukc5me2fw7qihv4wklsms7h7wd27vxx3tgjrns7eycmjgmbnwwpvucyd.onion" />
+	
+<meta property="tiktok:app_id" content="@twoskinnygirls" />
+<meta name="twitter:site" content="@inkrealm" />
+<meta name="slack-app-id" content="f060RUD44R3" />
+  <link rel="shortcut icon" href="./Images//favicon.ico" />
+	 
+	  </script><link rel="manifest" href="manifest.json">
+	    <!-- All in One SEO 4.6.6.6 -->
+                <meta name="description" content="The writer at work on several projects."/>
+                <link rel="canonical" href="https://www.inkrealm.info//" />
+                <link rel="next" href="https://www.inkrealm.info/1991" />
+                <meta property="og:site_name" content="inkrealm" />
+                <meta property="og:type" content="art" />
+                <meta property="og:title" content="inkrealm" />
+                <meta property="og:description" content="music and art." />
+                <meta property="og:url" content="https://www.inkrealm.info/" />
+                <meta property="fb:app_id" content="600155496" />
+                <meta property="fb:admins" content="10158559392645497" />
+                <meta property="og:image" content="https://res.cloudinary.com/crunchbase-production/image/upload/c_lpad,f_auto,q_auto:eco,dpr_1/auxjru3vaajlhx7f8t9e" />
+                <meta property="og:image:secure_url" content="https://res.cloudinary.com/crunchbase-production/image/upload/c_lpad,h_170,w_170,f_auto,b_white,q_auto:eco,dpr_1/auxjru3vaajlhx7f8t9e" />
+                <meta property="article:published_time" content="2022-11-11T22:40:34Z" />
+                <meta property="article:modified_time" content="2022-11-11T22:40:34Z" />
+                <meta property="article:publisher" content="https://www.wordstar.nexus" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:site" content="@inkrealm" />
+                <meta name="twitter:domain" content="inkrealm6.wordpress.com" />
+                <meta name="twitter:title" content="inkrealm" />
+                <meta name="twitter:description" content="headquarters." />
+                <meta name="twitter:image" content="https://twitter.com/inkrealm/photo" />
+                <meta name="google" content="nositelinkssearchbox" />
+                <!-- All in One SEO -->
+	     <!-- ❂  £  ₿ £ 0 ∆元 ∆￦ ∆ 🂶￥  £ 🂶￥
+ £ ឯ    0元 ∆￦ ∆ ¢ᶄᶄ ❂ ⎈ ⑱ ♘𝅙 ₪ я 
+ ♢ for investment advice : ⚡
++•1=9=1•7=3•1=0•0=1•1•6• --->
+	    <script type="application/ld+json">
+    {
+      "@context": "https://inkrealm.info",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Books",
+        "item": "https://inkrealm.info/1991"
+      },{
+        "@type": "ListItem",
+        "position": 2,
+        "name": "link hype",
+        "item": "https://wordstar.nexus"
+      },{
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Ink Realm"
+      }]
+    }
+    </script>
 
-.Footer__pageLink,
-.Footer__link,
-.Footer__contact_button_text {
-  /* This is crucial for the rotation to work */
-  display: inline-block; 
-  /* Fast transition for the spin */
-  transition: transform 0.25s ease-out; 
-}
-
-.Footer__pageLink:hover,
-.Footer__link:hover,
-.Footer__contact_button_text:hover {
-  /* The quick 360-degree rotation */
-  transform: rotate(360deg); 
-}
-               } 
-    </style>
+	<!-- <link rel="canonical" href="https://www.missionjuno.swri.edu/junocam/processing" /> -->
+	<!-- links -->
+		<link rel="stylesheet" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/css/style.min.css?ts=1718299199" media="all" />
+	
+	<!-- icons -->
+		<link rel="apple-touch-icon" sizes="57x57" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-57x57.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="60x60" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-60x60.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="72x72" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-72x72.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="76x76" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-76x76.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="114x114" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-114x114.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="120x120" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-120x120.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="144x144" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-144x144.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="152x152" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-152x152.png?ts=1718299199">
+		<link rel="apple-touch-icon" sizes="180x180" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/apple-touch-icon-180x180.png?ts=1718299199">
+		<link rel="icon" type="image/png" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/favicon-32x32.png?ts=1718299199" sizes="32x32">
+		<link rel="icon" type="image/png" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/favicon-194x194.png?ts=1718299199" sizes="194x194">
+		<link rel="icon" type="image/png" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/favicon-96x96.png?ts=1718299199" sizes="96x96">
+		<link rel="icon" type="image/png" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/android-chrome-192x192.png?ts=1718299199" sizes="192x192">
+		<link rel="icon" type="image/png" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/favicon-16x16.png?ts=1718299199" sizes="16x16">
+		<link rel="manifest" href="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif">
+		<link rel="shortcut icon" href="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/favicon.ico?ts=1718299199">
+		<meta name="msapplication-TileColor" content="#143c77">
+		<meta name="msapplication-TileImage" content="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/mstile-144x144.png?ts=1718299199">
+		<meta name="msapplication-config" content="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/icons/favicons/browserconfig.xml?ts=1718299199">
+		<meta name="theme-color" content="#ffffff">
+	<!-- prefetching -->
+		<link rel="preconnect" href="www.missionjuno.swri.edu">
+		<link rel="preconnect" href="d2xkkdgjnsfvb0.cloudfront.net">
+		<link rel="dns-prefetch" href="//ajax.googleapis.com">
+	
+<script type="text/javascript" src="/js/polyfill-inert.min.js?ver=3.1.2" id="wp-polyfill-inert-js"></script>
+<script type="text/javascript" src="/js/regenerator-runtime.min.js?ver=0.14.0" id="regenerator-runtime-js"></script>
+<script type="text/javascript" src="/js/polyfill.min.js" id="wp-polyfill-js"></script>
+<script type="text/javascript" src="js/hooks.min.js" id="wp-hooks-js"></script>
+<script type="text/javascript" src="/js/jquery.min.js" id="jquery-core-js"></script>
+<script type="text/javascript" src="/js/jquery/jquery-migrate.min.js" id="jquery-migrate-js"></script>
+	
+<script type="text/javascript" src="/js/jquery.blockUI.min.js"></script>
+ <link href='https://fonts.googleapis.com/css?family=Playfair+Display:400,700,900,400italic,700italic,900italic|Droid+Serif:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+    <link href="./cyberpunk-2077.css" rel="stylesheet"> 
+	
+<link rel="stylesheet" href="main.css/bundle.css" /> 
+	<!-- conditional comments -->
+	<!--[if lt IE 9]>
+		<script type="text/javascript" id="html5ForOldBrowsers">
+			var html5_elements = ["header", "hgroup", "nav", "article", "section", "aside", "footer", "video", "track", "figure", "figcaption", "audio"];
+			for(var i in html5_elements) { document.createElement(html5_elements[i]); }
+		</script>
+	<![endif]-->
+	<!--[if lte IE 8]><link rel="stylesheet" href="/pub/n/css/lte-ie8.css?ts=1718299199" media="all" /><![endif]-->
+	<!--[if lte IE 7]><link rel="stylesheet" href="/pub/n/css/ie7.css?ts=1718299199" media="all" /><![endif]-->
+	<noscript>
+		<link rel="stylesheet" href="https://d2xkkdgjnsfvb0.cloudfront.net/css/noscript.css?ts=1718299199" media="all" />
+	</noscript>
+	<script id="siteJS" type="text/javascript">var Site = {"UserMachine":{"Mobile":false,"Device":"desktop","OS":null,"Browser":{"UserAgent":"Mozilla\/5.0 (compatible; Sophora; http:\/\/www.subshell.com)","Name":null,"Version":null,"VersionFull":null},"ClassString":"os_ desktop  _  not_mobile "},"Dates":{"Launch":{"id":"Launch","timeStamp":" 8\/5\/2011 4:25:00 pm UTC","default_label":"Time Since Launch","future_label":"Time to Launch","past_label":"Time Since Launch","hide":"","exclude_from_footer":false,"markup_when_past":false},"Arrival":{"id":"Arrival","timeStamp":" 7\/5\/2016 03:18:18 UTC","default_label":"Time Since Arrival","future_label":"Time to Jupiter Arrival","past_label":"Time Since Arrival","hide":"hide","exclude_from_footer":false,"markup_when_past":false},"Jupiter Orbit Insertion":{"id":"Jupiter Orbit Insertion","timeStamp":" 7\/5\/2016 03:18:18 UTC","default_label":"Jupiter Arrival In","future_label":"Jupiter Arrival In","past_label":"Time in Orbit","hide":"hide","exclude_from_footer":true,"markup_when_past":"<div id=\"arrival_banner\"><h1 class=\"centered padV_2 textcenter\">Juno has arrived at Jupiter!<\/h1><\/div>"}},"juno_nav_craft_left":473,"min_width":970,"min_height":550,"HeadMeta":{"Keywords":"Mission Juno, NASA, Jupiter","Title":"JunoCam : Processing - Mission Juno\n\t\t","FB_app_id":null,"Type":null,"Site_Name":"Mission Juno","URL":"https:\/\/www.missionjuno.swri.edu\/junocam\/processing","Description":"Download raw imagery from JunoCam and upload your processed imagery to the gallery!","Image":"https:\/\/www.missionjuno.swri.edu\/pub\/n\/images\/logos\/JUNO_SOCIAL_ICON-01.png","meta":{"Keywords":{"props":{"name":"keywords"},"content":null},"FB_id":{"props":{"property":"fb:app_id"},"content":null},"Type":{"props":{"property":"og:type"},"content":null},"Title":{"props":{"property":"og:title","itemprop":"name"},"content":"JunoCam : Processing - Mission Juno\n\t\t"},"Desc":{"props":{"property":"og:description","itemprop":"description","name":"description"},"content":"Download raw imagery from JunoCam and upload your processed imagery to the gallery!"},"Img":{"props":{"property":"og:image","itemprop":"image"},"content":"https:\/\/www.missionjuno.swri.edu\/pub\/n\/images\/logos\/JUNO_SOCIAL_ICON-01.png"},"URL":{"props":{"property":"og:url"},"content":"https:\/\/www.missionjuno.swri.edu\/junocam\/processing"},"Site_Name":{"props":{"property":"og:site_name"},"content":"Mission Juno"}}}};</script>
+								
 </head>
 <body>
-    <!-- Noise and static scanlines overlay -->
-    <div class="noise-overlay"></div>
-    <div class="scanlines"></div>
+	<!-- mtime : 1718299199 -->
+	<div id="groowm_content" class="juno os_ desktop  _  not_mobile  junocam junocam_processing  "
+		data-pagetype="JunocamProcessing" data-pagepath="/junocam/processing">
+		<!-- main nav -->
+		<nav id="main_header" role="navigation" aria-label="main navigation">
+			<ul role="menubar">
+				<li id="main_nav_bar" role="none">
+					<a id="skip_nav" class="showto_focus" href="#main_article" role="menuitem">Skip to content</a>
+					<a href="https://inkrealm.info/2024" class="header_icon_wrap" role="menuitem">
+						
+						<span class="header_icon header_logo-juno"></span>
+						<span class="screen_reader_only">inkrealm</span>
+					</a>
+					<button id="menu_toggle" class="buttony"
+						aria-haspopup="true" aria-expanded="false" aria-controls="main_nav" role="menuitem"
+						type="button">
+						<span class="screen_reader_only">Toggle </span>
+						<span class="data_icon" role="presentation"></span>
+						<span>MENU</span>
+					</button>
+				</li>
+				<li id="main_nav_wrap" class="nav_wrap" role="none">
+					<div id="main_nav_wrap_inner" class="nav_wrap_inner">
+						<div id="main_nav" class="nav is_junocam" aria-hidden="true">
+							<div class="tier_1">
+																			<a id="home_link"  href="https://wordstar.nexus" role="menuitem">www inkrealm info</a>
+																																					<div class="main_nav_kids_wrap junocam_link_kids_wrap" role="menu">
+											<a id="junocam_link"  href="https://inkrealm.info/2024" role="menuitem" aria-haspopup="true">2024</a>
+											<button class="main_nav_toggle" aria-label="toggle Junocam subpages"></button>
+											<ul role="menu" aria-label="Junocam subpages">
+												<li id="junocamplanning_link" role="none">
+													<a  href="https://wordstar.nexus" role="menuitem">nexus</a>
+												</li>
 
-    <div class="splash" id="splash">
-        <div class="loading-overlay">
-            <div class="loading-spinner"></div>
-            <h1>Inkrealm</h1>
-            <p>Loading...</p>
-        </div>
-        <div class="scrolling-background">
-            <div class="scrolling-text">
-                Welcome to Inkrealm... Welcome to Inkrealm... Welcome to Inkrealm...
-            </div>
-        </div>
-    </div>
-    <header class="header">
-        <div class="logo">
-            <svg viewBox="0 0 100 40">
-                <text x="10" y="30" font-size="30" font-weight="bold">Inkrealm</text>
-            </svg>
-        </div>
-        <nav class="nav">
-            <a href="#about" class="scramble-link" data-text="About">About</a>
-            <a href="#works" class="scramble-link" data-text="Works">Works</a>
-            <a href="#contact" class="scramble-link" data-text="Contact">Contact</a>
-        </nav>
-    </header>
-    <main class="main">
-        <div class="content">
-            <section id="about" class="section">
-                <h2>About</h2>
-                <p>Inkrealm is dedicated to exploring the world of literature. We bring you the best of classic and contemporary works, with a focus on immersive storytelling and thought-provoking narratives.</p>
-            </section>
-            <section id="works" class="section">
-                <h2>Featured Works</h2>
-                <div class="cards-grid">
-                    <div class="card" data-url="https://example.com/work1" data-title="Classic Literature">
-                        <img src="https://via.placeholder.com/300x200?text=Classic+Literature" alt="Classic Literature">
-                        <div class="card-content">
-                            <h3>Classic Literature</h3>
-                            <p>Explore timeless works that have shaped our cultural heritage.</p>
-                        </div>
-                    </div>
-                    <div class="card" data-url="https://example.com/work2" data-title="Modern Bestsellers">
-                        <img src="https://via.placeholder.com/300x200?text=Modern+Bestsellers" alt="Modern Bestsellers">
-                        <div class="card-content">
-                            <h3>Modern Bestsellers</h3>
-                            <p>Discover the latest bestsellers and contemporary masterpieces.</p>
-                        </div>
-                    </div>
-                    <div class="card" data-url="https://example.com/work3" data-title="Poetry Collection">
-                        <img src="https://via.placeholder.com/300x200?text=Poetry+Collection" alt="Poetry Collection">
-                        <div class="card-content">
-                            <h3>Poetry Collection</h3>
-                            <p>Immerse yourself in the world of poetry with our curated collection.</p>
-                        </div>
-                    </div>
-                    <div class="card" data-url="https://example.com/work4" data-title="Historical Novels">
-                        <img src="https://via.placeholder.com/300x200?text=Historical+Novels" alt="Historical Novels">
-                        <div class="card-content">
-                            <h3>Historical Novels</h3>
-                            <p>Journey through different eras with our historical fiction selection.</p>
-                        </div>
-                    </div>
-                    <div class="card" data-url="https://example.com/work5" data-title="Sci-Fi Adventures">
-                        <img src="https://via.placeholder.com/300x200?text=Sci-Fi+Adventures" alt="Sci-Fi Adventures">
-                        <div class="card-content">
-                            <h3>Sci-Fi Adventures</h3>
-                            <p>Explore futuristic worlds and technological marvels.</p>
-                        </div>
-                    </div>
-                    <div class="card" data-url="https://example.com/work6" data-title="Fantasy Realms">
-                        <img src="https://via.placeholder.com/300x200?text=Fantasy+Realms" alt="Fantasy Realms">
-                        <div class="card-content">
-                            <h3>Fantasy Realms</h3>
-                            <p>Escape to magical worlds filled with mythical creatures and epic quests.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            <section id="contact" class="section">
-                <h2>Contact</h2>
-                <p>Get in touch with us to share your thoughts, suggestions, or to learn more about our literary events and workshops.</p>
-            </section>
-        </div>
-    </main>
-    <footer class="footer">
-        <div class="footer__inner">
-            <div class="footer__top">
-                <div class="footer__top_links">
-                    <div class="footer__column">
-                        <a href="#" class="footer__pageLink scramble-link" data-text="Top">Top</a>
-                        <a href="#" class="footer__pageLink scramble-link" data-text="News">News</a>
-                        <a href="#" class="footer__pageLink scramble-link" data-text="Works">Works</a>
-                    </div>
-                    <div class="footer__column">
-                        <a href="#" class="footer__pageLink scramble-link" data-text="About">About</a>
-                        <a href="#" class="footer__pageLink scramble-link" data-text="stellla">stellla</a>
-                        <a href="#" class="footer__pageLink scramble-link" data-text="Contact">Contact</a>
-                    </div>
-                    <div class="footer__column" data-type="links">
-                        <div class="footer__linksTitle">
-                            Links
-                            <span class="footer__linksTitle_arrow">
-                                <svg width="11" height="9" viewBox="0 0 11 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M5.44831 8.99974L0.612305 0.635742H10.2723L5.44831 8.99974Z" fill="white"></path>
-                                </svg>
-                            </span>
-                        </div>
-                        <div class="footer__linkList">
-                            <a href="#" class="footer__link scramble-link" data-text="TECH BLOG">TECH BLOG</a>
-                            <a href="#" class="footer__link scramble-link" data-text="note">note</a>
-                            <div class="footer__social">
-                                <a href="#" class="footer__link scramble-link" data-text="X">X</a>
-                                <a href="#" class="footer__link scramble-link" data-text="YouTube">YouTube</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer__top_contact">
-                <div class="footer__contact">
-                    <a href="#" class="footer__contact_button">
-                        <span class="footer__contact_button_text scramble-link" data-text="Contact">Contact</span>
-                        <span class="footer__contact_button_icon">
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g clip-path="url(#clip0_429_190)">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M1.57516 13.1495L11.8192 2.91846C11.7272 3.54646 11.6712 4.34046 11.6712 5.13446C11.6712 5.87346 11.7082 6.61246 11.8192 7.29546L12.9472 7.01846C12.8552 6.33546 12.8182 5.61446 12.8182 4.87646C12.8182 3.41746 12.9842 1.90346 13.2612 0.647461C12.0042 0.924461 10.4882 1.09046 9.02716 1.09046C8.28816 1.09046 7.56616 1.05346 6.88216 0.961461L6.60516 2.08746C7.28916 2.19846 8.02916 2.23546 8.76816 2.23546C9.56316 2.23546 10.3582 2.18046 10.9872 2.08746L0.743164 12.3185L1.57516 13.1495Z" fill="#7E7E7E"></path>
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_429_190">
-                                        <rect width="14" height="14" fill="white"></rect>
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </span>
-                    </a>
-                    <a href="#" class="footer__contact_button">
-                        <span class="footer__contact_button_text scramble-link" data-text="Recruit">Recruit</span>
-                        <span class="footer__contact_button_icon">
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g clip-path="url(#clip0_429_190)">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M1.57516 13.1495L11.8192 2.91846C11.7272 3.54646 11.6712 4.34046 11.6712 5.13446C11.6712 5.87346 11.7082 6.61246 11.8192 7.29546L12.9472 7.01846C12.8552 6.33546 12.8182 5.61446 12.8182 4.87646C12.8182 3.41746 12.9842 1.90346 13.2612 0.647461C12.0042 0.924461 10.4882 1.09046 9.02716 1.09046C8.28816 1.09046 7.56616 1.05346 6.88216 0.961461L6.60516 2.08746C7.28916 2.19846 8.02916 2.23546 8.76816 2.23546C9.56316 2.23546 10.3582 2.18046 10.9872 2.08746L0.743164 12.3185L1.57516 13.1495Z" fill="#7E7E7E"></path>
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_429_190">
-                                        <rect width="14" height="14" fill="white"></rect>
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </span>
-                    </a>
-                </div>
-                <div class="footer__privacyLicense">
-                    <a href="#" class="footer__privacyLicense_link scramble-link" data-text="Privacy Policy">Privacy Policy</a>
-                    <a href="#" class="footer__privacyLicense_link scramble-link" data-text="License">License</a>
-                </div>
-            </div>
-            <div class="footer__copyright">
-                ©2025 Inkrealm, inc.
-            </div>
-            <div class="footer__logo">
-                <svg viewBox="0 0 100 40">
-                    <text x="10" y="30" font-size="30" font-weight="bold">Inkrealm</text>
-                </svg>
-            </div>
-        </div>
-    </footer>
+												
+											
+								<div id="story_nav_wrap" class="main_nav_kids_wrap ">
+									<a id="the_story_link" href="/99/" role="menuitem" aria-haspopup="true">The Story</a>
+									<button id="story_nav_toggle" class="main_nav_toggle" aria-label="toggle chapters"></button>
+									<ul role="menu" aria-label="Chapters">
+										<li id="Origin_link_wrap" role="none">
+											<a  href="https://inkrealm.info/about" role="menuitem">Origin</a>
+										</li>
+                                                                                 <li id="Origin_link_wrap" role="none">
+											<a  href="https://inkrealm.info/twoskinnygirls" role="menuitem">2sknyGIRLS</a>
+										</li>
+										<li id="OurSolarSystem_link_wrap" role="none">
+											<a  href="https://inkrealm.info/1991" role="menuitem">Our list</a>
+										</li>
 
-    <!-- Modal Elements -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal-container" id="modalContainer">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Modal Title</h2>
-                <button class="close-modal" id="closeModalBtn">&times;</button>
-            </div>
-            <div class="modal-content">
-                <div class="loading-indicator" id="loadingIndicator">
-                    <div class="loading-spinner"></div>
-                    <p>Loading...</p>
-                </div>
-                <iframe class="modal-iframe" id="modalIframe" frameborder="0" allowfullscreen></iframe>
-            </div>
-        </div>
-    </div>
+										<li id="Mission_link_wrap" role="none">
+											<a  href="https://inkrealm.info/app" role="menuitem">app</a>
+										</li>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
-    <script>
-        // Hide splash screen after loading
-        setTimeout(function() {
-            document.getElementById('splash').style.display = 'none';
-        }, 3000);
+										<li id="Mission_link_wrap" role="none">
+											<a  href="https://inkrealm.info/atari" role="menuitem">processor</a>
+										</li>
+									</ul>
+								</div>
 
-        // Get modal elements
-        const modalOverlay = document.getElementById('modalOverlay');
-        const modalContainer = document.getElementById('modalContainer');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalIframe = document.getElementById('modalIframe');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const cards = document.querySelectorAll('.card');
-
-        // Open modal with GSAP animation
-        function openModal(url, title) {
-            modalTitle.textContent = title;
-            modalIframe.src = url;
-
-            // Show elements
-            modalOverlay.style.display = 'block';
-            modalContainer.style.display = 'block';
-            loadingIndicator.style.display = 'block';
-            modalIframe.style.display = 'none';
-
-            // GSAP animation
-            gsap.timeline()
-                .to(modalOverlay, {
-                    opacity: 1,
-                    duration: 0.3,
-                    ease: 'power2.out'
-                })
-                .to(modalContainer, {
-                    opacity: 1,
-                    scale: 1,
-                    duration: 0.4,
-                    ease: 'back.out(1.7)'
-                }, '-=0.2');
-        }
-
-        // Close modal with GSAP animation
-        function closeModal() {
-            gsap.timeline()
-                .to(modalContainer, {
-                    opacity: 0,
-                    scale: 0.8,
-                    duration: 0.3,
-                    ease: 'back.in(1.7)'
-                })
-                .to(modalOverlay, {
-                    opacity: 0,
-                    duration: 0.2,
-                    ease: 'power2.in',
-                    onComplete: () => {
-                        modalOverlay.style.display = 'none';
-                        modalContainer.style.display = 'none';
-                        modalIframe.src = '';
-                    }
-                }, '-=0.1');
-        }
-
-        // Iframe load event
-        modalIframe.addEventListener('load', function() {
-            loadingIndicator.style.display = 'none';
-            modalIframe.style.display = 'block';
-            gsap.from(modalIframe, {
-                opacity: 0,
-                duration: 0.3,
-                ease: 'power2.out'
-            });
-        });
-
-        // Add click events to all cards
-        cards.forEach(card => {
-            card.addEventListener('click', function() {
-                const url = this.getAttribute('data-url');
-                const title = this.getAttribute('data-title');
-                openModal(url, title);
-            });
-        });
-
-        // Close modal events
-        closeModalBtn.addEventListener('click', closeModal);
-        modalOverlay.addEventListener('click', closeModal);
-
-        // ESC key to close
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && modalContainer.style.display === 'block') {
-                closeModal();
-            }
-        });
-    </script>
-<script>
-class TextScramble {
-  constructor(el) {
-    this.el = el;
-    this.chars = '!<>-_\\/[]{}—=+*^?#@%&';
-    this.update = this.update.bind(this);
-    this.isAnimating = false;
-  }
-
-  setText(newText, callback) {
-    cancelAnimationFrame(this.frameRequest);
-    const oldText = this.el.innerText;
-    const length = Math.max(oldText.length, newText.length);
-    this.queue = [];
-
-    // ⚡ Fast scramble — resolves in ~0.8s
-    for (let i = 0; i < length; i++) {
-      const from = oldText[i] || "";
-      const to = newText[i] || "";
-      const start = Math.floor(Math.random() * 5);
-      const end = start + Math.floor(Math.random() * 10) + 5;
-      this.queue.push({ from, to, start, end });
-    }
-
-    this.frame = 0;
-    this.update(callback);
-  }
-
-  update(callback) {
-    let output = "";
-    let complete = 0;
-
-    for (let i = 0, n = this.queue.length; i < n; i++) {
-      let { from, to, start, end, char } = this.queue[i];
-      if (this.frame >= end) {
-        complete++;
-        output += to;
-      } else if (this.frame >= start) {
-        if (!char || Math.random() < 0.35)
-          char = this.chars[Math.floor(Math.random() * this.chars.length)];
-        output += char;
-        this.queue[i].char = char;
-      } else {
-        output += from;
-      }
-    }
-
-    this.el.innerText = output;
-
-    if (complete === this.queue.length) {
-      if (callback) callback();
-      return;
-    }
-
-    this.frame++;
-    this.frameRequest = requestAnimationFrame(() => this.update(callback));
-  }
-}
-
-// --- Initialize and bind hover animation ---
-const siteName = "INKREALM";
-document.querySelectorAll(".scramble-link").forEach(link => {
-  const scrambler = new TextScramble(link);
-  const original = link.textContent;
-
-  link.addEventListener("mouseenter", () => {
-    if (scrambler.isAnimating) return;
-    scrambler.isAnimating = true;
-
-    scrambler.setText(siteName, () => {
-      setTimeout(() => {
-        scrambler.setText(original, () => {
-          scrambler.isAnimating = false;
-        });
-      }, 250); // quick pause
-    });
-  });
-});
-</script>
+								
+							<div class="tier_2">
+								<a id="footer_contact_link"  href="https://two-skinny-girls-2.creator-spring.com" role="menuitem">shop</a>
+								<a id="footer_sitemap_link"  href="/sitemap/" role="menuitem">Site Map</a>
+								<a id="footer_sitemap_link"  href="/twoskinnygirls/" role="menuitem">2sknygrls</a>
+							</div>
+						</div>
+					</div>
+				</li> <!-- main_nav_wrap -->
+								<li id="profile_wrap" role="none">
+							<a class="modal_form_trigger white" href="https://inkrealm.info/fashion"
+							data-modaltype="url">dreamwithinadream</a>
+									</li>
+			</ul>
+			<div id="nav_curtain" class="hide_from_no_js" role="presentation"></div>
+		</nav>
+		<main id="main_article" role="main" tabindex="0" aria-label="page content">
+			<!-- warnings and whatnot -->
+			<noscript>
+				<div id="noscript_message_wrap" style="display:none;">For the best experience, please enable Javascript.</div>
+			</noscript>
+			<div id="old_browsers_wrap" class="browser_warning" style="display:none;">
+				Looks like you're using an older browser. For the best experience possible, please upgrade your browser or download a modern browser.
+			</div>
+			<!-- page content -->
+			<div class="content clear_me fullH">
+				
+	<nav class="nav_banner junocam_nav_wrap" role="navigation" aria-label="Junocam Sections Navigation">
+			<a id="skip_nav-junocam" class="showto_focus" href="#junocam_content">Sections Navigation</a>
+			<ul id="junocam_nav" class="inline_to_dropdown" role="menubar"><li class=" " role="none">
+					<a class="" href="https://inkrealm.info" role="menuitem" >2024</a></li><li class=" " role="none">
+					<a class="" href="https://wordstar.nexus" role="menuitem" >nexus</a></li><li class=" " role="none">
+					</nav>
+	<div id="junocam_content" tabindex="0">
+		<div id="processing_top" class="clearfix">
 
 
+			<!-- !multiple -->
+			<div class="magic_left">
+				<header id="section_info" class="section_info active"  tabindex="0">
+
+					
+				</header>
+				
+							
+							
+							<div class="dropdown_wrap">
+								<button class="dropdown_toggle" type="button"
+								aria-haspopup="true" aria-expanded="false" aria-controls="poiFilters">CheckPoints/Movie</button>
+								<div id="poiFilters" aria-hidden="true" class="dropdown_content clearfix">
+									<div class="padH ">
+									<div class="form_row inline">
+										<input type="checkbox" name="pois[]" value="1217" class="screen_reader_only" id="poi_1217" >
+										<label class="checkbox_label capitalize" for="poi_1217"> <small class="grey inlineblock">[inkrealm.info/atari]</small>  </label>
+									</div></div><div class="padH ">
+									<div class="form_row inline">
+										<input type="checkbox" name="pois[]" value="975" class="screen_reader_only" id="poi_975" >
+										<label class="checkbox_label capitalize" for="poi_975"> wordstar.nexus/displaywriter <small class="grey inlineblock">[ID: 975]</small>  </label>
+									</div></div><div class="padH ">
+									<div class="form_row inline">
+										<input type="checkbox" name="pois[]" value="11" class="screen_reader_only" id="poi_11" >
+										<label class="checkbox_label capitalize" for="poi_11"> wordstar.nexus/netherlands <small class="grey inlineblock">[ID: 11]</small>  </label>
+											<br>
+									
+recently deployed additions that might be of interest to the literary crowd; wordstar.nexus/typewriter available as an off line download<a href="https://github.com/ghostm68/eg/raw/main/typewriter3269.exe">free</a><br>
+wordstar.nexus/birch (screenwriting app with storyboard maker), wordstar.nexus/daslexicon -online dictionary- wordstar.nexus/cut&rune -wordplay- wordstar.nexus/tokenizer, inkrealm.info/atari, inkrealm.info/quantum,
+wordstar.nexus/w (markdown-etch a sketch), and wordstar.nexus/seven which speaks for itself...										
+  <video width="66" height="36" controls>
+        <source width="66" height="36" src="https://github.com/ghostm68/pantheon/raw/main/NOVA EXPRESS_ _The Control Machine_ by William S. Burroughs.mp4"
+                type="video/mp4">
+        <source src="https://github.com/ghostm68/pantheon/raw/main/NOVA-EXPRESS_-_The-Control-Machine_-by-William-S.-Burroughs.ogg"
+                type="video/ogg"></video>
+<br>
+										
+			</div></div><div class="padH ">
+											</div>					</div>
+								</div>
+							</div>
+
+					
+				<div id="junocam_processing_content" class="" tabindex="0">
+<section class="gallery_section">
+								<h2>from the new files </h2>
+
+
+<div class="clearfix four_up_wrap processing_wrap gallery_wrap">
+										<a class="modal_partial_trigger modal_gallery_item" data-trackme="https://inkrealm.info/" href="https://inkrealm.info/">
+											<figure class="from_junocam">
+
+										<div class="img_wrap ">
+<img class="thumbnail" src="https://github.com/ghostm68/pantheon/raw/main/dictionary.hype1.gif" alt="" />																													</div>
+																								<figcaption>
+<strong class="uppercase">with germany</strong>													<div class="white">
+<span class="from_junocam_badge"></span> <span>wordstar.nexus/daslex
+	ikon/ buch</span>																												<!--<br /><small class="inlineblock">2024-06-13 22:53 UT</small>-->
+													</div>
+												</figcaption>
+											</figure>
+										</a>
+										<a class="modal_partial_trigger modal_gallery_item" data-trackme="https://inkrealm.info/" href="https://inkrealm.info/">
+											<figure class="from_junocam">
+																																								<div class="img_wrap ">
+<img class="thumbnail" src="https://github.com/ghostm68/pantheon/raw/main/quantumhype1.gif" alt="" />																													</div>
+																								<figcaption>
+<strong class="uppercase">dreamy</strong>													<div class="white">
+<span class="from_junocam_badge"></span> <span>inkrealm.info/quantum/</span>																												<!--<br /><small class="inlineblock">2024-06-13 22:30 UT</small>-->
+													</div>
+												</figcaption>
+											</figure>
+										</a>
+										<a class="modal_partial_trigger modal_gallery_item" data-trackme="https://inkrealm.info/" href="https://inkrealm.info/">
+											<figure class="from_junocam">
+																																								<div class="img_wrap ">
+<img class="thumbnail" src="https://github.com/ghostm68/pantheon/raw/main/Seven.lotta.inkrealm.wordstar.gif" alt="" />																													</div>
+																								<figcaption>
+<strong class="uppercase">word processor</strong>													<div class="white">
+<span class="from_junocam_badge"></span> <span>wordstar.nexus/seven a squeeze-box</span>																												<!--<br /><small class="inlineblock">2024-06-13 22:13 UT</small>-->
+													</div>
+												</figcaption>
+										</figcaption>							
+																</figure>
+	<marquee><a href="https://hejgreta.de/collections/hejgreta-x-lotta">hejgreta x lotta</a><br></marquee>													</a>
+	</div>
+	
+           
+						<div>
+														<figure class="from_junocam">
+																																								<div class="img_wrap ">
+									</a>
+</div>
+																
+										
+								</div>
+								<div class="textright stack_textleft padH">
+<div class="padB padR"><a class="padV" href="https://wordstar.nexus/">explore wordsar.nexus  <span class="data_icon junoicon-arrow-right"></span></a></div>	
+								
+ <video id="home1" width="388" height="488" poster="images/video.jpg" muted loop playsinline autoplay class="video"> 
+        <source type="video/mp4" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/birch.marta.hype1.mp4" /> 
+    </video>								
+	<span>wordstar.nexus/birch/ screenwriting software</span>		
+				<marquee><a href="https://zez.am/lottastichler?fbclid=PAZXh0bgNhZW0CMTEAAaY-7vJT86kP7ClCxGAty7D333_BslcBn_sbIMt1Fibc0cwWhiZaQw-dXzM_aem_eD4Lb_lM9mVRIO88zaARgQ">zez</a><br></marquee>									</figcaption>							
+							<!-- <br /><small class="inlineblock">2024-06-21 22:12 UT</small> -->
+													</div>
+							</div>
+							</section>
+						</div>
+
+				</div>
+			</div><!-- table align -->
+
+		</div><!-- clearfix -->
+	</div>
+
+			</div>
+		</main>
+		
+		<footer>
+			<div class="footer_logos_wrap">
+				<a id="nasa_logo" href="https://www.inkrealm.info/66"><img src="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif" alt="NASA" width="50" height="50" /></a>
+				<a href="/"><img src="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/images/logos/juno_logo_notext.png?ts=1718299199" alt="inky" width="50" height="50" /></a>
+				<img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/inkrealm.holycalf.gif" width="55" height="55" />
+				
+					
+			</div>
+			<div class="countdown_wrap" data-ticker="Arrival">
+				<div class="countdown_nav">
+					<div class="ticker_select">
+						<label class="countdown_label"  tabindex="0" data-tickerid="Arrival"> Arrival<span class="screen_reader_only"></span></label>
+						<span class="data_icon padL" role="presentation" aria-hidden="true">f</span>
+					</div>
+					<div class="ticker_select_wrap">
+														<a class=" white" href="#" data-ticker="Launch">Nasa Time Since Launch</a>
+														<a class="hide white" href="#" data-ticker="Arrival">Nasa Time Since Arrival</a>
+												</div>
+				</div>
+				<div class="ticker_wrap clearfix">
+					<div class="ticker_unit years left" title="years" data-simpletip="years">
+						<div class="ticker left">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left chunk_end">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+					</div>
+					<div class="colon">:</div>
+					<div class="ticker_unit days left" title="days"  data-simpletip="days">
+						<div class="ticker left">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left chunk_end">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+					</div>
+					<div class="colon">:</div>
+					<div class="ticker_unit hours left" title="hours" data-simpletip="hours">
+						<div class="ticker left">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left chunk_end" >
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+					</div>
+					<div class="colon">:</div>
+					<div class="ticker_unit minutes left" title="minutes" data-simpletip="minutes">
+						<div class="ticker left">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left chunk_end" >
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+					</div>
+					<div class="colon">:</div>
+					<div class="ticker_unit seconds left" title="seconds" data-simpletip="seconds">
+						<div class="ticker left" data-rel="sec_2">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+						<div class="ticker left" data-rel="sec_1">
+							<div class="next_time tock"></div>
+							<div class="what_time_it_is tock">0</div>
+						</div>
+					</div>
+				</div>
+			</div><!-- ticker -->
+
+			<div class="footer_links">
+				<!--<a class="grey" href="/about" title="Frequently Asked Questions">FAQs</a>-->
+				<a class="grey" href="https://www.paypal.com/donate?token=5OmNTYpzcmLnEbf6fh8c4m33ui1DfChR1qCaroOsZuDJqq11AfTSxhF-ewGAHic_Y2GmhT7QMmhoJVoS">CONTACT</a>
+				<a class="grey" href="/sitemap">SITE MAP</a>
+			</div>
+			<h5 class="cyberpunk glitched">
+<li id="menu-item-191" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-191"><a href="https://inkrealm.info/1991">list</a></li>
+<li id="menu-item-192" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-192"><a href="https://inkrealm.info/2024">links</a></li>
+<li id="menu-item-651" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-651"><a href="https://www.inkrealm.info/home">home</a></li>
+</ul></div> </div>
+</div>
+<div class="footer-items component row">
+<div class="footer-item footer-copy col-12 col-sm-5">
+</div>
+find the previous design @inkrealm.info/layout	
+<div class="nav-main-footer">
+<div class="menu-main-menu-container"><ul id="menu-main-menu-1" class="menu"><li id="menu-item-193" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-193"><a href="https://inkrealm.info/app">app</a></li>
+<li id="menu-item-191" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-191"><a href="https://two-skinny-girls-2.creator-spring.com">shop</a></li>
+<li id="menu-item-192" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-192"><a href="https://tidal.com/artist/15916023">tidal</a></li>
+<li id="menu-item-651" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-651"><a href="https://music.apple.com/us/album/exiles-letter-single/1723035333">💌</a></li>
+</h5></ul></div> </div>
+<a href="https://wordstar.nexus/dreamweaver" class="footer-item footer-locations col-12 col-sm-4 uppercase">
+  / dreamweaver </a>
+<br>
+	            <center class="cyberpunk">
+      <ul><h5 class="cyberpunk glitched">
+         <a href="https://music.apple.com/us/album/lotta-learns-about-the-birds-and-the-bees-single/1754990681">&#xC6D0; lotta stichler tune</a></br>
+         <a href="https://music.apple.com/us/album/low-fi-single/1755023137">&#x2658; low fi</a></br>
+       <a href="https://music.apple.com/us/album/drink-bird-sky-ink-single/1754665927">&#x2602; drink bird sky ink</a></br>
+      </ul>
+	   <p class="cyberpunk inverse scannedv">  brand new from 2 skinny girls!!!</p>
+	<audio controls>
+    <source src="shyofthemoon.mp3
+" type="audio/mpeg">
+    Sorry, your browser doesn't support HTML5 audio.
+  </audio>
+   	<br>
+			
+              <b>from the vault- two skinny girls...<br>		
+	<script type="module" src="/js/bundle.es.js"></script>
+<script src="/js/bundle.legacy.js" nomodule defer></script>
+	
+</div>
+		</footer>
+		<div id="loading_curtain" role="presentation"></div>
+	</div><!-- END #groowm_content -->
+
+	<script type="text/javascript">
+		// just in case something fails and the load event doesn't fire ...
+		window.juno_curtain_timeout = setTimeout(function(){
+				document.getElementsByClassName("juno").className += " loaded";
+				document.getElementById("loading_curtain").className = "hide";
+			}, 3 * 1000);
+	</script>
+	<!-- google recaptcha -->
+	<script src="https://www.google.com/recaptcha/api.js?render=6Lfcs_oUAAAAADH1hynJhWzmrxBgvdSAp3mSS1p-"></script>
+	<!-- jquery -->
+		<!--[if lte IE 8]>
+			<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js" defer></script>
+		<![endif]-->
+		<!--[if gt IE 8]>
+			<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js" defer></script>
+		<![endif]-->
+		<![if !IE]>
+			<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js" defer></script>
+		<![endif]>
+
+	<!-- the rest -->
+		<script type="text/javascript">
+			Site.mtime = 1718299199;
+			Site.env = 'prod';
+			Site.mode = 'view';
+			Site.js_root = 'https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/js/page/';
+			Site.pagePath = '/junocam/processing';
+			Site.CC = 'hide';
+			Site.Gallery_Mode = 'stack';
+			var _uajArgs = {
+					addClasses : false
+				};
+		</script>
+		<script type="text/javascript" src="https://d2xkkdgjnsfvb0.cloudfront.net/js/main.min.js?ts=1718299199" defer></script>
+		<!-- google recaptcha -->
+		<script>
+			function onSubmit(token) {
+				Site.submitRecaptchaForm(token);
+			}
+		</script>
+
+			<script type="text/javascript" src="https://d2xkkdgjnsfvb0.cloudfront.net/pub/n/js/page/junocam_processing.main.min.js?ts=1718299199" defer></script>
 
 </body>
-</html>
+</html>				
+						
