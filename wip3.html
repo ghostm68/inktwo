@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lübeck Infinite Zoom</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * {
             margin: 0;
@@ -17,165 +16,131 @@
             height: 100%;
             overflow: hidden;
             background: #000;
-            font-family: Arial, sans-serif;
         }
         
-        #map {
+        #video-container {
             width: 100%;
             height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .text-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: transparent;
+            color: #FFD700;
+            padding: 40px;
+            font-family: Georgia, serif;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-y: auto;
+            z-index: 100;
+            box-sizing: border-box;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        .text-overlay h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: normal;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        .text-overlay p {
+            margin-bottom: 15px;
+        }
+        
+        /* Custom scrollbar styling */
+        .text-overlay::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .text-overlay::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .text-overlay::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.5);
+            border-radius: 4px;
+        }
+        
+        .text-overlay::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.7);
         }
         
         .info {
             position: absolute;
-            bottom: 60px;
-            left: 20px;
+            bottom: 20px;
+            right: 20px;
             color: white;
             background: rgba(0, 0, 0, 0.7);
-            padding: 15px 20px;
+            padding: 10px 15px;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: 11px;
             z-index: 1000;
             pointer-events: none;
-        }
-        
-        /* Style the Leaflet attribution to be less intrusive */
-        .leaflet-control-attribution {
-            background: rgba(0, 0, 0, 0.5) !important;
-            color: #999 !important;
-            font-size: 10px !important;
-            padding: 2px 5px !important;
-        }
-        
-        .leaflet-control-attribution a {
-            color: #aaa !important;
-        }
-        
-        /* Hide zoom controls */
-        .leaflet-control-zoom {
-            display: none;
+            font-family: Arial, sans-serif;
         }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div class="info">Lübeck Infinite Zoom Loop</div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="video-container">
+        <video id="zoom-video" autoplay loop muted playsinline>
+            <source src="https://raw.githubusercontent.com/ghostm68/pantheon/main/lubeck_20251201_060213545.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+    
+    <div class="text-overlay">
+        <h1>Lübeck, 1922</h1>
+        <p>
+            The city sleeps beneath its seven spires, each church tower a finger pointing toward heaven or perhaps away from what lies below in the narrow gänge—those medieval passages threading between merchant houses where footsteps echo differently than they should.
+        </p>
+        <p>
+            In the salt warehouses along the Trave, workers move cargo that traveled routes older than maps. The Hanseatic League is long dead, but its ghosts negotiate in the shadows of brick Gothic arches, their ledgers still tallying debts that compound across centuries.
+        </p>
+        <p>
+            This is the city Murnau saw when he came looking for death. Not the death in front of cameras, but the slower kind—the rot that starts in prosperity and spreads through the foundations. Every grand façade here leans slightly, imperceptibly, toward the water.
+        </p>
+        <p>
+            [Edit this text with your own story...]
+        </p>
+    </div>
+    
+    <div class="info">Lübeck Infinite Zoom</div>
+    
     <script>
-        window.addEventListener('load', function() {
-            // Location A: Holstentor
-        const locationA = {
-            lat: 53.8655,
-            lng: 10.6767
-        };
+        // Ensure video plays on load (some browsers need this)
+        const video = document.getElementById('zoom-video');
         
-        // Location B: Marienkirche
-        const locationB = {
-            lat: 53.8658,
-            lng: 10.6863
-        };
-        
-        // Initialize the map
-        const map = L.map('map', {
-            center: [locationA.lat, locationA.lng],
-            zoom: 18,
-            zoomControl: false,
-            dragging: false,
-            touchZoom: false,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            boxZoom: false,
-            keyboard: false,
-            attributionControl: true
-        });
-        
-        // Add satellite imagery tile layer
-        // Using Esri World Imagery (free, no API key needed)
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-            maxZoom: 19
-        }).addTo(map);
-        
-        let isAnimating = false;
-        
-        // Wait for tiles to load before starting
-        setTimeout(() => {
-            startLoop();
-        }, 2000);
-        
-        function smoothFlyTo(targetLat, targetLng, targetZoom, duration) {
-            return new Promise((resolve) => {
-                const startLat = map.getCenter().lat;
-                const startLng = map.getCenter().lng;
-                const startZoom = map.getZoom();
-                
-                const startTime = Date.now();
-                
-                function animate() {
-                    const elapsed = Date.now() - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Easing function (linear)
-                    const t = progress;
-                    
-                    const currentLat = startLat + (targetLat - startLat) * t;
-                    const currentLng = startLng + (targetLng - startLng) * t;
-                    const currentZoom = startZoom + (targetZoom - startZoom) * t;
-                    
-                    map.setView([currentLat, currentLng], currentZoom, {
-                        animate: false
-                    });
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        resolve();
-                    }
-                }
-                
-                animate();
+        video.addEventListener('loadedmetadata', function() {
+            video.play().catch(e => {
+                console.log("Autoplay prevented. Click anywhere to start.");
             });
-        }
-        
-        async function startLoop() {
-            if (isAnimating) return;
-            isAnimating = true;
-            
-            // Ensure we start at location A
-            map.setView([locationA.lat, locationA.lng], 18, { animate: false });
-            
-            // Wait a moment
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Phase 1: Zoom out from location A (0-7 seconds)
-            await smoothFlyTo(locationA.lat, locationA.lng, 13, 7000);
-            
-            // Phase 2: Pan to location B at altitude (8-15 seconds)
-            await smoothFlyTo(locationB.lat, locationB.lng, 13, 7000);
-            
-            // Phase 3: Zoom down into location B (16-22 seconds)
-            await smoothFlyTo(locationB.lat, locationB.lng, 18, 6000);
-            
-            // Wait a moment at location B
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Phase 4: Zoom out from B (23-25 seconds)
-            await smoothFlyTo(locationB.lat, locationB.lng, 13, 2000);
-            
-            // Phase 4b: Pan back to location A (26-28 seconds)
-            await smoothFlyTo(locationA.lat, locationA.lng, 13, 2000);
-            
-            // Phase 4c: Zoom back into location A (29-30 seconds)
-            await smoothFlyTo(locationA.lat, locationA.lng, 18, 2000);
-            
-            // Wait a moment before looping
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Loop
-            isAnimating = false;
-            startLoop();
-        }
         });
+        
+        // Fallback: click anywhere to play if autoplay is blocked
+        document.body.addEventListener('click', function() {
+            if (video.paused) {
+                video.play();
+            }
+        }, { once: true });
     </script>
 </body>
 </html>
