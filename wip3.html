@@ -1,5 +1,185 @@
 <!DOCTYPE html>
-<html xml:lang="en" lang="en" dir="ltr" >
+<html xml:lang="en" lang="en" dir="ltr" ><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lübeck Infinite Zoom</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info {
+            position: absolute;
+            bottom: 60px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        /* Style the Leaflet attribution to be less intrusive */
+        .leaflet-control-attribution {
+            background: rgba(0, 0, 0, 0.5) !important;
+            color: #999 !important;
+            font-size: 10px !important;
+            padding: 2px 5px !important;
+        }
+        
+        .leaflet-control-attribution a {
+            color: #aaa !important;
+        }
+        
+        /* Hide zoom controls */
+        .leaflet-control-zoom {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info">Lübeck Infinite Zoom Loop</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        window.addEventListener('load', function() {
+            // Location A: Holstentor
+        const locationA = {
+            lat: 53.8655,
+            lng: 10.6767
+        };
+        
+        // Location B: Marienkirche
+        const locationB = {
+            lat: 53.8658,
+            lng: 10.6863
+        };
+        
+        // Initialize the map
+        const map = L.map('map', {
+            center: [locationA.lat, locationA.lng],
+            zoom: 18,
+            zoomControl: false,
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            attributionControl: true
+        });
+        
+        // Add satellite imagery tile layer
+        // Using Esri World Imagery (free, no API key needed)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19
+        }).addTo(map);
+        
+        let isAnimating = false;
+        
+        // Wait for tiles to load before starting
+        setTimeout(() => {
+            startLoop();
+        }, 2000);
+        
+        function smoothFlyTo(targetLat, targetLng, targetZoom, duration) {
+            return new Promise((resolve) => {
+                const startLat = map.getCenter().lat;
+                const startLng = map.getCenter().lng;
+                const startZoom = map.getZoom();
+                
+                const startTime = Date.now();
+                
+                function animate() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function (linear)
+                    const t = progress;
+                    
+                    const currentLat = startLat + (targetLat - startLat) * t;
+                    const currentLng = startLng + (targetLng - startLng) * t;
+                    const currentZoom = startZoom + (targetZoom - startZoom) * t;
+                    
+                    map.setView([currentLat, currentLng], currentZoom, {
+                        animate: false
+                    });
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        resolve();
+                    }
+                }
+                
+                animate();
+            });
+        }
+        
+        async function startLoop() {
+            if (isAnimating) return;
+            isAnimating = true;
+            
+            // Ensure we start at location A
+            map.setView([locationA.lat, locationA.lng], 18, { animate: false });
+            
+            // Wait a moment
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Phase 1: Zoom out from location A (0-7 seconds)
+            await smoothFlyTo(locationA.lat, locationA.lng, 13, 7000);
+            
+            // Phase 2: Pan to location B at altitude (8-15 seconds)
+            await smoothFlyTo(locationB.lat, locationB.lng, 13, 7000);
+            
+            // Phase 3: Zoom down into location B (16-22 seconds)
+            await smoothFlyTo(locationB.lat, locationB.lng, 18, 6000);
+            
+            // Wait a moment at location B
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Phase 4: Zoom out from B (23-25 seconds)
+            await smoothFlyTo(locationB.lat, locationB.lng, 13, 2000);
+            
+            // Phase 4b: Pan back to location A (26-28 seconds)
+            await smoothFlyTo(locationA.lat, locationA.lng, 13, 2000);
+            
+            // Phase 4c: Zoom back into location A (29-30 seconds)
+            await smoothFlyTo(locationA.lat, locationA.lng, 18, 2000);
+            
+            // Wait a moment before looping
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Loop
+            isAnimating = false;
+            startLoop();
+        }
+        });
+    </script>
+</body>
+</html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<meta http-equiv="x-ua-compatible" content="ie=edge">
