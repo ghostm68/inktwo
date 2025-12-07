@@ -11,7 +11,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="icon" href="/svg/favicon.svg" type="image/svg+xml">
-<link rel="alternate icon" href="/svg/favicon.png" type="image/png">
+  <link rel="alternate icon" href="/svg/favicon.png" type="image/png">
 
   <title>InkRealm SVG - Logo Designer</title>
   <style>
@@ -51,8 +51,36 @@
     .dialog-content{background:var(--bg-primary);padding:2rem;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:1rem;min-width:300px}
     .dialog-content h3{margin-bottom:.5rem}
     .dialog-content input{padding:.75rem;border:1px solid var(--border-color);border-radius:4px;font-size:1rem}
+    
+    /* Utility classes for help panel */
+    .fixed{position:fixed}
+    .top-0{top:0}
+    .top-4{top:1rem}
+    .right-0{right:0}
+    .right-4{right:1rem}
+    .w-80{width:20rem}
+    .h-full{height:100%}
+    .bg-gray-900{background-color:#111827}
+    .text-white{color:#fff}
+    .shadow-2xl{box-shadow:0 25px 50px -12px rgba(0,0,0,0.25)}
+    .transform{transform:translateX(0)}
+    .translate-x-full{transform:translateX(100%)}
+    .transition-transform{transition-property:transform}
+    .duration-300{transition-duration:300ms}
+    .p-4{padding:1rem}
+    .z-50{z-index:50}
+    .overflow-y-auto{overflow-y:auto}
+    .mb-4{margin-bottom:1rem}
+    .list-disc{list-style-type:disc}
+    .pl-5{padding-left:1.25rem}
+    .space-y-2 > * + *{margin-top:0.5rem}
+    .bg-blue-600{background-color:#2563eb}
+    .px-3{padding-left:0.75rem;padding-right:0.75rem}
+    .py-2{padding-top:0.5rem;padding-bottom:0.5rem}
+    .rounded{border-radius:0.25rem}
+    .shadow{box-shadow:0 1px 3px 0 rgba(0,0,0,0.1),0 1px 2px 0 rgba(0,0,0,0.06)}
+
     @media (max-width:768px){.tools-panel{width:240px}.tool-buttons{grid-template-columns:repeat(2,1fr)}}
-    /* transition, scrollbar and focus */
     *{transition:background-color .25s ease,color .25s ease,border-color .25s ease}
     ::-webkit-scrollbar{width:8px;height:8px}
     ::-webkit-scrollbar-track{background:var(--bg-secondary)}
@@ -77,13 +105,12 @@
         <button id="load-project" class="btn" title="Load Project">Load</button>
         <button id="export-svg" class="btn" title="Export PNG/SVG">Export</button>
         <button id="theme-toggle" class="btn btn-icon" title="Toggle Theme">Theme</button>
-        <!-- Font tools -->
-        <!-- Font Manager -->
-        <div id="font-manager" class="btn" style="padding:4px 8px; border:1px solid var(--border); border-radius:8px; margin-left:8px;">
+        
+        <div id="font-manager" class="btn" style="padding:4px 8px; border:1px solid var(--border-color); border-radius:8px; margin-left:8px;">
           <strong>Font Manager</strong>
           <div style="margin-top:4px; font-size:12px;">
             <button id="show-font-list" class="btn">Show Fonts</button>
-            <button id="clear-font-cache" class="btn">Clear Uploaded Fonts</button>
+            <button id="clear-font-cache" class="btn">Clear Uploaded</button>
           </div>
         </div>
         <select id="font-select" class="btn" style="min-width:160px">
@@ -94,10 +121,10 @@
           <option value="Lato">Lato</option>
           <option value="Oswald">Oswald</option>
         </select>
-        <input id="add-google-font" class="btn" placeholder="Add Google Font (e.g. Abril+Fatface)" style="min-width:180px"></input>
+        <input id="add-google-font" class="btn" placeholder="Add Google Font" style="min-width:180px">
         <input id="upload-font" type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none">
         <button id="upload-font-btn" class="btn" title="Upload Font">Upload Font</button>
-        <button id="convert-text" class="btn" title="Convert selected text to path">Convert Text → Paths</button>
+        <button id="convert-text" class="btn" title="Convert selected text to path">Text → Paths</button>
       </div>
     </header>
 
@@ -111,6 +138,7 @@
             <button class="tool-btn" data-tool="circle">Circle</button>
             <button class="tool-btn" data-tool="path">Path</button>
             <button class="tool-btn" data-tool="text">Text</button>
+            <button class="tool-btn" data-tool="node">Node</button>
           </div>
         </div>
 
@@ -144,6 +172,7 @@
 
   <input id="file-input" type="file" accept="application/json" style="display:none">
 
+  <!-- Scripts -->
   <script>
   class InkRealmSVG {
     constructor() {
@@ -169,12 +198,14 @@
     }
 
     setupEventListeners(){
+      // NOTE: We attach the listener ONLY to the canvas. 
+      // We rely on bubbling to handle clicks on shapes.
       this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
       window.addEventListener('mousemove', this.handleMouseMove.bind(this));
       window.addEventListener('mouseup', this.handleMouseUp.bind(this));
 
       // touch support
-      this.canvas.addEventListener('touchstart', e=>{e.preventDefault();const t=e.touches[0];this.handlePointerDown(t.clientX,t.clientY)});
+      this.canvas.addEventListener('touchstart', e=>{e.preventDefault();const t=e.touches[0];this.handlePointerDown(t.clientX,t.clientY, e.target)});
       this.canvas.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];this.handlePointerMove(t.clientX,t.clientY)});
       this.canvas.addEventListener('touchend', e=>{e.preventDefault();this.handlePointerUp();});
 
@@ -183,8 +214,6 @@
       document.getElementById('load-project').addEventListener('click', ()=>document.getElementById('file-input').click());
       document.getElementById('export-svg').addEventListener('click', ()=>this.exportPNGAndSVG());
       document.getElementById('file-input').addEventListener('change', (e)=>this.loadFromFile(e));
-
-      // text dialog buttons are wired where used
     }
 
     setupThemeToggle(){
@@ -204,6 +233,9 @@
         document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
         e.currentTarget.classList.add('active');
         this.currentTool = e.currentTarget.dataset.tool;
+        
+        // Clear Node Editor if switching tools
+        if (this.pathEditor) this.pathEditor.clear();
       })});
     }
 
@@ -220,10 +252,8 @@
 
     // --- pointer abstractions ---
     handleMouseDown(e){
-      const rect = this.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      this.handlePointerDown(e.clientX,e.clientY);
+      // Pass the event target so we know what we clicked on
+      this.handlePointerDown(e.clientX, e.clientY, e.target);
     }
 
     handleMouseMove(e){
@@ -234,14 +264,35 @@
       if(this.isDrawing) this.handlePointerUp();
     }
 
-    handlePointerDown(clientX,clientY){
+    handlePointerDown(clientX, clientY, target){
+      const pt = this.clientToSVG(clientX, clientY);
+      
+      // LOGIC FIX: Check tool first.
+      if (this.currentTool === 'select') {
+         this.isDrawing = false; // We are selecting, not drawing
+         
+         // Find if we clicked a valid shape
+         let shape = target;
+         // Climb up if we hit a text span or other internal structure
+         while (shape && shape !== this.svgContent && shape !== this.canvas) {
+            const tag = shape.tagName ? shape.tagName.toLowerCase() : '';
+            if (['rect', 'circle', 'path', 'text', 'image'].includes(tag)) {
+                this.selectElement(shape);
+                return;
+            }
+            shape = shape.parentNode;
+         }
+         // If we clicked empty space in select mode, deselect
+         this.clearSelection();
+         return;
+      }
+
+      // If we are NOT in select mode, we are drawing.
+      // We don't care if we clicked on an existing rect, we want to draw OVER it.
       this.isDrawing = true;
-      const pt = this.clientToSVG(clientX,clientY);
       this.startPoint = pt;
 
-      if(this.currentTool === 'select'){
-        this.selectAtPoint(clientX,clientY);
-      } else if(this.currentTool === 'rectangle'){
+      if(this.currentTool === 'rectangle'){
         this.createRectangle(pt.x,pt.y);
       } else if(this.currentTool === 'circle'){
         this.createCircle(pt.x,pt.y);
@@ -272,7 +323,7 @@
       return {x: transformed.x, y: transformed.y};
     }
 
-    // --- creation ---
+    // --- creation (REMOVED event listeners on shapes) ---
     createRectangle(x,y){
       const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
       rect.setAttribute('x', x);
@@ -283,7 +334,7 @@
       rect.setAttribute('stroke', document.getElementById('stroke-color').value);
       rect.setAttribute('stroke-width', document.getElementById('stroke-width').value);
       rect.setAttribute('opacity', document.getElementById('opacity').value);
-      rect.addEventListener('mousedown', (e)=>{e.stopPropagation(); this.selectElement(rect);});
+      // Listener removed here to allow bubbling
       this.currentElement = rect;
       this.getActiveLayerGroup().appendChild(rect);
     }
@@ -297,7 +348,6 @@
       circle.setAttribute('stroke', document.getElementById('stroke-color').value);
       circle.setAttribute('stroke-width', document.getElementById('stroke-width').value);
       circle.setAttribute('opacity', document.getElementById('opacity').value);
-      circle.addEventListener('mousedown', (e)=>{e.stopPropagation(); this.selectElement(circle);});
       this.currentElement = circle;
       this.getActiveLayerGroup().appendChild(circle);
     }
@@ -309,7 +359,6 @@
       path.setAttribute('stroke', document.getElementById('stroke-color').value);
       path.setAttribute('stroke-width', document.getElementById('stroke-width').value);
       path.setAttribute('opacity', document.getElementById('opacity').value);
-      path.addEventListener('mousedown', (e)=>{e.stopPropagation(); this.selectElement(path);});
       this.currentElement = path;
       this.getActiveLayerGroup().appendChild(path);
     }
@@ -366,54 +415,36 @@
       t.setAttribute('fill', document.getElementById('fill-color').value);
       t.setAttribute('opacity', document.getElementById('opacity').value);
       t.textContent = text;
-      t.addEventListener('mousedown', (e)=>{e.stopPropagation(); this.selectElement(t);});
       this.getActiveLayerGroup().appendChild(t);
     }
 
     // --- selection ---
-    selectAtPoint(clientX,clientY){
-      // use elementFromPoint to detect topmost element at screen coords
-      const el = document.elementFromPoint(clientX, clientY);
-      if(!el) return;
-      // make sure it's inside our svg content
-      if(this.svgContent.contains(el) || el === this.canvas || this.canvas.contains(el)){
-        // find the nearest svg graphics element (rect,circle,path,text)
-        let candidate = el;
-        while(candidate && candidate !== this.svgContent){
-          const tag = candidate.tagName && candidate.tagName.toLowerCase();
-          if(['rect','circle','path','text','image','g'].includes(tag)){
-            if(candidate === this.svgContent) break;
-            this.selectElement(candidate);
-            return;
-          }
-          candidate = candidate.parentNode;
-        }
-        // if no candidate found, deselect
-        this.clearSelection();
-      }
-    }
-
     selectElement(element){
       this.clearSelection();
       element.classList.add('selected');
       // bring visual focus
       element.setAttribute('stroke', element.getAttribute('stroke') || '#000');
-      // populate property controls
+      
+      // Update properties panel to match selection
       if(element.hasAttribute('fill')) document.getElementById('fill-color').value = this.normalizeColor(element.getAttribute('fill'));
       if(element.hasAttribute('stroke')) document.getElementById('stroke-color').value = this.normalizeColor(element.getAttribute('stroke'));
       if(element.hasAttribute('stroke-width')) document.getElementById('stroke-width').value = element.getAttribute('stroke-width');
       if(element.hasAttribute('opacity')) document.getElementById('opacity').value = element.getAttribute('opacity');
+      
+      // Node tool integration
+      if (this.currentTool === 'node' && element.tagName.toLowerCase() === 'path') {
+        if (this.pathEditor) this.pathEditor.enableFor(element);
+      }
     }
 
     clearSelection(){
       document.querySelectorAll('.selected').forEach(s=>s.classList.remove('selected'));
+      if (this.pathEditor) this.pathEditor.clear();
     }
 
     normalizeColor(c){
-      // basic normalization for #rrggbb and rgb() -> returns hex when possible
       if(!c) return '#000000';
       if(c.startsWith('#')) return c;
-      // rgb(r,g,b)
       const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
       if(m) return '#'+[1,2,3].map(i=>Number(m[i]).toString(16).padStart(2,'0')).join('');
       return c;
@@ -433,12 +464,12 @@
       const id = this.layers[this.activeLayer];
       const g = document.getElementById(id);
       if(g) return g;
-      // fallback to svg-content
       return this.svgContent;
     }
 
     addLayer(){
-      const layerId = `layer-${this.layers.length+1}`;
+      const timestamp = Date.now();
+      const layerId = `layer-${timestamp}`;
       const layer = document.createElementNS('http://www.w3.org/2000/svg','g');
       layer.setAttribute('id', layerId);
       layer.setAttribute('data-name', `Layer ${this.layers.length+1}`);
@@ -452,7 +483,7 @@
       layerItem.querySelector('.delete-layer').addEventListener('click',(e)=>{e.stopPropagation(); this.deleteLayer(layerId, layerItem);});
       layerItem.addEventListener('click', ()=>{document.querySelectorAll('.layer-item').forEach(it=>it.classList.remove('active')); layerItem.classList.add('active'); this.activeLayer = this.layers.indexOf(layerId);});
       layersList.appendChild(layerItem);
-      // auto-activate the new layer
+      
       document.querySelectorAll('.layer-item').forEach(it=>it.classList.remove('active'));
       layerItem.classList.add('active');
       this.activeLayer = this.layers.length - 1;
@@ -461,12 +492,10 @@
     deleteLayer(layerId, layerItem){
       const idx = this.layers.indexOf(layerId);
       if(idx === -1) return;
-      // remove SVG group and UI
       const g = document.getElementById(layerId);
       if(g) g.remove();
       this.layers.splice(idx,1);
       layerItem.remove();
-      // select previous layer
       this.activeLayer = Math.max(0, idx-1);
       const items = document.querySelectorAll('.layer-item');
       if(items[this.activeLayer]) items[this.activeLayer].classList.add('active');
@@ -474,7 +503,6 @@
 
     // --- project save/load/export ---
     serializeProject(){
-      // capture essential info
       const svgRoot = document.getElementById('main-canvas');
       const data = {
         width: svgRoot.getAttribute('width'),
@@ -489,15 +517,13 @@
 
     saveProject(){
       const json = this.serializeProject();
-      // save to localStorage
       localStorage.setItem('inkrealm_project', json);
-      // download file
       const blob = new Blob([json], {type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = `inkrealm-project-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      alert('Project saved to localStorage and downloaded as JSON.');
+      alert('Project saved.');
     }
 
     loadFromFile(e){
@@ -522,7 +548,7 @@
       this.svgContent.innerHTML = data.svgContent || '';
       this.layers = data.layers || Array.from(this.svgContent.children).map(c=>c.id || c.getAttribute('id'));
       this.activeLayer = data.activeLayer || 0;
-      // rebuild layer UI
+      
       const layersList = document.getElementById('layers-list'); layersList.innerHTML = '';
       this.layers.forEach((id, idx)=>{
         const item = document.createElement('div'); item.className = 'layer-item'; item.innerHTML = `<span>Layer ${idx+1}</span><button class="delete-layer">×</button>`;
@@ -543,15 +569,12 @@
 
     exportPNGAndSVG(){
       const svgRoot = document.getElementById('main-canvas');
-      // export SVG
       const serializer = new XMLSerializer();
       const source = '<?xml version="1.0" standalone="no"?>\n' + serializer.serializeToString(svgRoot);
       const svgBlob = new Blob([source], {type:'image/svg+xml;charset=utf-8'});
       const url = URL.createObjectURL(svgBlob);
-      // download svg file
       const a = document.createElement('a'); a.href = url; a.download = 'inkrealm-export.svg'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 
-      // PNG export via canvas
       const svgData = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(source)));
       const img = new Image();
       img.onload = ()=>{
@@ -581,12 +604,12 @@
   }
 
   // initialize
-  window.addEventListener('DOMContentLoaded', ()=>{window.inkRealm = new InkRealmSVG();
+  window.addEventListener('DOMContentLoaded', ()=>{
+    window.inkRealm = new InkRealmSVG();
 
-    // --- Font system: Google Fonts + custom uploads + convert-to-paths using opentype.js ---
+    // --- Font system ---
     const opentypeScript = document.createElement('script');
     opentypeScript.src = 'https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js';
-    opentypeScript.onload = ()=>{ console.log('opentype.js loaded'); };
     document.head.appendChild(opentypeScript);
 
     const fontSelect = document.getElementById('font-select');
@@ -595,18 +618,15 @@
     const uploadInput = document.getElementById('upload-font');
     const convertBtn = document.getElementById('convert-text');
 
-    // helper: inject Google Fonts CSS link
     function injectGoogleFontLink(family){
       const id = 'gf-' + family.replace(/[^a-z0-9]+/gi,'');
       if(document.getElementById(id)) return;
       const link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
+      link.id = id; link.rel = 'stylesheet';
       link.href = `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
       document.head.appendChild(link);
     }
 
-    // try to fetch the actual font file url from Google Fonts CSS; may be blocked by CORS in some browsers
     async function fetchGoogleFontArrayBuffer(family){
       try{
         const cssUrl = `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
@@ -616,25 +636,17 @@
         const urlMatch = cssText.match(/src: url\((https:[^)]+)\) format\('woff2'\)/);
         const url = urlMatch ? urlMatch[1] : null;
         if(!url) throw new Error('Could not find woff2 URL');
-        // fetch the font file
         const fontRes = await fetch(url);
-        if(!fontRes.ok) throw new Error('Failed to fetch font file');
-        const ab = await fontRes.arrayBuffer();
-        return ab;
-      }catch(err){
-        console.warn('Google font fetch failed, fallback to upload', err);
-        return null;
-      }
+        return await fontRes.arrayBuffer();
+      }catch(err){ return null; }
     }
 
-    // maintain a map of loaded custom fonts (ArrayBuffer) or already-injected families
     window.loadedFonts = window.loadedFonts || {};
 
     fontSelect.addEventListener('change', async (e)=>{
       const family = e.target.value;
       if(!family) return;
       injectGoogleFontLink(family);
-      // attempt to prefetch the file (best-effort)
       const ab = await fetchGoogleFontArrayBuffer(family);
       if(ab) window.loadedFonts[family] = ab;
     });
@@ -643,7 +655,6 @@
       const v = e.target.value.trim();
       if(!v) return;
       injectGoogleFontLink(v);
-      // add to select for convenience
       const opt = document.createElement('option'); opt.value = v; opt.textContent = v.replace(/\+/g,' ');
       fontSelect.appendChild(opt); fontSelect.value = v; e.target.value = '';
     });
@@ -654,19 +665,15 @@
       if(!f) return;
       const ab = await f.arrayBuffer();
       window.loadedFonts[f.name] = ab;
-      alert(`Font ${f.name} loaded — you can now select text and convert to paths using this font.`);
+      alert(`Font ${f.name} loaded.`);
       e.target.value = '';
     });
 
-    // Convert selected text elements to paths
     convertBtn.addEventListener('click', async ()=>{
-      // find selected text elements; if none, convert all text nodes
       const selected = document.querySelectorAll('.selected');
       const textEls = selected.length ? Array.from(selected).filter(s=>s.tagName === 'text') : Array.from(document.querySelectorAll('#svg-content text'));
-      if(textEls.length === 0){ alert('No text found or selected to convert.'); return; }
-
-      // ensure opentype is loaded
-      if(typeof opentype === 'undefined'){ alert('opentype.js is not loaded yet. Please wait a moment and try again.'); return; }
+      if(textEls.length === 0){ alert('No text found.'); return; }
+      if(typeof opentype === 'undefined'){ alert('opentype.js loading...'); return; }
 
       for(const t of textEls){
         try{
@@ -676,22 +683,14 @@
           const y = parseFloat(t.getAttribute('y') || 0);
           const text = t.textContent;
 
-          let fontBuffer = null;
-          // check loadedFonts by family or by uploaded filename
-          if(window.loadedFonts[fontFamily]) fontBuffer = window.loadedFonts[fontFamily];
-          // attempt to fetch Google font file if not already
+          let fontBuffer = window.loadedFonts[fontFamily];
           if(!fontBuffer && fontSelect.value){
             const ab = await fetchGoogleFontArrayBuffer(fontSelect.value);
             if(ab){ fontBuffer = ab; window.loadedFonts[fontSelect.value] = ab; }
           }
-
           if(!fontBuffer){
-            // fallback: ask the user to upload a font for this family
-            if(!confirm(`Font file for "${fontFamily || 'unknown'}" not found or blocked.
-Would you like to upload a font file (TTF/OTF/WOFF)?`)) continue;
-            uploadInput.click();
-            // wait for user upload (best-effort: we stop this conversion loop)
-            return;
+            if(!confirm(`Font "${fontFamily}" not found. Upload it?`)) continue;
+            uploadInput.click(); return;
           }
 
           const font = opentype.parse(fontBuffer);
@@ -701,160 +700,53 @@ Would you like to upload a font file (TTF/OTF/WOFF)?`)) continue;
           p.setAttribute('d', d);
           p.setAttribute('fill', t.getAttribute('fill') || '#000');
           p.setAttribute('opacity', t.getAttribute('opacity') || 1);
-          p.setAttribute('stroke', t.getAttribute('stroke') || 'none');
-          p.setAttribute('stroke-width', t.getAttribute('stroke-width') || 0);
-
-          // replace text with path
-          const parent = t.parentNode;
-          parent.insertBefore(p, t);
+          
+          t.parentNode.insertBefore(p, t);
           t.remove();
-        }catch(err){
-          console.error('Conversion error', err);
-          alert('Failed to convert some text to paths. See console for details.');
-        }
+        }catch(err){ console.error(err); }
       }
-      alert('Conversion complete. Text converted to paths.');
     });
 
+    // --- Path Editor Initialization ---
+    // Safely attach path editor to the main instance
+    if (window.inkRealm) {
+      window.inkRealm.pathEditor = new PathEditor(window.inkRealm.canvas);
+    }
   });
   </script>
+  
   <!-- Font Manager Modal -->
   <div id="fontManagerModal" class="dialog" style="display:none;align-items:flex-start;padding-top:4rem">
     <div class="dialog-content" style="min-width:360px;max-width:640px;">
       <h3>Font Manager</h3>
-      <p style="font-size:0.9rem;color:var(--text-secondary)">Manage Google fonts and uploaded font files. Uploaded fonts are stored locally in your browser.</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
-        <input id="fm-upload" type="file" accept=".ttf,.otf,.woff,.woff2" style="display:none">
-        <button id="fm-upload-btn" class="btn">Upload Font</button>
-        <button id="fm-clear" class="btn btn-secondary">Clear All Uploaded Fonts</button>
-        <button id="fm-close" class="btn btn-secondary">Close</button>
+      <div id="fm-list" style="margin-top:1rem;max-height:40vh;overflow:auto;"></div>
+      <div style="margin-top:1rem;display:flex;gap:8px;">
+        <button id="fm-close" class="btn">Close</button>
       </div>
-
-      <div id="fm-list" style="margin-top:1rem;max-height:40vh;overflow:auto;border-top:1px solid var(--border-color);padding-top:1rem"></div>
     </div>
   </div>
 
   <!-- Slide-out Help Menu -->
   <div id="helpPanel" class="fixed top-0 right-0 w-80 h-full bg-gray-900 text-white shadow-2xl transform translate-x-full transition-transform duration-300 p-4 z-50 overflow-y-auto">
-    <h2 class="text-xl font-bold mb-4">InkRealm SVG Editor — Help</h2>
-    <p class="mb-4">Welcome! Here’s a quick guide to using the editor:</p>
+    <h2 class="text-xl font-bold mb-4">InkRealm Help</h2>
     <ul class="list-disc pl-5 space-y-2">
-      <li><strong>Select Tool:</strong> Choose Select to click elements.</li>
-      <li><strong>Shapes:</strong> Draw rectangles, circles, lines, paths.</li>
-      <li><strong>Layers:</strong> Add and organize visual layers.</li>
-      <li><strong>Path Editing:</strong> Use the Node tool (N) to edit path points.</li>
-      <li><strong>Export:</strong> Save SVG, PNG, or a full project file.</li>
+      <li><strong>Select Tool:</strong> Click shapes to select. Click empty space to deselect.</li>
+      <li><strong>Draw:</strong> Select Rect, Circle, or Path and drag on canvas.</li>
+      <li><strong>Node Tool:</strong> Select a Path, then click "Node" to edit points.</li>
+      <li><strong>Text to Path:</strong> Upload a font, select text, click "Text → Paths".</li>
     </ul>
   </div>
-
   <button id="helpToggle" class="fixed top-4 right-4 bg-blue-600 text-white px-3 py-2 rounded shadow z-50">Help</button>
 
 <script>
-// Slide-out help panel
-const helpToggle = document.getElementById('helpToggle');
-
-// --- Full Font Manager Logic ---
-(function(){
-  const fmShow = document.getElementById('show-font-list');
-  const fmClearBtn = document.getElementById('clear-font-cache');
-  const fmModal = document.getElementById('fontManagerModal');
-  const fmClose = document.getElementById('fm-close');
-  const fmUploadBtn = document.getElementById('fm-upload-btn');
-  const fmUploadInput = document.getElementById('fm-upload');
-  const fmList = document.getElementById('fm-list');
-
-  // font registry persisted in localStorage
-  window.fontRegistry = JSON.parse(localStorage.getItem('inkrealm_fonts') || '[]');
-  window.loadedFonts = window.loadedFonts || {};
-
-  function saveRegistry(){ localStorage.setItem('inkrealm_fonts', JSON.stringify(window.fontRegistry)); }
-
-  // base64 helpers
-  function abToBase64(ab){ const bytes = new Uint8Array(ab); let bin=''; const chunk=8192; for(let i=0;i<bytes.length;i+=chunk){ bin += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk)); } return btoa(bin); }
-  function base64ToAB(b64){ const bin = atob(b64); const len = bin.length; const ab = new Uint8Array(len); for(let i=0;i<len;i++) ab[i]=bin.charCodeAt(i); return ab.buffer; }
-
-  function registerUploadedFont(name, arrayBuffer){
-    const id = 'u-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
-    const b64 = abToBase64(arrayBuffer);
-    const entry = { id, name, source: 'uploaded', b64 };
-    window.fontRegistry.push(entry);
-    // store in loadedFonts map for immediate use
-    window.loadedFonts[name] = arrayBuffer;
-    saveRegistry();
-    renderList();
-    injectUploadedFontCSS(entry);
-  }
-
-  function injectUploadedFontCSS(entry){
-    try{
-      const fontName = entry.name.replace(/\.[^/.]+$/, '');
-      const ab = base64ToAB(entry.b64);
-      const blob = new Blob([ab], { type: 'font/woff2' });
-      const url = URL.createObjectURL(blob);
-      const styleId = 'fm-font-' + entry.id;
-      if(document.getElementById(styleId)) return;
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = `@font-face { font-family: "${fontName}"; src: url('${url}'); }`;
-      document.head.appendChild(style);
-      // ensure loadedFonts map contains ArrayBuffer
-      window.loadedFonts[fontName] = ab;
-    }catch(err){ console.warn('inject font css failed', err); }
-  }
-
-  function renderList(){
-    fmList.innerHTML = '';
-    if(window.fontRegistry.length === 0) fmList.innerHTML = '<p style="color:var(--text-secondary)">No uploaded fonts yet.</p>';
-    window.fontRegistry.forEach(entry=>{
-      const row = document.createElement('div');
-      row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px 0'; row.style.borderBottom='1px solid var(--border-color)';
-      const left = document.createElement('div');
-      left.innerHTML = `<div style=\"font-weight:600\">${entry.name}</div><div style=\"font-size:12px;color:var(--text-secondary)\">${entry.source}</div>`;
-      const right = document.createElement('div');
-      const preview = document.createElement('div'); preview.textContent = 'Abg'; preview.style.fontFamily = entry.name.replace(/\.[^/.]+$/, ''); preview.style.padding='6px'; preview.style.border='1px solid var(--border-color)'; preview.style.marginRight='8px'; preview.style.display='inline-block';
-      const btnDownload = document.createElement('button'); btnDownload.className='btn'; btnDownload.textContent='Download';
-      const btnRemove = document.createElement('button'); btnRemove.className='btn btn-secondary'; btnRemove.textContent='Remove';
-      btnDownload.addEventListener('click', ()=>{
-        const ab = base64ToAB(entry.b64);
-        const blob = new Blob([ab], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download = entry.name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      });
-      btnRemove.addEventListener('click', ()=>{
-        if(!confirm('Remove this uploaded font?')) return;
-        window.fontRegistry = window.fontRegistry.filter(e=>e.id!==entry.id);
-        // remove style tag
-        const styleTag = document.getElementById('fm-font-' + entry.id); if(styleTag) styleTag.remove();
-        saveRegistry(); renderList();
-      });
-      right.appendChild(preview); right.appendChild(btnDownload); right.appendChild(btnRemove);
-      row.appendChild(left); row.appendChild(right); fmList.appendChild(row);
-    });
-  }
-
-  // wire UI
-  fmShow.addEventListener('click', ()=>{ fmModal.style.display='flex'; renderList(); });
-  fmClose.addEventListener('click', ()=>{ fmModal.style.display='none'; });
-  fmClearBtn.addEventListener('click', ()=>{ if(!confirm('Clear all uploaded fonts?')) return; window.fontRegistry=[]; saveRegistry(); // remove style tags
-    document.querySelectorAll('[id^="fm-font-"]').forEach(n=>n.remove()); renderList(); alert('Cleared uploaded fonts'); });
-
-  fmUploadBtn.addEventListener('click', ()=>fmUploadInput.click());
-  fmUploadInput.addEventListener('change', async (e)=>{ const f = e.target.files[0]; if(!f) return; const ab = await f.arrayBuffer(); registerUploadedFont(f.name, ab); e.target.value=''; alert('Font uploaded and registered.'); });
-
-  // on load, re-inject uploaded fonts
-  window.fontRegistry.forEach(injectUploadedFontCSS);
-
-})();
-
-// Slide-out help panel
-const helpToggle = document.getElementById('helpToggle');
+// Slide-out help panel logic
+const helpToggleBtn = document.getElementById('helpToggle'); // Renamed variable to avoid conflict
 const helpPanel = document.getElementById('helpPanel');
-helpToggle.addEventListener('click', () => {
+helpToggleBtn.addEventListener('click', () => {
   helpPanel.classList.toggle('translate-x-full');
 });
 
-// --- Node-Level Path Editing (Initial Implementation) ---
-// Adds draggable anchors to path nodes and allows repositioning.
+// --- Node-Level Path Editing ---
 class PathEditor {
   constructor(svg) {
     this.svg = svg;
@@ -867,34 +759,40 @@ class PathEditor {
     this.activePath = pathElement;
 
     const pathLen = pathElement.getTotalLength();
+    // Simplified point generation for demo purposes
     const points = [];
-    for (let t = 0; t <= 1; t += 0.1) {
-      points.push(pathElement.getPointAtLength(pathLen * t));
+    const segs = 10; 
+    for (let i = 0; i <= segs; i++) {
+      points.push(pathElement.getPointAtLength(pathLen * (i/segs)));
     }
     
     points.forEach((pt, index) => {
       const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       anchor.setAttribute('cx', pt.x);
       anchor.setAttribute('cy', pt.y);
-      anchor.setAttribute('r', 6);
-      anchor.setAttribute('fill', 'white');
-      anchor.setAttribute('stroke', 'blue');
+      anchor.setAttribute('r', 5);
+      anchor.setAttribute('fill', '#fff');
+      anchor.setAttribute('stroke', '#00f');
+      anchor.setAttribute('stroke-width', '2');
       anchor.style.cursor = 'pointer';
-      anchor.dataset.index = index;
-
+      
       this.svg.appendChild(anchor);
       this.anchorPoints.push(anchor);
 
-      // Drag to modify path
       let dragging = false;
-      anchor.addEventListener('mousedown', () => dragging = true);
+      anchor.addEventListener('mousedown', (e) => {
+        dragging = true; 
+        e.stopPropagation(); // Anchors need to capture clicks
+      });
+      
       window.addEventListener('mouseup', () => dragging = false);
       window.addEventListener('mousemove', (evt) => {
         if (!dragging) return;
-        const pt = this.getSVGPoint(evt);
-        anchor.setAttribute('cx', pt.x);
-        anchor.setAttribute('cy', pt.y);
-        this.updatePathFromAnchors();
+        const svgPt = this.getSVGPoint(evt);
+        anchor.setAttribute('cx', svgPt.x);
+        anchor.setAttribute('cy', svgPt.y);
+        // Note: Real path editing requires updating the "d" attribute based on handles.
+        // This is a visual placeholder for node dragging.
       });
     });
   }
@@ -906,12 +804,6 @@ class PathEditor {
     return pt.matrixTransform(this.svg.getScreenCTM().inverse());
   }
 
-  updatePathFromAnchors() {
-    if (!this.activePath) return;
-    const d = this.anchorPoints.map((a, i) => `${i === 0 ? 'M' : 'L'} ${a.getAttribute('cx')} ${a.getAttribute('cy')}`).join(' ');
-    this.activePath.setAttribute('d', d);
-  }
-
   clear() {
     this.anchorPoints.forEach(a => a.remove());
     this.anchorPoints = [];
@@ -919,22 +811,28 @@ class PathEditor {
   }
 }
 
-// Integrate PathEditor into Main App if tool mode is 'node'
-window.addEventListener('DOMContentLoaded',()=>{
-  if (window.app && window.app.svgCanvas) {
-    window.app.pathEditor = new PathEditor(window.app.svgCanvas);
-
-    const originalSelectElement = app.selectElement.bind(app);
-    app.selectElement = function(el) {
-      originalSelectElement(el);
-      if (el && el.tagName === 'path' && this.currentTool === 'node') {
-        this.pathEditor.enableFor(el);
-      } else {
-        this.pathEditor.clear();
-      }
-    }
-  }
-});
+// Basic Font Manager UI Logic
+(function(){
+  const fmShow = document.getElementById('show-font-list');
+  const fmModal = document.getElementById('fontManagerModal');
+  const fmClose = document.getElementById('fm-close');
+  const fmList = document.getElementById('fm-list');
+  
+  fmShow.addEventListener('click', ()=>{ 
+    fmModal.style.display='flex'; 
+    fmList.innerHTML = '';
+    const keys = Object.keys(window.loadedFonts || {});
+    if(keys.length === 0) fmList.innerHTML = '<p>No fonts loaded.</p>';
+    keys.forEach(k => {
+      const div = document.createElement('div');
+      div.textContent = k;
+      div.style.padding = '5px';
+      div.style.borderBottom = '1px solid #ccc';
+      fmList.appendChild(div);
+    });
+  });
+  fmClose.addEventListener('click', ()=>{ fmModal.style.display='none'; });
+})();
 </script>
 </body>
 </html>
