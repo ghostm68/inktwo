@@ -1,382 +1,186 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>InkRealm SVG - Marx Bros Edition</title>
-  <style>
-    :root{--bg-primary:#ffffff;--bg-secondary:#f5f5f5;--bg-tertiary:#e0e0e0;--text-primary:#000000;--text-secondary:#666666;--border-color:#cccccc;--accent:#000000}
-    [data-theme="dark"]{--bg-primary:#1a1a1a;--bg-secondary:#2a2a2a;--bg-tertiary:#3a3a3a;--text-primary:#ffffff;--text-secondary:#aaaaaa;--border-color:#444444;--accent:#ffffff}
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);overflow:hidden}
-    .app-container{display:flex;flex-direction:column;height:100vh}
-    .toolbar{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:.5rem 1rem;display:flex;justify-content:space-between;align-items:center}
-    .logo h1{font-size:1.25rem;font-weight:600}
-    .toolbar-actions{display:flex;gap:.5rem;align-items:center}
-    .btn{background:var(--bg-tertiary);border:1px solid var(--border-color);color:var(--text-primary);padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.875rem}
-    .btn:hover{background:var(--accent);color:var(--bg-primary)}
-    .btn-icon{padding:.5rem;display:flex;align-items:center;justify-content:center}
-    .workspace{display:flex;flex:1;overflow:hidden}
-    .tools-panel{width:280px;background:var(--bg-secondary);border-right:1px solid var(--border-color);padding:1rem;overflow-y:auto}
-    .tool-group{margin-bottom:2rem}
-    .tool-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
-    .tool-btn{background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-primary);padding:1rem;border-radius:4px;cursor:pointer}
-    .tool-btn:hover{border-color:var(--accent)}
-    .tool-btn.active{background:var(--accent);color:var(--bg-primary)}
-    .canvas-container{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg-primary);position:relative}
-    #main-canvas{background:var(--bg-primary);border:1px solid var(--border-color);box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:crosshair}
-    
-    /* The Box that was missing! */
-    .dialog{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9999}
-    .dialog.active{display:flex}
-    .dialog-content{background:var(--bg-primary);padding:2rem;border-radius:8px;display:flex;flex-direction:column;gap:1rem;min-width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);}
-    
-    /* Help Panel */
-    #helpPanel { position: fixed; top:0; right:0; width:300px; height:100%; background:#111; color:#fff; padding:20px; transform: translateX(100%); transition: transform 0.3s ease; z-index:10000; overflow-y:auto; }
-    #helpPanel.open { transform: translateX(0); }
-    .selected { stroke-dasharray: 5,5; stroke: #ff00ff !important; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inky SVG Editor</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    font-family: sans-serif;
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+  .sidebar {
+    width: 260px;
+    background: #2a2a2a;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+  button, select, input {
+    width: 100%;
+    padding: 8px;
+    background: #3b3b3b;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 6px;
+  }
+  button:hover {
+    background: #4a4a4a;
+    cursor: pointer;
+  }
+  #canvas-container {
+    flex: 1;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  svg {
+    width: 90%;
+    height: 90%;
+    background: #fff;
+  }
+</style>
 </head>
 <body>
-  <div class="app-container">
-    <header class="toolbar">
-      <div class="logo"><h1>InkRealm</h1></div>
-      <div class="toolbar-actions">
-        <button id="new-project" class="btn">New</button>
-        <button id="save-project" class="btn">Save</button>
-        <button id="export-svg" class="btn">Export</button>
-        <button id="theme-toggle" class="btn">Theme</button> <!-- It's back! -->
-        
-        <select id="font-select" class="btn"><option value="">Google Fonts</option></select>
-        <button id="convert-text" class="btn">Text to Path</button>
-      </div>
-    </header>
 
-    <main class="workspace">
-      <aside class="tools-panel">
-        <div class="tool-group">
-          <h3>Tools</h3>
-          <div class="tool-buttons">
-            <button class="tool-btn active" data-tool="select">Select</button>
-            <button class="tool-btn" data-tool="rectangle">Rect</button>
-            <button class="tool-btn" data-tool="circle">Circle</button>
-            <button class="tool-btn" data-tool="path">Path</button>
-            <button class="tool-btn" data-tool="text">Text</button>
-          </div>
-        </div>
-        <div class="tool-group">
-          <h3>Properties</h3>
-          <label>Fill <input type="color" id="fill-color" value="#000000"></label><br><br>
-          <label>Stroke <input type="color" id="stroke-color" value="#000000"></label><br><br>
-          <label>Width <input type="range" id="stroke-width" min="0" max="20" value="2"></label><br><br>
-          <label>Opacity <input type="range" id="opacity" min="0" max="1" step="0.1" value="1"></label>
-        </div>
-        <div class="tool-group">
-          <h3>Layers</h3>
-          <div id="layers-list"></div>
-          <button id="add-layer" class="btn" style="width:100%;margin-top:10px;">+ Layer</button>
-        </div>
-      </aside>
+<div class="sidebar">
+  <h2>Tools</h2>
+  <button onclick="setTool('select')">Select</button>
+  <button onclick="setTool('rect')">Rectangle</button>
+  <button onclick="setTool('circle')">Circle</button>
+  <button onclick="setTool('path')">Path</button>
+  <button onclick="setTool('text')">Text</button>
 
-      <div class="canvas-container">
-        <svg id="main-canvas" width="800" height="600" viewBox="0 0 800 600">
-          <g id="svg-content"></g>
-        </svg>
-      </div>
-    </main>
-  </div>
+  <h3>Colors</h3>
+  <input type="color" id="fillColor" value="#000000" />
+  <input type="color" id="strokeColor" value="#000000" />
+  <input type="number" id="strokeWidth" min="1" max="20" value="2" />
 
-  <!-- Text Dialog -->
-  <div id="text-dialog" class="dialog">
-    <div class="dialog-content">
-      <h3>Add Text</h3>
-      <input type="text" id="text-input" placeholder="Type here..." autofocus>
-      <input type="number" id="font-size" value="40" placeholder="Size">
-      <div>
-        <button id="apply-text" class="btn">Apply</button>
-        <button id="cancel-text" class="btn">Cancel</button>
-      </div>
-    </div>
-  </div>
+  <h3>Font</h3>
+  <select id="fontSelect">
+    <option value="Arial">Arial</option>
+    <option value="Verdana">Verdana</option>
+    <option value="Georgia">Georgia</option>
+    <option value="Courier New">Courier New</option>
+  </select>
 
-  <!-- Help Panel -->
-  <div id="helpPanel">
-    <h2>Help</h2>
-    <p><strong>Draw:</strong> Click Rect, Circle, or Path.</p>
-    <p><strong>Text:</strong> Click Text tool > Click Canvas > Type in box.</p>
-    <p><strong>Move:</strong> Use Select tool to drag items.</p>
-    <p><strong>Delete:</strong> Select item > Press Backspace.</p>
-    <button id="close-help" class="btn" style="margin-top:20px;">Close</button>
-  </div>
-  <button id="helpToggle" class="btn" style="position:fixed;top:10px;right:10px;z-index:1001;">?</button>
+  <h3>File</h3>
+  <button onclick="downloadSVG()">Download SVG</button>
+</div>
 
-  <!-- Opentype Library -->
-  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+<div id="canvas-container">
+  <svg id="svgCanvas"></svg>
+</div>
 
-  <script>
-    class InkRealmSVG {
-      constructor() {
-        this.canvas = document.getElementById('main-canvas');
-        this.content = document.getElementById('svg-content');
-        this.currentTool = 'select';
-        this.isDrawing = false;
-        this.isDragging = false;
-        this.dragElement = null;
-        this.startPoint = {x:0,y:0};
-        this.layers = [];
-        this.activeLayer = 0;
-        
-        this.init();
-      }
+<script>
+let tool = "select";
+let svg = document.getElementById("svgCanvas");
+let isDrawing = false;
+let currentElement = null;
 
-      init() {
-        // Event Listeners
-        this.canvas.addEventListener('mousedown', e => this.handleDown(e));
-        window.addEventListener('mousemove', e => this.handleMove(e));
-        window.addEventListener('mouseup', () => this.handleUp());
-        
-        // Buttons
-        document.querySelectorAll('.tool-btn').forEach(b => {
-          b.addEventListener('click', e => {
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            e.target.classList.add('active');
-            this.currentTool = e.target.dataset.tool;
-            this.clearSelection();
-          });
-        });
+function setTool(t) {
+  tool = t;
+}
 
-        document.getElementById('add-layer').addEventListener('click', () => this.addLayer());
-        document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
-        document.getElementById('save-project').addEventListener('click', () => this.save());
-        
-        // Property listeners
-        ['fill-color','stroke-color','stroke-width','opacity'].forEach(id => {
-          document.getElementById(id).addEventListener('input', () => this.updateSelected());
-        });
+svg.addEventListener("mousedown", (e) => {
+  let x = e.offsetX;
+  let y = e.offsetY;
 
-        // Global Delete
-        window.addEventListener('keydown', e => {
-          if((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT'){
-            const sel = document.querySelector('.selected');
-            if(sel) { sel.remove(); this.clearSelection(); }
-          }
-        });
+  if (tool === "rect") {
+    currentElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    currentElement.setAttribute("x", x);
+    currentElement.setAttribute("y", y);
+    currentElement.setAttribute("width", 0);
+    currentElement.setAttribute("height", 0);
+    applyStyles(currentElement);
+    svg.appendChild(currentElement);
+    isDrawing = true;
+  }
 
-        this.addLayer(); // Init first layer
-      }
+  if (tool === "circle") {
+    currentElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    currentElement.setAttribute("cx", x);
+    currentElement.setAttribute("cy", y);
+    currentElement.setAttribute("r", 0);
+    applyStyles(currentElement);
+    svg.appendChild(currentElement);
+    isDrawing = true;
+  }
 
-      toggleTheme() {
-        const cur = document.documentElement.getAttribute('data-theme');
-        document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
-      }
+  if (tool === "path") {
+    currentElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    currentElement.setAttribute("d", `M ${x} ${y}`);
+    applyStyles(currentElement);
+    svg.appendChild(currentElement);
+    isDrawing = true;
+  }
 
-      clientToSVG(x, y) {
-        const pt = this.canvas.createSVGPoint();
-        pt.x = x; pt.y = y;
-        return pt.matrixTransform(this.canvas.getScreenCTM().inverse());
-      }
+  if (tool === "text") {
+    let text = prompt("Enter text:");
+    if (!text) return;
+    let tElem = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    tElem.setAttribute("x", x);
+    tElem.setAttribute("y", y);
+    tElem.setAttribute("font-family", document.getElementById("fontSelect").value);
+    tElem.setAttribute("font-size", 32);
+    tElem.textContent = text;
+    applyStyles(tElem);
+    svg.appendChild(tElem);
+  }
+});
 
-      handleDown(e) {
-        const pt = this.clientToSVG(e.clientX, e.clientY);
-        
-        // SELECT & DRAG Logic
-        if (this.currentTool === 'select') {
-          if (e.target !== this.canvas && e.target !== this.content) {
-            this.selectElement(e.target);
-            this.isDragging = true;
-            this.dragElement = e.target;
-            
-            // Calc offset
-            let tx = 0, ty = 0;
-            if(this.dragElement.tagName === 'circle'){
-               tx = parseFloat(this.dragElement.getAttribute('cx'));
-               ty = parseFloat(this.dragElement.getAttribute('cy'));
-            } else if (this.dragElement.tagName === 'rect' || this.dragElement.tagName === 'text'){
-               tx = parseFloat(this.dragElement.getAttribute('x'));
-               ty = parseFloat(this.dragElement.getAttribute('y'));
-            } else if (this.dragElement.tagName === 'path'){
-               // For paths we track start point
-               this.pathStart = pt;
-               const trans = this.dragElement.getAttribute('transform') || '';
-               const m = trans.match(/translate\(([^, ]+)[, ]+([^)]+)\)/);
-               this.dragTranslate = m ? {x:parseFloat(m[1]), y:parseFloat(m[2])} : {x:0,y:0};
-            }
-            this.dragOffset = { x: pt.x - tx, y: pt.y - ty };
-          } else {
-            this.clearSelection();
-          }
-          return;
-        }
+svg.addEventListener("mousemove", (e) => {
+  if (!isDrawing || !currentElement) return;
+  let x = e.offsetX;
+  let y = e.offsetY;
 
-        // DRAW Logic
-        this.isDrawing = true;
-        this.startPoint = pt;
-        
-        if (this.currentTool === 'rectangle') {
-          this.currentElement = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          this.currentElement.setAttribute('x', pt.x);
-          this.currentElement.setAttribute('y', pt.y);
-          this.addToActiveLayer(this.currentElement);
-        } else if (this.currentTool === 'circle') {
-          this.currentElement = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          this.currentElement.setAttribute('cx', pt.x);
-          this.currentElement.setAttribute('cy', pt.y);
-          this.addToActiveLayer(this.currentElement);
-        } else if (this.currentTool === 'path') {
-          this.currentElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          this.currentElement.setAttribute('d', `M ${pt.x} ${pt.y}`);
-          this.currentElement.setAttribute('fill', 'none');
-          this.addToActiveLayer(this.currentElement);
-        } else if (this.currentTool === 'text') {
-          this.openTextDialog(pt.x, pt.y);
-          this.isDrawing = false;
-        }
-        
-        if(this.currentElement && this.currentTool !== 'text') this.applyStyles(this.currentElement);
-      }
+  if (tool === "rect") {
+    currentElement.setAttribute("width", x - currentElement.getAttribute("x"));
+    currentElement.setAttribute("height", y - currentElement.getAttribute("y"));
+  }
 
-      handleMove(e) {
-        const pt = this.clientToSVG(e.clientX, e.clientY);
+  if (tool === "circle") {
+    let cx = +currentElement.getAttribute("cx");
+    let cy = +currentElement.getAttribute("cy");
+    let r = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+    currentElement.setAttribute("r", r);
+  }
 
-        // DRAG MOVE
-        if (this.isDragging && this.dragElement) {
-           if(this.dragElement.tagName === 'rect' || this.dragElement.tagName === 'text'){
-             this.dragElement.setAttribute('x', pt.x - this.dragOffset.x);
-             this.dragElement.setAttribute('y', pt.y - this.dragOffset.y);
-           } else if (this.dragElement.tagName === 'circle'){
-             this.dragElement.setAttribute('cx', pt.x - this.dragOffset.x);
-             this.dragElement.setAttribute('cy', pt.y - this.dragOffset.y);
-           } else if (this.dragElement.tagName === 'path'){
-             const dx = (pt.x - this.pathStart.x) + this.dragTranslate.x;
-             const dy = (pt.y - this.pathStart.y) + this.dragTranslate.y;
-             this.dragElement.setAttribute('transform', `translate(${dx} ${dy})`);
-           }
-           return;
-        }
+  if (tool === "path") {
+    let d = currentElement.getAttribute("d");
+    currentElement.setAttribute("d", d + ` L ${x} ${y}`);
+  }
+});
 
-        // DRAW MOVE
-        if (!this.isDrawing || !this.currentElement) return;
-        
-        if (this.currentTool === 'rectangle') {
-          const w = pt.x - this.startPoint.x;
-          const h = pt.y - this.startPoint.y;
-          this.currentElement.setAttribute('width', Math.abs(w));
-          this.currentElement.setAttribute('height', Math.abs(h));
-          this.currentElement.setAttribute('x', w < 0 ? pt.x : this.startPoint.x);
-          this.currentElement.setAttribute('y', h < 0 ? pt.y : this.startPoint.y);
-        } else if (this.currentTool === 'circle') {
-          const r = Math.sqrt(Math.pow(pt.x - this.startPoint.x, 2) + Math.pow(pt.y - this.startPoint.y, 2));
-          this.currentElement.setAttribute('r', r);
-        } else if (this.currentTool === 'path') {
-          const d = this.currentElement.getAttribute('d');
-          this.currentElement.setAttribute('d', d + ` L ${pt.x} ${pt.y}`);
-        }
-      }
+svg.addEventListener("mouseup", () => {
+  isDrawing = false;
+  currentElement = null;
+});
 
-      handleUp() {
-        this.isDrawing = false;
-        this.isDragging = false;
-        this.currentElement = null;
-        this.dragElement = null;
-      }
+function applyStyles(el) {
+  el.setAttribute("fill", document.getElementById("fillColor").value);
+  el.setAttribute("stroke", document.getElementById("strokeColor").value);
+  el.setAttribute("stroke-width", document.getElementById("strokeWidth").value);
+}
 
-      // --- Helpers ---
-      selectElement(el) {
-        this.clearSelection();
-        el.classList.add('selected');
-        // Load properties
-        if(el.getAttribute('fill')) document.getElementById('fill-color').value = el.getAttribute('fill');
-      }
+function downloadSVG() {
+  let source = svg.outerHTML;
+  let blob = new Blob([source], { type: "image/svg+xml" });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "drawing.svg";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
 
-      clearSelection() {
-        document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
-      }
-
-      applyStyles(el) {
-        el.setAttribute('fill', document.getElementById('fill-color').value);
-        el.setAttribute('stroke', document.getElementById('stroke-color').value);
-        el.setAttribute('stroke-width', document.getElementById('stroke-width').value);
-        el.setAttribute('opacity', document.getElementById('opacity').value);
-      }
-
-      addToActiveLayer(el) {
-        const layer = document.getElementById(this.layers[this.activeLayer]);
-        if(layer) layer.appendChild(el);
-      }
-
-      addLayer() {
-        const id = 'layer-' + Date.now();
-        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.id = id;
-        this.content.appendChild(g);
-        this.layers.push(id);
-        
-        const div = document.createElement('div');
-        div.textContent = `Layer ${this.layers.length}`;
-        div.style.padding = '5px';
-        div.style.border = '1px solid #ccc';
-        div.style.marginBottom = '5px';
-        div.onclick = () => {
-           this.activeLayer = this.layers.indexOf(id);
-           document.querySelectorAll('#layers-list div').forEach(d => d.style.background = 'transparent');
-           div.style.background = '#ddd';
-        };
-        document.getElementById('layers-list').appendChild(div);
-        div.click(); // Select it
-      }
-
-      openTextDialog(x, y) {
-        const dlg = document.getElementById('text-dialog');
-        const inp = document.getElementById('text-input');
-        const size = document.getElementById('font-size');
-        const apply = document.getElementById('apply-text');
-        const cancel = document.getElementById('cancel-text');
-
-        dlg.classList.add('active');
-        inp.value = ''; inp.focus();
-
-        // One-time listener trick
-        const onApply = () => {
-          if (inp.value) {
-            const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            t.setAttribute('x', x); t.setAttribute('y', y);
-            t.textContent = inp.value;
-            t.setAttribute('font-size', size.value);
-            this.applyStyles(t);
-            this.addToActiveLayer(t);
-          }
-          close();
-        };
-        
-        const close = () => {
-          dlg.classList.remove('active');
-          apply.removeEventListener('click', onApply);
-          cancel.removeEventListener('click', close);
-        };
-
-        apply.addEventListener('click', onApply);
-        cancel.addEventListener('click', close);
-      }
-      
-      save() {
-        const svgData = new XMLSerializer().serializeToString(this.canvas);
-        const blob = new Blob([svgData], {type: 'image/svg+xml'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'inkrealm-drawing.svg';
-        document.body.appendChild(a); a.click(); a.remove();
-      }
-    }
-
-    // Start Engine
-    window.addEventListener('DOMContentLoaded', () => {
-      window.app = new InkRealmSVG();
-      
-      // Help Toggle
-      const help = document.getElementById('helpPanel');
-      document.getElementById('helpToggle').onclick = () => help.classList.add('open');
-      document.getElementById('close-help').onclick = () => help.classList.remove('open');
-    });
-  </script>
 </body>
 </html>
