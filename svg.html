@@ -1,78 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Inky SVG Editor</title>
-<style>
-  body {
-    margin: 0;
-    display: flex;
-    height: 100vh;
-    font-family: sans-serif;
-    background: #1e1e1e;
-    color: #e0e0e0;
-  }
-  .sidebar {
-    width: 260px;
-    background: #2a2a2a;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-sizing: border-box;
-  }
-  button, select, input {
-    width: 100%;
-    padding: 8px;
-    background: #3b3b3b;
-    color: #fff;
-    border: 1px solid #555;
-    border-radius: 6px;
-  }
-  button:hover {
-    background: #4a4a4a;
-    cursor: pointer;
-  }
-  #canvas-container {
-    flex: 1;
-    background: #111;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  svg {
-    width: 90%;
-    height: 90%;
-    background: #fff;
-  }
-</style>
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Free, open SVG logo editor with text-to-path, Google Fonts, custom font upload, and full vector editing.">
+  <meta name="keywords" content="free svg editor, logo maker, vector editor, svg path editor, text to svg, google fonts svg, open source logo tool">
+  <meta name="og:title" content="InkRealm — Free SVG Logo Editor">
+  <meta name="og:description" content="Create, edit, and export SVG logos without tricks, paywalls, or AI traps.">
+  <meta name="og:type" content="website">
+  <meta name="robots" content="index, follow">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <link rel="icon" href="/svg/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/svg/favicon.png" type="image/png">
+
+  <title>Inky SVG Editor</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #1e1e1e;
+      color: #e0e0e0;
+      font-size: 13px; /* Smaller base font */
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 240px; /* Slightly narrower */
+      background: #2a2a2a;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px; /* Tighter spacing */
+      box-sizing: border-box;
+      border-right: 1px solid #333;
+      overflow-y: auto; /* Adds scrollbar if screen is too short */
+    }
+    h2, h3 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #aaa;
+      border-bottom: 1px solid #444;
+      padding-bottom: 4px;
+      margin-top: 8px;
+    }
+    h2:first-child { margin-top: 0; }
+    
+    button, select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 6px 8px; /* Smaller padding */
+      background: #3b3b3b;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    button:hover {
+      background: #4a4a4a;
+      cursor: pointer;
+      border-color: #777;
+    }
+    /* Color inputs need specific height to look good */
+    input[type="color"] {
+      width: 100%;
+      height: 30px;
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    .row {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    label { font-size: 11px; color: #999; }
+    
+    #canvas-container {
+      flex: 1;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    svg {
+      width: 90%;
+      height: 90%;
+      background: #fff;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+  </style>
 </head>
 <body>
 
 <div class="sidebar">
   <h2>Tools</h2>
-  <button onclick="setTool('select')">Select</button>
-  <button onclick="setTool('rect')">Rectangle</button>
-  <button onclick="setTool('circle')">Circle</button>
-  <button onclick="setTool('path')">Path</button>
-  <button onclick="setTool('text')">Text</button>
+  <button onclick="setTool('select')">Select / Move</button>
+  <div class="row">
+    <button onclick="setTool('rect')">Rect</button>
+    <button onclick="setTool('circle')">Circle</button>
+  </div>
+  <div class="row">
+    <button onclick="setTool('path')">Path</button>
+    <button onclick="setTool('text')">Text</button>
+  </div>
 
-  <h3>Colors</h3>
+  <h3>Style</h3>
+  <label>Fill Color</label>
   <input type="color" id="fillColor" value="#000000" />
+  
+  <label>Stroke Color</label>
   <input type="color" id="strokeColor" value="#000000" />
-  <input type="number" id="strokeWidth" min="1" max="20" value="2" />
+  
+  <label>Stroke Width</label>
+  <input type="number" id="strokeWidth" min="0" max="20" value="2" />
 
-  <h3>Font</h3>
+  <h3>Typography</h3>
   <select id="fontSelect">
     <option value="Arial">Arial</option>
     <option value="Verdana">Verdana</option>
     <option value="Georgia">Georgia</option>
     <option value="Courier New">Courier New</option>
+    <option value="Times New Roman">Times New Roman</option>
+    <option value="Trebuchet MS">Trebuchet MS</option>
+    <option value="Impact">Impact</option>
   </select>
 
-  <h3>File</h3>
-  <button onclick="downloadSVG()">Download SVG</button>
+  <h3>Actions</h3>
+  <button onclick="deleteSelected()" style="background:#5a2a2a; border-color:#7a3a3a;">Delete Selected</button>
+  <div style="flex:1"></div> <!-- Spacer pushes download to bottom -->
+  <button onclick="downloadSVG()" style="background:#2a5a2a; border-color:#3a7a3a; font-weight:bold; padding: 10px;">Download SVG</button>
 </div>
 
 <div id="canvas-container">
@@ -84,72 +146,139 @@ let tool = "select";
 let svg = document.getElementById("svgCanvas");
 let isDrawing = false;
 let currentElement = null;
+let startX, startY;
+
+// For Moving Items
+let selectedElement = null;
+let offset = { x: 0, y: 0 };
 
 function setTool(t) {
   tool = t;
+  // Visual helper
+  document.querySelectorAll('button').forEach(b => b.style.border = '1px solid #555');
+  // Highlight active tool (logic simplified for this demo)
+  selectedElement = null; 
 }
 
+function deleteSelected() {
+  if(selectedElement) {
+    selectedElement.remove();
+    selectedElement = null;
+  }
+}
+
+// Global Delete Key
+window.addEventListener('keydown', (e) => {
+  if(e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+});
+
 svg.addEventListener("mousedown", (e) => {
-  let x = e.offsetX;
-  let y = e.offsetY;
+  startX = e.offsetX;
+  startY = e.offsetY;
+
+  // --- SELECT & MOVE ---
+  if (tool === "select") {
+    if (e.target !== svg) { 
+      selectedElement = e.target;
+      isDrawing = true; 
+      
+      // Calculate offset
+      let ex = parseFloat(selectedElement.getAttribute("x") || selectedElement.getAttribute("cx") || 0);
+      let ey = parseFloat(selectedElement.getAttribute("y") || selectedElement.getAttribute("cy") || 0);
+      
+      if(selectedElement.tagName === "path") { ex = 0; ey = 0; }
+      
+      offset.x = startX - ex;
+      offset.y = startY - ey;
+    }
+    return;
+  }
+
+  // --- DRAWING ---
+  isDrawing = true;
 
   if (tool === "rect") {
     currentElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    currentElement.setAttribute("x", x);
-    currentElement.setAttribute("y", y);
+    currentElement.setAttribute("x", startX);
+    currentElement.setAttribute("y", startY);
     currentElement.setAttribute("width", 0);
     currentElement.setAttribute("height", 0);
     applyStyles(currentElement);
     svg.appendChild(currentElement);
-    isDrawing = true;
   }
 
   if (tool === "circle") {
     currentElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    currentElement.setAttribute("cx", x);
-    currentElement.setAttribute("cy", y);
+    currentElement.setAttribute("cx", startX);
+    currentElement.setAttribute("cy", startY);
     currentElement.setAttribute("r", 0);
     applyStyles(currentElement);
     svg.appendChild(currentElement);
-    isDrawing = true;
   }
 
   if (tool === "path") {
     currentElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    currentElement.setAttribute("d", `M ${x} ${y}`);
+    currentElement.setAttribute("d", `M ${startX} ${startY}`);
     applyStyles(currentElement);
+    currentElement.setAttribute("fill", "none"); 
     svg.appendChild(currentElement);
-    isDrawing = true;
   }
 
   if (tool === "text") {
     let text = prompt("Enter text:");
-    if (!text) return;
-    let tElem = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    tElem.setAttribute("x", x);
-    tElem.setAttribute("y", y);
-    tElem.setAttribute("font-family", document.getElementById("fontSelect").value);
-    tElem.setAttribute("font-size", 32);
-    tElem.textContent = text;
-    applyStyles(tElem);
-    svg.appendChild(tElem);
+    if (text) {
+        let tElem = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tElem.setAttribute("x", startX);
+        tElem.setAttribute("y", startY);
+        tElem.setAttribute("font-family", document.getElementById("fontSelect").value);
+        tElem.setAttribute("font-size", 32);
+        tElem.textContent = text;
+        applyStyles(tElem);
+        svg.appendChild(tElem);
+    }
+    isDrawing = false; 
   }
 });
 
 svg.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !currentElement) return;
+  if (!isDrawing) return;
   let x = e.offsetX;
   let y = e.offsetY;
 
+  // --- MOVING ---
+  if (tool === "select" && selectedElement) {
+    const tag = selectedElement.tagName;
+    if (tag === "rect" || tag === "text") {
+        selectedElement.setAttribute("x", x - offset.x);
+        selectedElement.setAttribute("y", y - offset.y);
+    } else if (tag === "circle") {
+        selectedElement.setAttribute("cx", x - offset.x);
+        selectedElement.setAttribute("cy", y - offset.y);
+    } else if (tag === "path") {
+        let dx = x - startX;
+        let dy = y - startY;
+        selectedElement.setAttribute("transform", `translate(${dx} ${dy})`);
+    }
+    return;
+  }
+
+  // --- DRAWING ---
+  if (!currentElement) return;
+
   if (tool === "rect") {
-    currentElement.setAttribute("width", x - currentElement.getAttribute("x"));
-    currentElement.setAttribute("height", y - currentElement.getAttribute("y"));
+    let w = Math.abs(x - startX);
+    let h = Math.abs(y - startY);
+    let newX = (x < startX) ? x : startX;
+    let newY = (y < startY) ? y : startY;
+    
+    currentElement.setAttribute("width", w);
+    currentElement.setAttribute("height", h);
+    currentElement.setAttribute("x", newX);
+    currentElement.setAttribute("y", newY);
   }
 
   if (tool === "circle") {
-    let cx = +currentElement.getAttribute("cx");
-    let cy = +currentElement.getAttribute("cy");
-    let r = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+    let r = Math.sqrt((x - startX) ** 2 + (y - startY) ** 2);
     currentElement.setAttribute("r", r);
   }
 
@@ -172,11 +301,14 @@ function applyStyles(el) {
 
 function downloadSVG() {
   let source = svg.outerHTML;
+  if(!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)){
+      source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
   let blob = new Blob([source], { type: "image/svg+xml" });
   let url = URL.createObjectURL(blob);
   let a = document.createElement("a");
   a.href = url;
-  a.download = "drawing.svg";
+  a.download = "inky-drawing.svg";
   a.click();
   URL.revokeObjectURL(url);
 }
