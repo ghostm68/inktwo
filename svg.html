@@ -312,6 +312,29 @@ function downloadSVG() {
   a.click();
   URL.revokeObjectURL(url);
 }
+  // --- TOUCH SUPPORT PATCH ---
+// This translates finger taps into mouse clicks for the tool
+function touchHandler(event) {
+    var touches = event.changedTouches,
+        first = touches[0],
+        type = "";
+    switch(event.type) {
+        case "touchstart": type = "mousedown"; break;
+        case "touchmove":  type = "mousemove"; break;
+        case "touchend":   type = "mouseup";   break;
+        default: return;
+    }
+    var simulatedEvent = new MouseEvent(type, {
+        bubbles: true, cancelable: true, view: window,
+        screenX: first.screenX, screenY: first.screenY,
+        clientX: first.clientX, clientY: first.clientY
+    });
+    first.target.dispatchEvent(simulatedEvent);
+    if(event.type === "touchmove") event.preventDefault(); // Stop scrolling while drawing
+}
+svg.addEventListener("touchstart", touchHandler, true);
+svg.addEventListener("touchmove", touchHandler, true);
+svg.addEventListener("touchend", touchHandler, true);
 </script>
 
 </body>
