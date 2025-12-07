@@ -834,5 +834,127 @@ class PathEditor {
   fmClose.addEventListener('click', ()=>{ fmModal.style.display='none'; });
 })();
 </script>
+    <!-- ADD THIS AT THE VERY BOTTOM OF YOUR BODY, AFTER THE MAIN SCRIPT -->
+<script>
+  // Wait for the main class to be ready, then "Patch" it
+  window.addEventListener('DOMContentLoaded', () => {
+    
+    // 1. Add DELETE key support immediately
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const selected = document.querySelector('.selected');
+        // Only delete if we aren't typing in a text box
+        if (selected && document.activeElement.tagName !== 'INPUT') {
+          selected.remove();
+          if (window.inkRealm) window.inkRealm.clearSelection();
+        }
+      }
+    });
+
+    // 2. Patch the Class Prototype to handle DRAGGING
+    // We overwrite the existing functions with new "Pro" versions
+    
+    const proto = InkRealmSVG.prototype;
+
+    // --- PATCH: POINTER DOWN (Start Drag) ---
+    proto.handlePointerDown = function(clientX, clientY, target) {
+      const pt = this.clientToSVG(clientX, clientY);
+
+      // MODE: SELECT & DRAG
+      if (this.currentTool === 'select') {
+         let shape = target;
+         // Climb up to find the actual SVG shape (in case we hit a child node)
+         while (shape && shape !== this.svgContent && shape !== this.canvas) {
+            const tag = shape.tagName ? shape.tagName.toLowerCase() : '';
+            if (['rect', 'circle', 'path', 'text', 'image'].includes(tag)) {
+                this.selectElement(shape);
+                
+                // Initialize Drag State
+                this.isDragging = true;
+                this.dragElement = shape;
+                
+                // Calculate "Offset" so the shape doesn't snap to the mouse center
+                let currentX = 0, currentY = 0;
+                
+                if (tag === 'rect' || tag === 'text' || tag === 'image') {
+                    currentX = parseFloat(shape.getAttribute('x')) || 0;
+                    currentY = parseFloat(shape.getAttribute('y')) || 0;
+                } else if (tag === 'circle') {
+                    currentX = parseFloat(shape.getAttribute('cx')) || 0;
+                    currentY = parseFloat(shape.getAttribute('cy')) || 0;
+                } else if (tag === 'path') {
+                    // For paths, we track the start mouse position
+                    this.dragStartMouse = pt;
+                    
+                    // Parse existing translate transform if it exists
+                    const trans = shape.getAttribute('transform') || '';
+                    const match = trans.match(/translate\(([^,]+)[, ]+([^)]+)\)/);
+                    if (match) {
+                        this.dragStartTranslate = { x: parseFloat(match[1]), y: parseFloat(match[2]) };
+                    } else {
+                        this.dragStartTranslate = { x: 0, y: 0 };
+                    }
+                }
+                
+                this.dragOffset = { x: pt.x - currentX, y: pt.y - currentY };
+                return; // Stop here, we found our object
+            }
+            shape = shape.parentNode;
+         }
+         // Clicked empty space? Deselect.
+         this.clearSelection();
+         return;
+      }
+
+      // MODE: DRAWING (Original Logic)
+      this.isDrawing = true;
+      this.startPoint = pt;
+      if(this.currentTool === 'rectangle') this.createRectangle(pt.x,pt.y);
+      else if(this.currentTool === 'circle') this.createCircle(pt.x,pt.y);
+      else if(this.currentTool === 'path') this.startPath(pt.x,pt.y);
+      else if(this.currentTool === 'text') this.showTextDialog(clientX,clientY);
+    };
+
+    // --- PATCH: POINTER MOVE (Perform Drag) ---
+    proto.handlePointerMove = function(clientX, clientY) {
+      const pt = this.clientToSVG(clientX, clientY);
+
+      // LOGIC: MOVING OBJECT
+      if (this.isDragging && this.dragElement && this.currentTool === 'select') {
+         const el = this.dragElement;
+         const tag = el.tagName.toLowerCase();
+         
+         if (tag === 'rect' || tag === 'text' || tag === 'image') {
+             el.setAttribute('x', pt.x - this.dragOffset.x);
+             el.setAttribute('y', pt.y - this.dragOffset.y);
+         } else if (tag === 'circle') {
+             el.setAttribute('cx', pt.x - this.dragOffset.x);
+             el.setAttribute('cy', pt.y - this.dragOffset.y);
+         } else if (tag === 'path') {
+             // Move Paths using Transform (Easiest math for complex shapes)
+             const dx = (pt.x - this.dragStartMouse.x) + this.dragStartTranslate.x;
+             const dy = (pt.y - this.dragStartMouse.y) + this.dragStartTranslate.y;
+             el.setAttribute('transform', `translate(${dx} ${dy})`);
+         }
+         return;
+      }
+
+      // LOGIC: DRAWING OBJECT
+      if(this.isDrawing && this.currentElement) {
+        this.updateShape(pt.x,pt.y);
+      }
+    };
+
+    // --- PATCH: POINTER UP (Stop Drag) ---
+    proto.handlePointerUp = function() {
+      this.isDrawing = false;
+      this.isDragging = false;
+      this.currentElement = null;
+      this.dragElement = null;
+    };
+
+    console.log("InkRealm upgraded with Drag & Delete support.");
+  });
+</script>
 </body>
 </html>
