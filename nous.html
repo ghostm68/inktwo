@@ -247,117 +247,72 @@ Ready. Select an engine and write.
     <div class="api-status">
         Powered by Puter.js
     </div>
+    <script>
+document.getElementById('generateButton').addEventListener('click', async function () {
 
-  <script>
-/* ============================================================
-   FONT SELECTOR
-============================================================ */
-document.getElementById('fontSelect').addEventListener('change', function() {
-    const notepad = document.getElementById('notepad');
-    notepad.className = this.value;
-});
-
-/* ============================================================
-   EXPORT / CLEAR / IMPORT BUTTONS
-============================================================ */
-document.getElementById('exportButton').addEventListener('click', function() {
-    const content = document.getElementById('notepad').value;
-    if (!content.trim()) return alert('Notepad is empty!');
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'creative-writing.txt';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-});
-
-document.getElementById('clearButton').addEventListener('click', function() {
-    if (confirm('Clear the entire notepad?')) {
-        document.getElementById('notepad').value = '';
-    }
-});
-
-document.getElementById('copyButton').addEventListener('click', function() {
-    const output = document.getElementById('output').textContent;
-    const notepad = document.getElementById('notepad');
-    notepad.value += (notepad.value ? '\n\n' : '') + output;
-});
-
-/* ============================================================
-   UNIVERSAL AI GENERATION (FIXED FOR LIQUID + HERMES + GEMMA)
-============================================================ */
-document.getElementById('generateButton').addEventListener('click', async function() {
-
-    const prompt = document.getElementById('prompt').value;
+    const prompt = document.getElementById('prompt').value.trim();
     const model = document.getElementById('modelSelect').value;
     const output = document.getElementById('output');
     const generateBtn = document.getElementById('generateButton');
     const copyBtn = document.getElementById('copyButton');
 
-    if (!prompt.trim()) {
-        output.textContent = '❌ Please enter a writing prompt.';
+    if (!prompt) {
+        output.textContent = "❌ Please enter a writing prompt.";
         return;
     }
 
-    // --- UI State ---
     generateBtn.disabled = true;
-    generateBtn.textContent = 'Thinking...';
-    output.textContent = '⚡ Connecting to AI engine...';
-    output.classList.add('generating');
+    generateBtn.textContent = "Thinking...";
+    output.textContent = "⚡ Contacting model...";
+    output.classList.add("generating");
     copyBtn.disabled = true;
 
-    // Token limits based on model family
-    let tokenLimit = 1024;
-    if (model.includes("gpt-5.2")) tokenLimit = 4000;
-    if (model.includes("gpt-4")) tokenLimit = 3000;
-    if (model.includes("claude")) tokenLimit = 2000;
-    if (model.includes("hermes")) tokenLimit = 1500;
+    // Let’s build a safe universal prompt for Liquid/Hermes/GPT
+    const fullPrompt =
+`You are a creative writing assistant.
+Write the most creative, expressive response possible.
+
+USER REQUEST:
+${prompt}
+`;
 
     try {
-
-        const response = await puter.ai.chat({
+        const response = await puter.ai.chat(fullPrompt, {
             model: model,
-            messages: [
-                { role: "user", content: prompt }
-            ],
             temperature: 0.7,
-            max_tokens: tokenLimit
+            max_tokens: 2000
         });
 
-        output.classList.remove('generating');
+        output.classList.remove("generating");
 
-        // Puter returns either .message.content or plain text
-        if (typeof response === "object" && response.message) {
-            output.textContent = response.message.content;
-        } else {
-            output.textContent = response;
+        let text;
+
+        // Case 1: Hermes/Liquid return string
+        if (typeof response === "string") {
+            text = response;
+        }
+        // Case 2: Some models return { message:{ content:"" } }
+        else if (response?.message?.content) {
+            text = response.message.content;
+        }
+        // Case 3: Undefined or strange format
+        else {
+            text = JSON.stringify(response, null, 2);
         }
 
+        output.textContent = text;
         copyBtn.disabled = false;
 
-    } catch (error) {
-        output.classList.remove('generating');
-        output.textContent = '❌ Error: ' + error.message;
-        console.error(error);
-    } finally {
-        generateBtn.disabled = false;
-        generateBtn.textContent = 'Generate';
+    } catch (err) {
+        output.classList.remove("generating");
+        output.textContent = "❌ Error: " + err.message;
+        console.error(err);
     }
+
+    generateBtn.disabled = false;
+    generateBtn.textContent = "Generate";
 });
 
-/* ============================================================
-   CTRL+ENTER TO GENERATE
-============================================================ */
-document.getElementById('prompt').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.ctrlKey) {
-        e.preventDefault();
-        document.getElementById('generateButton').click();
-    }
-});
 </script>
-
 </body>
 </html>
