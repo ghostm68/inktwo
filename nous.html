@@ -2,242 +2,167 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ai Writing Machine </title>
-
-<!-- PUTER SDK -->
-<script src="https://js.puter.com/v1/"></script>
+<title>AI Console</title>
 
 <style>
     body {
-        background: #000;
-        color: #00ff99;
+        background: black;
+        color: #33ff33;
         font-family: "Courier New", monospace;
-        margin: 0;
-        padding: 0;
+        padding: 20px;
     }
-
-    h1 {
-        text-align: center;
-        padding: 12px;
-        color: #00ff99;
-        text-shadow: 0 0 8px #00ff99;
-    }
-
-    .container {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
-        padding: 12px;
-    }
-
-    .panel {
-        border: 2px solid #003322;
-        padding: 10px;
-        border-radius: 6px;
-        position: relative;
-        background: #001100;
-    }
-
-    .panel h2 {
-        margin-top: 0;
-        color: #00ff99;
-        text-shadow: 0 0 6px #00ff99;
-        border-bottom: 1px solid #003322;
-        padding-bottom: 4px;
-    }
-
-    /* CRT EFFECT -------------------------------------------------------- */
 
     .crt {
+        background: rgba(0,0,0,0.75);
+        padding: 20px;
+        border: 4px solid #0f0;
+        border-radius: 8px;
         position: relative;
-        height: 70vh;
-        overflow-y: auto;
-        padding: 12px;
-        color: #00ff99;
-        background: #001100;
-        text-shadow: 0 0 6px #00ff99;
-        border-radius: 4px;
-        filter: drop-shadow(0 0 8px #00ff99);
-        animation: crt-flicker 0.15s infinite, crt-jitter 4s infinite;
+        text-shadow: 0 0 5px #0f0;
     }
 
-    /* Scanlines */
+    /* CRT scanlines */
     .crt::before {
         content: "";
         position: absolute;
-        inset: 0;
-        pointer-events: none;
+        top:0; left:0; right:0; bottom:0;
         background: repeating-linear-gradient(
             to bottom,
-            rgba(0,255,150,0.04) 0px,
-            rgba(0,255,150,0.04) 3px,
-            rgba(0,255,150,0.09) 4px
+            rgba(0,255,0,0.05) 0px,
+            rgba(0,255,0,0.05) 2px,
+            rgba(0,255,0,0.1) 3px
         );
-        mix-blend-mode: screen;
+        pointer-events: none;
+        mix-blend-mode: overlay;
     }
 
-    /* Static layer */
-    .crt::after {
+    /* CRT static */
+    @keyframes staticNoise {
+        0% { background-position: 0 0; }
+        100% { background-position: 100% 100%; }
+    }
+
+    .static::after {
         content: "";
         position: absolute;
-        inset: 0;
-        pointer-events: none;
+        top:0; left:0; right:0; bottom:0;
+        background: url("https://upload.wikimedia.org/wikipedia/commons/3/3c/White-noise-matte.png");
         opacity: 0.12;
-        mix-blend-mode: lighten;
-        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAIAAABMXPacAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAOlJREFUeJzt2LENgCAQRVGt+/9nNcoAIk1UdoUueBfCnnoGALCwsLCwsLCwsLCwsHB/8zUDG5OxRkZGZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkZGZmZmZmZkZGRkbGZwH0Mt1ZTAFvYQAAAABJRU5ErkJggg==');
-        animation: static-move 0.2s steps(4) infinite;
+        mix-blend-mode: screen;
+        animation: staticNoise 1s steps(8) infinite;
+        pointer-events: none;
     }
 
-    @keyframes crt-flicker {
-        0% { opacity: 1; }
-        50% { opacity: 0.96; }
-        100% { opacity: 1; }
+    .three-col {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
     }
 
-    @keyframes crt-jitter {
-        0%,45%,100% { transform: translateX(0px); }
-        46% { transform: translateX(1px); }
-        47% { transform: translateX(-1px); }
-        48% { transform: translateX(0px); }
-    }
-
-    @keyframes static-move {
-        0% { background-position: 0 0; }
-        100% { background-position: 64px 64px; }
-    }
-
-    /* INPUTS / BUTTONS -------------------------------------------------- */
-
-    textarea, select {
+    select, textarea, button {
         width: 100%;
-        padding: 6px;
-        background: #000;
-        color: #00ff99;
-        border: 1px solid #003322;
-        font-family: "Courier New", monospace;
-        resize: vertical;
-    }
-
-    button {
-        background: #002200;
-        border: 1px solid #00ff99;
-        color: #00ff99;
+        background: black;
+        color: #0f0;
+        border: 1px solid #0f0;
         padding: 8px;
-        width: 100%;
-        cursor: pointer;
+        font-family: inherit;
     }
 
     button:hover {
-        background: #004400;
+        background: #003300;
     }
 </style>
+
 </head>
 <body>
 
-<h1>CREATIVE WRITING MACHINE — CRT TERMINAL</h1>
+<div class="crt static">
+<h2>AI Console</h2>
 
-<div class="container">
-
-    <!-- COLUMN 1 — Notepad -->
-    <div class="panel">
-        <h2>Notepad</h2>
-        <textarea id="notepad" style="height:70vh;"></textarea>
-        <button onclick="saveNotepad()">Export TXT</button>
-    </div>
-
-    <!-- COLUMN 2 — AI CONTROLS -->
-    <div class="panel">
-        <h2>Model Select</h2>
-
-        <label>Choose Model</label>
-        <select id="modelSelect">
+<div class="three-col">
+    
+    <!-- COLUMN 1 -->
+    <div>
+        <h3>Model</h3>
+        <select id="model">
             <option value="openrouter/nousresearch/hermes-3-llama-3.1-70b">Hermes 3 – 70B</option>
             <option value="openrouter/nousresearch/hermes-3-llama-3.1-405b">Hermes 3 – 405B</option>
-            <option value="gpt-5.2">GPT-5.2</option>
+            <option value="gpt-5.2">GPT-5.2 (Newest)</option>
             <option value="gpt-4">GPT-4</option>
             <option value="mistral-large">Mistral Large</option>
+
+            <!-- LIQUID -->
+            <option value="liquid">Liquid LFM-2-8B-A1B (BYOK)</option>
         </select>
 
-        <label style="margin-top:10px;">Prompt</label>
-        <textarea id="prompt" style="height:40vh;"></textarea>
+        <br><br>
 
-        <button id="generateButton">Generate</button>
-
-        <p style="margin-top:10px; font-size:14px;">Liquid is flowing...</p>
+        <label>Liquid API Key</label>
+        <input type="text" id="liquidKey" placeholder="Only required for Liquid">
     </div>
 
-    <!-- COLUMN 3 — OUTPUT -->
-    <div class="panel">
-        <h2>Output</h2>
-        <div id="output" class="crt">
-            READY.
-        </div>
-        <button onclick="importToNotepad()">Import to Notepad</button>
+    <!-- COLUMN 2 -->
+    <div>
+        <h3>Input</h3>
+        <textarea id="prompt" rows="10" placeholder="Type your message..."></textarea>
+        <br><br>
+        <button onclick="runModel()">Run</button>
+    </div>
+
+    <!-- COLUMN 3 -->
+    <div>
+        <h3>Output</h3>
+        <textarea id="output" rows="10" readonly></textarea>
     </div>
 
 </div>
 
+</div> <!-- CRT END -->
+
+<script src="https://unpkg.com/openrouter"></script>
+
 <script>
-/* -------------------------------------------------------
-   Authentication (only needed for Puter models)
--------------------------------------------------------- */
+async function runModel() {
 
-document.addEventListener("DOMContentLoaded", async () => {
-    try {
-        await puter.auth.anonymous();
-        console.log("Puter auth OK");
-    } catch (e) {
-        console.error("Puter auth failed", e);
-    }
-});
-
-/* -------------------------------------------------------
-   GENERATION LOGIC
--------------------------------------------------------- */
-
-document.getElementById("generateButton").onclick = async () => {
-    const model = document.getElementById("modelSelect").value;
+    const model = document.getElementById("model").value;
     const prompt = document.getElementById("prompt").value;
-    const output = document.getElementById("output");
+    const out = document.getElementById("output");
 
-    output.textContent = "🌊 LIQUID IS FLOWING...\n";
+    out.value = "⏳ Processing…";
 
-    // Standard models (Hermes / GPT / Mistral)
+    // ROUTING
+    if (model === "liquid") {
+        const key = document.getElementById("liquidKey").value.trim();
+        if (!key) {
+            out.value = "❌ Liquid requires a BYOK API key.";
+            return;
+        }
+
+        // LIQUID MODE – always returns “LIQUID IS FLOWING…”
+        out.value = "💧 LIQUID IS FLOWING...\n\n" +
+                    "⚠ No remote model calls — Liquid uses BYOK offline-style stub.\n" +
+                    "Your prompt:\n" + prompt;
+        return;
+    }
+
+    // OPENROUTER MODELS
     try {
-        const response = await puter.ai.chat(prompt, {
-            model: model,
-            max_tokens: 2000,
-            temperature: 0.7
+        const or = new OpenRouter({
+            apiKey: "",  // NOT USED because we are not charging user
         });
 
-        output.textContent = response.message
-            ? response.message.content
-            : response;
+        const response = await or.chat.send({
+            model,
+            messages: [
+                { role: "user", content: prompt }
+            ]
+        });
+
+        out.value = response.data.choices[0].message.content;
+
+    } catch (err) {
+        out.value = "❌ ERROR\n" + err;
     }
-    catch (err) {
-        output.textContent = "❌ ERROR: " + err.message;
-        console.error(err);
-    }
-};
-
-/* -------------------------------------------------------
-   NOTEPAD IMPORT / EXPORT
--------------------------------------------------------- */
-
-function importToNotepad() {
-    const out = document.getElementById("output").textContent;
-    const pad = document.getElementById("notepad");
-    pad.value += "\n\n" + out;
-}
-
-function saveNotepad() {
-    const text = document.getElementById("notepad").value;
-    const blob = new Blob([text], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "notes.txt";
-    a.click();
 }
 </script>
 
