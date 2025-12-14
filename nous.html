@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="https://raw.githubusercontent.com/ghostm68/inktwo/main/Images/favicon.ico" />
-    <script src="https://js.puter.com/v2/" data-cfasync="false"></script>
     <title>Ai Writing Machine</title>
       <style>
         body {
@@ -253,7 +252,19 @@ Ready. Select an engine and write.
         Powered by Puter.js
     </div>
 
+  <!-- Load Puter FIRST before any other scripts -->
+  <script src="https://js.puter.com/v2/"></script>
+  
   <script>
+// Wait for Puter to be fully loaded
+function initializeApp() {
+    if (typeof puter === 'undefined') {
+        console.error('Puter.js failed to load');
+        document.getElementById('output').innerHTML = '<span style="color: #ff0000;">❌ ERROR: Puter.js failed to load.<br><br>This might be caused by:<br>• Cloudflare Rocket Loader interference<br>• Ad blocker<br>• Network issues<br><br>Try disabling Rocket Loader in Cloudflare settings.</span>';
+        document.getElementById('generateButton').disabled = true;
+        return;
+    }
+
 /* ============================================================
    FONT SELECTOR
 ============================================================ */
@@ -323,27 +334,24 @@ document.getElementById('generateButton').addEventListener('click', async functi
 
     try {
 
-        const response = await puter.ai.chat(prompt, {
+        const response = await puter.ai.chat({
             model: model,
+            messages: [
+                { role: "user", content: prompt }
+            ],
             temperature: 0.7,
             max_tokens: tokenLimit
         });
 
         output.classList.remove('generating');
 
-        // Handle different response formats
-        let text;
-        if (typeof response === "string") {
-            text = response;
-        } else if (response?.message?.content) {
-            text = response.message.content;
-        } else if (response?.choices?.[0]?.message?.content) {
-            text = response.choices[0].message.content;
+        // Puter returns either .message.content or plain text
+        if (typeof response === "object" && response.message) {
+            output.textContent = response.message.content;
         } else {
-            text = JSON.stringify(response, null, 2);
+            output.textContent = response;
         }
 
-        output.textContent = text;
         copyBtn.disabled = false;
 
     } catch (error) {
@@ -365,6 +373,15 @@ document.getElementById('prompt').addEventListener('keydown', function(e) {
         document.getElementById('generateButton').click();
     }
 });
+}
+
+// Initialize when page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOMContentLoaded already fired
+    initializeApp();
+}
 </script>
 
 </body>
