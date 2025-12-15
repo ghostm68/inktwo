@@ -6,7 +6,7 @@
     <title>INK REALM | AI Writing Terminal</title>
     
     <!-- Meta Data -->
-    <meta name="description" content="INK REALM | AI Writing Terminal. A monochrome neural interface for creative writing and text generation powered by Google's Gemini & Gemma models via Puter.js. Cyberpunk writing environment with minimalist aesthetics.">
+    <meta name="description" content="INK REALM | AI Writing Terminal. A monochrome neural interface for creative writing and text generation powered by Google's Gemini & Gemma models via Puter.js. Literary writing environment with minimalist aesthetics.">
     <meta name="keywords" content="AI writing, creative writing, Google Gemini, Gemma models, Puter.js, cyberpunk writing, text generation, neural interface, black and white aesthetic, writing assistant, AI author, creative writing app">
     <meta name="author" content="INKREALM-NEXUS">
     <meta name="copyright" content="Copyright 2026 INKREALM-NEXUS. All rights reserved.">
@@ -324,218 +324,220 @@
         </div>
     </footer>
 
-    <script>
-        class InkRealmTerminal {
-            constructor() {
-                // Default Model: Gemma 2 9B
-                this.currentModel = 'google/gemma-2-9b-it';
-                this.chatHistory = [];
-                this.isOnline = false;
-                this.isGenerating = false;
+<script>
+    class InkRealmTerminal {
+        constructor() {
+            // Default visual selection
+            this.currentModel = 'google/gemma-2-9b-it';
+            
+            // === THE TRANSLATOR ===
+            // This maps your "Fancy HTML Names" (Left) to "Real System IDs" (Right)
+            this.modelMap = {
+                // HTML Value                       // Real System ID (Puter/OpenRouter)
+                'google/gemma-2-9b-it':             'google/gemma-2-9b-it',
+                'gemini-2.5-flash':                 'google/gemini-flash-1.5',
+                'gemini-2.5-pro':                   'google/gemini-pro-1.5',
+                'gemini-3-pro-preview':             'google/gemini-pro-1.5', 
+                'mistral-large-latest':             'mistral-large', 
+                'mistral-medium':                   'mistral-medium'
+            };
 
-                // Updated System Prompt for Chat + Creativity
-                this.systemPrompt = `You are a sophisticated AI interface in a cyberpunk terminal environment.
+            this.isOnline = false;
+            this.isGenerating = false;
+
+            this.systemPrompt = `You are a sophisticated AI interface in a literary terminal environment.
 Your Role: Helpful Assistant & Creative Engine.
-
 Modes:
 1. Chat: When the user greets you or asks questions, reply helpfully, concisely, and intelligently.
 2. Create: When asked to write stories, poems, or essays, provide high-quality, literary creative writing.
+Style: Maintain a professional, slightly technical "terminal" tone but remain warm and helpful.`;
 
-Style: Maintain a professional, slightly technical "terminal" tone but remain warm and helpful.
-Do not refuse creative requests.`;
+            this.init();
+        }
 
-                this.init();
-            }
+        async init() {
+            this.runSplash();
+            this.setupEvents();
+            setTimeout(() => this.connectSystem(), 1500);
+        }
 
-            async init() {
-                this.runSplash();
-                this.setupEvents();
-                setTimeout(() => this.connectPuter(), 1000);
-            }
-
-            runSplash() {
-                const splash = document.getElementById('glitch-splash');
-                const header = document.querySelector('.header');
-                const writingContainer = document.getElementById('writing-container');
-                const notepadPanel = document.getElementById('notepad-panel');
-                const footer = document.getElementById('footer');
-                
+        runSplash() {
+            const splash = document.getElementById('glitch-splash');
+            const header = document.querySelector('.header');
+            const writingContainer = document.getElementById('writing-container');
+            const notepadPanel = document.getElementById('notepad-panel');
+            const footer = document.getElementById('footer');
+            
+            setTimeout(() => {
+                splash.style.opacity = '0';
+                splash.style.transition = 'opacity 1s ease';
                 setTimeout(() => {
-                    splash.style.opacity = '0';
-                    splash.style.transition = 'opacity 1s ease';
-                    setTimeout(() => {
-                        splash.style.display = 'none';
-                        header.style.display = 'flex';
-                        writingContainer.style.display = 'flex';
-                        notepadPanel.style.display = 'flex';
-                        footer.style.display = 'flex';
-                    }, 1000);
-                }, 3000);
-            }
+                    splash.style.display = 'none';
+                    header.style.display = 'flex';
+                    writingContainer.style.display = 'flex';
+                    notepadPanel.style.display = 'flex';
+                    footer.style.display = 'flex';
+                }, 1000);
+            }, 2500);
+        }
 
-            async connectPuter() {
-                try {
-                    if (typeof puter === 'undefined') {
-                        throw new Error("Puter SDK not loaded");
-                    }
-                    this.isOnline = true;
-                    document.getElementById('status-text').textContent = "ONLINE";
-                    document.getElementById('status-dot').style.background = "#00ff00";
-                    console.log("Puter SDK connected. Initial Model:", this.currentModel);
-                } catch (e) {
-                    console.error("Connection failed", e);
-                    this.isOnline = false;
-                    document.getElementById('status-text').textContent = "OFFLINE";
-                    document.getElementById('status-dot').classList.add('error');
-                    this.addSystemMessage("⚠ OFFLINE MODE: Puter SDK unavailable.");
+        async connectSystem() {
+            try {
+                if (typeof puter === 'undefined') {
+                    throw new Error("Puter OS not detected");
                 }
-            }
-
-            setupEvents() {
-                // Model dropdown listener
-                document.getElementById('model-select').addEventListener('change', (e) => {
-                    this.currentModel = e.target.value;
-                    const modelName = e.target.options[e.target.selectedIndex].text;
-                    this.addSystemMessage(`MODEL SWITCHED TO: ${modelName.toUpperCase()}`);
-                    // We do not clear chat history so the conversation can continue with a new brain
-                });
-
-                // Send button
-                document.getElementById('send-button').addEventListener('click', () => this.generate());
-
-                // Enter key
-                document.getElementById('text-input').addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        this.generate();
-                    }
-                });
-
-                // Notepad controls
-                document.getElementById('export-notepad').addEventListener('click', () => this.exportNotepad());
-                document.getElementById('clear-notepad').addEventListener('click', () => {
-                    if (confirm('Clear all notes?')) document.getElementById('notepad').value = '';
-                });
-            }
-
-            exportNotepad() {
-                const content = document.getElementById('notepad').value;
-                if (!content.trim()) {
-                    alert('Notepad is empty.');
-                    return;
-                }
-                const blob = new Blob([content], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `inkrealm-notes-${Date.now()}.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            async generate() {
-                if (this.isGenerating) return;
-
-                const input = document.getElementById('text-input');
-                const sendBtn = document.getElementById('send-button');
-                const prompt = input.value.trim();
                 
-                if (!prompt) return;
-
-                this.isGenerating = true;
-                sendBtn.disabled = true;
-                sendBtn.textContent = '...';
-
-                this.addMessage('user', prompt);
-                input.value = '';
-
-                const loadingId = this.addLoading();
-
-                try {
-                    if (!this.isOnline) throw new Error("System offline");
-
-                    const response = await puter.ai.chat(this.currentModel, [
-                        { role: 'system', content: this.systemPrompt },
-                        ...this.chatHistory,
-                        { role: 'user', content: prompt }
-                    ]);
-
-                    const text = response?.message?.content || response?.text || (typeof response === 'string' ? response : JSON.stringify(response));
-                    
-                    this.removeLoading(loadingId);
-                    this.addMessage('ai', text);
-
-                    this.chatHistory.push({ role: 'user', content: prompt });
-                    this.chatHistory.push({ role: 'assistant', content: text });
-                    
-                    // Keep history manageable
-                    if (this.chatHistory.length > 20) {
-                        this.chatHistory = this.chatHistory.slice(-20);
-                    }
-
-                } catch (error) {
-                    console.error("Generation error:", error);
-                    this.removeLoading(loadingId);
-                    this.addMessage('ai', `[ERROR: ${error.message || 'Unknown API Error'}]`);
-                } finally {
-                    this.isGenerating = false;
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = 'SEND';
-                }
-            }
-
-            addMessage(role, text) {
-                const container = document.getElementById('chat-messages');
-                const div = document.createElement('div');
-                div.className = `message ${role}`;
+                this.isOnline = true;
+                document.getElementById('status-text').textContent = "ONLINE";
+                document.getElementById('status-dot').style.background = "#00ff00";
                 
-                const meta = role === 'user' ? 'YOU' : 'INK REALM';
-                const formattedText = text.replace(/\n/g, '<br>');
-
-                div.innerHTML = `
-                    <div class="message-header">${meta}</div>
-                    <div class="message-content">${formattedText}</div>
-                `;
-                
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-            }
-
-            addSystemMessage(text) {
-                const container = document.getElementById('chat-messages');
-                const div = document.createElement('div');
-                div.className = 'message system';
-                div.textContent = text;
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-            }
-
-            addLoading() {
-                const container = document.getElementById('chat-messages');
-                const div = document.createElement('div');
-                div.className = 'message ai';
-                div.id = 'loading-indicator';
-                div.innerHTML = `
-                    <div class="message-header">PROCESSING</div>
-                    <div class="message-content loading-dots"></div>
-                `;
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-                return 'loading-indicator';
-            }
-
-            removeLoading(id) {
-                const el = document.getElementById(id);
-                if (el) el.remove();
+                console.log("System Online. Default Model:", this.currentModel);
+            } catch (e) {
+                console.error("Connection failed", e);
+                this.isOnline = false;
+                document.getElementById('status-text').textContent = "OFFLINE";
+                document.getElementById('status-dot').classList.add('error');
+                this.addSystemMessage("⚠ OFFLINE MODE: System Connection Failed.");
             }
         }
 
-        // Initialize App
-        document.addEventListener('DOMContentLoaded', () => {
-            window.app = new InkRealmTerminal();
-        });
-    </script>
+        setupEvents() {
+            // Model Selector
+            const modelSelect = document.getElementById('model-select');
+            modelSelect.addEventListener('change', (e) => {
+                this.currentModel = e.target.value;
+                const modelName = e.target.options[e.target.selectedIndex].text;
+                this.addSystemMessage(`TARGET MODEL RECONFIGURED: ${modelName.toUpperCase()}`);
+            });
+
+            // Input Handling
+            document.getElementById('send-button').addEventListener('click', () => this.generate());
+            document.getElementById('text-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.generate();
+                }
+            });
+
+            // Notepad
+            document.getElementById('export-notepad').addEventListener('click', () => this.exportNotepad());
+            document.getElementById('clear-notepad').addEventListener('click', () => {
+                if (confirm('Erase all local data?')) document.getElementById('notepad').value = '';
+            });
+        }
+
+        exportNotepad() {
+            const content = document.getElementById('notepad').value;
+            if (!content.trim()) {
+                alert('Buffer empty.');
+                return;
+            }
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `inkrealm-log-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async generate() {
+            if (this.isGenerating) return;
+
+            const input = document.getElementById('text-input');
+            const sendBtn = document.getElementById('send-button');
+            const prompt = input.value.trim();
+            
+            if (!prompt) return;
+
+            this.isGenerating = true;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+
+            this.addMessage('user', prompt);
+            input.value = '';
+
+            const loadingId = this.addLoading();
+
+            try {
+                if (!this.isOnline) throw new Error("Neural Link Severed");
+
+                // TRANSLATION STEP: Convert the dropdown value to the Real ID
+                const actualModelID = this.modelMap[this.currentModel] || this.currentModel;
+                
+                // EXECUTE (Stateless - No History)
+                const response = await puter.ai.chat(actualModelID, [
+                    { role: 'system', content: this.systemPrompt },
+                    { role: 'user', content: prompt }
+                ]);
+
+                const text = response?.message?.content || response?.text || (typeof response === 'string' ? response : JSON.stringify(response));
+                
+                this.removeLoading(loadingId);
+                this.addMessage('ai', text);
+
+            } catch (error) {
+                console.error("Processing error:", error);
+                this.removeLoading(loadingId);
+                this.addMessage('ai', `[SYSTEM ERROR: ${error.message || 'Processing Fault'}]`);
+            } finally {
+                this.isGenerating = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'SEND';
+            }
+        }
+
+        addMessage(role, text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            const meta = role === 'user' ? 'USER' : 'TERMINAL';
+            const formattedText = text.replace(/\n/g, '<br>');
+
+            div.innerHTML = `
+                <div class="message-header">${meta}</div>
+                <div class="message-content">${formattedText}</div>
+            `;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        addSystemMessage(text) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'message system';
+            div.textContent = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        addLoading() {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'message ai';
+            div.id = 'loading-indicator';
+            div.innerHTML = `
+                <div class="message-header">OCTOPUS sQuirTing</div>
+                <div class="message-content loading-dots"></div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return 'loading-indicator';
+        }
+
+        removeLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        window.app = new InkRealmTerminal();
+    });
+</script>
 </body>
 </html>
