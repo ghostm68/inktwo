@@ -266,24 +266,47 @@ Style: Maintain a professional, slightly technical "terminal" tone but remain wa
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
-            async generate(){
-                if(this.isGenerating)return;
-                const input=document.getElementById('text-input');
-                const sendBtn=document.getElementById('send-button');
-                const prompt=input.value.trim();
-                if(!prompt)return;
-                this.isGenerating=true;
-                sendBtn.disabled=true;
-                sendBtn.textContent='...';
-                this.addMessage('user',prompt);
-                input.value='';
-                const loadingId=this.addLoading();
-                try{
-                    if(!this.isOnline) throw new Error('Neural Link Severed');
-                    const response=await puter.ai.chat(this.currentModel,[
-                        {role:'system',content:this.systemPrompt},
-                        {role:'user',content:prompt}
-                    ]);
+           async generate(){
+    if(this.isGenerating)return;
+    const input=document.getElementById('text-input');
+    const sendBtn=document.getElementById('send-button');
+    const prompt=input.value.trim();
+    if(!prompt)return;
+    this.isGenerating=true;
+    sendBtn.disabled=true;
+    sendBtn.textContent='...';
+    this.addMessage('user',prompt);
+    input.value='';
+    const loadingId=this.addLoading();
+
+    try {
+        if (!this.isOnline) throw new Error('Neural Link Severed');
+
+        const raw = await puter.ai.chat(this.currentModel, [
+            { role: 'system', content: this.systemPrompt },
+            { role: 'user',   content: prompt }
+        ]);
+
+        // ----------  handle Puter error envelope  ----------
+        if (raw?.success === false) {
+            throw new Error(raw.error?.message || 'Model rejected the request');
+        }
+
+        // ----------  extract usable text  ----------
+        const text = raw?.message?.content || raw?.text || (typeof raw === 'string' ? raw : JSON.stringify(raw));
+        this.removeLoading(loadingId);
+        this.addMessage('ai', text);
+
+    } catch (err) {
+        console.error('Processing error:', err);
+        this.removeLoading(loadingId);
+        this.addMessage('ai', `[SYSTEM ERROR: ${err.message || 'Processing Fault'}]`);
+    } finally {
+        this.isGenerating=false;
+        sendBtn.disabled=false;
+        sendBtn.textContent='SEND';
+    }
+ }            
                     const text=response?.message?.content||response?.text||(typeof response==='string'?response:JSON.stringify(response));
                     this.removeLoading(loadingId);
                     this.addMessage('ai',text);
