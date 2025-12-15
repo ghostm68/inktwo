@@ -112,6 +112,63 @@
         .loading-dots::after{content:'';animation:loading-dots 1.5s steps(4,end) infinite}
         @keyframes loading-dots{0%,20%{content:'.'}40%{content:'..'}60%{content:'...'}80%,100%{content:''}}
     </style>
+    <style>
+    /* ORB CONTAINER */
+.orb-container {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 15px; /* Spacing between orb and title */
+    width: 50px;
+    height: 50px;
+    position: relative;
+}
+
+/* THE SVG SHAPE */
+.glitch-orb {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke-width: 3;
+    overflow: visible;
+}
+
+/* PARTS COLORS */
+.orb-circle { stroke: #ff0033; } /* Red Circle */
+.orb-triangle { stroke: #ffffff; } /* White Triangle */
+
+/* IDLE ANIMATION (Slow breathe/rotate) */
+.orb-container svg {
+    animation: slow-spin 10s linear infinite;
+    filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
+    transition: all 0.2s ease;
+}
+
+/* HOVER STATE (The Glitch) */
+.orb-container:hover svg {
+    animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+    filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
+            drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
+}
+
+.orb-container:hover .orb-triangle {
+    fill: rgba(255, 255, 255, 0.1);
+}
+
+/* KEYFRAMES */
+@keyframes slow-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes glitch-shake {
+    0% { transform: translate(0) rotate(0deg); }
+    20% { transform: translate(-2px, 2px) rotate(-5deg); }
+    40% { transform: translate(-2px, -2px) rotate(5deg); }
+    60% { transform: translate(2px, 2px) rotate(-5deg); }
+    80% { transform: translate(2px, -2px) rotate(5deg); }
+    100% { transform: translate(0) rotate(0deg); }
+}
+    </style>
 </head>
 <body>
     <div id="crt-overlay"><div class="scanline"></div></div>
@@ -120,8 +177,13 @@
     <div id="glitch-splash" class="glitch-splash">
         <div class="glitch-container" style="text-align:center">
             <div class="glitch-text">
-                INK <img src="https://github.com/ghostm68/pantheon/raw/main/mw.inkrealm.info.webp" class="splash-icon" alt="INK"> REALM
-            </div>
+                INK <img src="https://github.com/ghostm68/pantheon/raw/main/mw.inkrealm.info.webp" class="splash-icon" alt="INK">realm     
+            </div><div class="orb-container">
+            <svg class="glitch-orb" viewBox="0 0 100 100">
+                <circle class="orb-circle" cx="50" cy="50" r="45" />
+                <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+            </svg>
+        </div>
             <div class="glitch-subtext">AI WRITING TERMINAL</div>
             <div class="glitch-subtext" style="font-size:.7rem;margin-top:15px;opacity:.7">INITIALIZING PROTOCOLS…</div>
         </div>
@@ -224,17 +286,29 @@ Style: Maintain a professional, slightly technical "terminal" tone but remain wa
             }
             async connectSystem(){
                 try{
-                    if(typeof puter==='undefined'||!puter?.ai?.chat) throw new Error('Puter OS not detected');
+                    // Wait for Puter.js to load with retries
+                    let retries = 3;
+                    while (retries > 0 && (typeof puter === 'undefined' || !puter?.ai?.chat)) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        retries--;
+                    }
+                    
+                    if (typeof puter === 'undefined' || !puter?.ai?.chat) {
+                        throw new Error('Puter.js not detected');
+                    }
+                    
                     this.isOnline=true;
                     document.getElementById('status-text').textContent='ONLINE';
                     document.getElementById('status-dot').style.background='#0f0';
+                    this.addSystemMessage('✓ System Online. Neural interface established.');
                     console.log('System Online. Default Model:',this.currentModel);
                 }catch(e){
                     console.error('Connection failed',e);
                     this.isOnline=false;
                     document.getElementById('status-text').textContent='OFFLINE';
                     document.getElementById('status-dot').classList.add('error');
-                    this.addSystemMessage('⚠ OFFLINE MODE: System Connection Failed.');
+                    this.addSystemMessage('⚠ OFFLINE MODE: API connection failed. Check console.');
+                    this.addSystemMessage('ℹ You can still use the notepad for local writing.');
                 }
             }
             setupEvents(){
@@ -266,52 +340,52 @@ Style: Maintain a professional, slightly technical "terminal" tone but remain wa
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
-    async generate(){
-    if(this.isGenerating)return;
-    const input=document.getElementById('text-input');
-    const sendBtn=document.getElementById('send-button');
-    const prompt=input.value.trim();
-    if(!prompt)return;
-    this.isGenerating=true;
-    sendBtn.disabled=true;
-    sendBtn.textContent='...';
-    this.addMessage('user',prompt);
-    input.value='';
-    const loadingId=this.addLoading();
+            async generate(){
+                if(this.isGenerating)return;
+                
+                const input=document.getElementById('text-input');
+                const sendBtn=document.getElementById('send-button');
+                const prompt=input.value.trim();
+                
+                if(!prompt)return;
+                
+                this.isGenerating=true;
+                sendBtn.disabled=true;
+                sendBtn.textContent='...';
+                
+                this.addMessage('user',prompt);
+                input.value='';
+                const loadingId=this.addLoading();
 
-    try {
-        if (!this.isOnline) throw new Error('Neural Link Severed');
-
-        const raw = await puter.ai.chat(this.currentModel, [
-            { role: 'system', content: this.systemPrompt },
-            { role: 'user',   content: prompt }
-        ]);
-
-        if (raw?.success === false) {
-            throw new Error(raw.error?.message || 'Model rejected the request');
-        }
-
-        const text = raw?.message?.content || raw?.text || (typeof raw === 'string' ? raw : JSON.stringify(raw));
-        this.removeLoading(loadingId);
-        this.addMessage('ai', text);
-
-    } catch (err) {
-        console.error('Processing error:', err);
-        this.removeLoading(loadingId);
-        this.addMessage('ai', `[SYSTEM ERROR: ${err.message || 'Processing Fault'}]`);
-    } finally {
-        this.isGenerating=false;
-        sendBtn.disabled=false;
-        sendBtn.textContent='SEND';
-    }
-}                const text=response?.message?.content||response?.text||(typeof response==='string'?response:JSON.stringify(response));
+                try {
+                    if (!this.isOnline) throw new Error('Neural Link Severed');
+                    
+                    // Check if Puter.js is available
+                    if (typeof puter === 'undefined' || !puter.ai || !puter.ai.chat) {
+                        throw new Error('Puter.js AI service not available');
+                    }
+                    
+                    const raw = await puter.ai.chat(this.currentModel, [
+                        { role: 'system', content: this.systemPrompt },
+                        { role: 'user', content: prompt }
+                    ]);
+                    
+                    if (raw?.success === false) {
+                        throw new Error(raw.error?.message || 'Model rejected the request');
+                    }
+                    
+                    const text = raw?.message?.content || raw?.text || 
+                                (typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2));
+                    
                     this.removeLoading(loadingId);
-                    this.addMessage('ai',text);
-                }catch(error){
-                    console.error('Processing error:',error);
+                    this.addMessage('ai', text);
+                    
+                } catch (err) {
+                    console.error('Processing error:', err);
                     this.removeLoading(loadingId);
-                    this.addMessage('ai',`[SYSTEM ERROR: ${error.message||'Processing Fault'}]`);
-                }finally{
+                    this.addMessage('ai', `[SYSTEM ERROR: ${err.message || 'Processing Fault'}]`);
+                    this.addSystemMessage('⚠ Switch to offline mode or check console for details.');
+                } finally {
                     this.isGenerating=false;
                     sendBtn.disabled=false;
                     sendBtn.textContent='SEND';
@@ -359,5 +433,23 @@ Style: Maintain a professional, slightly technical "terminal" tone but remain wa
             window.app=new InkRealmTerminal();
         });
     </script>
+        <script>
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            // If Puter fails, at least show the UI after a timeout
+            setTimeout(() => {
+                const splash = document.getElementById('glitch-splash');
+                if (splash && splash.style.display !== 'none') {
+                    splash.style.display = 'none';
+                    document.querySelector('.header').style.display = 'flex';
+                    document.getElementById('writing-container').style.display = 'flex';
+                    document.getElementById('notepad-panel').style.display = 'flex';
+                    document.getElementById('footer').style.display = 'flex';
+                }
+            }, 4000);
+        });
+    </script>
+</body>
+</html>
 </body>
 </html>
