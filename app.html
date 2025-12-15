@@ -252,168 +252,253 @@
         </div>
     </footer>
 
+    <script src="https://js.puter.com/v2"></script>
 <script>
-    class InkRealmTerminal{
-        constructor(){
-            this.currentModel='moonshotai/kimi-k2';
-            this.isOnline=false;
-            this.isGenerating=false;
-            this.systemPrompt=`You are a sophisticated AI interface in a literary terminal environment.
+class InkRealmTerminal {
+    constructor() {
+        this.currentModel = 'moonshotai/kimi-k2';
+        this.isOnline = false;
+        this.isGenerating = false;
+
+        this.systemPrompt = `
+You are a sophisticated AI interface in a literary terminal environment.
 Your Role: Helpful Assistant & Creative Engine.
 Modes:
-1. Chat: When the user greets you or asks questions, reply helpfully, concisely, and intelligently.
-2. Create: When asked to write stories, poems, or essays, provide high-quality, literary creative writing.
-Style: Maintain a professional, slightly technical "terminal" tone but remain warm and helpful.`;
-            this.init();
-        }
-        async init(){
-            this.runSplash();
-            this.setupEvents();
-            setTimeout(()=>this.connectSystem(),1500);
-        }
-        runSplash(){
-            const splash=document.getElementById('glitch-splash');
-            const header=document.querySelector('.header');
-            const writingContainer=document.getElementById('writing-container');
-            const notepadPanel=document.getElementById('notepad-panel');
-            const footer=document.getElementById('footer');
-            setTimeout(()=>{
-                splash.style.opacity='0';
-                splash.style.transition='opacity 1s ease';
-                setTimeout(()=>{
-                    splash.style.display='none';
-                    header.style.display='flex';
-                    writingContainer.style.display='flex';
-                    notepadPanel.style.display='flex';
-                    footer.style.display='flex';
-                },1000);
-            },2500);
-        }
-        async connectSystem(){
-            try{
-                if(typeof puter==='undefined'||!puter?.ai?.chat) throw new Error('Puter OS not detected');
-                this.isOnline=true;
-                document.getElementById('status-text').textContent='ONLINE';
-                document.getElementById('status-dot').style.background='#0f0';
-                console.log('System Online. Default Model:',this.currentModel);
-            }catch(e){
-                console.error('Connection failed',e);
-                this.isOnline=false;
-                document.getElementById('status-text').textContent='OFFLINE';
-                document.getElementById('status-dot').classList.add('error');
-                this.addSystemMessage('⚠ OFFLINE MODE: System Connection Failed.');
+1. Chat: Respond helpfully and concisely.
+2. Create: Produce high-quality creative writing.
+Tone: Professional terminal aesthetic, warm, intelligent.
+        `.trim();
+
+        this.init();
+    }
+
+    init() {
+        this.runSplash();
+        this.setupEvents();
+        setTimeout(() => this.connectSystem(), 1200);
+    }
+
+    /* -----------------------------------------------------------
+        SPLASH ANIMATION
+    ----------------------------------------------------------- */
+    runSplash() {
+        const splash = document.getElementById('glitch-splash');
+        const header = document.querySelector('.header');
+        const writingContainer = document.getElementById('writing-container');
+        const notepadPanel = document.getElementById('notepad-panel');
+        const footer = document.getElementById('footer');
+
+        setTimeout(() => {
+            splash.style.opacity = '0';
+            splash.style.transition = 'opacity 1s ease';
+
+            setTimeout(() => {
+                splash.style.display = 'none';
+                header.style.display = 'flex';
+                writingContainer.style.display = 'flex';
+                notepadPanel.style.display = 'flex';
+                footer.style.display = 'flex';
+            }, 1000);
+        }, 2500);
+    }
+
+    /* -----------------------------------------------------------
+        PUTER INITIALIZATION
+    ----------------------------------------------------------- */
+    async connectSystem() {
+        try {
+            // Safe detection for Puter runtime
+            if (!window.puter || !puter.ai || !puter.ai.chat) {
+                throw new Error("Puter AI runtime not found");
             }
-        }
-        setupEvents(){
-            const modelSelect=document.getElementById('model-select');
-            modelSelect.addEventListener('change',(e)=>{
-                this.currentModel=e.target.value;
-                const modelName=e.target.options[e.target.selectedIndex].text;
-                this.addSystemMessage(`TARGET MODEL RECONFIGURED: ${modelName.toUpperCase()}`);
-            });
-            document.getElementById('send-button').addEventListener('click',()=>this.generate());
-            document.getElementById('text-input').addEventListener('keydown',(e)=>{
-                if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();this.generate();}
-            });
-            document.getElementById('export-notepad').addEventListener('click',()=>this.exportNotepad());
-            document.getElementById('clear-notepad').addEventListener('click',()=>{
-                if(confirm('Erase all local data?')) document.getElementById('notepad').value='';
-            });
-        }
-        exportNotepad(){
-            const content=document.getElementById('notepad').value;
-            if(!content.trim()){alert('Buffer empty.');return;}
-            const blob=new Blob([content],{type:'text/plain'});
-            const url=URL.createObjectURL(blob);
-            const a=document.createElement('a');
-            a.href=url;
-            a.download=`inkrealm-log-${Date.now()}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-        async generate(){
-            if(this.isGenerating)return;
-            const input=document.getElementById('text-input');
-            const sendBtn=document.getElementById('send-button');
-            const prompt=input.value.trim();
-            if(!prompt)return;
-            this.isGenerating=true;
-            sendBtn.disabled=true;
-            sendBtn.textContent='...';
-            this.addMessage('user',prompt);
-            input.value='';
-            const loadingId=this.addLoading();
 
-            try {
-                if (!this.isOnline) throw new Error('Neural Link Severed');
+            this.isOnline = true;
 
-                const raw = await puter.ai.chat(this.currentModel, [
-                    { role: 'system', content: this.systemPrompt },
-                    { role: 'user',   content: prompt }
-                ]);
+            document.getElementById("status-text").textContent = "ONLINE";
+            document.getElementById("status-dot").style.background = "#0f0";
 
-                if (raw?.success === false) {
-                    throw new Error(raw.error?.message || 'Model rejected the request');
-                }
+            console.log("[INK REALM] Connected to Puter AI");
+            console.log("Active Model:", this.currentModel);
 
-                const text = raw?.message?.content || raw?.text || (typeof raw === 'string' ? raw : JSON.stringify(raw));
-                this.removeLoading(loadingId);
-                this.addMessage('ai', text);
+        } catch (err) {
+            console.warn("[INK REALM] Offline mode activated:", err.message);
 
-            } catch (err) {
-                console.error('Processing error:', err);
-                this.removeLoading(loadingId);
-                this.addMessage('ai', `[SYSTEM ERROR: ${err.message || 'Processing Fault'}]`);
-            } finally {
-                this.isGenerating=false;
-                sendBtn.disabled=false;
-                sendBtn.textContent='SEND';
-            }
-        }
-        addMessage(role,text){
-            const container=document.getElementById('chat-messages');
-            const div=document.createElement('div');
-            div.className=`message ${role}`;
-            const meta=role==='user'?'USER':'TERMINAL';
-            div.innerHTML=`
-                <div class="message-header">${meta}</div>
-                <div class="message-content">${text.replace(/\n/g,'<br>')}</div>
-            `;
-            container.appendChild(div);
-            container.scrollTop=container.scrollHeight;
-        }
-        addSystemMessage(text){
-            const container=document.getElementById('chat-messages');
-            const div=document.createElement('div');
-            div.className='message system';
-            div.textContent=text;
-            container.appendChild(div);
-            container.scrollTop=container.scrollHeight;
-        }
-        addLoading(){
-            const container=document.getElementById('chat-messages');
-            const div=document.createElement('div');
-            div.className='message ai';
-            div.id='loading-indicator';
-            div.innerHTML=`
-                <div class="message-header">OCTOPUS sQuirTing</div>
-                <div class="message-content loading-dots"></div>
-            `;
-            container.appendChild(div);
-            container.scrollTop=container.scrollHeight;
-            return'loading-indicator';
-        }
-        removeLoading(id){
-            const el=document.getElementById(id);
-            if(el)el.remove();
+            this.isOnline = false;
+
+            document.getElementById("status-text").textContent = "OFFLINE";
+            document.getElementById("status-dot").classList.add("error");
+
+            this.addSystemMessage("⚠ OFFLINE MODE: Puter unavailable. No AI responses.");
         }
     }
-    document.addEventListener('DOMContentLoaded',()=>{
-        window.app=new InkRealmTerminal();
-    });
+
+    /* -----------------------------------------------------------
+        EVENT SETUP
+    ----------------------------------------------------------- */
+    setupEvents() {
+        const modelSelect = document.getElementById("model-select");
+
+        modelSelect.addEventListener("change", e => {
+            this.currentModel = e.target.value;
+            const name = e.target.options[e.target.selectedIndex].text;
+            this.addSystemMessage(`TARGET MODEL RECONFIGURED → ${name.toUpperCase()}`);
+        });
+
+        document.getElementById("send-button").addEventListener("click", () => this.generate());
+
+        document.getElementById("text-input").addEventListener("keydown", e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                this.generate();
+            }
+        });
+
+        document.getElementById("export-notepad").addEventListener("click", () => this.exportNotepad());
+
+        document.getElementById("clear-notepad").addEventListener("click", () => {
+            if (confirm("Erase all local data?")) {
+                document.getElementById("notepad").value = "";
+            }
+        });
+    }
+
+    /* -----------------------------------------------------------
+        NOTEPAD EXPORT
+    ----------------------------------------------------------- */
+    exportNotepad() {
+        const content = document.getElementById("notepad").value;
+        if (!content.trim()) return alert("Buffer empty.");
+
+        const blob = new Blob([content], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        a.href = url;
+        a.download = `inkrealm-log-${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /* -----------------------------------------------------------
+        GENERATE MESSAGE VIA PUTER
+    ----------------------------------------------------------- */
+    async generate() {
+        if (this.isGenerating) return;
+
+        const input = document.getElementById("text-input");
+        const sendBtn = document.getElementById("send-button");
+
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        if (!this.isOnline) {
+            this.addMessage("ai", "⚠ OFFLINE: No AI runtime available.");
+            return;
+        }
+
+        this.isGenerating = true;
+        sendBtn.disabled = true;
+        sendBtn.textContent = "...";
+
+        this.addMessage("user", prompt);
+        input.value = "";
+
+        const loadingId = this.addLoading();
+
+        try {
+            const raw = await puter.ai.chat(this.currentModel, [
+                { role: "system", content: this.systemPrompt },
+                { role: "user",   content: prompt }
+            ]);
+
+            if (!raw) throw new Error("Empty response");
+
+            const text =
+                raw?.message?.content ||
+                raw?.text ||
+                (typeof raw === "string" ? raw : JSON.stringify(raw));
+
+            this.removeLoading(loadingId);
+            this.addMessage("ai", text);
+
+        } catch (err) {
+            this.removeLoading(loadingId);
+            console.error("[INK REALM] Error:", err);
+            this.addMessage("ai", `[SYSTEM ERROR: ${err.message}]`);
+        } finally {
+            this.isGenerating = false;
+            sendBtn.disabled = false;
+            sendBtn.textContent = "SEND";
+        }
+    }
+
+    /* -----------------------------------------------------------
+        MESSAGE HELPERS
+    ----------------------------------------------------------- */
+    addMessage(role, text) {
+        const container = document.getElementById("chat-messages");
+
+        const div = document.createElement("div");
+        div.className = `message ${role}`;
+
+        const meta = role === "user" ? "USER" : "TERMINAL";
+
+        div.innerHTML = `
+            <div class="message-header">${meta}</div>
+            <div class="message-content">${text.replace(/\n/g, "<br>")}</div>
+        `;
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    addSystemMessage(text) {
+        const container = document.getElementById("chat-messages");
+        const div = document.createElement("div");
+
+        div.className = "message system";
+        div.textContent = text;
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    addLoading() {
+        const container = document.getElementById("chat-messages");
+        const id = "loading-" + Math.random().toString(36).slice(2);
+
+        const div = document.createElement("div");
+        div.className = "message ai";
+        div.id = id;
+
+        div.innerHTML = `
+            <div class="message-header">OCTOPUS sQuirTing</div>
+            <div class="message-content loading-dots"></div>
+        `;
+
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+
+        return id;
+    }
+
+    removeLoading(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+}
+
+/* -----------------------------------------------------------
+    INIT APP
+----------------------------------------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+    window.app = new InkRealmTerminal();
+});
 </script>
+
 </body>
 </html>
 </body>
