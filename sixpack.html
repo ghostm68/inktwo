@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODEL ARENA · INK REALM | 6-Model AI Comparison Interface</title>
+
+    <!-- SEO / Open-Graph / Twitter -->
+    <meta name="description" content="MODEL ARENA | Compare 6 AI models simultaneously in a brutalist monochrome interface. Powered by Puter.js - no API keys needed.">
+    <meta name="keywords" content="AI comparison,model arena,AI benchmark,Puter.js,GPT-4o,Grok,Gemini,Nova,Trinity,brutalist design,INK REALM">
+    <meta name="author" content="INKREALM-NEXUS">
+    <meta name="copyright" content="Copyright 2025 INKREALM-NEXUS. All rights reserved.">
+    <meta name="robots" content="index, follow">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://inkrealm.info/arena">
+    <meta property="og:title" content="MODEL ARENA · INK REALM | 6-Model AI Comparison">
+    <meta property="og:description" content="Compare 6 AI models simultaneously in a brutalist terminal interface. Powered by Puter.js.">
+    <meta property="og:image" content="https://github.com/ghostm68/pantheon/raw/main/mw.inkrealm.info.webp">
+    <meta property="og:image:alt" content="MODEL ARENA AI Comparison Interface">
+    <meta property="og:site_name" content="INK REALM MODEL ARENA">
+    <meta property="og:locale" content="en_US">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@inkrealm">
+    <meta name="twitter:creator" content="@inkrealm">
+    <meta name="twitter:title" content="MODEL ARENA · INK REALM">
+    <meta name="twitter:description" content="Compare 6 AI models simultaneously. Brutalist interface powered by Puter.js.">
+    <meta name="twitter:image" content="https://github.com/ghostm68/pantheon/raw/main/mw.inkrealm.info.webp">
+
+    <!-- Mobile -->
+    <meta name="theme-color" content="#000000">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+    <!-- Puter SDK -->
+    <script src="https://js.puter.com/v2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background: #000;
+            color: #999;
+            padding: 20px;
+            line-height: 1.4;
+        }
+
+        /* Splash Screen */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            pointer-events: none;
+        }
+
+        .splash-cube-container {
+            width: 400px;
+            height: 400px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .williams-cube {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: contrast(1.2);
+        }
+
+        .splash-subtext {
+            font-size: 32px;
+            color: #ff0033;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 0, 51, 0.5);
+        }
+
+        .splash-loading {
+            font-size: 18px;
+            color: #666;
+            margin-top: 20px;
+            letter-spacing: 2px;
+        }
+
+        .splash-loading::after {
+            content: '';
+            animation: loading-dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes loading-dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: ''; }
+        }
+
+        /* Fade out animation */
+        .splash-screen.fade-out {
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        /* CRT overlay */
+        #crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+        }
+
+        .scanline {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.5) 50%);
+            background-size: 100% 4px;
+            animation: scanline 10s linear infinite, flicker 0.15s infinite;
+        }
+
+        @keyframes scanline {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.4; }
+            100% { opacity: 0.3; }
+        }
+
+        /* Orb */
+        .orb-container {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+            width: 25px;
+            height: 25px;
+            position: relative;
+        }
+
+        .glitch-orb {
+            width: 100%;
+            height: 100%;
+            fill: none;
+            stroke-width: 3;
+            overflow: visible;
+        }
+
+        .orb-circle { stroke: #ff0033; }
+        .orb-triangle { stroke: #ffffff; }
+
+        .orb-container svg {
+            animation: slow-spin 10s linear infinite;
+            filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
+            transition: all 0.2s ease;
+        }
+
+        .orb-container:hover svg {
+            animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
+                    drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
+        }
+
+        .orb-container:hover .orb-triangle {
+            fill: rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes slow-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes glitch-shake {
+            0% { transform: translate(0) rotate(0deg); }
+            20% { transform: translate(-2px, 2px) rotate(-5deg); }
+            40% { transform: translate(-2px, -2px) rotate(5deg); }
+            60% { transform: translate(2px, 2px) rotate(-5deg); }
+            80% { transform: translate(2px, -2px) rotate(5deg); }
+            100% { transform: translate(0) rotate(0deg); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            border: 2px solid #333;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            height: 20px;
+            filter: grayscale(100%);
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #ff0033;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 0;
+            display: inline-block;
+        }
+
+        .subtitle {
+            font-size: 24px;
+            color: #666;
+            letter-spacing: 2px;
+        }
+
+        .input-section {
+            border: 2px solid #333;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: #000;
+        }
+
+        .input-label {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #prompt-input {
+            width: 100%;
+            min-height: 80px;
+            background: #000;
+            border: 1px solid #333;
+            color: #999;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            padding: 10px;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+
+        #prompt-input:focus {
+            outline: none;
+            border-color: #666;
+            background: #000;
+        }
+
+        #run-button {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            border: 2px solid #ff0033;
+            color: #ff0033;
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        #run-button:hover:not(:disabled) {
+            background: #ff0033;
+            color: #000;
+        }
+
+        #run-button:disabled {
+            background: #000;
+            border-color: #222;
+            color: #444;
+            cursor: not-allowed;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .model-box {
+            border: 2px solid #333;
+            background: #000;
+            padding: 12px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .model-header {
+            font-size: 18px;
+            color: #ff0033;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #222;
+        }
+
+        .model-output {
+            font-size: 14px;
+            color: #999;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            flex-grow: 1;
+            line-height: 1.4;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .model-status {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-top: 6px;
+        }
+
+        .error {
+            color: #ff0033;
+        }
+
+        .loading {
+            color: #666;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        footer {
+            border: 2px solid #333;
+            padding: 12px;
+            background: #000;
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .footer-left {
+            flex: 0 0 auto;
+        }
+
+        .footer-center {
+            flex: 1;
+            text-align: center;
+        }
+
+        .footer-right {
+            flex: 0 0 auto;
+        }
+
+        footer a {
+            color: #ff0033;
+            text-decoration: none;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        footer a:hover {
+            color: #666;
+        }
+
+        /* AIM box embedded in footer option */
+        .aim-embedded {
+            width: 220px;
+            border: 2px solid #333;
+            background: #1a1a1a;
+            font-family: 'VT323', monospace;
+        }
+
+        .aim-embedded .aim-header {
+            background: #ff0033;
+            padding: 6px 10px;
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .aim-embedded .aim-body {
+            padding: 10px;
+            font-size: 13px;
+            color: #999;
+            min-height: 100px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #0a0a0a;
+        }
+
+        .aim-embedded .aim-runner {
+            width: 30px;
+            height: 30px;
+            margin: 6px auto;
+            background-color: #ff6666;
+            display: none;
+            animation: running-bounce 0.6s ease-in-out infinite;
+        }
+
+        .aim-embedded .aim-runner.active {
+            display: block;
+        }
+
+        .aim-embedded .aim-status {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .aim-embedded .aim-button {
+            background: #222;
+            border: 1px solid #ff0033;
+            color: #ff0033;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+            margin: 8px auto 4px;
+            display: block;
+            width: calc(100% - 20px);
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .aim-embedded .aim-button:hover:not(:disabled) {
+            background: #ff0033;
+            color: #000;
+        }
+
+        .aim-embedded .aim-button:disabled {
+            border-color: #333;
+            color: #333;
+            cursor: not-allowed;
+        }
+
+        /* AIM Buddy Chat Box */
+        .aim-buddy-box {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            border: 2px solid #333;
+            background: #1a1a1a;
+            box-shadow: 2px 2px 0 #000;
+            font-family: 'VT323', monospace;
+            z-index: 1000;
+        }
+
+        .aim-header {
+            background: #ff0033;
+            padding: 6px 10px;
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            letter-spacing: 2px;
+        }
+
+        .aim-close {
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .aim-body {
+            padding: 10px;
+            font-size: 14px;
+            color: #999;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0a0a0a;
+        }
+
+        .aim-runner {
+            width: 40px;
+            height: 40px;
+            margin: 8px auto;
+            background-color: #ff6666;
+            display: none;
+            animation: running-bounce 0.6s ease-in-out infinite;
+        }
+
+        .aim-runner.active {
+            display: block;
+        }
+
+        @keyframes running-bounce {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(-8px) scaleY(1.1); }
+        }
+
+        .aim-status {
+            font-size: 13px;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            margin-top: 6px;
+        }
+
+        .aim-button {
+            background: #222;
+            border: 1px solid #ff0033;
+            color: #ff0033;
+            padding: 6px 12px;
+            font-size: 14px;
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+            margin: 8px auto 4px;
+            display: block;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .aim-button:hover:not(:disabled) {
+            background: #ff0033;
+            color: #000;
+        }
+
+        .aim-button:disabled {
+            border-color: #333;
+            color: #333;
+            cursor: not-allowed;
+        }
+
+        .aim-button:active {
+            background: #cc0029;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #run-button {
+                font-size: 16px;
+            }
+
+            .aim-buddy-box {
+                width: 180px;
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="crt-overlay"><div class="scanline"></div></div>
+    
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-cube-container">
+            <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/williamstype.gif" 
+                 alt="Williams Typewriter" 
+                 class="williams-cube">
+        </div>
+        <div class="splash-subtext">SIXPACK</div>
+        <div class="splash-loading">INITIALIZING</div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <img src="https://github.com/ghostm68/pantheon/raw/main/mw.inkrealm.info.webp" class="logo-icon" alt="INK">
+            <h1>6p@ck</h1>
+            <div class="orb-container">
+                <svg class="glitch-orb" viewBox="0 0 100 100">
+                    <circle class="orb-circle" cx="50" cy="50" r="45" />
+                    <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+                </svg>
+            </div>
+        </header>
+
+        <div class="input-section">
+            <div class="input-label">→ ENTER PROMPT:</div>
+            <textarea id="prompt-input" placeholder="Type your prompt here..."></textarea>
+            <button id="run-button">▶ RUN ALL MODELS</button>
+        </div>
+
+        <div class="models-grid">
+            <div class="model-box">
+                <div class="model-header">[ TRINITY-MINI ]</div>
+                <div class="model-output" id="output-1"></div>
+                <div class="model-status" id="status-1"></div>
+            </div>
+
+            <div class="model-box">
+                <div class="model-header">[ GROK-2 ]</div>
+                <div class="model-output" id="output-2"></div>
+                <div class="model-status" id="status-2"></div>
+            </div>
+
+            <div class="model-box">
+                <div class="model-header">[ NOVA LITE ]</div>
+                <div class="model-output" id="output-3"></div>
+                <div class="model-status" id="status-3"></div>
+            </div>
+
+            <div class="model-box">
+                <div class="model-header">[ GPT-5.2 ]</div>
+                <div class="model-output" id="output-4"></div>
+                <div class="model-status" id="status-4"></div>
+            </div>
+
+            <div class="model-box">
+                <div class="model-header">[ GPT-4O ]</div>
+                <div class="model-output" id="output-5"></div>
+                <div class="model-status" id="status-5"></div>
+            </div>
+
+            <div class="model-box">
+                <div class="model-header">[ O1 ]</div>
+                <div class="model-output" id="output-6"></div>
+                <div class="model-status" id="status-6"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-left">
+                <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/i_p_c_191919,s_630,q_90.jpg" 
+                     alt="INK REALM" 
+                     style="height: 180px; width: auto; filter: grayscale(100%) contrast(1.2); border: 2px solid #333;">
+            </div>
+            
+            <div class="footer-center">
+                <a href="https://inkrealm.info">← RETURN TO INK REALM</a>
+                <div style="color: #666; font-size: 14px; margin-top: 8px;">MODEL ARENA v1.0</div>
+                <div style="color: #666; font-size: 13px; margin-top: 6px;">POWERED BY <a href="https://puter.com" target="_blank" style="color: #ff0033; text-decoration: none;">Lil hUSLA</a></div>
+            </div>
+            
+            <div class="footer-right">
+                <div class="aim-embedded">
+                    <div class="aim-header">AIM</div>
+                    <div class="aim-body" id="aim-messages">
+                        <div style="color: #666; font-style: italic; text-align: center; padding: 15px 8px;">
+                            Waiting for models...
+                        </div>
+                        <div class="aim-runner" id="aim-runner"></div>
+                        <div class="aim-status" id="aim-status"></div>
+                    </div>
+                    <button class="aim-button" id="export-txt" disabled>💾 SAVE</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const models = [
+            { id: 1, name: 'openrouter:arcee-ai/trinity-mini' },
+            { id: 2, name: 'x-ai/grok-2-1212' },
+            { id: 3, name: 'amazon/nova-lite-v1' },
+            { id: 4, name: 'gpt-5.2-chat' },
+            { id: 5, name: 'gpt-4o' },
+            { id: 6, name: 'o1' }
+        ];
+
+        const runButton = document.getElementById('run-button');
+        const promptInput = document.getElementById('prompt-input');
+        const aimMessages = document.getElementById('aim-messages');
+        const aimRunner = document.getElementById('aim-runner');
+        const aimStatus = document.getElementById('aim-status');
+        const exportBtn = document.getElementById('export-txt');
+
+        let conversationData = {
+            prompt: '',
+            timestamp: '',
+            responses: {}
+        };
+
+        runButton.addEventListener('click', async () => {
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) {
+                alert('Please enter a prompt.');
+                return;
+            }
+
+            runButton.disabled = true;
+            runButton.textContent = '◆ PROCESSING...';
+            exportBtn.disabled = true;
+
+            // Store conversation data
+            conversationData.prompt = prompt;
+            conversationData.timestamp = new Date().toISOString();
+            conversationData.responses = {};
+
+            // Clear all outputs and set loading status
+            models.forEach(model => {
+                document.getElementById(`output-${model.id}`).textContent = '';
+                document.getElementById(`status-${model.id}`).textContent = '● LOADING...';
+                document.getElementById(`status-${model.id}`).className = 'model-status loading';
+            });
+
+            // Show AIM buddy animation
+            aimRunner.classList.add('active');
+            aimStatus.textContent = 'Fetching responses...';
+            aimMessages.innerHTML = '<div style="color: #999; padding: 8px;">Running all 6 models...</div>';
+
+            // Run all models simultaneously
+            const promises = models.map(model => runModel(model, prompt));
+            await Promise.all(promises);
+
+            // Hide animation and show completion
+            aimRunner.classList.remove('active');
+            aimStatus.textContent = 'All models complete!';
+            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ All 6 models finished!</div><div style="color: #666; padding: 4px 8px; font-size: 12px;">Ready to save conversation.</div>';
+            
+            runButton.disabled = false;
+            runButton.textContent = '▶ RUN ALL MODELS';
+            exportBtn.disabled = false;
+        });
+
+        async function runModel(model, prompt) {
+            const outputEl = document.getElementById(`output-${model.id}`);
+            const statusEl = document.getElementById(`status-${model.id}`);
+
+            try {
+                statusEl.textContent = '◆ STREAMING...';
+                statusEl.className = 'model-status loading';
+
+                const stream = await puter.ai.chat(prompt, {
+                    model: model.name,
+                    stream: true
+                });
+
+                let fullResponse = '';
+
+                for await (const chunk of stream) {
+                    if (chunk.text) {
+                        fullResponse += chunk.text;
+                        outputEl.textContent = fullResponse;
+                    }
+                }
+
+                // Store response
+                conversationData.responses[model.name] = fullResponse;
+
+                statusEl.textContent = '✓ COMPLETE';
+                statusEl.className = 'model-status';
+
+            } catch (error) {
+                console.error(`Error with ${model.name}:`, error);
+                const errorMsg = `ERROR: ${error.message}`;
+                outputEl.textContent = errorMsg;
+                conversationData.responses[model.name] = errorMsg;
+                statusEl.textContent = '✗ FAILED';
+                statusEl.className = 'model-status error';
+            }
+        }
+
+        // Export conversation to TXT
+        exportBtn.addEventListener('click', () => {
+            let txtContent = '═══════════════════════════════════════════\n';
+            txtContent += '    MODEL ARENA CONVERSATION LOG\n';
+            txtContent += '═══════════════════════════════════════════\n\n';
+            txtContent += `Timestamp: ${conversationData.timestamp}\n\n`;
+            txtContent += `PROMPT:\n${conversationData.prompt}\n\n`;
+            txtContent += '═══════════════════════════════════════════\n\n';
+
+            models.forEach(model => {
+                const modelName = model.name.split('/').pop() || model.name;
+                txtContent += `[ ${modelName.toUpperCase()} ]\n`;
+                txtContent += '───────────────────────────────────────────\n';
+                txtContent += (conversationData.responses[model.name] || 'No response') + '\n\n';
+                txtContent += '═══════════════════════════════════════════\n\n';
+            });
+
+            const blob = new Blob([txtContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `model-arena-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Show confirmation in AIM buddy
+            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px; font-weight: bold;">💾 Conversation saved!</div>';
+            setTimeout(() => {
+                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
+            }, 3000);
+        });
+
+        // Allow Enter key to submit (with Shift+Enter for new line)
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                runButton.click();
+            }
+        });
+
+        // Splash screen fade out
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.classList.add('fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 1000);
+            }, 2500); // Show splash for 2.5 seconds
+        });
+    </script>
+</body>
+</html>
