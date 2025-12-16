@@ -1,26 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=1024">
-    <meta name="description" content="Nova Nexus. Amazon Nova AI meets classic design. Neural writing interface for the modern author.">
-    <meta name="keywords" content="AI writing, Amazon Nova, creative writing, post-modern, glitch art, text generator, Puter.js">
-    
-    <!-- OPEN GRAPH / DISCORD -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="MINRAUD | Neural Writing Interface">
-    <meta property="og:description" content="A next-generation writing terminal powered by Amazon Nova AI. With your help we can occupy The Reality Studio and retake their universe of Fear Death and Monopoly-.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">
-    
-    <!-- MOBILE -->
-    <meta name="theme-color" content="#0a0a0a">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    
-    <!-- NOVA FLAT FONT -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nova+Flat&display=swap" rel="stylesheet">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024">
+<meta name="author" content="INKREALM-NEXUS">
+<meta name="robots" content="index, follow">
+
+<!-- PRIMARY META TAGS -->
+<title>MINRAUD | The Reality Studio</title>
+<meta name="description" content="A neural typewriter for the Interzone. Intercepting Amazon Nova AI to break the control system. Experimental text generation for the Nova Mob.">
+<meta name="keywords" content="William S. Burroughs, Cut-up technique, Amazon Nova AI, experimental writing, The Reality Studio, Minraud, digital text generator, Puter.js, subversion, neural interface">
+
+<!-- OPEN GRAPH / DISCORD / FACEBOOK -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://inkrealm.info">
+<meta property="og:title" content="MINRAUD | Neural Writing Interface">
+<meta property="og:description" content="TRANSIMISSION RECEIVED: With your help we can occupy The Reality Studio and retake their universe of Fear Death and Monopoly. The Soft Machine is now online.">
+<meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">
+<meta property="og:site_name" content="MINRAUD">
+
+<!-- TWITTER (X) -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MINRAUD | Storm The Reality Studio">
+<meta name="twitter:description" content="A neural interface for the modern author. Powered by Amazon Nova. Dedicated to the destruction of the Control System.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">
+
+<!-- MOBILE / THEME -->
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MINRAUD">
+
+<!-- FONTS -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nova+Flat&display=swap" rel="stylesheet">
     
     <title>MINRAUD</title>
     
@@ -405,7 +420,7 @@
         }
 
         /* --- DICTIONARY STYLES --- */
-        .dictionary-result {
+       .dictionary-result {
             background: #0a0a0a;
             border: 1px solid #444;
             border-radius: 4px;
@@ -414,8 +429,14 @@
             flex-grow: 1;
             font-size: 0.8rem;
             color: #ccc;
+            /* Keeps characters distinct (more robotic/terminal feel) */
+            font-variant-ligatures: none; 
         }
-        
+
+        /* NEW: Ensures English and Russian text align perfectly on the same line */
+        .dictionary-result span {
+            vertical-align: middle;
+        }
         #dictionary-search {
             width: 100%;
             padding: 0.4rem;
@@ -660,7 +681,8 @@
             'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
             'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
             'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json'
-        ];
+          'https://raw.githubusercontent.com/ijt/russian_english_dictionary/master/russian_english.json'
+];
         
         let dictionaryCache = {};
         let loadedSources = 0;
@@ -693,7 +715,7 @@
                     <small>Ready to search</small>
                 </div>`;
                 
-                if (loadedSources === 4) {
+                if (loadedSources === 5) {
                     dictStatusEl.innerHTML = `<div style="color: #ff0033;">
                         ✓ All sources loaded successfully
                     </div>`;
@@ -770,7 +792,48 @@
                     }
                 }
             }
+             // Search Russian-English dictionary (source 4)
+    const russianDict = dictionaryCache['source4'];
+    if (russianDict) {
+        // Detect if the query contains Cyrillic characters
+        const isCyrillic = /[а-яА-ЯёЁ]/.test(query);
+        
+        if (isCyrillic) {
+            // Case 1: Russian Input -> Show English Definition
+            if (russianDict[query]) {
+                definitionsFound = true;
+                html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>ENGLISH TRANSLATION:</strong></div>
+                    <div style="font-size: 0.85rem; margin: 0.3rem 0; font-family: 'Courier New', monospace;">
+                        ${query} <span style="color:#666;">➔</span> ${russianDict[query]}
+                    </div>
+                </div>`;
+            }
+        } else {
+            // Case 2: English Input -> Find Russian matches (Reverse Lookup)
+            // Note: This iterates the keys to find the English value. 
+            // It filters for exact matches or words contained within the definition.
             
+            const russianMatches = Object.entries(russianDict).filter(([ruWord, enDef]) => {
+                // strict match or starts with match for better relevance
+                return enDef.toLowerCase() === query || enDef.toLowerCase().startsWith(query + " ");
+            });
+
+            if (russianMatches.length > 0) {
+                definitionsFound = true;
+                html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>RUSSIAN EQUIVALENTS:</strong></div>`;
+                
+                // Limit to 5 results to keep UI clean
+                russianMatches.slice(0, 5).forEach(([ru, en]) => {
+                    html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                        <span style="color: #ff6666; font-family: 'Courier New';">${ru}</span> <span style="color:#666; font-size:0.7rem;">(${en})</span>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+        }
+    }
             // Fetch synonyms from Datamuse API
             try {
                 const thesaurusResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=15`);
