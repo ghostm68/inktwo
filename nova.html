@@ -17,6 +17,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
+    <!-- NOVA FLAT FONT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nova+Flat&display=swap" rel="stylesheet">
+    
     <title>NOVA NEXUS</title>
     
     <!-- Axios for reliable dictionary fetching -->
@@ -27,7 +32,7 @@
         body {
             background: #0a0a0a;
             color: #f0f0f0;
-            font-family: 'Georgia', serif;
+            font-family: "Nova Flat", system-ui, 'Courier New', monospace;
             margin: 0;
             padding: 0;
             overflow-x: hidden;
@@ -77,20 +82,58 @@
         /* NOVA EXPRESS CUBE BACKGROUND */
         .nova-cube {
             position: absolute;
-            width: 400px;
-            height: 400px;
+            width: 800px;
+            height: 800px;
             background-image: url('https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif');
-            background-size: cover;
+            background-size: contain;
             background-position: center;
-            animation: cube-rotate 20s linear infinite;
-            opacity: 0.3;
+            background-repeat: no-repeat;
+            animation: cube-rotate 20s linear infinite, cube-glow 3s ease-in-out infinite;
+            opacity: 0.7;
             z-index: 1;
+            filter: drop-shadow(0 0 40px rgba(255, 0, 51, 0.6));
         }
         
         @keyframes cube-rotate {
             0% { transform: rotate(0deg) scale(1); }
-            50% { transform: rotate(180deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(1.05); }
             100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        @keyframes cube-glow {
+            0%, 100% { 
+                filter: drop-shadow(0 0 40px rgba(255, 0, 51, 0.6));
+                opacity: 0.7;
+            }
+            50% { 
+                filter: drop-shadow(0 0 60px rgba(255, 0, 51, 0.9));
+                opacity: 0.9;
+            }
+        }
+        
+        /* CRT SCANLINE EFFECT */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(0, 0, 0, 0.15) 3px
+            );
+            pointer-events: none;
+            z-index: 9998;
+            animation: scanline 8s linear infinite;
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
         }
         
         #splash-screen.hidden {
@@ -126,8 +169,8 @@
         
         @media (max-width: 768px) {
             .nova-cube {
-                width: 250px;
-                height: 250px;
+                width: 300px;
+                height: 300px;
             }
             .splash-btn {
                 font-size: 1rem;
@@ -638,7 +681,7 @@
                 });
                 
                 statusEl.textContent = `Amazon Nova AI • ${loadedSources}/4 Lexical Sources + Thesaurus Ready`;
-                statusEl.style.color = loadedSources >= 3 ? '#66cc66' : '#ff9933';
+                statusEl.style.color = loadedSources >= 3 ? '#ff0033' : '#ff0033';
                 
                 document.getElementById('dictionary-result').innerHTML = `<div class="no-results">
                     ${loadedSources}/4 sources loaded<br>
@@ -646,7 +689,7 @@
                 </div>`;
                 
                 if (loadedSources === 4) {
-                    dictStatusEl.innerHTML = `<div style="color: #66cc66;">
+                    dictStatusEl.innerHTML = `<div style="color: #ff0033;">
                         ✓ All 4 sources loaded successfully
                     </div>`;
                 } else if (loadedSources >= 2) {
@@ -696,18 +739,30 @@
             // Search German-English dictionary (source 3)
             const germanDict = dictionaryCache['source3'];
             if (germanDict) {
-                const germanTranslations = Object.entries(germanDict).filter(([key, value]) => 
-                    value.toLowerCase().includes(query) || key.toLowerCase() === query
-                );
-                
-                if (germanTranslations.length > 0) {
+                // Direct lookup first
+                if (germanDict[query]) {
                     definitionsFound = true;
                     html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
-                        <div style="color: #66b3ff; font-size: 0.75rem;"><strong>German Translations:</strong></div>`;
-                    germanTranslations.slice(0, 5).forEach(([german, english]) => {
-                        html += `<div style="font-size: 0.75rem; margin: 0.2rem 0;">${german} → ${english}</div>`;
-                    });
-                    html += `</div>`;
+                        <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN:</strong></div>
+                        <div style="font-size: 0.85rem; margin: 0.3rem 0;">${query} → ${germanDict[query]}</div>
+                    </div>`;
+                } else {
+                    // Reverse lookup (English to German)
+                    const germanMatches = Object.entries(germanDict).filter(([german, english]) => 
+                        english.toLowerCase().includes(query) || english.toLowerCase() === query
+                    );
+                    
+                    if (germanMatches.length > 0) {
+                        definitionsFound = true;
+                        html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                            <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN EQUIVALENTS:</strong></div>`;
+                        germanMatches.slice(0, 5).forEach(([german, english]) => {
+                            html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                                <span style="color: #ff6666;">${german}</span> → ${english}
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
                 }
             }
             
@@ -863,4 +918,4 @@
         });
     </script>
 </body>
-</html>
+                </html>
