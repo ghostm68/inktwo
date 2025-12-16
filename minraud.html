@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1024">
-    <meta name="description" content="Nova Nexus. Amazon Nova AI meets brutalist design. Neural writing interface for the modern author.">
+    <meta name="description" content="Minraud. Amazon Nova AI meets brutalist design. Neural writing interface for the modern author.">
     <meta name="keywords" content="AI writing, Amazon Nova, creative writing, cyberpunk, glitch art, text generator, Puter.js">
     
     <!-- OPEN GRAPH / DISCORD -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="NOVA NEXUS | Neural Writing Interface">
+    <meta property="og:title" content="Minraud | Neural Writing Interface">
     <meta property="og:description" content="A next-generation writing terminal powered by Amazon Nova AI. Enter the nexus.">
     <meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">
     
@@ -22,7 +22,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nova+Flat&display=swap" rel="stylesheet">
     
-    <title>NOVA NEXUS</title>
+    <title>MINRAUD</title>
     
     <!-- Axios for reliable dictionary fetching -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -620,7 +620,7 @@
                 <div class="dictionary-result" id="dictionary-result">
                     <div class="no-results">
                         Ready.<br>
-                        <small>4 lexical sources + thesaurus</small>
+                        <small> lexical sources + live thesaurus</small>
                     </div>
                 </div>
                 
@@ -629,27 +629,19 @@
         </div>
 
         <div class="api-status" id="apiStatus">
-            Loading 4 lexical sources + thesaurus...
+            Loading lexical sources + live thesaurus...
         </div>
     </div>
     
     <!-- FOOTER -->
     <footer>
-        <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 4-Source Lexicon + Live Thesaurus</p>
+        <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 5-Source Lexicon + Thesaurus</p>
         <p><a href="https://inkrealm.info">RETURN TO MAIN</a></p>
     </footer>
     
     <script src="https://js.puter.com/v2/"></script>
-    
     <script>
-        // === SPLASH SCREEN ===
-        function enterSite() {
-            const splash = document.getElementById('splash-screen');
-            splash.classList.add('hidden');
-            setTimeout(() => { splash.style.display = 'none'; }, 1000);
-        }
-
-        // === DICTIONARY SOURCES (PROVEN WORKING) ===
+   // === DICTIONARY SOURCES (PROVEN WORKING) ===
         const dictionaryUrls = [
             'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
             'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
@@ -680,7 +672,7 @@
                     }
                 });
                 
-                statusEl.textContent = `Amazon Nova AI • ${loadedSources}/4 Lexical Sources + Thesaurus Ready`;
+                statusEl.textContent = `Amazon Nova AI • ${loadedSources}/4 Lexical Sources + Live API Ready`;
                 statusEl.style.color = loadedSources >= 3 ? '#ff0033' : '#ff0033';
                 
                 document.getElementById('dictionary-result').innerHTML = `<div class="no-results">
@@ -693,7 +685,7 @@
                         ✓ All 4 sources loaded successfully
                     </div>`;
                 } else if (loadedSources >= 2) {
-                    dictStatusEl.innerHTML = `<div style="color: #ff9933;">
+                    dictStatusEl.innerHTML = `<div style="color: #ff0033;">
                         ⚠ ${loadedSources}/4 sources loaded (sufficient)
                     </div>`;
                 } else {
@@ -712,7 +704,7 @@
             }
         }
         
-        // === DICTIONARY SEARCH WITH THESAURUS ===
+        // === DICTIONARY SEARCH WITH FREE DICTIONARY API + THESAURUS ===
         async function searchDictionary() {
             const query = document.getElementById('dictionary-search').value.trim().toLowerCase();
             if (!query) return;
@@ -721,25 +713,68 @@
             resultDiv.innerHTML = '<div class="loading">Searching...</div>';
             
             let definitionsFound = false;
-            let html = `<div><span class="word-title">${query}</span></div><div style="margin-top: 0.5rem;">`;
+            let html = `<div><span class="word-title">${query}</span>`;
             
-            // Search English dictionaries (first 3 sources)
-            for (let i = 0; i < 3; i++) {
-                const dict = dictionaryCache[`source${i}`];
-                if (dict && dict[query]) {
+            // === TRY FREE DICTIONARY API FIRST ===
+            try {
+                const apiResponse = await axios.get(`https://api.dictionaryapi.dev/api/v2/entries/en/${query}`);
+                if (apiResponse.data && apiResponse.data[0]) {
                     definitionsFound = true;
-                    const definition = dict[query];
-                    html += `<div style="margin-bottom: 0.5rem;">
-                        <span class="part-of-speech">Definition ${i + 1}</span><br>
-                        ${definition.substring(0, 200)}${definition.length > 200 ? '...' : ''}
-                    </div>`;
+                    const entry = apiResponse.data[0];
+                    
+                    // Phonetic
+                    if (entry.phonetic) {
+                        html += `<div class="phonetic">/${entry.phonetic}/</div>`;
+                    }
+                    
+                    html += `</div><div style="margin-top: 0.5rem;">`;
+                    
+                    // Meanings from API
+                    if (entry.meanings && entry.meanings.length > 0) {
+                        entry.meanings.slice(0, 2).forEach(meaning => {
+                            html += `<div style="margin-bottom: 0.5rem;">
+                                <span class="part-of-speech">${meaning.partOfSpeech}</span><br>`;
+                            
+                            if (meaning.definitions && meaning.definitions[0]) {
+                                const def = meaning.definitions[0];
+                                html += `${def.definition}`;
+                                if (def.example) {
+                                    html += `<br><em style="color: #777; font-size: 0.75rem;">"${def.example}"</em>`;
+                                }
+                            }
+                            html += `</div>`;
+                        });
+                    }
+                    
+                    // Origin/Etymology
+                    if (entry.origin) {
+                        html += `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #444; font-size: 0.75rem; color: #999;">
+                            <strong>Origin:</strong> ${entry.origin.substring(0, 150)}${entry.origin.length > 150 ? '...' : ''}
+                        </div>`;
+                    }
+                }
+            } catch (apiError) {
+                console.log('Free Dictionary API failed, falling back to static sources');
+                
+                // === FALLBACK TO STATIC DICTIONARIES ===
+                html += `</div><div style="margin-top: 0.5rem;">`;
+                
+                for (let i = 0; i < 3; i++) {
+                    const dict = dictionaryCache[`source${i}`];
+                    if (dict && dict[query]) {
+                        definitionsFound = true;
+                        const definition = dict[query];
+                        html += `<div style="margin-bottom: 0.5rem;">
+                            <span class="part-of-speech">Definition ${i + 1}</span><br>
+                            ${definition.substring(0, 200)}${definition.length > 200 ? '...' : ''}
+                        </div>`;
+                    }
                 }
             }
             
-            // Search German-English dictionary (source 3)
+            // === GERMAN DICTIONARY (SOURCE 3) ===
             const germanDict = dictionaryCache['source3'];
             if (germanDict) {
-                // Direct lookup first
                 if (germanDict[query]) {
                     definitionsFound = true;
                     html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
@@ -747,7 +782,6 @@
                         <div style="font-size: 0.85rem; margin: 0.3rem 0;">${query} → ${germanDict[query]}</div>
                     </div>`;
                 } else {
-                    // Reverse lookup (English to German)
                     const germanMatches = Object.entries(germanDict).filter(([german, english]) => 
                         english.toLowerCase().includes(query) || english.toLowerCase() === query
                     );
@@ -766,7 +800,7 @@
                 }
             }
             
-            // Fetch synonyms from Datamuse API
+            // === DATAMUSE THESAURUS (SYNONYMS) ===
             try {
                 const thesaurusResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=15`);
                 if (thesaurusResponse.data && thesaurusResponse.data.length > 0) {
@@ -779,7 +813,7 @@
                     html += `</div>`;
                 }
             } catch (error) {
-                console.log('Thesaurus lookup failed (non-critical):', error);
+                console.log('Thesaurus lookup failed (non-critical)');
             }
             
             html += `</div>`;
@@ -798,7 +832,6 @@
         async function getRandomWord() {
             let words = [];
             
-            // Try to get words from any loaded English dictionary
             for (let i = 0; i < 3; i++) {
                 const dict = dictionaryCache[`source${i}`];
                 if (dict && Object.keys(dict).length > 0) {
@@ -871,7 +904,7 @@
         document.getElementById('clear-dict').addEventListener('click', () => {
             document.getElementById('dictionary-search').value = '';
             document.getElementById('dictionary-result').innerHTML = 
-                `<div class="no-results">Ready<br><small>${loadedSources}/5 sources loaded</small></div>`;
+                `<div class="no-results">Ready<br><small>${loadedSources}/4 sources loaded</small></div>`;
         });
         
         document.getElementById('copyButton').addEventListener('click', () => {
@@ -896,7 +929,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'nova-notepad.txt';
+            a.download = 'minraud-notepad.txt';
             a.click();
             URL.revokeObjectURL(url);
         });
@@ -916,6 +949,6 @@
         window.addEventListener('load', () => {
             loadDictionaries();
         });
-    </script>
+            </script>
 </body>
-                </html>
+                    </html>
