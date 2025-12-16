@@ -2,136 +2,347 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova Nexus</title>
+    <meta name="viewport" content="width=1024">
+    <meta name="description" content="Nova Nexus. Amazon Nova AI meets brutalist design. Neural writing interface for the modern author.">
+    <meta name="keywords" content="AI writing, Amazon Nova, creative writing, cyberpunk, glitch art, text generator, Puter.js">
+    
+    <!-- OPEN GRAPH / DISCORD -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="NOVA NEXUS | Neural Writing Interface">
+    <meta property="og:description" content="A next-generation writing terminal powered by Amazon Nova AI. Enter the nexus.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">
+    
+    <!-- MOBILE -->
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <title>NOVA NEXUS</title>
+    
+    <!-- Axios for reliable dictionary fetching -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <style>
-        :root {
-            --black: #0a0a0a;
-            --dark-grey: #1a1a1a;
-            --medium-grey: #333;
-            --light-grey: #666;
-            --white: #f0f0f0;
-            --red: #ff0033;
-            --dark-red: #3d020a;
-        }
-        
+        /* --- CORE LAYOUT --- */
         body {
-            background: var(--black);
-            color: var(--white);
+            background: #0a0a0a;
+            color: #f0f0f0;
             font-family: 'Georgia', serif;
             margin: 0;
             padding: 0;
-            min-height: 100vh;
-            font-size: 12px;
-        }
-        
-        .main-content {
-            padding: 0.5rem;
-        }
-        
-        /* TITLE WITH GIF */
-        .header-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 0.3rem;
-        }
-        
-        h1 {
-            font-size: 1.5rem;
-            color: var(--red);
-            margin: 0;
-            text-shadow: 0 0 5px rgba(255, 0, 51, 0.3);
-        }
-        
-        .title-gif {
-            width: 32px;
-            height: 32px;
-            object-fit: contain;
-        }
-        
-        .subtitle {
-            color: var(--light-grey);
-            text-align: center;
-            font-size: 0.7rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        /* 2-ROW LAYOUT */
-        .row {
-            display: flex;
-            gap: 0.4rem;
-            margin-bottom: 0.4rem;
-            height: 45vh;
-        }
-        
-        @media (max-width: 768px) {
-            .row {
-                flex-direction: column;
-                height: auto;
-            }
-        }
-        
-        /* TOP ROW: NOTEPAD + AI CONTROLS */
-        .top-panel {
-            flex: 1;
-            background: var(--dark-grey);
-            border: 1px solid var(--medium-grey);
-            border-radius: 3px;
-            padding: 0.5rem;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            padding: 0.8rem;
+            flex: 1;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.6rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            min-height: 80vh;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+        }
+
+        /* --- SPLASH SCREEN --- */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1s ease-in-out, visibility 1s;
             overflow: hidden;
         }
         
-        /* BOTTOM ROW: FULL-WIDTH DICTIONARY */
-        .dictionary-panel {
-            background: var(--dark-grey);
-            border: 1px solid var(--medium-grey);
-            border-radius: 3px;
-            padding: 0.5rem;
+        /* NOVA EXPRESS CUBE BACKGROUND */
+        .nova-cube {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background-image: url('https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif');
+            background-size: cover;
+            background-position: center;
+            animation: cube-rotate 20s linear infinite;
+            opacity: 0.3;
+            z-index: 1;
+        }
+        
+        @keyframes cube-rotate {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        #splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .splash-btn {
+            padding: 15px 40px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff0033;
+            color: #ff0033;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            margin-top: 20px;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(255, 0, 51, 0.3);
+        }
+
+        .splash-btn:hover {
+            background: #ff0033;
+            color: #000;
+            box-shadow: 0 0 40px #ff0033;
+            letter-spacing: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .nova-cube {
+                width: 250px;
+                height: 250px;
+            }
+            .splash-btn {
+                font-size: 1rem;
+                padding: 12px 25px;
+                letter-spacing: 3px;
+            }
+            .splash-btn:hover {
+                letter-spacing: 5px;
+            }
+        }
+
+        /* --- TYPOGRAPHY & WATER EFFECT --- */
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.3rem;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            position: relative;
+            
+            /* Transparent Red Tint */
+            color: rgba(255, 0, 51, 0.1); 
+            
+            /* RED LIQUID GIF */
+            background-image: url('https://github.com/ghostm68/pantheon/raw/main/inkrealmliquidhermes934.gif');
+            background-size: cover;
+            
+            /* Clip the liquid to the text */
+            -webkit-background-clip: text;
+            background-clip: text;
+            
+            /* Flow Animation */
+            animation: water-flow 30s linear infinite;
+            
+            /* NEON RED GLOW */
+            text-shadow: 0 0 20px rgba(255, 0, 51, 0.8), 0 0 40px rgba(61, 2, 10, 0.5);
+        }
+
+        @keyframes water-flow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .subtitle {
+            font-style: italic;
+            color: #aaa;
+            margin-bottom: 0.8rem;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        /* --- GLITCH ORB --- */
+        .orb-container {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 15px;
+            width: 50px;
+            height: 50px;
+            position: relative;
+        }
+
+        .glitch-orb {
+            width: 100%;
+            height: 100%;
+            fill: none;
+            stroke-width: 3;
+            overflow: visible;
+        }
+
+        .orb-circle { stroke: #ff0033; }
+        .orb-triangle { stroke: #ffffff; }
+
+        .orb-container svg {
+            animation: slow-spin 10s linear infinite;
+            filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
+            transition: all 0.2s ease;
+        }
+
+        .orb-container:hover svg {
+            animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
+                    drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
+        }
+
+        .orb-container:hover .orb-triangle {
+            fill: rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes slow-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes glitch-shake {
+            0% { transform: translate(0) rotate(0deg); }
+            20% { transform: translate(-2px, 2px) rotate(-5deg); }
+            40% { transform: translate(-2px, -2px) rotate(5deg); }
+            60% { transform: translate(2px, 2px) rotate(-5deg); }
+            80% { transform: translate(2px, -2px) rotate(5deg); }
+            100% { transform: translate(0) rotate(0deg); }
+        }
+
+        /* --- PANELS --- */
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 0.8rem;
             display: flex;
             flex-direction: column;
-            height: 40vh;
-            margin-top: 0.2rem;
         }
         
         .panel h2 {
-            margin: 0 0 0.4rem 0;
-            font-size: 0.9rem;
-            color: var(--white);
-            border-bottom: 1px solid var(--medium-grey);
-            padding-bottom: 0.2rem;
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: #eee;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.4rem;
+            margin-bottom: 0.6rem;
+        }
+
+        /* --- RED ACCENT FORM ELEMENTS --- */
+        select {
+            width: 100%;
+            padding: 0.4rem;
+            background: #1a1a1a;
+            color: #eee;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            outline: none;
+            cursor: pointer;
+            scrollbar-color: #ff0033 #1a1a1a;
+            scrollbar-width: thin;
+        }
+
+        select:focus {
+            border-color: #ff0033;
+            box-shadow: 0 0 5px rgba(255, 0, 51, 0.3);
+        }
+
+        option {
+            background-color: #0a0a0a;
+            color: #eee;
+            padding: 10px;
         }
         
-        /* NOTEPAD */
-        #notepad {
+        option:checked, option:hover {
+            background-color: #ff0033 !important; 
+            color: #fff !important;
+        }
+
+        #notepad, #prompt {
             width: 100%;
-            flex-grow: 1;
-            min-height: 180px;
-            background: var(--black);
-            color: var(--white);
-            border: 1px solid var(--medium-grey);
-            border-radius: 2px;
-            padding: 0.3rem;
-            font-size: 0.75rem;
-            line-height: 1.3;
+            background: #0a0a0a;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
             resize: none;
             font-family: 'Courier New', monospace;
         }
         
+        #notepad:focus, #prompt:focus {
+            border-color: #ff0033;
+            outline: none;
+        }
+        
+        button {
+            background: #222;
+            border: 1px solid #444;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 0.4rem;
+            border-radius: 4px;
+        }
+        
+        button:hover {
+            border-color: #ff0033;
+            color: #ff0033;
+        }
+        
+        #generateButton {
+            width: 100%;
+            padding: 0.8rem;
+            background: #3d020a;
+            color: #ff0033;
+            border: 1px solid #ff0033;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #generateButton:hover { 
+            background: #ff0033; 
+            color: #000;
+            box-shadow: 0 0 15px #ff0033;
+        }
+
         /* RED SLIDER */
         #creativity {
             width: 100%;
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: linear-gradient(to right, var(--dark-red), var(--red));
+            background: linear-gradient(to right, #3d020a, #ff0033);
             outline: none;
             border-radius: 3px;
-            margin: 0.2rem 0;
+            margin: 0.4rem 0;
         }
         
         #creativity::-webkit-slider-thumb {
@@ -139,274 +350,326 @@
             appearance: none;
             width: 16px;
             height: 16px;
-            background: var(--white);
-            border: 2px solid var(--red);
+            background: #fff;
+            border: 2px solid #ff0033;
             border-radius: 50%;
             cursor: pointer;
         }
-        
-        /* DICTIONARY AREA */
+
+        /* --- DICTIONARY STYLES --- */
         .dictionary-result {
-            background: var(--black);
-            border: 1px solid var(--medium-grey);
-            border-radius: 2px;
-            padding: 0.4rem;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.5rem;
             overflow-y: auto;
             flex-grow: 1;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
+            color: #ccc;
         }
         
         #dictionary-search {
             width: 100%;
-            padding: 0.3rem;
-            background: var(--black);
-            color: var(--white);
-            border: 1px solid var(--medium-grey);
-            border-radius: 2px;
-            font-size: 0.8rem;
-            margin-bottom: 0.3rem;
-        }
-        
-        /* COMPACT CONTROLS */
-        .controls-row {
-            display: flex;
-            gap: 0.2rem;
-            margin-top: 0.3rem;
-        }
-        
-        button {
-            background: var(--dark-grey);
-            border: 1px solid var(--medium-grey);
-            color: var(--white);
-            padding: 0.2rem 0.4rem;
-            font-size: 0.7rem;
-            cursor: pointer;
-            border-radius: 2px;
-            flex-grow: 1;
-        }
-        
-        #generateButton {
-            background: var(--dark-red);
-            color: var(--red);
-            border: 1px solid var(--red);
-            font-size: 0.8rem;
-            padding: 0.3rem;
-            margin-top: 0.3rem;
-        }
-        
-        select, textarea {
-            width: 100%;
-            padding: 0.2rem;
-            background: var(--dark-grey);
-            color: var(--white);
-            border: 1px solid var(--medium-grey);
-            border-radius: 2px;
-            font-size: 0.75rem;
-            margin-bottom: 0.3rem;
-        }
-        
-        #modelSelect {
-            height: 100px;
-            font-size: 0.7rem;
-        }
-        
-        #prompt {
-            height: 60px;
-            font-size: 0.75rem;
-        }
-        
-        /* OUTPUT AREA */
-        .story-output {
-            background: var(--black);
-            border: 1px solid var(--medium-grey);
-            border-radius: 2px;
             padding: 0.4rem;
-            overflow-y: auto;
-            flex-grow: 1;
-            font-size: 0.75rem;
-            line-height: 1.3;
+            background: #0a0a0a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
         }
-        
-        /* DICTIONARY STYLES */
+
+        #dictionary-search:focus {
+            border-color: #ff0033;
+            outline: none;
+        }
+
         .word-title {
-            color: var(--red);
-            font-size: 1rem;
+            color: #ff0033;
+            font-size: 1.1rem;
             margin: 0;
+            font-weight: bold;
         }
         
         .phonetic {
-            color: var(--light-grey);
-            font-size: 0.7rem;
+            color: #777;
+            font-size: 0.75rem;
         }
         
         .part-of-speech {
-            color: var(--red);
-            font-size: 0.7rem;
+            color: #ff0033;
+            font-size: 0.75rem;
             font-weight: bold;
+            text-transform: uppercase;
         }
         
         .synonym-tag {
             display: inline-block;
-            background: var(--dark-red);
+            background: #3d020a;
             color: #ff6666;
-            padding: 0.1rem 0.3rem;
-            margin: 0.1rem;
-            border-radius: 1px;
-            font-size: 0.65rem;
+            padding: 0.2rem 0.4rem;
+            margin: 0.2rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
             cursor: pointer;
+            border: 1px solid #ff0033;
+            transition: all 0.2s;
+        }
+
+        .synonym-tag:hover {
+            background: #ff0033;
+            color: #000;
         }
         
         .loading, .no-results {
             text-align: center;
             padding: 1rem;
-            color: var(--light-grey);
-            font-size: 0.75rem;
+            color: #666;
+            font-size: 0.8rem;
         }
-        
-        /* FOOTER */
-        footer {
+
+        .story-output {
+            flex: 1;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.8rem;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            min-height: 320px;
+            color: #ccc;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.3rem;
             margin-top: 0.5rem;
-            padding: 0.3rem;
-            border-top: 1px solid var(--medium-grey);
+        }
+
+        .controls-row button {
+            flex: 1;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-top: 1px solid #333;
             text-align: center;
-            font-size: 0.6rem;
-            color: var(--light-grey);
+            font-size: 0.7rem;
+            color: #555;
+            background: #0a0a0a;
+        }
+
+        footer a {
+            color: #ff0033;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-shadow: 0 0 5px #ff0033;
+        }
+
+        .api-status { 
+            margin-top: 0.8rem; 
+            font-size: 0.75rem; 
+            color: #666; 
+            text-align: center; 
         }
         
-        .api-status {
-            text-align: center;
-            font-size: 0.6rem;
-            color: var(--light-grey);
+        .generating { 
+            animation: pulse 1.5s infinite; 
+            color: #ff0033; 
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .error-detail {
+            font-size: 0.7rem;
+            color: #ff6666;
             margin-top: 0.3rem;
         }
+
+        #notepad { min-height: 280px; }
+        #prompt { min-height: 120px; }
     </style>
 </head>
 <body>
+    
+    <!-- SPLASH PAGE -->
+    <div id="splash-screen">
+        <div class="nova-cube"></div>
+        <button class="splash-btn" onclick="enterSite()">ENTER THE NEXUS</button>
+    </div>
+
+    <!-- MAIN CONTENT -->
     <div class="main-content">
-        <!-- HEADER WITH GIF -->
-        <div class="header-container">
-            <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif" 
-                 alt="Nova" class="title-gif">
-            <h1>Nova Nexus</h1>
-        </div>
-        <p class="subtitle">Amazon Nova Writing Interface</p>
-        
-        <!-- ROW 1: NOTEPAD + AI -->
-        <div class="row">
-            <!-- NOTEPAD -->
-            <div class="top-panel">
-                <h2>Notepad</h2>
+        <h1>
+            <div class="orb-container">
+                <svg class="glitch-orb" viewBox="0 0 100 100">
+                    <circle class="orb-circle" cx="50" cy="50" r="45" />
+                    <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+                </svg>
+            </div>
+            NOVA NEXUS
+        </h1>
+        <p class="subtitle">AMAZON NOVA AI <img width="32" height="32" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif"> NEURAL INTERFACE</p>
+
+        <div class="container">
+            <!-- Column 1: Notepad -->
+            <div class="panel">
+                <h2>NOTEPAD</h2>
                 <textarea id="notepad" placeholder="Your workspace..."></textarea>
                 <div class="controls-row">
-                    <button id="exportButton">Save</button>
-                    <button id="clearButton">Clear</button>
+                    <button id="exportButton">SAVE</button>
+                    <button id="clearButton">CLEAR</button>
                 </div>
             </div>
-            
-            <!-- AI CONTROLS -->
-            <div class="top-panel">
-                <h2>Amazon Nova AI</h2>
-                <select id="modelSelect" size="4">
-                    <option value="amazon/nova-2-lite-v1" selected>Nova 2 Lite</option>
-                    <option value="amazon/nova-2-lite-v1:free">Nova 2 Lite (Free)</option>
-                    <option value="amazon/nova-micro-v1">Nova Micro</option>
-                    <option value="amazon/nova-pro-v1">Nova Pro</option>
+
+            <!-- Column 2: AI Controls -->
+            <div class="panel">
+                <h2>AMAZON NOVA AI</h2>
+                
+                <label style="color:#ff0033; font-size:0.75rem;">SELECT ENGINE:</label>
+                <select id="modelSelect">
+                    <option value="amazon/nova-2-lite-v1">Nova 2 Lite v1</option>
+                    <option value="amazon/nova-2-lite-v1:free">Nova 2 Lite v1 (Free)</option>
+                    <option value="amazon/nova-lite-v1">Nova Lite v1</option>
+                    <option value="amazon/nova-micro-v1">Nova Micro v1</option>
+                    <option value="amazon/nova-premier-v1" selected>Nova Premier v1</option>
+                    <option value="amazon/nova-pro-v1">Nova Pro v1</option>
                 </select>
                 
-                <div>
-                    <label>Creativity: <span id="creativityValue">0.7</span></label>
+                <div style="margin: 0.5rem 0;">
+                    <label style="color:#ff0033; font-size:0.75rem;">CREATIVITY: <span id="creativityValue">0.7</span></label>
                     <input type="range" id="creativity" min="0.1" max="1.0" step="0.1" value="0.7">
                 </div>
                 
-                <textarea id="prompt" placeholder="Enter prompt..." rows="3"></textarea>
-                <button id="generateButton">Generate</button>
+                <textarea id="prompt" placeholder="Enter prompt..."></textarea>
+                <button id="generateButton">INITIATE</button>
                 
                 <!-- OUTPUT -->
-                <div style="margin-top: 0.5rem; flex-grow: 1; display: flex; flex-direction: column;">
-                    <div style="font-size: 0.8rem; margin-bottom: 0.2rem;">Output:</div>
+                <div style="margin-top: 0.8rem; flex-grow: 1; display: flex; flex-direction: column;">
+                    <div style="font-size: 0.9rem; margin-bottom: 0.3rem; color: #ff0033;">OUTPUT:</div>
                     <div class="story-output" id="output">
-                        Select model and enter prompt.
+                        Ready. Select an engine and write.
                     </div>
                     <div class="controls-row">
-                        <button id="copyButton">Copy</button>
-                        <button id="importButton">Import</button>
+                        <button id="copyButton">COPY</button>
+                        <button id="importButton">IMPORT</button>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- ROW 2: DICTIONARY -->
-        <div class="dictionary-panel">
-            <h2>Dictionary & Thesaurus</h2>
-            <input type="text" id="dictionary-search" placeholder="Search any word...">
-            <div class="controls-row">
-                <button id="search-button">Search</button>
-                <button id="random-word">Random</button>
-                <button id="clear-dict">Clear</button>
-            </div>
-            
-            <div class="dictionary-result" id="dictionary-result">
-                <div class="no-results">
-                    Ready.<br>
-                    <small>5 lexical sources</small>
+
+            <!-- Column 3: Dictionary -->
+            <div class="panel">
+                <h2>DICTIONARY & THESAURUS</h2>
+                <input type="text" id="dictionary-search" placeholder="Search any word...">
+                <div class="controls-row">
+                    <button id="search-button">SEARCH</button>
+                    <button id="random-word">RANDOM</button>
+                    <button id="clear-dict">CLEAR</button>
                 </div>
+                
+                <div class="dictionary-result" id="dictionary-result">
+                    <div class="no-results">
+                        Ready.<br>
+                        <small>4 lexical sources + thesaurus</small>
+                    </div>
+                </div>
+                
+                <div id="dictionary-status" style="font-size: 0.65rem; color: #666; margin-top: 0.5rem;"></div>
             </div>
         </div>
-        
-        <!-- STATUS -->
+
         <div class="api-status" id="apiStatus">
-            Loading 5 lexical sources...
+            Loading 4 lexical sources + thesaurus...
         </div>
     </div>
     
+    <!-- FOOTER -->
     <footer>
-        <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 5-Source Lexicon</p>
+        <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 4-Source Lexicon + Live Thesaurus</p>
+        <p><a href="https://inkrealm.info">RETURN TO MAIN</a></p>
     </footer>
     
     <script src="https://js.puter.com/v2/"></script>
     
     <script>
-        // === DICTIONARY SOURCES ===
-        const dictionarySources = [
-            { name: 'Wiktionary', url: 'https://raw.githubusercontent.com/tdulcet/compact-dictionaries/master/dictionaries/en/en.json' },
-            { name: 'WordNet', url: 'https://raw.githubusercontent.com/morungos/english-wordnet/master/dictionary.json' },
-            { name: 'Websters A-Z', url: 'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary_alpha_arrays.json' },
-            { name: 'Websters Classic', url: 'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json' },
-            { name: 'German-English', url: 'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json' }
+        // === SPLASH SCREEN ===
+        function enterSite() {
+            const splash = document.getElementById('splash-screen');
+            splash.classList.add('hidden');
+            setTimeout(() => { splash.style.display = 'none'; }, 1000);
+        }
+
+        // === DICTIONARY SOURCES (PROVEN WORKING) ===
+        const dictionaryUrls = [
+            'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+            'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+            'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+            'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json'
         ];
         
         let dictionaryCache = {};
         let loadedSources = 0;
         
-        // === LOAD DICTIONARIES ===
+        // === LOAD DICTIONARIES WITH AXIOS ===
         async function loadDictionaries() {
             const statusEl = document.getElementById('apiStatus');
-            const promises = dictionarySources.map(async (source) => {
-                try {
-                    const response = await fetch(source.url);
-                    const data = await response.json();
-                    dictionaryCache[source.name] = data;
-                    loadedSources++;
-                    
-                    statusEl.textContent = `Loading ${loadedSources}/5 sources...`;
-                    return true;
-                } catch (error) {
-                    console.warn(`Failed ${source.name}:`, error);
-                    return false;
+            const dictStatusEl = document.getElementById('dictionary-status');
+            
+            statusEl.textContent = 'Loading dictionaries...';
+            dictStatusEl.innerHTML = '';
+            
+            try {
+                const responses = await Promise.all(
+                    dictionaryUrls.map(url => axios.get(url).catch(err => null))
+                );
+                
+                responses.forEach((response, index) => {
+                    if (response && response.data) {
+                        dictionaryCache[`source${index}`] = response.data;
+                        loadedSources++;
+                    }
+                });
+                
+                statusEl.textContent = `Amazon Nova AI • ${loadedSources}/4 Lexical Sources + Thesaurus Ready`;
+                statusEl.style.color = loadedSources >= 3 ? '#66cc66' : '#ff9933';
+                
+                document.getElementById('dictionary-result').innerHTML = `<div class="no-results">
+                    ${loadedSources}/4 sources loaded<br>
+                    <small>Ready to search</small>
+                </div>`;
+                
+                if (loadedSources === 4) {
+                    dictStatusEl.innerHTML = `<div style="color: #66cc66;">
+                        ✓ All 4 sources loaded successfully
+                    </div>`;
+                } else if (loadedSources >= 2) {
+                    dictStatusEl.innerHTML = `<div style="color: #ff9933;">
+                        ⚠ ${loadedSources}/4 sources loaded (sufficient)
+                    </div>`;
+                } else {
+                    dictStatusEl.innerHTML = `<div class="error-detail">
+                        ⚠ Only ${loadedSources}/4 sources loaded<br>
+                        <small>Dictionary may have limited results</small>
+                    </div>`;
                 }
-            });
-            
-            const results = await Promise.allSettled(promises);
-            const successful = results.filter(r => r.value).length;
-            
-            statusEl.textContent = `Amazon Nova AI • ${successful}/5 Lexical Sources Ready`;
-            statusEl.style.color = successful === 5 ? '#66cc66' : '#ff9933';
-            
-            document.getElementById('dictionary-result').innerHTML = 
-                `<div class="no-results">Ready<br><small>${successful}/5 sources loaded</small></div>`;
+                
+                console.log(`✓ Loaded ${loadedSources}/4 dictionary sources`);
+                
+            } catch (error) {
+                console.error('Dictionary loading error:', error);
+                statusEl.textContent = 'Dictionary load error';
+                statusEl.style.color = '#ff6666';
+            }
         }
         
-        // === DICTIONARY SEARCH ===
+        // === DICTIONARY SEARCH WITH THESAURUS ===
         async function searchDictionary() {
             const query = document.getElementById('dictionary-search').value.trim().toLowerCase();
             if (!query) return;
@@ -414,98 +677,89 @@
             const resultDiv = document.getElementById('dictionary-result');
             resultDiv.innerHTML = '<div class="loading">Searching...</div>';
             
-            const results = {};
+            let definitionsFound = false;
+            let html = `<div><span class="word-title">${query}</span></div><div style="margin-top: 0.5rem;">`;
             
-            if (dictionaryCache['Wiktionary']?.[query]) results.wiktionary = dictionaryCache['Wiktionary'][query];
-            if (dictionaryCache['WordNet']?.[query]) results.wordnet = dictionaryCache['WordNet'][query];
-            if (dictionaryCache['German-English']?.[query]) results.german = dictionaryCache['German-English'][query];
-            
-            if (dictionaryCache['Websters Classic']?.[query]) {
-                results.websters = { word: query, definition: dictionaryCache['Websters Classic'][query] };
-            }
-            
-            if (dictionaryCache['Websters A-Z']) {
-                const firstLetter = query.charAt(0).toUpperCase();
-                const letterArray = dictionaryCache['Websters A-Z'][firstLetter];
-                if (letterArray) {
-                    const found = letterArray.find(entry => entry.word.toLowerCase() === query);
-                    if (found) results.webstersAZ = found;
+            // Search English dictionaries (first 3 sources)
+            for (let i = 0; i < 3; i++) {
+                const dict = dictionaryCache[`source${i}`];
+                if (dict && dict[query]) {
+                    definitionsFound = true;
+                    const definition = dict[query];
+                    html += `<div style="margin-bottom: 0.5rem;">
+                        <span class="part-of-speech">Definition ${i + 1}</span><br>
+                        ${definition.substring(0, 200)}${definition.length > 200 ? '...' : ''}
+                    </div>`;
                 }
             }
             
-            displayResults(query, results);
-        }
-        
-        function displayResults(word, results) {
-            const resultDiv = document.getElementById('dictionary-result');
-            
-            if (Object.keys(results).length === 0) {
-                resultDiv.innerHTML = `<div class="no-results">No results for "${word}"</div>`;
-                return;
-            }
-            
-            let html = `<div><span class="word-title">${word}</span>`;
-            
-            if (results.wiktionary?.phonetic) {
-                html += `<div class="phonetic">/${results.wiktionary.phonetic}/</div>`;
-            }
-            
-            html += `</div><div style="margin-top: 0.3rem;">`;
-            
-            if (results.wiktionary?.meanings) {
-                results.wiktionary.meanings.forEach(meaning => {
-                    html += `<div><span class="part-of-speech">${meaning.partOfSpeech}</span>: `;
-                    const firstDef = meaning.definitions[0];
-                    html += `${firstDef.definition.substring(0, 100)}`;
-                    if (firstDef.example) {
-                        html += `<br><em style="color: #999; font-size: 0.7rem;">"${firstDef.example.substring(0, 80)}"</em>`;
-                    }
+            // Search German-English dictionary (source 3)
+            const germanDict = dictionaryCache['source3'];
+            if (germanDict) {
+                const germanTranslations = Object.entries(germanDict).filter(([key, value]) => 
+                    value.toLowerCase().includes(query) || key.toLowerCase() === query
+                );
+                
+                if (germanTranslations.length > 0) {
+                    definitionsFound = true;
+                    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                        <div style="color: #66b3ff; font-size: 0.75rem;"><strong>German Translations:</strong></div>`;
+                    germanTranslations.slice(0, 5).forEach(([german, english]) => {
+                        html += `<div style="font-size: 0.75rem; margin: 0.2rem 0;">${german} → ${english}</div>`;
+                    });
                     html += `</div>`;
-                });
-            } else if (results.websters?.definition) {
-                html += `<div>${results.websters.definition.substring(0, 150)}</div>`;
-            } else if (results.webstersAZ?.definition) {
-                html += `<div>${results.webstersAZ.definition.substring(0, 150)}</div>`;
+                }
             }
             
-            const synonyms = new Set();
-            if (results.wordnet?.synsets) {
-                results.wordnet.synsets.forEach(s => s.words?.forEach(w => w !== word && synonyms.add(w)));
-            }
-            if (results.wiktionary?.synonyms) {
-                results.wiktionary.synonyms.forEach(s => synonyms.add(s));
+            // Fetch synonyms from Datamuse API
+            try {
+                const thesaurusResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=15`);
+                if (thesaurusResponse.data && thesaurusResponse.data.length > 0) {
+                    definitionsFound = true;
+                    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                        <div style="color: #777; font-size: 0.75rem; margin-bottom: 0.3rem;">SYNONYMS:</div>`;
+                    thesaurusResponse.data.forEach(syn => {
+                        html += `<span class="synonym-tag" onclick="document.getElementById('dictionary-search').value='${syn.word}'; searchDictionary();">${syn.word}</span>`;
+                    });
+                    html += `</div>`;
+                }
+            } catch (error) {
+                console.log('Thesaurus lookup failed (non-critical):', error);
             }
             
-            if (synonyms.size > 0) {
-                html += `<div style="margin-top: 0.3rem; border-top: 1px dashed #333; padding-top: 0.3rem;">
-                    <div style="color: #999; font-size: 0.7rem;">Synonyms:</div>`;
-                Array.from(synonyms).slice(0, 8).forEach(syn => {
-                    html += `<span class="synonym-tag" onclick="document.getElementById('dictionary-search').value='${syn}'; searchDictionary();">${syn}</span>`;
-                });
-                html += `</div>`;
-            }
+            html += `</div>`;
             
-            if (results.german) {
-                html += `<div style="margin-top: 0.3rem; color: #66b3ff; font-size: 0.7rem;">
-                    <strong>DE:</strong> ${results.german}
+            if (definitionsFound) {
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `<div class="no-results">
+                    No results for "${query}"<br>
+                    <small>Try a different spelling</small>
                 </div>`;
             }
-            
-            const sources = Object.keys(results);
-            html += `<div style="margin-top: 0.3rem; font-size: 0.6rem; color: #666;">
-                Sources: ${sources.join(', ')}
-            </div>`;
-            
-            resultDiv.innerHTML = html;
         }
         
         // === RANDOM WORD ===
         async function getRandomWord() {
-            if (!dictionaryCache['Websters Classic']) return;
-            const words = Object.keys(dictionaryCache['Websters Classic']);
-            const randomWord = words[Math.floor(Math.random() * Math.min(1000, words.length))];
-            document.getElementById('dictionary-search').value = randomWord;
-            searchDictionary();
+            let words = [];
+            
+            // Try to get words from any loaded English dictionary
+            for (let i = 0; i < 3; i++) {
+                const dict = dictionaryCache[`source${i}`];
+                if (dict && Object.keys(dict).length > 0) {
+                    words = Object.keys(dict);
+                    break;
+                }
+            }
+            
+            if (words.length > 0) {
+                const randomWord = words[Math.floor(Math.random() * Math.min(1000, words.length))];
+                document.getElementById('dictionary-search').value = randomWord;
+                searchDictionary();
+            } else {
+                document.getElementById('dictionary-result').innerHTML = 
+                    `<div class="no-results">Load dictionaries first<br><small>Try searching manually</small></div>`;
+            }
         }
         
         // === AI GENERATION ===
@@ -524,24 +778,32 @@
             const output = document.getElementById('output');
             
             button.disabled = true;
-            button.textContent = '...';
-            output.textContent = 'Processing...';
+            button.textContent = 'TRANSMITTING...';
+            output.classList.add('generating');
+            output.textContent = '◬ Amazon Nova is thinking...';
             
             try {
+                if (typeof puter === 'undefined') {
+                    throw new Error("Puter.js not loaded. Check internet connection.");
+                }
+                
                 const response = await puter.ai.chat(prompt, {
                     model: model,
                     temperature: temp,
-                    max_tokens: 1500
+                    max_tokens: 2000
                 });
                 
+                output.classList.remove('generating');
                 output.textContent = typeof response === 'object' && response.message 
                     ? response.message.content 
                     : response;
             } catch (error) {
-                output.textContent = `Error: ${error.message}`;
+                output.classList.remove('generating');
+                output.textContent = `❌ Error: ${error.message}`;
+                console.error('AI Generation Error:', error);
             } finally {
                 button.disabled = false;
-                button.textContent = 'Generate';
+                button.textContent = 'INITIATE';
             }
         });
         
@@ -554,22 +816,22 @@
         document.getElementById('clear-dict').addEventListener('click', () => {
             document.getElementById('dictionary-search').value = '';
             document.getElementById('dictionary-result').innerHTML = 
-                `<div class="no-results">Ready<br><small>${loadedSources}/5 sources</small></div>`;
+                `<div class="no-results">Ready<br><small>${loadedSources}/5 sources loaded</small></div>`;
         });
         
         document.getElementById('copyButton').addEventListener('click', () => {
             navigator.clipboard.writeText(document.getElementById('output').textContent);
             const btn = document.getElementById('copyButton');
-            btn.textContent = 'Copied!';
-            setTimeout(() => btn.textContent = 'Copy', 1500);
+            btn.textContent = 'COPIED!';
+            setTimeout(() => btn.textContent = 'COPY', 1500);
         });
         
         document.getElementById('importButton').addEventListener('click', () => {
             const notepad = document.getElementById('notepad');
             notepad.value += (notepad.value ? '\n\n' : '') + document.getElementById('output').textContent;
             const btn = document.getElementById('importButton');
-            btn.textContent = 'Done!';
-            setTimeout(() => btn.textContent = 'Import', 1500);
+            btn.textContent = 'IMPORTED!';
+            setTimeout(() => btn.textContent = 'IMPORT', 1500);
         });
         
         document.getElementById('exportButton').addEventListener('click', () => {
@@ -579,7 +841,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'notepad.txt';
+            a.download = 'nova-notepad.txt';
             a.click();
             URL.revokeObjectURL(url);
         });
