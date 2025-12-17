@@ -36,7 +36,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     
-    <!-- Puter SDK -->
+    <!-- Puter SDK - LOADED ONCE -->
     <script src="https://js.puter.com/v2"></script>
     <style>
         * {
@@ -228,12 +228,6 @@
             letter-spacing: 3px;
             margin: 0;
             display: inline-block;
-        }
-
-        .subtitle {
-            font-size: 24px;
-            color: #666;
-            letter-spacing: 2px;
         }
 
         .input-section {
@@ -490,102 +484,27 @@
             cursor: not-allowed;
         }
 
-        /* AIM Buddy Chat Box */
-        .aim-buddy-box {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 220px;
-            border: 2px solid #333;
-            background: #1a1a1a;
-            box-shadow: 2px 2px 0 #000;
-            font-family: 'VT323', monospace;
-            z-index: 1000;
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .aim-header {
-            background: #ff0033;
-            padding: 6px 10px;
-            color: #000;
-            font-size: 16px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: move;
-            letter-spacing: 2px;
+        ::-webkit-scrollbar-track {
+            background: #000;
         }
 
-        .aim-close {
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-            padding: 0 4px;
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
         }
 
-        .aim-body {
-            padding: 10px;
-            font-size: 14px;
-            color: #999;
-            min-height: 120px;
-            max-height: 200px;
-            overflow-y: auto;
-            background: #0a0a0a;
-        }
-
-        .aim-runner {
-            width: 40px;
-            height: 40px;
-            margin: 8px auto;
-            background-color: #ff6666;
-            display: none;
-            animation: running-bounce 0.6s ease-in-out infinite;
-        }
-
-        .aim-runner.active {
-            display: block;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
         }
 
         @keyframes running-bounce {
             0%, 100% { transform: translateY(0) scaleY(1); }
             50% { transform: translateY(-8px) scaleY(1.1); }
-        }
-
-        .aim-status {
-            font-size: 13px;
-            color: #666;
-            font-style: italic;
-            text-align: center;
-            margin-top: 6px;
-        }
-
-        .aim-button {
-            background: #222;
-            border: 1px solid #ff0033;
-            color: #ff0033;
-            padding: 6px 12px;
-            font-size: 14px;
-            font-family: 'VT323', monospace;
-            cursor: pointer;
-            margin: 8px auto 4px;
-            display: block;
-            letter-spacing: 1px;
-            transition: all 0.2s;
-        }
-
-        .aim-button:hover:not(:disabled) {
-            background: #ff0033;
-            color: #000;
-        }
-
-        .aim-button:disabled {
-            border-color: #333;
-            color: #333;
-            cursor: not-allowed;
-        }
-
-        .aim-button:active {
-            background: #cc0029;
         }
 
         @media (max-width: 768px) {
@@ -601,10 +520,14 @@
                 font-size: 16px;
             }
 
-            .aim-buddy-box {
-                width: 180px;
-                bottom: 10px;
-                right: 10px;
+            footer {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .footer-right {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -734,215 +657,281 @@
         </footer>
     </div>
 
-    <script src="https://js.puter.com/v2"></script>
-<script>
-    const models = [
-        { id: 1, name: 'deepseek/deepseek-chat:free', label: 'DEEPSEEK' },
-        { id: 2, name: 'moonshotai/kimi-k2:free', label: 'KIMI K2' },
-        { id: 3, name: 'amazon/nova-lite-v1:free', label: 'NOVA LITE' },
-        { id: 4, name: 'google/gemma-2-27b-it:free', label: 'GPT-5.2' },
-        { id: 5, name: 'mistralai/mistral-nemo:free', label: 'GPT-4O' },
-        { id: 6, name: 'microsoft/phi-3-medium-128k-instruct:free', label: 'O1' }
-    ];
+    <script>
+        // --- WORKING FREE TIER MODELS (Updated) ---
+        const models = [
+            // Tested and working models
+            { id: 1, name: 'deepseek/deepseek-chat-v3.1:free', label: 'DEEPSEEK V3.1' },
+            { id: 2, name: 'nousresearch/hermes-3-llama-3.1-405b:free', label: 'HERMES 405B' },
+            { id: 3, name: 'mistralai/devstral-2512:free', label: 'DEVSTRAL 2512' },
+            
+            // Additional free models that should work
+            { id: 4, name: 'google/gemma-2-27b-it:free', label: 'GEMMA 2 27B' },
+            { id: 5, name: 'moonshotai/kimi-k2:free', label: 'KIMI K2' },
+            { id: 6, name: 'microsoft/phi-3-medium-128k-instruct:free', label: 'PHI-3 MEDIUM' }
+            
+            // Note: 'amazon/nova-lite-v1:free' might be 'amazon/nova-2-lite-v1:free'
+            // 'mistralai/mistral-nemo:free' works as fallback
+        ];
 
-    const runButton = document.getElementById('run-button');
-    const promptInput = document.getElementById('prompt-input');
-    const aimMessages = document.getElementById('aim-messages');
-    const aimRunner = document.getElementById('aim-runner');
-    const aimStatus = document.getElementById('aim-status');
-    const exportBtn = document.getElementById('export-txt');
+        const runButton = document.getElementById('run-button');
+        const promptInput = document.getElementById('prompt-input');
+        const aimMessages = document.getElementById('aim-messages');
+        const aimRunner = document.getElementById('aim-runner');
+        const aimStatus = document.getElementById('aim-status');
+        const exportBtn = document.getElementById('export-txt');
 
-    let conversationData = {
-        prompt: '',
-        timestamp: '',
-        responses: {}
-    };
+        let conversationData = {
+            prompt: '',
+            timestamp: '',
+            responses: {}
+        };
 
-    runButton.addEventListener('click', async () => {
-        const prompt = promptInput.value.trim();
-        
-        if (!prompt) {
-            alert('Please enter a prompt.');
-            return;
-        }
+        let isRunning = false;
 
-        runButton.disabled = true;
-        runButton.textContent = '◆ PROCESSING...';
-        exportBtn.disabled = true;
-
-        // Store conversation data
-        conversationData.prompt = prompt;
-        conversationData.timestamp = new Date().toLocaleString();
-        conversationData.responses = {};
-
-        // Clear all outputs and set loading status
-        models.forEach(model => {
-            document.getElementById(`output-${model.id}`).textContent = '';
-            document.getElementById(`status-${model.id}`).textContent = '● LOADING...';
-            document.getElementById(`status-${model.id}`).className = 'model-status loading';
-        });
-
-        // Show AIM buddy animation
-        aimRunner.textContent = '◆ RUNNING MODELS ◆';
-        aimRunner.classList.add('active');
-        aimStatus.textContent = 'Fetching responses...';
-        aimMessages.innerHTML = '<div style="color: #999; padding: 8px;">Running all 6 models...</div>';
-
-        // Run all models with Puter - with slight stagger for better UX
-        const promises = [];
-        for (let i = 0; i < models.length; i++) {
-            promises.push(runModelWithPuter(models[i], prompt));
-            // Stagger starts by 300ms to avoid overwhelming
-            if (i < models.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 300));
+        // Check if Puter is available
+        function checkPuter() {
+            if (typeof puter === 'undefined' || !puter.ai) {
+                aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">⚠️ Puter.js not loaded</div>';
+                return false;
             }
+            return true;
         }
 
-        // Wait for all models to complete
-        await Promise.allSettled(promises);
+        runButton.addEventListener('click', async () => {
+            if (isRunning) return;
+            
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) {
+                alert('Please enter a prompt.');
+                return;
+            }
 
-        // Hide animation and show completion
-        aimRunner.classList.remove('active');
-        aimRunner.textContent = '';
-        aimStatus.textContent = 'All models complete!';
-        aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ All 6 models finished!</div><div style="color: #666; padding: 4px 8px; font-size: 12px;">Ready to save conversation.</div>';
-        
-        runButton.disabled = false;
-        runButton.textContent = '▶ RUN ALL MODELS';
-        exportBtn.disabled = false;
-    });
+            if (!checkPuter()) {
+                aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">Puter AI not available. Refresh page.</div>';
+                return;
+            }
 
-    async function runModelWithPuter(model, prompt) {
-        const outputEl = document.getElementById(`output-${model.id}`);
-        const statusEl = document.getElementById(`status-${model.id}`);
+            isRunning = true;
+            runButton.disabled = true;
+            runButton.textContent = '◆ PROCESSING...';
+            exportBtn.disabled = true;
 
-        try {
-            statusEl.textContent = '◆ STREAMING...';
-            statusEl.className = 'model-status loading';
+            // Store conversation data
+            conversationData.prompt = prompt;
+            conversationData.timestamp = new Date().toLocaleString();
+            conversationData.responses = {};
 
-            // Call Puter.ai with streaming
-            const stream = await puter.ai.chat(prompt, {
-                model: model.name,
-                stream: true
+            // Clear all outputs and set loading status
+            models.forEach(model => {
+                const outputEl = document.getElementById(`output-${model.id}`);
+                const statusEl = document.getElementById(`status-${model.id}`);
+                if (outputEl) outputEl.textContent = '';
+                if (statusEl) {
+                    statusEl.textContent = '● LOADING...';
+                    statusEl.className = 'model-status loading';
+                }
             });
 
-            let fullResponse = '';
-            
-            for await (const chunk of stream) {
-                if (chunk.text) {
-                    fullResponse += chunk.text;
-                    outputEl.textContent = fullResponse;
-                    // Scroll to bottom as content grows
-                    outputEl.scrollTop = outputEl.scrollHeight;
+            // Show AIM buddy animation
+            aimRunner.textContent = '◆ RUNNING MODELS ◆';
+            aimRunner.classList.add('active');
+            aimStatus.textContent = 'Fetching responses...';
+            aimMessages.innerHTML = '<div style="color: #999; padding: 8px;">Running all 6 models...</div>';
+
+            // Run models with better error handling
+            const promises = [];
+            for (let i = 0; i < models.length; i++) {
+                const model = models[i];
+                aimMessages.innerHTML += `<div style="color: #666; padding: 2px 8px; font-size: 12px;">Starting: ${model.label}</div>`;
+                
+                promises.push(runModelWithPuter(model, prompt));
+                
+                // Stagger starts by 400ms to avoid rate limits
+                if (i < models.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 400));
                 }
             }
 
-            // Store response
-            conversationData.responses[model.name] = fullResponse;
+            // Wait for all to complete (or fail)
+            await Promise.allSettled(promises);
 
-            statusEl.textContent = '✓ COMPLETE';
-            statusEl.className = 'model-status';
-
-        } catch (error) {
-            console.error(`Error with ${model.name}:`, error);
-            const errorMsg = `ERROR: ${error.message || 'Request failed'}`;
-            outputEl.textContent = errorMsg;
-            conversationData.responses[model.name] = errorMsg;
-            statusEl.textContent = '✗ FAILED';
-            statusEl.className = 'model-status error';
-        }
-    }
-
-    // Copy individual model response to clipboard
-    function copyModel(id) {
-        const model = models.find(m => m.id === id);
-        const output = document.getElementById(`output-${id}`).textContent;
-        
-        if (!output || output.trim() === '') {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">Nothing to copy yet!</div>';
-            setTimeout(() => {
-                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-            }, 2000);
-            return;
-        }
-
-        const textToCopy = `[ ${model.label} ]\n\n${output}`;
-        
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${model.label} copied!</div>`;
-            setTimeout(() => {
-                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-            }, 2000);
-        }).catch(err => {
-            console.error('Copy failed:', err);
-            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px;">Copy failed: ${err.message}</div>`;
+            // Hide animation and show completion
+            aimRunner.classList.remove('active');
+            aimRunner.textContent = '';
+            aimStatus.textContent = 'All models complete!';
+            
+            const successCount = Object.values(conversationData.responses).filter(r => !r.startsWith('ERROR:')).length;
+            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${successCount}/6 models completed!</div><div style="color: #666; padding: 4px 8px; font-size: 12px;">Ready to save conversation.</div>`;
+            
+            runButton.disabled = false;
+            runButton.textContent = '▶ RUN ALL MODELS';
+            exportBtn.disabled = false;
+            isRunning = false;
         });
-    }
 
-    // Export conversation to TXT
-    exportBtn.addEventListener('click', () => {
-        let txtContent = '═══════════════════════════════════════════\n';
-        txtContent += '    MODEL ARENA SIXPACK CONVERSATION LOG\n';
-        txtContent += '═══════════════════════════════════════════\n\n';
-        txtContent += `Timestamp: ${conversationData.timestamp}\n\n`;
-        txtContent += `PROMPT:\n${conversationData.prompt}\n\n`;
-        txtContent += '═══════════════════════════════════════════\n\n';
+        async function runModelWithPuter(model, prompt) {
+            const outputEl = document.getElementById(`output-${model.id}`);
+            const statusEl = document.getElementById(`status-${model.id}`);
 
-        let savedCount = 0;
-        models.forEach(model => {
-            const response = conversationData.responses[model.name];
-            if (response && response.trim() !== '' && !response.startsWith('ERROR:')) {
-                txtContent += `[ ${model.label} ]\n`;
-                txtContent += '───────────────────────────────────────────\n';
-                txtContent += response + '\n\n';
-                txtContent += '═══════════════════════════════════════════\n\n';
-                savedCount++;
+            try {
+                if (statusEl) {
+                    statusEl.textContent = '◆ STREAMING...';
+                    statusEl.className = 'model-status loading';
+                }
+
+                // Try with fallback for certain models
+                let actualModel = model.name;
+                let fallbackUsed = false;
+                
+                // Add fallback logic for problematic models
+                if (model.name === 'amazon/nova-lite-v1:free') {
+                    actualModel = 'amazon/nova-2-lite-v1:free';
+                    fallbackUsed = true;
+                }
+
+                const stream = await puter.ai.chat(prompt, {
+                    model: actualModel,
+                    stream: true
+                });
+
+                let fullResponse = '';
+                
+                for await (const chunk of stream) {
+                    if (chunk.text) {
+                        fullResponse += chunk.text;
+                        if (outputEl) {
+                            outputEl.textContent = fullResponse;
+                            outputEl.scrollTop = outputEl.scrollHeight;
+                        }
+                    }
+                }
+
+                // Store response
+                if (fallbackUsed) {
+                    conversationData.responses[`${model.label} (fallback)`] = fullResponse;
+                } else {
+                    conversationData.responses[model.label] = fullResponse;
+                }
+
+                if (statusEl) {
+                    statusEl.textContent = '✓ COMPLETE';
+                    statusEl.className = 'model-status';
+                }
+
+            } catch (error) {
+                console.error(`Error with ${model.name}:`, error);
+                const errorMsg = `ERROR: ${error.message || 'Model unavailable'}`;
+                
+                if (outputEl) outputEl.textContent = errorMsg;
+                conversationData.responses[model.label] = errorMsg;
+                
+                if (statusEl) {
+                    statusEl.textContent = '✗ FAILED';
+                    statusEl.className = 'model-status error';
+                }
+                
+                // Log error to AIM
+                aimMessages.innerHTML += `<div style="color: #ff0033; padding: 2px 8px; font-size: 12px;">${model.label}: Failed</div>`;
             }
-        });
+        }
 
-        if (savedCount === 0) {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">No responses to save!</div>';
+        // Copy individual model response to clipboard
+        function copyModel(id) {
+            const model = models.find(m => m.id === id);
+            const output = document.getElementById(`output-${id}`).textContent;
+            
+            if (!output || output.trim() === '') {
+                aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">Nothing to copy yet!</div>';
+                setTimeout(() => {
+                    aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
+                }, 2000);
+                return;
+            }
+
+            const textToCopy = `[ ${model.label} ]\n\n${output}`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${model.label} copied!</div>`;
+                setTimeout(() => {
+                    aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
+                }, 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px;">Copy failed: ${err.message}</div>`;
+            });
+        }
+
+        // Export conversation to TXT
+        exportBtn.addEventListener('click', () => {
+            let txtContent = '═══════════════════════════════════════════\n';
+            txtContent += '    MODEL ARENA SIXPACK CONVERSATION LOG\n';
+            txtContent += '═══════════════════════════════════════════\n\n';
+            txtContent += `Timestamp: ${conversationData.timestamp}\n\n`;
+            txtContent += `PROMPT:\n${conversationData.prompt}\n\n`;
+            txtContent += '═══════════════════════════════════════════\n\n';
+
+            let savedCount = 0;
+            models.forEach(model => {
+                const response = conversationData.responses[model.label];
+                if (response && response.trim() !== '' && !response.startsWith('ERROR:')) {
+                    txtContent += `[ ${model.label} ]\n`;
+                    txtContent += '───────────────────────────────────────────\n';
+                    txtContent += response + '\n\n';
+                    txtContent += '═══════════════════════════════════════════\n\n';
+                    savedCount++;
+                }
+            });
+
+            if (savedCount === 0) {
+                aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">No responses to save!</div>';
+                setTimeout(() => {
+                    aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
+                }, 3000);
+                return;
+            }
+
+            const blob = new Blob([txtContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `model-arena-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Show confirmation in AIM buddy
+            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">💾 Saved ${savedCount} responses!</div>`;
             setTimeout(() => {
                 aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
             }, 3000);
-            return;
-        }
+        });
 
-        const blob = new Blob([txtContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `sixpack-${Date.now()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Allow Enter key to submit (with Shift+Enter for new line)
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!isRunning) runButton.click();
+            }
+        });
 
-        // Show confirmation in AIM buddy
-        aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">💾 Saved ${savedCount} responses!</div>`;
-        setTimeout(() => {
-            aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-        }, 3000);
-    });
-
-    // Allow Enter key to submit (with Shift+Enter for new line)
-    promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            runButton.click();
-        }
-    });
-
-    // Splash screen fade out
-    window.addEventListener('load', () => {
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            splash.classList.add('fade-out');
+        // Splash screen fade out
+        window.addEventListener('load', () => {
             setTimeout(() => {
-                splash.style.display = 'none';
-            }, 1000);
-        }, 2500);
-    });
-</script>
+                const splash = document.getElementById('splash-screen');
+                if (splash) {
+                    splash.classList.add('fade-out');
+                    setTimeout(() => {
+                        splash.style.display = 'none';
+                    }, 1000);
+                }
+            }, 2500);
+            
+            // Focus on prompt input
+            if (promptInput) promptInput.focus();
+        });
+    </script>
 </body>
-</html>
+    </html>
