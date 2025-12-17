@@ -605,36 +605,59 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 <script>
 /* -----------------------------------------------------------
-    LIVE FEED ENGINE
------------------------------------------------------------ */
-
-/* -----------------------------------------------------------
-    NEWS / INTEL FEED
+    NEWS / INTEL FEED (WITH FALLBACK)
 ----------------------------------------------------------- */
 
 async function updateNewsFeed() {
+  const feedEl = document.getElementById("feed-news");
+  if (!feedEl) return;
+
+  // --- PRIMARY: GDELT ---
   try {
     const res = await fetch(
-      "https://api.gdeltproject.org/api/v2/doc/doc?query=artificial%20intelligence&mode=List&maxrecords=3&format=json"
+      "https://api.gdeltproject.org/api/v2/doc/doc?query=artificial%20intelligence&mode=List&maxrecords=3&format=json",
+      { cache: "no-store" }
     );
+
+    if (!res.ok) throw new Error("GDELT failed");
+
     const data = await res.json();
 
-    if (!data.articles || !data.articles.length) {
-      document.getElementById("feed-news").textContent = "→ no signal";
+    if (data.articles && data.articles.length) {
+      feedEl.innerHTML = data.articles
+        .slice(0, 3)
+        .map(a => `→ ${a.title}`)
+        .join("<br>");
       return;
     }
+  } catch {
+    // silently fall through
+  }
 
-    const lines = data.articles
-      .slice(0, 3)
-      .map(a => `→ ${a.title}`)
+  // --- FALLBACK: HACKER NEWS ---
+  try {
+    const res = await fetch(
+      "https://hacker-news.firebaseio.com/v0/topstories.json"
+    );
+    const ids = await res.json();
+
+    const stories = await Promise.all(
+      ids.slice(0, 3).map(id =>
+        fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+          .then(r => r.json())
+      )
+    );
+
+    feedEl.innerHTML = stories
+      .filter(s => s && s.title)
+      .map(s => `→ ${s.title}`)
       .join("<br>");
 
-    document.getElementById("feed-news").innerHTML = lines;
-
   } catch {
-    document.getElementById("feed-news").textContent = "→ intel unavailable";
+    feedEl.textContent = "→ no signal";
   }
 }
+
 /* -----------------------------------------------------------
     MARKET FEED — TON COIN
 ----------------------------------------------------------- */
