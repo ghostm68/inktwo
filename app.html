@@ -301,26 +301,23 @@
               placeholder="Notes, stories, and poems..."></textarea>
 
     <!-- LIVE FEED HEADER -->
-    <div class="notepad-header" style="border-top:1px solid var(--gray-3)">
-        <span>LIVE FEED</span>
+<div class="notepad-header" style="border-top:1px solid var(--gray-3)">
+    <span>LIVE FEED</span>
+</div>
+
+<div class="live-feed">
+
+    <div class="feed-section">
+        <div class="feed-title">INTEL</div>
+        <div id="feed-news" class="feed-item">scanning…</div>
     </div>
 
-    <!-- LIVE FEED CONTENT -->
-    <div id="live-feed" class="live-feed">
-        <div class="feed-section">
-            <div class="feed-title">WORD OF THE HOUR</div>
-            <div id="feed-word" class="feed-item">loading…</div>
-        </div>
+    <div class="feed-section">
+        <div class="feed-title">MRKT · TON</div>
+        <div id="feed-market" class="feed-item">loading…</div>
+    </div>
 
-        <div class="feed-section">
-            <div class="feed-title">ANAGRAM</div>
-            <div id="feed-anagram" class="feed-item">loading…</div>
-        </div>
-
-        <div class="feed-section">
-            <div class="feed-title">MRKT</div>
-            <div id="feed-market" class="feed-item">loading…</div>
-        </div>
+</div>
     </div>
 </aside>
     
@@ -611,53 +608,64 @@ document.addEventListener("DOMContentLoaded", () => {
     LIVE FEED ENGINE
 ----------------------------------------------------------- */
 
-const WORDS = ["petrichor", "sonder", "palimpsest", "limerence", "ephemeral", "nocturne"];
-
-async function updateWordFeed() {
-    const word = WORDS[Math.floor(Math.random() * WORDS.length)];
-    document.getElementById("feed-word").textContent = `→ ${word}`;
-
-    try {
-        const res = await fetch(`https://api.datamuse.com/words?sp=${word}&md=an&max=1`);
-        const data = await res.json();
-
-        if (data[0]?.tags?.includes("anagram")) {
-            document.getElementById("feed-anagram").textContent =
-                `→ ${word} → ${data[0].word}`;
-        } else {
-            document.getElementById("feed-anagram").textContent = "→ none detected";
-        }
-    } catch {
-        document.getElementById("feed-anagram").textContent = "→ unavailable";
-    }
-}
-
-async function updateMarketFeed() {
-    try {
-        const res = await fetch(
-            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-        );
-        const data = await res.json();
-        const price = data.bitcoin.usd.toLocaleString();
-        document.getElementById("feed-market").textContent = `BTC $${price}`;
-    } catch {
-        document.getElementById("feed-market").textContent = "BTC unavailable";
-    }
-}
-
 /* -----------------------------------------------------------
-    FEED LOOP
+    NEWS / INTEL FEED
 ----------------------------------------------------------- */
 
-function startLiveFeed() {
-    updateWordFeed();
-    updateMarketFeed();
+async function updateNewsFeed() {
+  try {
+    const res = await fetch(
+      "https://api.gdeltproject.org/api/v2/doc/doc?query=artificial%20intelligence&mode=List&maxrecords=3&format=json"
+    );
+    const data = await res.json();
 
-    setInterval(updateWordFeed, 60 * 60 * 1000); // hourly
-    setInterval(updateMarketFeed, 60 * 1000);   // every minute
+    if (!data.articles || !data.articles.length) {
+      document.getElementById("feed-news").textContent = "→ no signal";
+      return;
+    }
+
+    const lines = data.articles
+      .slice(0, 3)
+      .map(a => `→ ${a.title}`)
+      .join("<br>");
+
+    document.getElementById("feed-news").innerHTML = lines;
+
+  } catch {
+    document.getElementById("feed-news").textContent = "→ intel unavailable";
+  }
 }
+/* -----------------------------------------------------------
+    MARKET FEED — TON COIN
+----------------------------------------------------------- */
 
-document.addEventListener("DOMContentLoaded", startLiveFeed);
+async function updateMarketFeed() {
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true"
+    );
+    const data = await res.json();
+
+    const ton = data["the-open-network"];
+    if (!ton) throw new Error();
+
+    const price = ton.usd;
+    const change = ton.usd_24h_change;
+    const arrow = change >= 0 ? "▲" : "▼";
+
+    document.getElementById("feed-market").textContent =
+      `TON $${price.toLocaleString()} ${arrow}`;
+
+  } catch {
+    document.getElementById("feed-market").textContent = "TON — no signal";
+  }
+}
+updateNewsFeed();
+updateMarketFeed();
+
+setInterval(updateNewsFeed, 5 * 60 * 1000);   // every 5 minutes
+setInterval(updateMarketFeed, 60 * 1000);     // every 1 minute
+
 </script>
 
 
