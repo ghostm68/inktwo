@@ -196,6 +196,32 @@
     80% { transform: translate(2px, -2px) rotate(5deg); }
     100% { transform: translate(0) rotate(0deg); }
 }
+ /* ---------- LIVE FEED ---------- */
+.live-feed {
+    padding: 1rem 1.5rem;
+    font-size: .75rem;
+    color: var(--gray-c);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.feed-section {
+    line-height: 1.5;
+}
+
+.feed-title {
+    color: var(--gray-6);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: .25rem;
+}
+
+.feed-item {
+    color: var(--white);
+    font-family: 'IBM Plex Mono', monospace;
+}
+       
     </style>
 </head>
 <body>
@@ -267,8 +293,29 @@
                 </div>
             </div>
             <textarea id="notepad" class="notepad-area" placeholder="Notes, stories, and poems..."></textarea>
+            <span>LIVE FEED</span>
+</div>
+
+<div id="live-feed" class="live-feed">
+    <div class="feed-section">
+        <div class="feed-title">WORD OF THE HOUR</div>
+        <div id="feed-word" class="feed-item">loading…</div>
+    </div>
+
+    <div class="feed-section">
+        <div class="feed-title">ANAGRAM</div>
+        <div id="feed-anagram" class="feed-item">loading…</div>
+    </div>
+
+    <div class="feed-section">
+        <div class="feed-title">MRKT</div>
+        <div id="feed-market" class="feed-item">loading…</div>
+    </div>
+</div>
         </aside>
     </div>
+<div class="notepad-header" style="border-top:1px solid var(--gray-3)">
+    
 
     <!-- Footer -->
     <footer class="footer" id="footer">
@@ -550,6 +597,59 @@ function typeText(el, text, speed = 12) {
 document.addEventListener("DOMContentLoaded", () => {
     window.app = new InkRealmTerminal();
 });
+</script>
+<script>
+/* -----------------------------------------------------------
+    LIVE FEED ENGINE
+----------------------------------------------------------- */
+
+const WORDS = ["petrichor", "sonder", "palimpsest", "limerence", "ephemeral", "nocturne"];
+
+async function updateWordFeed() {
+    const word = WORDS[Math.floor(Math.random() * WORDS.length)];
+    document.getElementById("feed-word").textContent = `→ ${word}`;
+
+    try {
+        const res = await fetch(`https://api.datamuse.com/words?sp=${word}&md=an&max=1`);
+        const data = await res.json();
+
+        if (data[0]?.tags?.includes("anagram")) {
+            document.getElementById("feed-anagram").textContent =
+                `→ ${word} → ${data[0].word}`;
+        } else {
+            document.getElementById("feed-anagram").textContent = "→ none detected";
+        }
+    } catch {
+        document.getElementById("feed-anagram").textContent = "→ unavailable";
+    }
+}
+
+async function updateMarketFeed() {
+    try {
+        const res = await fetch(
+            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        );
+        const data = await res.json();
+        const price = data.bitcoin.usd.toLocaleString();
+        document.getElementById("feed-market").textContent = `BTC $${price}`;
+    } catch {
+        document.getElementById("feed-market").textContent = "BTC unavailable";
+    }
+}
+
+/* -----------------------------------------------------------
+    FEED LOOP
+----------------------------------------------------------- */
+
+function startLiveFeed() {
+    updateWordFeed();
+    updateMarketFeed();
+
+    setInterval(updateWordFeed, 60 * 60 * 1000); // hourly
+    setInterval(updateMarketFeed, 60 * 1000);   // every minute
+}
+
+document.addEventListener("DOMContentLoaded", startLiveFeed);
 </script>
 
 
