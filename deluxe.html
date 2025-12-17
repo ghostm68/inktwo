@@ -313,25 +313,17 @@ em, i { font-style: italic; }
 
         <!-- AI Image Generation -->
         <div class="toolbar-group">
-            <select id="aiModelSelector" title="AI Image Model">
-                <option value="black-forest-labs/FLUX.1-schnell">FLUX Schnell (Fast)</option>
-                <option value="black-forest-labs/FLUX.1-dev">FLUX Dev (Quality)</option>
-                <option value="black-forest-labs/FLUX.1-pro">FLUX Pro (Best)</option>
-                <option value="stabilityai/stable-diffusion-xl-base-1.0">Stable Diffusion XL</option>
-                <option value="dall-e-3">DALL-E 3</option>
-                <option value="gpt-image-1">GPT Image 1</option>
-                <option value="gpt-image-1-mini">GPT Image 1 Mini</option>
-                <option value="google/imagen-4.0-fast">Google Imagen 4 Fast</option>
-                <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash</option>
-                <option value="ideogram/ideogram-3.0">Ideogram 3.0</option>
-                <option value="RunDiffusion/Juggernaut-pro-flux">Juggernaut Pro</option>
-            </select>
-            <select id="aiQualitySelector" title="Image Quality" style="display: none;">
-                <option value="standard">Standard</option>
-                <option value="hd">HD</option>
-            </select>
-            <button id="generateImage" title="Generate AI Image from Selected Text" style="background-color: #ff0000; border-color: #ff0000;"><span class="material-symbols-outlined">auto_awesome</span></button>
-        </div>
+    <select id="aiModelSelector" title="AI Image Model">
+        <option value="flux" selected>FLUX.1 (Fast & Quality)</option>
+        <option value="flux-realism">FLUX Realism</option>
+        <option value="flux-anime">FLUX Anime</option>
+        <option value="flux-3d">FLUX 3D</option>
+        <option value="turbo">SD Turbo (Fast)</option>
+        <option value="dreamshaper">DreamShaper</option>
+        <option value="deliberate">Deliberate</option>
+    </select>
+    <button id="generateImage" title="Generate AI Image from Selected Text" style="background-color: #ff0000; border-color: #ff0000;"><span class="material-symbols-outlined">auto_awesome</span></button>
+</div>
 
         <!-- Color -->
         <div class="toolbar-group">
@@ -610,91 +602,82 @@ fontSelector.addEventListener('change', () => {
 
     editor.addEventListener('input', updateWordCount);
 
-    // AI Image Generation with Puter.js
-    generateImage.addEventListener('click', async () => {
-        const selectedText = window.getSelection().toString().trim();
-        
-        if (!selectedText) {
-            quantumStatus.textContent = 'Select text to generate image from';
-            setTimeout(() => {
-                quantumStatus.textContent = 'Quantum circuit: Ready';
-            }, 2000);
-            return;
-        }
+// AI Image Generation with Pollinations.ai
+generateImage.addEventListener('click', async () => {
+    const selectedText = window.getSelection().toString().trim();
+    
+    if (!selectedText) {
+        quantumStatus.textContent = 'Select text to generate image from';
+        setTimeout(() => {
+            quantumStatus.textContent = 'Quantum circuit: Ready';
+        }, 2000);
+        return;
+    }
 
-        // Check if Puter AI is available
-        if (!window.puter || !puter.ai || !puter.ai.txt2img) {
-            quantumStatus.textContent = '⚠️ Puter AI not available - check console';
-            console.error('[INK REALM] Puter AI txt2img not found');
-            setTimeout(() => {
-                quantumStatus.textContent = 'Quantum circuit: Ready';
-            }, 4000);
-            return;
-        }
-
-        const selectedModel = aiModelSelector.value;
-        const modelName = selectedModel.split('/').pop();
-        quantumStatus.textContent = `Generating with ${modelName}...`;
+    const selectedModel = aiModelSelector.value;
+    const modelDisplay = aiModelSelector.options[aiModelSelector.selectedIndex].text;
+    quantumStatus.textContent = `Generating with ${modelDisplay}...`;
+    
+    try {
+        // Build Pollinations image URL
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(selectedText)}?model=${selectedModel}&width=1024&height=1024&seed=${Math.floor(Math.random() * 1000000)}&nologo=true`;
         
-        try {
-            // Build options object
-            const options = { model: selectedModel };
-            
-            // Add quality if model supports it and selector is visible
-            if (aiQualitySelector.style.display !== 'none') {
-                options.quality = aiQualitySelector.value;
-            }
-            
-            // Puter returns an <img> element directly, not a blob!
-            const img = await puter.ai.txt2img(selectedText, options);
-            
-            if (!img) {
-                throw new Error("Empty response from Puter AI");
-            }
-            
-            // Wrap the img element and insert it
-            const wrapper = document.createElement('div');
-            wrapper.className = 'image-block';
-            wrapper.appendChild(img);
-            wrapper.innerHTML += '<p><br></p>';
-            
-            // Insert at cursor position
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(wrapper);
-            } else {
-                editor.appendChild(wrapper);
-            }
-            
-            quantumStatus.textContent = 'Quantum image materialized ✨';
-            setTimeout(() => {
-                quantumStatus.textContent = 'Quantum circuit: Ready';
-            }, 3000);
-            
-        } catch (err) {
-            console.error('[INK REALM] AI Image generation error:', err);
-            
-            let errorMsg = '⚠️ Generation failed: ';
-            
-            if (err.message && err.message.includes('auth')) {
-                errorMsg += 'Authentication required';
-            } else if (err.message && err.message.includes('quota')) {
-                errorMsg += 'API quota exceeded';
-            } else if (err.message && err.message.includes('model')) {
-                errorMsg += 'Model unavailable - try different model';
-            } else {
-                errorMsg += err.message || 'Unknown error';
-            }
-            
-            quantumStatus.textContent = errorMsg;
-            
-            setTimeout(() => {
-                quantumStatus.textContent = 'Quantum circuit: Ready';
-            }, 5000);
+        // Create image element
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = selectedText;
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        
+        // Wait for image to load to confirm it worked
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            // Timeout after 30 seconds
+            setTimeout(() => reject(new Error('Image generation timeout')), 30000);
+        });
+        
+        // Wrap the img element and insert it
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-block';
+        wrapper.appendChild(img);
+        wrapper.innerHTML += '<p><br></p>';
+        
+        // Insert at cursor position
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(wrapper);
+        } else {
+            editor.appendChild(wrapper);
         }
-    });
+        
+        quantumStatus.textContent = 'Quantum image materialized ✨';
+        setTimeout(() => {
+            quantumStatus.textContent = 'Quantum circuit: Ready';
+        }, 3000);
+        
+    } catch (err) {
+        console.error('[INK REALM] AI Image generation error:', err);
+        
+        let errorMsg = '⚠️ Generation failed: ';
+        
+        if (err.message && err.message.includes('timeout')) {
+            errorMsg += 'Request timed out - try again';
+        } else if (err.message && err.message.includes('load')) {
+            errorMsg += 'Image failed to load - check connection';
+        } else {
+            errorMsg += err.message || 'Unknown error';
+        }
+        
+        quantumStatus.textContent = errorMsg;
+        
+        setTimeout(() => {
+            quantumStatus.textContent = 'Quantum circuit: Ready';
+        }, 5000);
+    }
+});
 
     // Save document (localStorage kept - useful for auto-recovery)
     function saveDocument() {
