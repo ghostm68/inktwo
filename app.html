@@ -230,10 +230,12 @@
         </div>
        <div class="header-center">
 <div class="header-center">
-    <select id="model-select" class="model-select" aria-label="AI model">
-        <option value="openai" selected>GPT-5 Nano</option>
-        <option value="openai-fast">GPT-4.1 Nano (Faster)</option>
-    </select>
+  <select id="model-select">
+    <option value="deepseek/deepseek-chat:free">DEEPSEEK</option>
+    <option value="amazon/nova-lite-v1:free">NOVA LITE</option>
+    <option value="moonshotai/kimi-k2:free">KIMI K2</option>
+    <option value="openai">GPTiv</option>
+</select>
 </div>
 </div>
         <div class="status-indicator">
@@ -277,10 +279,12 @@
             <a href="https://twitter.com/inkrealm" target="_blank">@INKREALM</a>
         </div>
     </footer>
+    <script src="https://js.puter.com/v2/"></script>
+
 <script>
 class InkRealmTerminal {
     constructor() {
-        this.currentModel = 'openai';  // GPT-5 Nano - free, no signup
+        this.currentModel = 'deepseek/deepseek-chat:free';
         this.isOnline = true;
         this.isGenerating = false;
 
@@ -302,9 +306,18 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         setTimeout(() => this.connectSystem(), 1200);
     }
 
-    /* -----------------------------------------------------------
-        SPLASH ANIMATION
-    ----------------------------------------------------------- */
+    importToScratchpad(id) {
+        const msg = document.getElementById(id);
+        const pad = document.getElementById("notepad");
+        if (!msg || !pad) return;
+
+        const text = msg.innerText.trim();
+        if (!text) return;
+
+        pad.value += `\n\n---\n${text}`;
+        pad.scrollTop = pad.scrollHeight;
+    }
+
     runSplash() {
         const splash = document.getElementById('glitch-splash');
         const header = document.querySelector('.header');
@@ -326,52 +339,48 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         }, 2500);
     }
 
-    /* -----------------------------------------------------------
-        POLLINATIONS CONNECTION
-    ----------------------------------------------------------- */
     async connectSystem() {
         this.isOnline = true;
         document.getElementById("status-text").textContent = "ONLINE";
         document.getElementById("status-dot").style.background = "#0f0";
-        console.log("[INK REALM] Ready to connect to Pollinations AI");
-        console.log("Active Model:", this.currentModel);
     }
 
-    /* -----------------------------------------------------------
-        EVENT SETUP
-    ----------------------------------------------------------- */
     setupEvents() {
         const modelSelect = document.getElementById("model-select");
 
-        if (modelSelect) {
-            modelSelect.addEventListener("change", e => {
-                this.currentModel = e.target.value;
-                const name = e.target.options[e.target.selectedIndex].text;
-                this.addSystemMessage(`TARGET MODEL RECONFIGURED → ${name.toUpperCase()}`);
-            });
-        }
-
-        document.getElementById("send-button").addEventListener("click", () => this.generate());
-
-        document.getElementById("text-input").addEventListener("keydown", e => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                this.generate();
-            }
+        modelSelect.addEventListener("change", e => {
+            this.currentModel = e.target.value;
+            const name = e.target.options[e.target.selectedIndex].text;
+            this.addSystemMessage(`TARGET MODEL → ${name}`);
         });
 
-        document.getElementById("export-notepad").addEventListener("click", () => this.exportNotepad());
+        document.getElementById("send-button")
+            .addEventListener("click", () => this.generate());
 
-        document.getElementById("clear-notepad").addEventListener("click", () => {
-            if (confirm("Erase all local data?")) {
-                document.getElementById("notepad").value = "";
-            }
+        document.getElementById("text-input")
+            .addEventListener("keydown", e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    this.generate();
+                }
+            });
+
+        document.getElementById("export-notepad")
+            .addEventListener("click", () => this.exportNotepad());
+
+        document.getElementById("clear-notepad")
+            .addEventListener("click", () => {
+                if (confirm("Erase all local data?")) {
+                    document.getElementById("notepad").value = "";
+                }
+            });
+
+        document.addEventListener("click", e => {
+            const id = e.target?.dataset?.import;
+            if (id) this.importToScratchpad(id);
         });
     }
 
-    /* -----------------------------------------------------------
-        NOTEPAD EXPORT
-    ----------------------------------------------------------- */
     exportNotepad() {
         const content = document.getElementById("notepad").value;
         if (!content.trim()) return alert("Buffer empty.");
@@ -389,9 +398,41 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         URL.revokeObjectURL(url);
     }
 
-    /* -----------------------------------------------------------
-        GENERATE MESSAGE VIA POLLINATIONS
-    ----------------------------------------------------------- */
+    async callPollinations(model, prompt) {
+        const response = await fetch("https://text.pollinations.ai/openai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model,
+                messages: [
+                    { role: "system", content: this.systemPrompt },
+                    { role: "user", content: prompt }
+                ],
+                seed: Math.floor(Math.random() * 1_000_000)
+            })
+        });
+
+        if (!response.ok) {
+            const txt = await response.text();
+            throw new Error(`API ${response.status}: ${txt}`);
+        }
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content
+            || data.choices?.[0]?.text
+            || "";
+    }
+
+    async callWithFallback(model, prompt) {
+        try {
+            return await this.callPollinations(model, prompt);
+        } catch (err) {
+            console.warn("[INK REALM] Fallback engaged:", err);
+            this.addSystemMessage("PRIMARY MODEL FAILED → FALLBACK ONLINE");
+            return await this.callPollinations("openai", prompt);
+        }
+    }
+
     async generate() {
         if (this.isGenerating) return;
 
@@ -411,77 +452,17 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         const loadingId = this.addLoading();
 
         try {
-            const response = await fetch('https://text.pollinations.ai/openai', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: [
-                        { role: "system", content: this.systemPrompt },
-                        { role: "user", content: prompt }
-                    ],
-                    model: this.currentModel,
-                    seed: Math.floor(Math.random() * 1000000)
-                })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API returned ${response.status}: ${errorText}`);
-            }
-
-            const data = await response.json();
-            
-            let text = '';
-            
-            if (data.choices && data.choices[0]) {
-                text = data.choices[0].message?.content || data.choices[0].text || '';
-            } else if (typeof data === 'string') {
-                text = data;
-            } else {
-                console.log("Unexpected response format:", data);
-                text = JSON.stringify(data, null, 2);
-            }
-
-            if (!text || text.trim() === '') {
-                throw new Error("Empty response from API");
-            }
+            const text = await this.callWithFallback(this.currentModel, prompt);
 
             this.removeLoading(loadingId);
-            this.addMessage("ai", text);
-            
-            if (!this.isOnline) {
-                this.isOnline = true;
-                document.getElementById("status-text").textContent = "ONLINE";
-                document.getElementById("status-dot").style.background = "#0f0";
-            }
+
+            const msgEl = this.addMessage("ai", "");
+            const contentEl = msgEl.querySelector(".message-content");
+            typeText(contentEl, text);
 
         } catch (err) {
             this.removeLoading(loadingId);
-            console.error("[INK REALM] Error:", err);
-            
-            let errorMsg = '[SYSTEM ERROR: ';
-            
-            if (err.message.includes('Failed to fetch')) {
-                errorMsg += 'Network error - check connection]';
-                this.isOnline = false;
-                document.getElementById("status-text").textContent = "OFFLINE";
-                document.getElementById("status-dot").classList.add("error");
-            } else if (err.message.includes('429')) {
-                errorMsg += 'Rate limited - try again in a moment]';
-            } else if (err.message.includes('402')) {
-                errorMsg += 'Model requires signup - switching to free tier]';
-                this.currentModel = 'openai';
-            } else if (err.message.includes('404')) {
-                errorMsg += 'Invalid model - try different selection]';
-            } else if (err.message.includes('5')) {
-                errorMsg += 'Server error - try again]';
-            } else {
-                errorMsg += err.message + ']';
-            }
-            
-            this.addMessage("ai", errorMsg);
+            this.addMessage("ai", `[SYSTEM ERROR] ${err.message}`);
         } finally {
             this.isGenerating = false;
             sendBtn.disabled = false;
@@ -489,35 +470,43 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         }
     }
 
-    /* -----------------------------------------------------------
-        MESSAGE HELPERS
-    ----------------------------------------------------------- */
     addMessage(role, text) {
         const container = document.getElementById("chat-messages");
-
         const div = document.createElement("div");
         div.className = `message ${role}`;
 
         const meta = role === "user" ? "USER" : "TERMINAL";
 
-        div.innerHTML = `
-            <div class="message-header">${meta}</div>
-            <div class="message-content">${text.replace(/\n/g, "<br>")}</div>
-        `;
+        if (role === "ai") {
+            const id = "msg-" + Math.random().toString(36).slice(2);
+
+            div.innerHTML = `
+                <div class="message-header">
+                    ${meta}
+                    <span class="notepad-btn" data-import="${id}">
+                        → PAD
+                    </span>
+                </div>
+                <div class="message-content" id="${id}"></div>
+            `;
+        } else {
+            div.innerHTML = `
+                <div class="message-header">${meta}</div>
+                <div class="message-content">${text.replace(/\n/g, "<br>")}</div>
+            `;
+        }
 
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
+        return div;
     }
 
     addSystemMessage(text) {
         const container = document.getElementById("chat-messages");
         const div = document.createElement("div");
-
         div.className = "message system";
         div.textContent = text;
-
         container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
     }
 
     addLoading() {
@@ -535,7 +524,6 @@ Tone: Professional terminal aesthetic, warm, intelligent.
 
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
-
         return id;
     }
 
@@ -546,11 +534,24 @@ Tone: Professional terminal aesthetic, warm, intelligent.
 }
 
 /* -----------------------------------------------------------
-    INIT APP
+   TEXT TYPING EFFECT
+----------------------------------------------------------- */
+function typeText(el, text, speed = 12) {
+    let i = 0;
+    const interval = setInterval(() => {
+        el.innerHTML += text[i++];
+        if (i >= text.length) clearInterval(interval);
+    }, speed);
+}
+
+/* -----------------------------------------------------------
+   INIT
 ----------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
     window.app = new InkRealmTerminal();
 });
 </script>
+
+
 </body>
 </html>
