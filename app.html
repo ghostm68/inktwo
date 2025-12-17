@@ -279,11 +279,11 @@
             <a href="https://twitter.com/inkrealm" target="_blank">@INKREALM</a>
         </div>
     </footer>
-<script>
+    <script>
 class InkRealmTerminal {
     constructor() {
         this.currentModel = 'openai';
-        this.isOnline = true; // Pollinations is always available
+        this.isOnline = true; // Start as true - we'll test during first generation
         this.isGenerating = false;
 
         this.systemPrompt = `
@@ -329,37 +329,15 @@ Tone: Professional terminal aesthetic, warm, intelligent.
     }
 
     /* -----------------------------------------------------------
-        POLLINATIONS CONNECTION
+        POLLINATIONS CONNECTION - SIMPLIFIED
     ----------------------------------------------------------- */
     async connectSystem() {
-        try {
-            // Test Pollinations API availability
-            const testResponse = await fetch('https://text.pollinations.ai/openai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: "user", content: "test" }],
-                    model: "gpt-3.5-turbo"
-                })
-            });
-
-            if (testResponse.ok) {
-                this.isOnline = true;
-                document.getElementById("status-text").textContent = "ONLINE";
-                document.getElementById("status-dot").style.background = "#0f0";
-                console.log("[INK REALM] Connected to Pollinations AI");
-                console.log("Active Model:", this.currentModel);
-            } else {
-                throw new Error("Pollinations API unavailable");
-            }
-
-        } catch (err) {
-            console.warn("[INK REALM] Connection failed:", err.message);
-            this.isOnline = false;
-            document.getElementById("status-text").textContent = "OFFLINE";
-            document.getElementById("status-dot").classList.add("error");
-            this.addSystemMessage("⚠ OFFLINE MODE: API unavailable. No AI responses.");
-        }
+        // Just set to online - we'll test on first actual use
+        this.isOnline = true;
+        document.getElementById("status-text").textContent = "ONLINE";
+        document.getElementById("status-dot").style.background = "#0f0";
+        console.log("[INK REALM] Ready to connect to Pollinations AI");
+        console.log("Active Model:", this.currentModel);
     }
 
     /* -----------------------------------------------------------
@@ -426,11 +404,6 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         const prompt = input.value.trim();
         if (!prompt) return;
 
-        if (!this.isOnline) {
-            this.addMessage("ai", "⚠ OFFLINE: No AI runtime available.");
-            return;
-        }
-
         this.isGenerating = true;
         sendBtn.disabled = true;
         sendBtn.textContent = "...";
@@ -443,65 +416,84 @@ Tone: Professional terminal aesthetic, warm, intelligent.
         try {
             const response = await fetch(`https://text.pollinations.ai/${this.currentModel}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     messages: [
                         { role: "system", content: this.systemPrompt },
                         { role: "user", content: prompt }
                     ],
-                    model: this.getModelString(),
                     seed: Math.floor(Math.random() * 1000000)
                 })
             });
 
             if (!response.ok) {
-                throw new Error(`API returned ${response.status}`);
+                throw new Error(`API returned ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
             
-            // Handle different response formats
+            // Handle different response formats from Pollinations
             let text = '';
+            
             if (data.choices && data.choices[0]) {
+                // OpenAI-style response
                 text = data.choices[0].message?.content || data.choices[0].text || '';
-            } else if (data.message) {
-                text = data.message.content || data.message;
+            } else if (data.response) {
+                // Alternative response format
+                text = data.response;
+            } else if (data.content) {
+                // Direct content
+                text = data.content;
             } else if (typeof data === 'string') {
+                // Plain string response
                 text = data;
             } else {
-                text = JSON.stringify(data);
+                // Fallback - stringify entire response
+                console.log("Unexpected response format:", data);
+                text = JSON.stringify(data, null, 2);
             }
 
-            if (!text) throw new Error("Empty response from API");
+            if (!text || text.trim() === '') {
+                throw new Error("Empty response from API");
+            }
 
             this.removeLoading(loadingId);
             this.addMessage("ai", text);
+            
+            // Update status on successful first call
+            if (!this.isOnline) {
+                this.isOnline = true;
+                document.getElementById("status-text").textContent = "ONLINE";
+                document.getElementById("status-dot").style.background = "#0f0";
+            }
 
         } catch (err) {
             this.removeLoading(loadingId);
             console.error("[INK REALM] Error:", err);
-            this.addMessage("ai", `[SYSTEM ERROR: ${err.message}]`);
+            
+            let errorMsg = '[SYSTEM ERROR: ';
+            
+            if (err.message.includes('Failed to fetch')) {
+                errorMsg += 'Network error - check connection]';
+                this.isOnline = false;
+                document.getElementById("status-text").textContent = "OFFLINE";
+                document.getElementById("status-dot").classList.add("error");
+            } else if (err.message.includes('429')) {
+                errorMsg += 'Rate limited - try again in a moment]';
+            } else if (err.message.includes('5')) {
+                errorMsg += 'Server error - try different model]';
+            } else {
+                errorMsg += err.message + ']';
+            }
+            
+            this.addMessage("ai", errorMsg);
         } finally {
             this.isGenerating = false;
             sendBtn.disabled = false;
             sendBtn.textContent = "SEND";
         }
-    }
-
-    /* -----------------------------------------------------------
-        MODEL STRING HELPER
-    ----------------------------------------------------------- */
-    getModelString() {
-        // Map to specific model versions for better results
-        const modelMap = {
-            'openai': 'gpt-4',
-            'mistral': 'mistral-large',
-            'claude': 'claude-3-opus',
-            'llama': 'llama-3-70b',
-            'gemini': 'gemini-pro',
-            'command': 'command-r-plus'
-        };
-        return modelMap[this.currentModel] || this.currentModel;
     }
 
     /* -----------------------------------------------------------
@@ -566,7 +558,6 @@ Tone: Professional terminal aesthetic, warm, intelligent.
 document.addEventListener("DOMContentLoaded", () => {
     window.app = new InkRealmTerminal();
 });
-</script>
-
+    </script>
 </body>
 </html>
