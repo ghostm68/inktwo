@@ -656,453 +656,257 @@
     </div>
 
 
+<script>
+const models = [
+    { id: 1, name: 'deepseek/deepseek-chat:free', label: 'DEEPSEEK' },
+    { id: 2, name: 'mistralai/mistral-nemo:free', label: 'MISTRAL NEMO' },
+    { id: 3, name: 'amazon/nova-lite-v1:free', label: 'NOVA LITE' },
+    { id: 4, name: 'moonshotai/kimi-k2:free', label: 'KIMI K2' },
+    { id: 5, name: 'microsoft/phi-3-medium-128k-instruct:free', label: 'PHI-3 MEDIUM' },
+    { id: 6, name: 'google/gemma-2-27b-it:free', label: 'GEMMA 2' }
+];
 
-    <!-- Puter SDK - LOADED ONCE -->
-    <script src="https://js.puter.com/v2"></script>
-   
-  <script>
-    const models = [
-        { id: 1, name: 'deepseek/deepseek-chat:free', label: 'DEEPSEEK' },
-        { id: 2, name: 'mistralai/mistral-nemo:free', label: 'MISTRAL NEMO' },
-        { id: 3, name: 'amazon/nova-lite-v1:free', label: 'NOVA LITE' },
-        { id: 4, name: 'moonshotai/kimi-k2:free', label: 'KIMI K2' },
-        { id: 5, name: 'microsoft/phi-3-medium-128k-instruct:free', label: 'PHI-3 MEDIUM' },
-        { id: 6, name: 'google/gemma-2-27b-it:free', label: 'GEMMA 2' }
-    ];
+const runButton = document.getElementById('run-button');
+const promptInput = document.getElementById('prompt-input');
+const aimMessages = document.getElementById('aim-messages');
+const aimRunner = document.getElementById('aim-runner');
+const aimStatus = document.getElementById('aim-status');
+const exportBtn = document.getElementById('export-txt');
 
-    // Fallback models if any fail
-    const fallbackModels = [
-        { id: 1, name: 'deepseek/deepseek-chat:free', label: 'DEEPSEEK' },
-        { id: 2, name: 'mistralai/mistral-nemo:free', label: 'MISTRAL NEMO' },
-        { id: 3, name: 'amazon/nova-lite-v1:free', label: 'NOVA LITE' },
-        { id: 4, name: 'qwen/qwen-2.5-32b-instruct:free', label: 'QWEN 2.5' },
-        { id: 5, name: 'meta-llama/llama-3.3-70b-instruct:free', label: 'LLAMA 3.3' },
-        { id: 6, name: 'nousresearch/hermes-3-llama-3.1-405b:free', label: 'HERMES' }
-    ];
+let conversationData = {
+    prompt: '',
+    timestamp: '',
+    responses: {}
+};
 
-    const runButton = document.getElementById('run-button');
-    const promptInput = document.getElementById('prompt-input');
-    const aimMessages = document.getElementById('aim-messages');
-    const aimRunner = document.getElementById('aim-runner');
-    const aimStatus = document.getElementById('aim-status');
-    const exportBtn = document.getElementById('export-txt');
+let isRunning = false;
 
-    let conversationData = {
-        prompt: '',
-        timestamp: '',
-        responses: {}
-    };
-
-    let currentModels = models; // Start with primary models
-    let isRunning = false;
-
-    // Test if a specific model works
-    async function testModel(modelName) {
-        try {
-            if (typeof puter === 'undefined' || !puter.ai) return false;
-            
-            // Quick test with short timeout
-            const testPromise = puter.ai.chat('Hello', {
-                model: modelName,
-                stream: false,
-                max_tokens: 5
-            });
-            
-            // Timeout after 3 seconds
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('timeout')), 3000)
-            );
-            
-            await Promise.race([testPromise, timeoutPromise]);
-            return true;
-        } catch (error) {
-            console.log(`Model ${modelName} test failed:`, error.message);
-            return false;
-        }
-    }
-
-    // Find working models
-    async function findWorkingModels() {
-        aimMessages.innerHTML = '<div style="color: #666; padding: 8px;">Testing available models...</div>';
-        
-        const workingModels = [];
-        let modelIndex = 1;
-        
-        // Test primary models first
-        for (const model of models) {
-            aimMessages.innerHTML += `<div style="color: #999; padding: 2px 8px; font-size: 12px;">Testing: ${model.label}...</div>`;
-            
-            if (await testModel(model.name)) {
-                workingModels.push({
-                    id: modelIndex,
-                    name: model.name,
-                    label: model.label
-                });
-                modelIndex++;
-                aimMessages.innerHTML += `<div style="color: #00FF33; padding: 2px 8px; font-size: 12px;">✓ ${model.label} available</div>`;
-            } else {
-                aimMessages.innerHTML += `<div style="color: #ff0033; padding: 2px 8px; font-size: 12px;">✗ ${model.label} unavailable</div>`;
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-        
-        // If we don't have enough models, try fallbacks
-        if (workingModels.length < 3) {
-            aimMessages.innerHTML += '<div style="color: #666; padding: 4px 8px; font-size: 12px;">Trying fallback models...</div>';
-            
-            for (const model of fallbackModels) {
-                // Skip if we already have this model
-                if (workingModels.some(m => m.name === model.name)) continue;
-                
-                aimMessages.innerHTML += `<div style="color: #999; padding: 2px 8px; font-size: 12px;">Testing fallback: ${model.label}...</div>`;
-                
-                if (await testModel(model.name)) {
-                    workingModels.push({
-                        id: modelIndex,
-                        name: model.name,
-                        label: model.label
-                    });
-                    modelIndex++;
-                    aimMessages.innerHTML += `<div style="color: #00FF33; padding: 2px 8px; font-size: 12px;">✓ ${model.label} available</div>`;
-                }
-                
-                if (workingModels.length >= 6) break;
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
-        
-        // Update the UI to only show working models
-        updateModelGrid(workingModels);
-        
-        if (workingModels.length > 0) {
-            aimMessages.innerHTML += `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ Found ${workingModels.length} working models!</div>`;
-        } else {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">⚠️ No models available. Check Puter service.</div>';
-        }
-        
-        return workingModels;
-    }
-
-    // Update the grid to show only working models
-    function updateModelGrid(workingModels) {
-        // First, hide all model boxes
-        for (let i = 1; i <= 6; i++) {
-            const box = document.querySelector(`#output-${i}`).closest('.model-box');
-            if (box) box.style.display = 'none';
-        }
-        
-        // Show only working models
-        workingModels.forEach(model => {
-            const box = document.querySelector(`#output-${model.id}`).closest('.model-box');
-            if (box) {
-                box.style.display = 'flex';
-                // Update the header
-                const header = box.querySelector('.model-header span:first-child');
-                if (header) header.textContent = `[ ${model.label} ]`;
-            }
-        });
-        
-        currentModels = workingModels;
-    }
-
-    runButton.addEventListener('click', async () => {
-        if (isRunning) return;
-        
-        const prompt = promptInput.value.trim();
-        
-        if (!prompt) {
-            alert('Please enter a prompt.');
-            return;
-        }
-
-        if (typeof puter === 'undefined' || !puter.ai) {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">⚠️ Puter.js not loaded. Refresh page.</div>';
-            return;
-        }
-
-        // If no models tested yet, find them first
-        if (currentModels.length === 0) {
-            aimMessages.innerHTML = '<div style="color: #666; padding: 8px;">First run: detecting available models...</div>';
-            await findWorkingModels();
-            
-            if (currentModels.length === 0) {
-                aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">No models available. Try again later.</div>';
-                return;
-            }
-        }
-
-        isRunning = true;
-        runButton.disabled = true;
-        runButton.textContent = '◆ PROCESSING...';
-        exportBtn.disabled = true;
-
-        // Store conversation data
-        conversationData.prompt = prompt;
-        conversationData.timestamp = new Date().toLocaleString();
-        conversationData.responses = {};
-
-        // Clear all outputs and set loading status
-        currentModels.forEach(model => {
-            const outputEl = document.getElementById(`output-${model.id}`);
-            const statusEl = document.getElementById(`status-${model.id}`);
-            if (outputEl) outputEl.textContent = '';
-            if (statusEl) {
-                statusEl.textContent = '● LOADING...';
-                statusEl.className = 'model-status loading';
-            }
-        });
-
-        // Show AIM buddy animation
-        aimRunner.textContent = '◆ RUNNING MODELS ◆';
-        aimRunner.classList.add('active');
-        aimStatus.textContent = 'Fetching responses...';
-        aimMessages.innerHTML = `<div style="color: #999; padding: 8px;">Running ${currentModels.length} models...</div>`;
-
-        // Run models
-        const promises = [];
-        for (let i = 0; i < currentModels.length; i++) {
-            const model = currentModels[i];
-            aimMessages.innerHTML += `<div style="color: #666; padding: 2px 8px; font-size: 12px;">Starting: ${model.label}</div>`;
-            
-            promises.push(runModelWithPuter(model, prompt));
-            
-            // Stagger starts
-            if (i < currentModels.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
-
-        await Promise.allSettled(promises);
-
-        // Hide animation and show completion
-        aimRunner.classList.remove('active');
-        aimRunner.textContent = '';
-        
-        const successCount = Object.values(conversationData.responses).filter(r => !r.startsWith('ERROR:')).length;
-        aimStatus.textContent = `${successCount}/${currentModels.length} models completed`;
-        aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${successCount}/${currentModels.length} models completed!</div><div style="color: #666; padding: 4px 8px; font-size: 12px;">Ready to save conversation.</div>`;
-        
-        runButton.disabled = false;
-        runButton.textContent = '▶ RUN ALL MODELS';
-        exportBtn.disabled = false;
-        isRunning = false;
+// Pollinations call (like APP's callPollinations)
+async function callPollinations(model, prompt) {
+    const response = await fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            seed: Math.floor(Math.random() * 1_000_000)
+        })
     });
 
-    async function runModelWithPuter(model, prompt) {
+    if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`API ${response.status}: ${txt}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content
+        || data.choices?.[0]?.text
+        || "";
+}
+
+// Fallback logic (like APP's callWithFallback)
+async function callWithFallback(model, prompt) {
+    try {
+        return await callPollinations(model, prompt);
+    } catch (err) {
+        console.warn(`[${model}] Primary failed, trying fallback:`, err);
+        return await callPollinations("openai", prompt);
+    }
+}
+
+// Run single model
+async function runModel(model, prompt) {
     const outputEl = document.getElementById(`output-${model.id}`);
     const statusEl = document.getElementById(`status-${model.id}`);
 
     try {
         if (statusEl) {
-            statusEl.textContent = '◆ STREAMING...';
+            statusEl.textContent = '◆ PROCESSING...';
             statusEl.className = 'model-status loading';
         }
 
-        // TRY PUTER FIRST
-        const stream = await puter.ai.chat(prompt, {
-            model: model.name,
-            stream: true
-        });
+        const text = await callWithFallback(model.name, prompt);
 
-        let fullResponse = '';
-        
-        for await (const chunk of stream) {
-            if (chunk.text) {
-                fullResponse += chunk.text;
-                if (outputEl) {
-                    outputEl.textContent = fullResponse;
-                    outputEl.scrollTop = outputEl.scrollHeight;
-                }
-            }
+        if (outputEl) {
+            outputEl.textContent = text;
+            outputEl.scrollTop = outputEl.scrollHeight;
         }
 
-        conversationData.responses[model.label] = fullResponse;
+        conversationData.responses[model.label] = text;
 
         if (statusEl) {
             statusEl.textContent = '✓ COMPLETE';
             statusEl.className = 'model-status';
         }
 
-    } catch (error) {
-        console.error(`Puter failed for ${model.name}, trying Pollinations:`, error);
+    } catch (err) {
+        console.error(`[${model.label}] All fallbacks failed:`, err);
+        const errorMsg = `ERROR: ${err.message || 'Model unavailable'}`;
         
-        // FALLBACK TO POLLINATIONS
-        try {
-            if (statusEl) {
-                statusEl.textContent = '◆ FALLBACK...';
-                statusEl.className = 'model-status loading';
-            }
-
-            // Try same model on Pollinations first
-            let pollinationsModel = model.name;
-            
-            const response = await fetch("https://text.pollinations.ai/openai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: pollinationsModel,
-                    messages: [{ role: "user", content: prompt }],
-                    seed: Math.floor(Math.random() * 1_000_000)
-                })
-            });
-
-            if (!response.ok) {
-                // If specific model fails on Pollinations, try generic OpenAI
-                console.log(`${pollinationsModel} unavailable, using OpenAI fallback`);
-                
-                const retryResponse = await fetch("https://text.pollinations.ai/openai", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "openai",
-                        messages: [{ role: "user", content: prompt }],
-                        seed: Math.floor(Math.random() * 1_000_000)
-                    })
-                });
-                
-                if (!retryResponse.ok) throw new Error("All fallbacks failed");
-                
-                const data = await retryResponse.json();
-                const fullResponse = data.choices?.[0]?.message?.content || "No response";
-                
-                if (outputEl) outputEl.textContent = fullResponse;
-                conversationData.responses[model.label] = fullResponse;
-                
-                if (statusEl) {
-                    statusEl.textContent = '✓ COMPLETE (GPT)';
-                    statusEl.className = 'model-status';
-                }
-            } else {
-                const data = await response.json();
-                const fullResponse = data.choices?.[0]?.message?.content || "No response";
-                
-                if (outputEl) outputEl.textContent = fullResponse;
-                conversationData.responses[model.label] = fullResponse;
-                
-                if (statusEl) {
-                    statusEl.textContent = '✓ COMPLETE (BACKUP)';
-                    statusEl.className = 'model-status';
-                }
-            }
-            
-        } catch (fallbackError) {
-            console.error(`All systems failed for ${model.name}:`, fallbackError);
-            const errorMsg = `ERROR: All systems unavailable`;
-            
-            if (outputEl) outputEl.textContent = errorMsg;
-            conversationData.responses[model.label] = errorMsg;
-            
-            if (statusEl) {
-                statusEl.textContent = '✗ FAILED';
-                statusEl.className = 'model-status error';
-            }
+        if (outputEl) outputEl.textContent = errorMsg;
+        conversationData.responses[model.label] = errorMsg;
+        
+        if (statusEl) {
+            statusEl.textContent = '✗ FAILED';
+            statusEl.className = 'model-status error';
         }
     }
 }
 
-    // Copy individual model response to clipboard
-    function copyModel(id) {
-        const model = currentModels.find(m => m.id === id);
-        if (!model) return;
-        
-        const output = document.getElementById(`output-${id}`).textContent;
-        
-        if (!output || output.trim() === '') {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">Nothing to copy yet!</div>';
-            setTimeout(() => {
-                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-            }, 2000);
-            return;
-        }
-
-        const textToCopy = `[ ${model.label} ]\n\n${output}`;
-        
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${model.label} copied!</div>`;
-            setTimeout(() => {
-                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-            }, 2000);
-        }).catch(err => {
-            console.error('Copy failed:', err);
-            aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px;">Copy failed: ${err.message}</div>`;
-        });
+// Main run button
+runButton.addEventListener('click', async () => {
+    if (isRunning) return;
+    
+    const prompt = promptInput.value.trim();
+    
+    if (!prompt) {
+        alert('Please enter a prompt.');
+        return;
     }
 
-    // Export conversation to TXT
-    exportBtn.addEventListener('click', () => {
-        let txtContent = '═══════════════════════════════════════════\n';
-        txtContent += '    MODEL ARENA CONVERSATION LOG\n';
-        txtContent += '═══════════════════════════════════════════\n\n';
-        txtContent += `Timestamp: ${conversationData.timestamp}\n\n`;
-        txtContent += `PROMPT:\n${conversationData.prompt}\n\n`;
-        txtContent += '═══════════════════════════════════════════\n\n';
+    isRunning = true;
+    runButton.disabled = true;
+    runButton.textContent = '◆ PROCESSING...';
+    exportBtn.disabled = true;
 
-        let savedCount = 0;
-        currentModels.forEach(model => {
-            const response = conversationData.responses[model.label];
-            if (response && response.trim() !== '' && !response.startsWith('ERROR:')) {
-                txtContent += `[ ${model.label} ]\n`;
-                txtContent += '───────────────────────────────────────────\n';
-                txtContent += response + '\n\n';
-                txtContent += '═══════════════════════════════════════════\n\n';
-                savedCount++;
-            }
-        });
+    // Store conversation data
+    conversationData.prompt = prompt;
+    conversationData.timestamp = new Date().toLocaleString();
+    conversationData.responses = {};
 
-        if (savedCount === 0) {
-            aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">No responses to save!</div>';
-            setTimeout(() => {
-                aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-            }, 3000);
-            return;
-        }
-
-        const blob = new Blob([txtContent], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `model-arena-${Date.now()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        // Show confirmation in AIM buddy
-        aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">💾 Saved ${savedCount} responses!</div>`;
-        setTimeout(() => {
-            aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models to respond...</div>';
-        }, 3000);
-    });
-
-    // Allow Enter key to submit
-    promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!isRunning) runButton.click();
+    // Clear all outputs
+    models.forEach(model => {
+        const outputEl = document.getElementById(`output-${model.id}`);
+        const statusEl = document.getElementById(`status-${model.id}`);
+        if (outputEl) outputEl.textContent = '';
+        if (statusEl) {
+            statusEl.textContent = '● LOADING...';
+            statusEl.className = 'model-status loading';
         }
     });
 
-    // Splash screen fade out
-    window.addEventListener('load', () => {
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            if (splash) {
-                splash.classList.add('fade-out');
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                    
-                    // Auto-detect models after splash
-                    setTimeout(() => {
-                        findWorkingModels();
-                    }, 1000);
-                }, 1000);
-            }
-        }, 2500);
+    // Show AIM animation
+    aimRunner.textContent = '◆ RUNNING MODELS ◆';
+    aimRunner.classList.add('active');
+    aimStatus.textContent = 'Fetching responses...';
+    aimMessages.innerHTML = `<div style="color: #999; padding: 8px;">Running ${models.length} models...</div>`;
+
+    // Run all models with staggered starts
+    const promises = [];
+    for (let i = 0; i < models.length; i++) {
+        const model = models[i];
+        aimMessages.innerHTML += `<div style="color: #666; padding: 2px 8px; font-size: 12px;">Starting: ${model.label}</div>`;
         
-        // Focus on prompt input
-        if (promptInput) promptInput.focus();
+        promises.push(runModel(model, prompt));
+        
+        // Stagger starts
+        if (i < models.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    await Promise.allSettled(promises);
+
+    // Hide animation
+    aimRunner.classList.remove('active');
+    aimRunner.textContent = '';
+    
+    const successCount = Object.values(conversationData.responses).filter(r => !r.startsWith('ERROR:')).length;
+    aimStatus.textContent = `${successCount}/${models.length} models completed`;
+    aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${successCount}/${models.length} models completed!</div><div style="color: #666; padding: 4px 8px; font-size: 12px;">Ready to save conversation.</div>`;
+    
+    runButton.disabled = false;
+    runButton.textContent = '▶ RUN ALL MODELS';
+    exportBtn.disabled = false;
+    isRunning = false;
+});
+
+// Copy individual model
+function copyModel(id) {
+    const model = models.find(m => m.id === id);
+    if (!model) return;
+    
+    const output = document.getElementById(`output-${id}`).textContent;
+    
+    if (!output || output.trim() === '') {
+        aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">Nothing to copy yet!</div>';
+        setTimeout(() => {
+            aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models...</div>';
+        }, 2000);
+        return;
+    }
+
+    const textToCopy = `[ ${model.label} ]\n\n${output}`;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">✓ ${model.label} copied!</div>`;
+        setTimeout(() => {
+            aimMessages.innerHTML = '<div style="color: #666; font-style: italic; text-align: center; padding: 20px 10px;">Waiting for models...</div>';
+        }, 2000);
     });
+}
+
+// Export conversation
+exportBtn.addEventListener('click', () => {
+    let txtContent = '═══════════════════════════════════════════\n';
+    txtContent += '    MODEL ARENA CONVERSATION LOG\n';
+    txtContent += '═══════════════════════════════════════════\n\n';
+    txtContent += `Timestamp: ${conversationData.timestamp}\n\n`;
+    txtContent += `PROMPT:\n${conversationData.prompt}\n\n`;
+    txtContent += '═══════════════════════════════════════════\n\n';
+
+    let savedCount = 0;
+    models.forEach(model => {
+        const response = conversationData.responses[model.label];
+        if (response && response.trim() !== '' && !response.startsWith('ERROR:')) {
+            txtContent += `[ ${model.label} ]\n`;
+            txtContent += '───────────────────────────────────────────\n';
+            txtContent += response + '\n\n';
+            txtContent += '═══════════════════════════════════════════\n\n';
+            savedCount++;
+        }
+    });
+
+    if (savedCount === 0) {
+        aimMessages.innerHTML = '<div style="color: #ff0033; padding: 8px;">No responses to save!</div>';
+        return;
+    }
+
+    const blob = new Blob([txtContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `model-arena-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    aimMessages.innerHTML = `<div style="color: #ff0033; padding: 8px; font-weight: bold;">💾 Saved ${savedCount} responses!</div>`;
+});
+
+// Enter key submit
+promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!isRunning) runButton.click();
+    }
+});
+
+// Splash screen
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+            }, 1000);
+        }
+    }, 2500);
+    
+    if (promptInput) promptInput.focus();
+});
 </script>
 </body>
     </html>
