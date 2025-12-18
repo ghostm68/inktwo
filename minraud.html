@@ -665,211 +665,381 @@
     </footer>
     
     <script src="https://js.puter.com/v2/"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
-<script>
-/* =========================
-   SPLASH SCREEN LOGIC (RESTORED)
-========================= */
-function enterSite() {
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        splash.classList.add('hidden');
-        setTimeout(() => { 
-            splash.style.display = 'none'; 
-        }, 1000);
-    }
-}
+    
+    <script>
+        // === SPLASH SCREEN ===
+        function enterSite() {
+            const splash = document.getElementById('splash-screen');
+            splash.classList.add('hidden');
+            setTimeout(() => { splash.style.display = 'none'; }, 1000);
+        }
 
-/* =========================
-   DICTIONARY SOURCES 
-========================= */
+       // === DICTIONARY SOURCES (EXPANDED) ===
 const dictionaryUrls = [
+    // English dictionaries (0-2)
     'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
     'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
     'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
-    'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json', // 3 German
-    'https://raw.githubusercontent.com/egorkaru/synonym_dictionary/master/dictionary.json', // 4 Russian
-    'https://raw.githubusercontent.com/letiantian/mini-pinyin/master/pinyin.json' // 5 Chinese
+    
+    // German-English (3)
+    'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json',
+    
+    // Russian-English (4)
+    'https://raw.githubusercontent.com/ijt/russian_english_dictionary/master/russian_english.json',
+    
+    // French-English (5)
+    'https://raw.githubusercontent.com/juliango202/TEDTranscripts/master/data/french_dictionary.json',
+    
+    // Slang/Urban (6)
+    'https://raw.githubusercontent.com/words/slang/master/index.json'
 ];
-
-let dictionaryCache = {};
-let russianIndex = new Map(); // Performance fix for large Russian file
-let loadedSources = 0;
-
-/* =========================
-   LOAD & AI BRANDING (RESTORED)
-========================= */
-async function loadDictionaries() {
-    const statusEl = document.getElementById('apiStatus');
-    const dictStatusEl = document.getElementById('dictionary-status');
-
-    if (statusEl) statusEl.textContent = 'Loading dictionaries...';
-
-    const responses = await Promise.all(
-        dictionaryUrls.map(url => axios.get(url).catch(() => null))
-    );
-
-    responses.forEach((res, i) => {
-        if (res && res.data) {
-            dictionaryCache[`source${i}`] = res.data;
-            loadedSources++;
+        
+        let dictionaryCache = {};
+        let loadedSources = 0;
+        
+        // === LOAD DICTIONARIES WITH AXIOS ===
+        async function loadDictionaries() {
+            const statusEl = document.getElementById('apiStatus');
+            const dictStatusEl = document.getElementById('dictionary-status');
             
-            // Index Russian synonyms so search is instant (prevents "stuck" glitch)
-            if (i === 4 && Array.isArray(res.data)) {
-                res.data.forEach(item => {
-                    if (item.word) russianIndex.set(item.word.toLowerCase(), item.synonyms || []);
+            statusEl.textContent = 'Loading dictionaries...';
+            dictStatusEl.innerHTML = '';
+            
+            try {
+                const responses = await Promise.all(
+                    dictionaryUrls.map(url => axios.get(url).catch(err => null))
+                );
+                
+                responses.forEach((response, index) => {
+                    if (response && response.data) {
+                        dictionaryCache[`source${index}`] = response.data;
+                        loadedSources++;
+                    }
                 });
+                
+                statusEl.textContent = `Amazon Nova AI • 7 Lexical Sources + Thesaurus Ready`;
+                statusEl.style.color = loadedSources >= 3 ? '#ff0033' : '#ff0033';
+                
+                document.getElementById('dictionary-result').innerHTML = `<div class="no-results">
+                    Sources loaded<br>
+                    <small>Ready to search</small>
+                </div>`;
+                
+                if (loadedSources === 5) {
+                    dictStatusEl.innerHTML = `<div style="color: #ff0033;">
+                        ✓ All sources loaded successfully
+                    </div>`;
+                } else if (loadedSources >= 2) {
+                    dictStatusEl.innerHTML = `<div style="color: #ff9933;">
+                        ⚠ Partial sources loaded (sufficient)
+                    </div>`;
+                } else {
+                    dictStatusEl.innerHTML = `<div class="error-detail">
+                        ⚠ Limited sources loaded<br>
+                        <small>Dictionary may have limited results</small>
+                    </div>`;
+                }
+                
+                console.log(`✓ Loaded ${loadedSources}/4 dictionary sources`);
+                
+            } catch (error) {
+                console.error('Dictionary loading error:', error);
+                statusEl.textContent = 'Dictionary load error';
+                statusEl.style.color = '#ff6666';
             }
         }
-    });
-
-    // Restore your original AI Branding
-    if (statusEl) {
-        statusEl.textContent = 'Amazon Nova AI • Webster + German + Russian + Chinese + Datamuse';
-        statusEl.style.color = '#ff0033';
-    }
-
-    if (dictStatusEl) {
-        dictStatusEl.innerHTML = loadedSources === 6
-            ? `<div style="color:#ff0033;">✓ All sources loaded</div>`
-            : `<div style="color:#ff9933;">⚠ Partial load (${loadedSources}/6)</div>`;
-    }
-
-    // Automatically trigger site entry once loaded
-    setTimeout(enterSite, 800);
-}
-
-/* =========================
-   SEARCH LOGIC
-========================= */
-async function searchDictionary() {
-    const queryInput = document.getElementById('dictionary-search');
-    const word = queryInput.value.trim();
-    const lowWord = word.toLowerCase();
-    
-    if (!word) return;
-
-    const resultDiv = document.getElementById('dictionary-result');
-    resultDiv.innerHTML = '<div class="loading">Searching...</div>';
-
-    let found = false;
-    let html = `<div><span class="word-title">${word}</span></div><div style="margin-top:0.5rem;">`;
-
-    /* 1. ENGLISH (WEBSTER STYLE) */
-    for (let i = 0; i < 3; i++) {
-        const dict = dictionaryCache[`source${i}`];
-        if (dict && dict[lowWord]) {
-            found = true;
-            html += `
-                <div style="margin-bottom:0.5rem;">
-                    <h3>English Definition (Source ${i + 1}):</h3>
-                    <p>${dict[lowWord]}</p>
-                </div>`;
-        }
-    }
-
-    /* 2. GERMAN (FLEXIBLE) */
-    const gerDict = dictionaryCache['source3'];
-    if (gerDict) {
-        const matches = Object.entries(gerDict).filter(([g, e]) => 
-            g.toLowerCase() === lowWord || e.toLowerCase().includes(lowWord)
-        );
-        if (matches.length > 0) {
-            found = true;
-            html += `<h3>German Translations:</h3><ul>`;
-            matches.slice(0, 5).forEach(([g, e]) => html += `<li>${g} - ${e}</li>`);
-            html += `</ul>`;
-        }
-    }
-
-    /* 3. RUSSIAN (USING INDEX) */
-    if (russianIndex.has(lowWord)) {
-        found = true;
-        const syns = russianIndex.get(lowWord);
-        html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-                    <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS</div>
-                    <div style="margin-top:0.4rem;">
-                        ${syns.slice(0, 12).map(s => `<span class="synonym-tag" onclick="quickSearch('${s}')">${s}</span>`).join(' ')}
+        
+        // === DICTIONARY SEARCH WITH THESAURUS ===
+        async function searchDictionary() {
+            const query = document.getElementById('dictionary-search').value.trim().toLowerCase();
+            if (!query) return;
+            
+            const resultDiv = document.getElementById('dictionary-result');
+            resultDiv.innerHTML = '<div class="loading">Searching...</div>';
+            
+            let definitionsFound = false;
+            let html = `<div><span class="word-title">${query}</span></div><div style="margin-top: 0.5rem;">`;
+            
+            // Search English dictionaries (first 3 sources)
+            for (let i = 0; i < 3; i++) {
+                const dict = dictionaryCache[`source${i}`];
+                if (dict && dict[query]) {
+                    definitionsFound = true;
+                    const definition = dict[query];
+                    html += `<div style="margin-bottom: 0.5rem;">
+                        <span class="part-of-speech">Definition ${i + 1}</span><br>
+                        ${definition.substring(0, 200)}${definition.length > 200 ? '...' : ''}
+                    </div>`;
+                }
+            }
+            
+            // Search German-English dictionary (source 3)
+            const germanDict = dictionaryCache['source3'];
+            if (germanDict) {
+                // Direct lookup first
+                if (germanDict[query]) {
+                    definitionsFound = true;
+                    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                        <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN:</strong></div>
+                        <div style="font-size: 0.85rem; margin: 0.3rem 0;">${query} → ${germanDict[query]}</div>
+                    </div>`;
+                } else {
+                    // Reverse lookup (English to German)
+                    const germanMatches = Object.entries(germanDict).filter(([german, english]) => 
+                        english.toLowerCase().includes(query) || english.toLowerCase() === query
+                    );
+                    
+                    if (germanMatches.length > 0) {
+                        definitionsFound = true;
+                        html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                            <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN EQUIVALENTS:</strong></div>`;
+                        germanMatches.slice(0, 5).forEach(([german, english]) => {
+                            html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                                <span style="color: #ff6666;">${german}</span> → ${english}
+                            </div>`;
+                        });
+                        html += `</div>`;
+                    }
+                }
+            }
+             // Search Russian-English dictionary (source 4)
+    const russianDict = dictionaryCache['source4'];
+    if (russianDict) {
+        // Detect if the query contains Cyrillic characters
+        const isCyrillic = /[а-яА-ЯёЁ]/.test(query);
+        
+        if (isCyrillic) {
+            // Case 1: Russian Input -> Show English Definition
+            if (russianDict[query]) {
+                definitionsFound = true;
+                html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>ENGLISH TRANSLATION:</strong></div>
+                    <div style="font-size: 0.85rem; margin: 0.3rem 0; font-family: 'Courier New', monospace;">
+                        ${query} <span style="color:#666;">➔</span> ${russianDict[query]}
                     </div>
                 </div>`;
-    }
+            }
+        } else {
+            // Case 2: English Input -> Find Russian matches (Reverse Lookup)
+            // Note: This iterates the keys to find the English value. 
+            // It filters for exact matches or words contained within the definition.
+            
+            const russianMatches = Object.entries(russianDict).filter(([ruWord, enDef]) => {
+                // strict match or starts with match for better relevance
+                return enDef.toLowerCase() === query || enDef.toLowerCase().startsWith(query + " ");
+            });
 
-    /* 4. CHINESE (BI-DIRECTIONAL) */
-    const chiDict = dictionaryCache['source5'];
-    if (chiDict) {
-        const chiMatches = Object.entries(chiDict).filter(([char, pin]) => 
-            char === word || pin.toLowerCase() === lowWord
+            if (russianMatches.length > 0) {
+                definitionsFound = true;
+                html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>RUSSIAN EQUIVALENTS:</strong></div>`;
+                
+                // Limit to 5 results to keep UI clean
+                russianMatches.slice(0, 5).forEach(([ru, en]) => {
+                    html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                        <span style="color: #ff6666; font-family: 'Courier New';">${ru}</span> <span style="color:#666; font-size:0.7rem;">(${en})</span>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+        }
+    }
+            // Search French-English dictionary (source 5)
+const frenchDict = dictionaryCache['source5'];
+if (frenchDict) {
+    const hasFrenchChars = /[àâäæçéèêëïîôùûüÿœ]/i.test(query);
+    
+    if (hasFrenchChars || frenchDict[query]) {
+        if (frenchDict[query]) {
+            definitionsFound = true;
+            html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                <div style="color: #ff0033; font-size: 0.75rem;"><strong>FRANÇAIS:</strong></div>
+                <div style="font-size: 0.85rem; margin: 0.3rem 0; font-family: 'Courier New', monospace;">
+                    ${query} → ${frenchDict[query]}
+                </div>
+            </div>`;
+        }
+    } else {
+        // English to French (reverse lookup)
+        const frenchMatches = Object.entries(frenchDict).filter(([fr, en]) => 
+            en.toLowerCase() === query || en.toLowerCase().startsWith(query + " ")
         );
-        if (chiMatches.length > 0) {
-            found = true;
-            html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-                        <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇨🇳 CHINESE PINYIN</div>`;
-            chiMatches.slice(0, 5).forEach(([char, pin]) => {
-                html += `<div style="margin-top:0.3rem;">${char} → ${pin}</div>`;
+        
+        if (frenchMatches.length > 0) {
+            definitionsFound = true;
+            html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                <div style="color: #ff0033; font-size: 0.75rem;"><strong>ÉQUIVALENTS FRANÇAIS:</strong></div>`;
+            frenchMatches.slice(0, 5).forEach(([fr, en]) => {
+                html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                    <span style="color: #ff6666; font-family: 'Courier New';">${fr}</span> → ${en}
+                </div>`;
             });
             html += `</div>`;
         }
     }
-
-    /* 5. DATAMUSE (SYN/ANT/RHYME ONLY) */
-    try {
-        const [synRes, antRes, rhymeRes] = await Promise.all([
-            axios.get(`https://api.datamuse.com/words?rel_syn=${lowWord}&max=12`),
-            axios.get(`https://api.datamuse.com/words?rel_ant=${lowWord}&max=8`),
-            axios.get(`https://api.datamuse.com/words?rel_rhy=${lowWord}&max=10`)
-        ]);
-
-        const addDatamuseSection = (title, data) => {
-            if (data.length === 0) return '';
-            found = true;
-            let sectionHtml = `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-                               <div style="color:#777;font-size:0.75rem;">${title}</div>`;
-            data.forEach(item => {
-                sectionHtml += `<span class="synonym-tag" onclick="quickSearch('${item.word}')">${item.word}</span>`;
-            });
-            return sectionHtml + `</div>`;
-        };
-
-        html += addDatamuseSection('SYNONYMS', synRes.data);
-        html += addDatamuseSection('ANTONYMS', antRes.data);
-        html += addDatamuseSection('RHYMES', rhymeRes.data);
-    } catch (e) { console.log("Datamuse error", e); }
-
-    html += `</div>`;
-    resultDiv.innerHTML = found ? html : `<div class="no-results">No definition found for "${word}"</div>`;
 }
 
-/* =========================
-   HELPERS & EVENTS
-========================= */
-function quickSearch(word) {
-    document.getElementById('dictionary-search').value = word;
-    searchDictionary();
+// Search Slang dictionary (source 6)
+const slangDict = dictionaryCache['source6'];
+if (slangDict && slangDict[query]) {
+    definitionsFound = true;
+    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+        <div style="color: #ff0033; font-size: 0.75rem;"><strong>SLANG:</strong></div>
+        <div style="font-size: 0.85rem; margin: 0.3rem 0; font-style: italic;">
+            ${slangDict[query]}
+        </div>
+    </div>`;
 }
-
-function getRandomWord() {
-    const dict = dictionaryCache['source0'];
-    if (dict) {
-        const keys = Object.keys(dict);
-        const word = keys[Math.floor(Math.random() * keys.length)];
-        quickSearch(word);
-    }
-}
-
-// Ensure all event listeners are correctly assigned
-window.addEventListener('load', loadDictionaries);
-
-document.getElementById('search-button').addEventListener('click', searchDictionary);
-document.getElementById('dictionary-search').addEventListener('keypress', e => {
-    if (e.key === 'Enter') searchDictionary();
-});
-
-document.getElementById('random-word').addEventListener('click', getRandomWord);
-
-document.getElementById('clear-dict').addEventListener('click', () => {
-    document.getElementById('dictionary-search').value = '';
-    document.getElementById('dictionary-result').innerHTML = `<div class="no-results">Ready</div>`;
-});
-</script>
+            // Fetch synonyms from Datamuse API
+            try {
+                const thesaurusResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=15`);
+                if (thesaurusResponse.data && thesaurusResponse.data.length > 0) {
+                    definitionsFound = true;
+                    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                        <div style="color: #777; font-size: 0.75rem; margin-bottom: 0.3rem;">SYNONYMS:</div>`;
+                    thesaurusResponse.data.forEach(syn => {
+                        html += `<span class="synonym-tag" onclick="document.getElementById('dictionary-search').value='${syn.word}'; searchDictionary();">${syn.word}</span>`;
+                    });
+                    html += `</div>`;
+                }
+            } catch (error) {
+                console.log('Thesaurus lookup failed (non-critical):', error);
+            }
+            
+            html += `</div>`;
+            
+            if (definitionsFound) {
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `<div class="no-results">
+                    No results for "${query}"<br>
+                    <small>Try a different spelling</small>
+                </div>`;
+            }
+        }
+        
+        // === RANDOM WORD ===
+        async function getRandomWord() {
+            let words = [];
+            
+            // Try to get words from any loaded English dictionary
+            for (let i = 0; i < 3; i++) {
+                const dict = dictionaryCache[`source${i}`];
+                if (dict && Object.keys(dict).length > 0) {
+                    words = Object.keys(dict);
+                    break;
+                }
+            }
+            
+            if (words.length > 0) {
+                const randomWord = words[Math.floor(Math.random() * Math.min(1000, words.length))];
+                document.getElementById('dictionary-search').value = randomWord;
+                searchDictionary();
+            } else {
+                document.getElementById('dictionary-result').innerHTML = 
+                    `<div class="no-results">Load dictionaries first<br><small>Try searching manually</small></div>`;
+            }
+        }
+        
+        // === AI GENERATION ===
+        document.getElementById('creativity').addEventListener('input', (e) => {
+            document.getElementById('creativityValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('generateButton').addEventListener('click', async function() {
+            const prompt = document.getElementById('prompt').value;
+            const model = document.getElementById('modelSelect').value;
+            const temp = parseFloat(document.getElementById('creativity').value);
+            
+            if (!prompt) return;
+            
+            const button = this;
+            const output = document.getElementById('output');
+            
+            button.disabled = true;
+            button.textContent = 'TRANSMITTING...';
+            output.classList.add('generating');
+            output.textContent = '◬ Amazon Nova is thinking...';
+            
+            try {
+                if (typeof puter === 'undefined') {
+                    throw new Error("Puter.js not loaded. Check internet connection.");
+                }
+                
+                const response = await puter.ai.chat(prompt, {
+                    model: model,
+                    temperature: temp,
+                    max_tokens: 2000
+                });
+                
+                output.classList.remove('generating');
+                output.textContent = typeof response === 'object' && response.message 
+                    ? response.message.content 
+                    : response;
+            } catch (error) {
+                output.classList.remove('generating');
+                output.textContent = `❌ Error: ${error.message}`;
+                console.error('AI Generation Error:', error);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'INITIATE';
+            }
+        });
+        
+        // === EVENT LISTENERS ===
+        document.getElementById('search-button').addEventListener('click', searchDictionary);
+        document.getElementById('dictionary-search').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchDictionary();
+        });
+        document.getElementById('random-word').addEventListener('click', getRandomWord);
+        document.getElementById('clear-dict').addEventListener('click', () => {
+            document.getElementById('dictionary-search').value = '';
+            document.getElementById('dictionary-result').innerHTML = 
+                `<div class="no-results">Ready<br><small>Sources available</small></div>`;
+        });
+        
+        document.getElementById('copyButton').addEventListener('click', () => {
+            navigator.clipboard.writeText(document.getElementById('output').textContent);
+            const btn = document.getElementById('copyButton');
+            btn.textContent = 'COPIED!';
+            setTimeout(() => btn.textContent = 'COPY', 1500);
+        });
+        
+        document.getElementById('importButton').addEventListener('click', () => {
+            const notepad = document.getElementById('notepad');
+            notepad.value += (notepad.value ? '\n\n' : '') + document.getElementById('output').textContent;
+            const btn = document.getElementById('importButton');
+            btn.textContent = 'IMPORTED!';
+            setTimeout(() => btn.textContent = 'IMPORT', 1500);
+        });
+        
+        document.getElementById('exportButton').addEventListener('click', () => {
+            const content = document.getElementById('notepad').value;
+            if (!content) return alert('Notepad is empty');
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'nova-notepad.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        
+        document.getElementById('clearButton').addEventListener('click', () => {
+            if (confirm('Clear notepad?')) document.getElementById('notepad').value = '';
+        });
+        
+        document.getElementById('prompt').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                document.getElementById('generateButton').click();
+            }
+        });
+        
+        // === INITIALIZE ===
+        window.addEventListener('load', () => {
+            loadDictionaries();
+        });
+    </script>
 </body>
-</html>
+    </html>
