@@ -404,6 +404,18 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+		/* Add to your CSS */
+.toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Changed from 3 to 4 */
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.toolbar button {
+    font-size: 0.85em; /* Slightly smaller */
+    padding: 6px 8px;
+}
     </style>
 </head>
 <body>
@@ -477,24 +489,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
                     </div>
                 </div>
 
-                <div class="character-location-list">
-                    <h3>Characters & Locations</h3>
-                    <h4>Characters:</h4>
-                    <ul id="character-list">
-                        <li>PROTAGONIST</li>
-                        <li>ANTAGONIST</li>
-                        <li>SUPPORTING CHARACTER 1</li>
-                        <li>SUPPORTING CHARACTER 2</li>
-                    </ul>
-                    <h4>Locations:</h4>
-                    <ul id="location-list">
-                        <li>FUTURISTIC CITY</li>
-                        <li>EMPTY WAREHOUSE</li>
-                        <li>VIRTUAL REALITY REALM</li>
-                        <li>SPACE STATION</li>
-                    </ul>
-                </div>
-                
+          
                 <div>
                     <h3>Notes</h3>
                     <textarea id="notes" placeholder="Add your notes here..."></textarea>
@@ -510,6 +505,11 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
                     <button id="dialogue">Dialogue</button>
                     <button id="parenthetical">Parenthetical</button>
                     <button id="transition">Transition</button>
+					
+    <button id="int-scene">INT.</button>
+    <button id="ext-scene">EXT.</button>
+    <button id="fade-in">FADE IN</button>
+    <button id="fade-out">FADE OUT</button>
                 </div>
                 <div id="screenplay"></div>
             </div>
@@ -551,399 +551,552 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
         </div>
     </div>
 
-    <script>
-        // ============ ACE EDITOR SETUP ============
-        const editor = ace.edit("screenplay");
-        editor.setTheme("ace/theme/twilight");
-        editor.session.setMode("ace/mode/text");
-        editor.setOptions({
-            fontFamily: "'Courier New', monospace",
-            fontSize: "14px",
-            wrap: true
+<script>
+    // ============ ACE EDITOR SETUP ============
+    const editor = ace.edit("screenplay");
+    editor.setTheme("ace/theme/twilight");
+    editor.session.setMode("ace/mode/text");
+    editor.setOptions({
+        fontFamily: "'Courier New', monospace",
+        fontSize: "14px",
+        wrap: true
+    });
+
+    // ============ SCREENPLAY FORMATTING ============
+    // Enhanced formatting with better screenplay standards
+    function formatLine(type) {
+        const cursor = editor.selection.getCursor();
+        const currentLine = editor.session.getLine(cursor.row);
+        let formattedLine = currentLine.trim();
+        const lineLength = formattedLine.length;
+
+        switch(type) {
+            case 'scene-heading':
+                formattedLine = formattedLine.toUpperCase();
+                // Remove common prefixes if they exist
+                formattedLine = formattedLine.replace(/^(INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?)\s*/i, '');
+                // Add proper prefix
+                if (formattedLine.match(/^(DAY|NIGHT|DUSK|DAWN|LATER|CONTINUOUS)/i)) {
+                    formattedLine = formattedLine.toUpperCase();
+                } else {
+                    formattedLine = 'INT. ' + formattedLine.toUpperCase();
+                }
+                break;
+                
+            case 'character':
+                formattedLine = formattedLine.toUpperCase();
+                // Center character names (screenplay standard)
+                const padding = Math.max(0, (35 - formattedLine.length) / 2);
+                formattedLine = ' '.repeat(padding) + formattedLine;
+                break;
+                
+            case 'action':
+                // Action lines remain normal case, first letter capitalized
+                formattedLine = formattedLine.charAt(0).toUpperCase() + formattedLine.slice(1);
+                break;
+                
+            case 'dialogue':
+                // Dialogue remains as-is, just wrap if needed
+                if (lineLength > 60) {
+                    // Simple line wrapping for dialogue
+                    const words = formattedLine.split(' ');
+                    let lines = [];
+                    let currentLine = '';
+                    
+                    words.forEach(word => {
+                        if ((currentLine + word).length > 60) {
+                            lines.push(currentLine);
+                            currentLine = word + ' ';
+                        } else {
+                            currentLine += word + ' ';
+                        }
+                    });
+                    lines.push(currentLine);
+                    formattedLine = lines.join('\n');
+                }
+                break;
+                
+            case 'parenthetical':
+                formattedLine = `(${formattedLine})`;
+                // Center parentheticals
+                const parentPadding = Math.max(0, (25 - formattedLine.length) / 2);
+                formattedLine = ' '.repeat(parentPadding) + formattedLine;
+                break;
+                
+            case 'transition':
+                formattedLine = formattedLine.toUpperCase();
+                // Right-align transitions (screenplay standard)
+                const transitionPadding = Math.max(0, 60 - formattedLine.length);
+                formattedLine = ' '.repeat(transitionPadding) + formattedLine;
+                // Add TO: prefix for common transitions
+                if (!formattedLine.match(/^(FADE|CUT|DISSOLVE|SMASH|MATCH)/i)) {
+                    formattedLine = formattedLine.replace(/^(TO:|)/i, 'TO: ');
+                }
+                break;
+        }
+
+        editor.session.replace({
+            start: {row: cursor.row, column: 0},
+            end: {row: cursor.row, column: currentLine.length}
+        }, formattedLine);
+        
+        // Move cursor to end of formatted line
+        editor.selection.moveCursorToPosition({
+            row: cursor.row,
+            column: formattedLine.length
         });
+        editor.focus();
+    }
 
-        // Screenplay formatting functions
-        function formatLine(type) {
-            const cursor = editor.selection.getCursor();
-            const currentLine = editor.session.getLine(cursor.row);
-            let formattedLine = currentLine.trim();
-
-            switch(type) {
-                case 'scene-heading':
-                    formattedLine = formattedLine.toUpperCase();
-                    break;
-                case 'character':
-                    formattedLine = formattedLine.toUpperCase();
-                    break;
-                case 'transition':
-                    formattedLine = formattedLine.toUpperCase();
-                    editor.session.insert({row: cursor.row, column: 0}, "\n");
-                    editor.session.insert({row: cursor.row + 1, column: 0}, 
-                        formattedLine.padStart((80 - formattedLine.length) / 2 + formattedLine.length));
-                    editor.session.insert({row: cursor.row + 2, column: 0}, "\n");
-                    return;
-                case 'parenthetical':
-                    formattedLine = `(${formattedLine})`;
-                    break;
-            }
-
-            editor.session.replace({
-                start: {row: cursor.row, column: 0},
-                end: {row: cursor.row, column: currentLine.length}
-            }, formattedLine);
-        }
-
-        // Attach formatting buttons
-        document.getElementById('scene-heading').addEventListener('click', () => formatLine('scene-heading'));
-        document.getElementById('action').addEventListener('click', () => formatLine('action'));
-        document.getElementById('character').addEventListener('click', () => formatLine('character'));
-        document.getElementById('dialogue').addEventListener('click', () => formatLine('dialogue'));
-        document.getElementById('parenthetical').addEventListener('click', () => formatLine('parenthetical'));
-        document.getElementById('transition').addEventListener('click', () => formatLine('transition'));
-
-        // ============ PONG GAME ============
-        const canv = document.getElementById('gameCanvas');
-        const c = canv.getContext('2d');
-        const startButton = document.getElementById('startButton');
-        const pauseButton = document.getElementById('pauseButton');
-        const scoreElement = document.getElementById('score');
-        const aiStrategyElement = document.getElementById('aiStrategy');
-
-        // Game variables
-        let px = 10, py = 100;
-        let bx = 175, by = 125;
-        let bdx = 3, bdy = 2;
-        let aiy = 100;
-        let ps = 0, cs = 0;
-        let loop = null;
-        let gamePaused = false;
-        let gameStarted = false;
-
-        // Start game
-        function startPong() {
-            if (!gameStarted) {
-                startButton.style.display = 'none';
-                pauseButton.style.display = 'inline-block';
-                scoreElement.style.display = 'block';
-                aiStrategyElement.style.display = 'block';
-                gameStarted = true;
-                gamePaused = false;
-                pauseButton.textContent = 'Pause Game';
-            }
-            startGameLoop();
-        }
-
-        // Start game loop
-        function startGameLoop() {
-            if (loop) clearInterval(loop);
-            loop = setInterval(frame, 16);
-        }
-
-        // Pause/Unpause
-        function togglePause() {
-            if (!gameStarted) return;
-            
-            gamePaused = !gamePaused;
-            
-            if (gamePaused) {
-                clearInterval(loop);
-                pauseButton.textContent = 'Resume Game';
-                drawPausedScreen();
-            } else {
-                startGameLoop();
-                pauseButton.textContent = 'Pause Game';
+    // Auto-format helper function
+    function autoFormatOnEnter(e) {
+        const cursor = editor.selection.getCursor();
+        const currentLine = editor.session.getLine(cursor.row);
+        const trimmedLine = currentLine.trim();
+        
+        // Detect what type of line we're on and auto-format next line
+        if (e.keyCode === 13 && trimmedLine) { // Enter key
+            if (trimmedLine.match(/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i)) {
+                // After scene heading, default to action
+                editor.insert('\n');
+            } else if (trimmedLine.toUpperCase() === trimmedLine && 
+                       trimmedLine.length < 40 && 
+                       !trimmedLine.match(/^(\(|TO:|FADE|CUT)/)) {
+                // Likely a character name, next should be parenthetical or dialogue
+                editor.insert('\n\t');
+            } else if (trimmedLine.startsWith('(') && trimmedLine.endsWith(')')) {
+                // After parenthetical, default to dialogue
+                editor.insert('\n');
             }
         }
+    }
 
-        // Draw paused screen
-        function drawPausedScreen() {
-            c.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            c.fillRect(0, 0, canv.width, canv.height);
-            
-            c.fillStyle = '#ff3333';
-            c.font = '24px VT323';
-            c.textAlign = 'center';
-            c.fillText('GAME PAUSED', canv.width/2, canv.height/2 - 20);
-            
-            c.fillStyle = '#ccc';
-            c.font = '16px VT323';
-            c.fillText('Click "Resume Game" to continue', canv.width/2, canv.height/2 + 20);
-        }
+    // Attach formatting buttons
+    document.getElementById('scene-heading').addEventListener('click', () => formatLine('scene-heading'));
+    document.getElementById('action').addEventListener('click', () => formatLine('action'));
+    document.getElementById('character').addEventListener('click', () => formatLine('character'));
+    document.getElementById('dialogue').addEventListener('click', () => formatLine('dialogue'));
+    document.getElementById('parenthetical').addEventListener('click', () => formatLine('parenthetical'));
+    document.getElementById('transition').addEventListener('click', () => formatLine('transition'));
 
-        // Game frame
-        function frame() {
-            if (gamePaused) return;
-            
-            // Clear canvas
-            c.fillStyle = '#111';
-            c.fillRect(0, 0, canv.width, canv.height);
-            
-            // Draw paddles
-            c.fillStyle = '#ff3333';
-            c.fillRect(px, py, 6, 40);
-            c.fillRect(canv.width - 16, aiy, 6, 40);
-            
-            // Draw ball
-            c.fillStyle = '#ffffff';
-            c.fillRect(bx, by, 8, 8);
-            
-            // Draw net
-            c.fillStyle = '#666';
-            for(let i = 0; i < canv.height; i += 20) {
-                c.fillRect(canv.width/2 - 1, i, 2, 10);
-            }
-            
-            // Update ball
-            bx += bdx;
-            by += bdy;
-            
-            // Collisions
-            if (by < 0 || by > canv.height - 8) {
-                bdy = -bdy;
-                bdx += (Math.random() - 0.5) * 0.5;
-            }
-            
-            // Player paddle collision
-            if (bx < px + 6 && bx > px && by > py && by < py + 40) {
-                bdx = Math.abs(bdx) + 0.5;
-                bdy = (by - (py + 20)) * 0.15;
-                bx = px + 6;
-            }
-            
-            // AI paddle collision
-            if (bx > canv.width - 22 && bx < canv.width - 16 && 
-                by > aiy && by < aiy + 40) {
-                bdx = -Math.abs(bdx) - 0.5;
-                bdy = (by - (aiy + 20)) * 0.15;
-                bx = canv.width - 22;
-            }
-            
-            // Scoring
-            if (bx < 0) {
-                cs++;
-                reset();
-            }
-            if (bx > canv.width) {
-                ps++;
-                reset();
-            }
-            
-            // AI movement
-            let aiError = (Math.random() - 0.5) * 10;
-            let targetY = by - 20 + aiError;
-            
-            if (aiy + 20 < targetY) {
-                aiy += 3;
-            } else if (aiy + 20 > targetY) {
-                aiy -= 3;
-            }
-            
-            aiy = Math.max(0, Math.min(canv.height - 40, aiy));
-            
-            // Update display - CHANGED CPU to AI
-            scoreElement.textContent = `Player ${ps} | AI ${cs}`;
-            
-            let strategies = ["Defensive", "Predictive", "Reactive", "Aggressive"];
-            aiStrategyElement.textContent = 
-                `AI Strategy: ${strategies[Math.floor((ps + cs) / 2) % 4]}`;
-        }
+    // Add auto-format listener
+    editor.container.addEventListener('keydown', autoFormatOnEnter);
 
-        // Reset ball
-        function reset() {
-            bx = canv.width / 2;
-            by = canv.height / 2;
-            bdx = (Math.random() > 0.5 ? 1 : -1) * 3;
-            bdy = (Math.random() - 0.5) * 4;
-        }
+    // Quick scene heading templates (IF you added these buttons to HTML)
+    // If you have these buttons in your HTML, uncomment this section:
+    /*
+    document.getElementById('int-scene').addEventListener('click', () => {
+        const cursor = editor.selection.getCursor();
+        editor.session.insert({row: cursor.row, column: 0}, "INT. LOCATION - DAY\n");
+    });
 
-        // Mouse controls
-        canv.onmousemove = e => {
-            if (gamePaused || !gameStarted) return;
+    document.getElementById('ext-scene').addEventListener('click', () => {
+        const cursor = editor.selection.getCursor();
+        editor.session.insert({row: cursor.row, column: 0}, "EXT. LOCATION - DAY\n");
+    });
+
+    document.getElementById('fade-in').addEventListener('click', () => {
+        const cursor = editor.selection.getCursor();
+        editor.session.insert({row: cursor.row, column: 0}, "FADE IN:\n\n");
+    });
+
+    document.getElementById('fade-out').addEventListener('click', () => {
+        const cursor = editor.selection.getCursor();
+        editor.session.insert({row: cursor.row, column: cursor.column}, "\n\nFADE OUT.");
+    });
+    */
+
+    // ============ PDF FUNCTIONS ============
+    function exportPDF() {
+        // Get content from Ace editor
+        const content = editor.getValue();
+        
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Set up styling
+        doc.setFont("courier");
+        doc.setFontSize(12);
+        
+        // Split content into lines
+        const lines = content.split('\n');
+        let y = 20;
+        
+        // Add title
+        doc.setFontSize(16);
+        doc.text("Screenplay", 105, 15, { align: 'center' });
+        doc.setFontSize(12);
+        
+        // Add content
+        lines.forEach((line, index) => {
+            if (y > 280) { // New page if needed
+                doc.addPage();
+                y = 20;
+            }
+            doc.text(line, 10, y);
+            y += 7;
+        });
+        
+        // Save PDF
+        doc.save('screenplay.pdf');
+        alert('PDF exported successfully!');
+    }
+
+    function importPDF() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf';
+        
+        input.onchange = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
             
-            const rect = canv.getBoundingClientRect();
-            py = e.clientY - rect.top - 20;
-            py = Math.max(0, Math.min(canv.height - 40, py));
+            try {
+                alert('PDF import functionality requires additional PDF parsing library.\n\nFor now, consider copying text from PDF and pasting into the editor manually.');
+            } catch (error) {
+                alert('Error importing PDF: ' + error.message);
+            }
         };
+        
+        input.click();
+    }
 
-        // Event listeners
-        startButton.addEventListener('click', startPong);
-        pauseButton.addEventListener('click', togglePause);
+    // ============ NAVIGATION FUNCTIONS ============
+    function toggleVoiceRecognition() {
+        alert('Voice recognition would start here');
+    }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && gameStarted) {
-                e.preventDefault();
-                togglePause();
-            }
-        });
+    function formatText(command) {
+        document.execCommand(command, false, null);
+    }
 
-        // Initial state
-        scoreElement.style.display = 'none';
-        aiStrategyElement.style.display = 'none';
+    // ============ PONG GAME ============
+    const canv = document.getElementById('gameCanvas');
+    const c = canv.getContext('2d');
+    const startButton = document.getElementById('startButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const scoreElement = document.getElementById('score');
+    const aiStrategyElement = document.getElementById('aiStrategy');
 
-        // Draw initial screen
+    // Game variables
+    let px = 10, py = 100;
+    let bx = 175, by = 125;
+    let bdx = 3, bdy = 2;
+    let aiy = 100;
+    let ps = 0, cs = 0;
+    let loop = null;
+    let gamePaused = false;
+    let gameStarted = false;
+
+    // Start game
+    function startPong() {
+        if (!gameStarted) {
+            startButton.style.display = 'none';
+            pauseButton.style.display = 'inline-block';
+            scoreElement.style.display = 'block';
+            aiStrategyElement.style.display = 'block';
+            gameStarted = true;
+            gamePaused = false;
+            pauseButton.textContent = 'Pause Game';
+        }
+        startGameLoop();
+    }
+
+    // Start game loop
+    function startGameLoop() {
+        if (loop) clearInterval(loop);
+        loop = setInterval(frame, 16);
+    }
+
+    // Pause/Unpause
+    function togglePause() {
+        if (!gameStarted) return;
+        
+        gamePaused = !gamePaused;
+        
+        if (gamePaused) {
+            clearInterval(loop);
+            pauseButton.textContent = 'Resume Game';
+            drawPausedScreen();
+        } else {
+            startGameLoop();
+            pauseButton.textContent = 'Pause Game';
+        }
+    }
+
+    // Draw paused screen
+    function drawPausedScreen() {
+        c.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        c.fillRect(0, 0, canv.width, canv.height);
+        
+        c.fillStyle = '#ff3333';
+        c.font = '24px VT323';
+        c.textAlign = 'center';
+        c.fillText('GAME PAUSED', canv.width/2, canv.height/2 - 20);
+        
+        c.fillStyle = '#ccc';
+        c.font = '16px VT323';
+        c.fillText('Click "Resume Game" to continue', canv.width/2, canv.height/2 + 20);
+    }
+
+    // Game frame
+    function frame() {
+        if (gamePaused) return;
+        
+        // Clear canvas
         c.fillStyle = '#111';
         c.fillRect(0, 0, canv.width, canv.height);
+        
+        // Draw paddles
         c.fillStyle = '#ff3333';
-        c.font = '20px VT323';
-        c.textAlign = 'center';
-        c.fillText('Click "Start Game" to begin', canv.width/2, canv.height/2);
-
-        // ============ AUDIO/FREQUENCY CONTROLS ============
-        const frequencySlider = document.getElementById('frequencySlider2');
-        const frequencyDisplay = document.getElementById('frequencyDisplay2');
-        const playButton = document.getElementById('playButton2');
-        const soundSelector = document.getElementById('soundSelector2');
-        const significantFrequencies = document.getElementById('significantFrequencies2');
-
-        let audioContext, oscillator, gainNode, analyser;
-        let isPlaying = false;
-
-        // Event listeners
-        frequencySlider.addEventListener('input', updateFrequency);
-        playButton.addEventListener('click', toggleSound);
-        soundSelector.addEventListener('change', updateOscillatorType);
-        significantFrequencies.addEventListener('change', updateSignificantFrequency);
-
-        function updateFrequency() {
-            const frequency = logSlider(frequencySlider.value);
-            frequencyDisplay.innerHTML = `<small>Frequency: ${frequency} Hz</small>`;
-            if (oscillator) {
-                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-            }
+        c.fillRect(px, py, 6, 40);
+        c.fillRect(canv.width - 16, aiy, 6, 40);
+        
+        // Draw ball
+        c.fillStyle = '#ffffff';
+        c.fillRect(bx, by, 8, 8);
+        
+        // Draw net
+        c.fillStyle = '#666';
+        for(let i = 0; i < canv.height; i += 20) {
+            c.fillRect(canv.width/2 - 1, i, 2, 10);
         }
-
-        function toggleSound() {
-            if (isPlaying) {
-                stopSound();
-            } else {
-                playSound();
-            }
+        
+        // Update ball
+        bx += bdx;
+        by += bdy;
+        
+        // Collisions
+        if (by < 0 || by > canv.height - 8) {
+            bdy = -bdy;
+            bdx += (Math.random() - 0.5) * 0.5;
         }
+        
+        // Player paddle collision
+        if (bx < px + 6 && bx > px && by > py && by < py + 40) {
+            bdx = Math.abs(bdx) + 0.5;
+            bdy = (by - (py + 20)) * 0.15;
+            bx = px + 6;
+        }
+        
+        // AI paddle collision
+        if (bx > canv.width - 22 && bx < canv.width - 16 && 
+            by > aiy && by < aiy + 40) {
+            bdx = -Math.abs(bdx) - 0.5;
+            bdy = (by - (aiy + 20)) * 0.15;
+            bx = canv.width - 22;
+        }
+        
+        // Scoring
+        if (bx < 0) {
+            cs++;
+            reset();
+        }
+        if (bx > canv.width) {
+            ps++;
+            reset();
+        }
+        
+        // AI movement
+        let aiError = (Math.random() - 0.5) * 10;
+        let targetY = by - 20 + aiError;
+        
+        if (aiy + 20 < targetY) {
+            aiy += 3;
+        } else if (aiy + 20 > targetY) {
+            aiy -= 3;
+        }
+        
+        aiy = Math.max(0, Math.min(canv.height - 40, aiy));
+        
+        // Update display - CHANGED CPU to AI
+        scoreElement.textContent = `Player ${ps} | AI ${cs}`;
+        
+        let strategies = ["Defensive", "Predictive", "Reactive", "Aggressive"];
+        aiStrategyElement.textContent = 
+            `AI Strategy: ${strategies[Math.floor((ps + cs) / 2) % 4]}`;
+    }
 
-        function playSound() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                oscillator = audioContext.createOscillator();
-                gainNode = audioContext.createGain();
-                analyser = audioContext.createAnalyser();
+    // Reset ball
+    function reset() {
+        bx = canv.width / 2;
+        by = canv.height / 2;
+        bdx = (Math.random() > 0.5 ? 1 : -1) * 3;
+        bdy = (Math.random() - 0.5) * 4;
+    }
 
-                oscillator.connect(gainNode);
-                gainNode.connect(analyser);
-                analyser.connect(audioContext.destination);
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            }
+    // Mouse controls
+    canv.onmousemove = e => {
+        if (gamePaused || !gameStarted) return;
+        
+        const rect = canv.getBoundingClientRect();
+        py = e.clientY - rect.top - 20;
+        py = Math.max(0, Math.min(canv.height - 40, py));
+    };
 
-            const frequency = logSlider(frequencySlider.value);
+    // Event listeners
+    startButton.addEventListener('click', startPong);
+    pauseButton.addEventListener('click', togglePause);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && gameStarted) {
+            e.preventDefault();
+            togglePause();
+        }
+    });
+
+    // Initial state
+    scoreElement.style.display = 'none';
+    aiStrategyElement.style.display = 'none';
+
+    // Draw initial screen
+    c.fillStyle = '#111';
+    c.fillRect(0, 0, canv.width, canv.height);
+    c.fillStyle = '#ff3333';
+    c.font = '20px VT323';
+    c.textAlign = 'center';
+    c.fillText('Click "Start Game" to begin', canv.width/2, canv.height/2);
+
+    // ============ AUDIO/FREQUENCY CONTROLS ============
+    const frequencySlider = document.getElementById('frequencySlider2');
+    const frequencyDisplay = document.getElementById('frequencyDisplay2');
+    const playButton = document.getElementById('playButton2');
+    const soundSelector = document.getElementById('soundSelector2');
+    const significantFrequencies = document.getElementById('significantFrequencies2');
+
+    let audioContext, oscillator, gainNode, analyser;
+    let isPlaying = false;
+
+    // Event listeners
+    frequencySlider.addEventListener('input', updateFrequency);
+    playButton.addEventListener('click', toggleSound);
+    soundSelector.addEventListener('change', updateOscillatorType);
+    significantFrequencies.addEventListener('change', updateSignificantFrequency);
+
+    function updateFrequency() {
+        const frequency = logSlider(frequencySlider.value);
+        frequencyDisplay.innerHTML = `<small>Frequency: ${frequency} Hz</small>`;
+        if (oscillator) {
             oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-            updateOscillatorType();
-            oscillator.start();
-            isPlaying = true;
-            playButton.textContent = 'Stop';
+        }
+    }
+
+    function toggleSound() {
+        if (isPlaying) {
+            stopSound();
+        } else {
+            playSound();
+        }
+    }
+
+    function playSound() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            oscillator = audioContext.createOscillator();
+            gainNode = audioContext.createGain();
+            analyser = audioContext.createAnalyser();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(analyser);
+            analyser.connect(audioContext.destination);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
         }
 
-        function stopSound() {
-            if (oscillator) {
-                oscillator.stop();
+        const frequency = logSlider(frequencySlider.value);
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        updateOscillatorType();
+        oscillator.start();
+        isPlaying = true;
+        playButton.textContent = 'Stop';
+    }
+
+    function stopSound() {
+        if (oscillator) {
+            oscillator.stop();
+        }
+        isPlaying = false;
+        playButton.textContent = 'Activation';
+    }
+
+    function updateOscillatorType() {
+        if (oscillator) {
+            const selectedType = soundSelector.value;
+            if (selectedType === 'didgeridoo') {
+                oscillator.type = 'sawtooth';
+                const lowPass = audioContext.createBiquadFilter();
+                lowPass.type = 'lowpass';
+                lowPass.frequency.setValueAtTime(500, audioContext.currentTime);
+                oscillator.disconnect();
+                oscillator.connect(lowPass);
+                lowPass.connect(gainNode);
+            } else if (selectedType === 'flute') {
+                oscillator.type = 'sine';
+                const highPass = audioContext.createBiquadFilter();
+                highPass.type = 'highpass';
+                highPass.frequency.setValueAtTime(700, audioContext.currentTime);
+                oscillator.disconnect();
+                oscillator.connect(highPass);
+                highPass.connect(gainNode);
+            } else {
+                oscillator.type = selectedType;
+                oscillator.disconnect();
+                oscillator.connect(gainNode);
             }
-            isPlaying = false;
-            playButton.textContent = 'Activation';
         }
+    }
 
-        function updateOscillatorType() {
-            if (oscillator) {
-                const selectedType = soundSelector.value;
-                if (selectedType === 'didgeridoo') {
-                    oscillator.type = 'sawtooth';
-                    const lowPass = audioContext.createBiquadFilter();
-                    lowPass.type = 'lowpass';
-                    lowPass.frequency.setValueAtTime(500, audioContext.currentTime);
-                    oscillator.disconnect();
-                    oscillator.connect(lowPass);
-                    lowPass.connect(gainNode);
-                } else if (selectedType === 'flute') {
-                    oscillator.type = 'sine';
-                    const highPass = audioContext.createBiquadFilter();
-                    highPass.type = 'highpass';
-                    highPass.frequency.setValueAtTime(700, audioContext.currentTime);
-                    oscillator.disconnect();
-                    oscillator.connect(highPass);
-                    highPass.connect(gainNode);
-                } else {
-                    oscillator.type = selectedType;
-                    oscillator.disconnect();
-                    oscillator.connect(gainNode);
-                }
-            }
+    function updateSignificantFrequency() {
+        const selectedFrequency = significantFrequencies.value;
+        if (selectedFrequency) {
+            frequencySlider.value = Math.log(selectedFrequency) / Math.log(10000) * 10000;
+            updateFrequency();
         }
+    }
 
-        function updateSignificantFrequency() {
-            const selectedFrequency = significantFrequencies.value;
-            if (selectedFrequency) {
-                frequencySlider.value = Math.log(selectedFrequency) / Math.log(10000) * 10000;
-                updateFrequency();
-            }
-        }
+    function logSlider(position) {
+        const minp = 1;
+        const maxp = 10000;
+        const minv = Math.log(1);
+        const maxv = Math.log(10000);
+        const scale = (maxv - minv) / (maxp - minp);
+        return Math.round(Math.exp(minv + scale * (position - minp)));
+    }
 
-        function logSlider(position) {
-            const minp = 1;
-            const maxp = 10000;
-            const minv = Math.log(1);
-            const maxv = Math.log(10000);
-            const scale = (maxv - minv) / (maxp - minp);
-            return Math.round(Math.exp(minv + scale * (position - minp)));
-        }
+    // ============ AI EXTRAS ============
+    document.getElementById('generate-ideas').addEventListener('click', () => {
+        alert('Generating futuristic plot ideas...');
+    });
 
-        // ============ AI EXTRAS ============
-        document.getElementById('generate-ideas').addEventListener('click', () => {
-            alert('Generating futuristic plot ideas...');
-        });
+    document.getElementById('analyze-script').addEventListener('click', () => {
+        alert('Analyzing script structure...');
+    });
 
-        document.getElementById('analyze-script').addEventListener('click', () => {
-            alert('Analyzing script structure...');
-        });
+    document.getElementById('character-development').addEventListener('click', () => {
+        alert('Initiating character development...');
+    });
 
-        document.getElementById('character-development').addEventListener('click', () => {
-            alert('Initiating character development...');
-        });
+    document.getElementById('download-ai-to-body').addEventListener('click', () => {
+        alert('Initiating AI transfer...');
+    });
 
-        document.getElementById('download-ai-to-body').addEventListener('click', () => {
-            alert('Initiating AI transfer...');
-        });
+    // ============ QUANTUM CONNECTIONS ============
+    document.getElementById('quantum-collaboration').addEventListener('click', () => {
+        alert('Establishing quantum entanglement...');
+    });
 
-        // ============ QUANTUM CONNECTIONS ============
-        document.getElementById('quantum-collaboration').addEventListener('click', () => {
-            alert('Establishing quantum entanglement...');
-        });
+    document.getElementById('multiverse-plotting').addEventListener('click', () => {
+        alert('Accessing parallel universes...');
+    });
 
-        document.getElementById('multiverse-plotting').addEventListener('click', () => {
-            alert('Accessing parallel universes...');
-        });
+    document.getElementById('entangled-storytelling').addEventListener('click', () => {
+        alert('Initializing entangled storytelling...');
+    });
 
-        document.getElementById('entangled-storytelling').addEventListener('click', () => {
-            alert('Initializing entangled storytelling...');
-        });
-
-        document.getElementById('download-quantum-to-body').addEventListener('click', () => {
-            alert('Initiating quantum transfer...');
-        });
-
-        // ============ NAVIGATION FUNCTIONS ============
-        function toggleVoiceRecognition() {
-            alert('Voice recognition would start here');
-        }
-
-        function formatText(command) {
-            document.execCommand(command, false, null);
-        }
-
-        function exportPDF() {
-            alert('PDF export would start here');
-        }
-
-        function importPDF() {
-            alert('PDF import would start here');
-        }
-    </script>
+    document.getElementById('download-quantum-to-body').addEventListener('click', () => {
+        alert('Initiating quantum transfer...');
+    });
+</script>
 </body>
 </html>
