@@ -788,7 +788,7 @@ body::before {
         <!-- Panel B: Nova Express Machine -->
         <div class="panel" style="border: 1px solid #ff0033; flex: 1;">
             <h2 style="color: #ff0033; border-color: #ff0033; letter-spacing: 2px;">
-                <span style="font-size:1.2rem; vertical-align:middle;">✇</span> NOVA EXPRESS
+                <span style="font-size:1.2rem; vertical-align:middle;">✇</span> EXPRESS CUT
             </h2>
             
             <div style="display: flex; gap: 5px; margin-bottom: 8px;">
@@ -895,7 +895,7 @@ body::before {
             ton @ UQAc99MvKIcewbQFmOF_RvqpkAXZno0wiz3_BMsP87pJjSnB
         </p>
 
-        <p><a href="https://inkrealm.info">RETURN TO MAIN</a></p>
+        <p><a href="https://inkrealm.info"><font color="white">BACK TO MAIN</a></font></p>
     </footer>
     
     <script src="https://js.puter.com/v2/"></script>
@@ -1315,6 +1315,112 @@ document.querySelectorAll('.module-btn').forEach(btn => {
         document.getElementById('mixerOutput').value = modules[algo](source);
     });
 });
+        /* =========================
+   COLUMN 3: LEXICON & THESAURUS
+========================= */
+
+// 1. THE LOOKUP ENGINE
+async function lookupWord(word) {
+    const resultBox = document.getElementById('dictionary-result');
+    const status = document.getElementById('dictionary-status');
+    
+    if (!word) return;
+
+    // Visual feedback
+    resultBox.innerHTML = '<div class="loading" style="color:#ff0033;">SCANNING GLOBAL LEXICON...</div>';
+    status.textContent = 'ACCESSING NODES...';
+
+    try {
+        // Fetch from free Dictionary API
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        
+        if (!response.ok) throw new Error("Term terminated or undefined.");
+        
+        const data = await response.json();
+        const entry = data[0];
+        
+        // Build the HTML Interface
+        let html = `
+            <div style="margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">
+                <span class="word-title">${entry.word}</span> 
+                <span class="phonetic">${entry.phonetic || ''}</span>
+            </div>
+        `;
+
+        // Loop through Definitions
+        entry.meanings.forEach(meaning => {
+            html += `<div style="margin-bottom:8px;">
+                <span class="part-of-speech">${meaning.partOfSpeech}</span>
+                <ul style="margin: 5px 0 10px 15px; padding:0; list-style-type: square; color:#aaa;">`;
+            
+            // Limit to top 2 definitions to keep interface clean
+            meaning.definitions.slice(0, 2).forEach(def => {
+                html += `<li style="margin-bottom:4px;">${def.definition}</li>`;
+            });
+            
+            html += `</ul></div>`;
+            
+            // Interactive Synonyms (Click to Search)
+            if (meaning.synonyms.length > 0) {
+                html += `<div style="margin-bottom:10px; font-size:0.7rem;">
+                    <span style="color:#666;">SYNONYMS:</span><br>`;
+                meaning.synonyms.slice(0, 5).forEach(syn => {
+                    html += `<span class="synonym-tag" onclick="document.getElementById('dictionary-search').value='${syn}'; document.getElementById('search-button').click();">${syn}</span>`;
+                });
+                html += `</div>`;
+            }
+        });
+
+        resultBox.innerHTML = html;
+        status.textContent = 'DATA RETRIEVED.';
+        
+    } catch (error) {
+        resultBox.innerHTML = `<div class="no-results" style="color:#ff0033;">[ERROR]: ${error.message}</div>`;
+        status.textContent = 'SEARCH FAILED.';
+    }
+}
+
+// 2. DICTIONARY CONTROLS
+document.getElementById('search-button').addEventListener('click', () => {
+    lookupWord(document.getElementById('dictionary-search').value);
+});
+
+document.getElementById('dictionary-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') lookupWord(e.target.value);
+});
+
+document.getElementById('clear-dict').addEventListener('click', () => {
+    document.getElementById('dictionary-result').innerHTML = '<div class="no-results">Ready.<br><small>4 lexical sources + thesaurus</small></div>';
+    document.getElementById('dictionary-search').value = '';
+    document.getElementById('dictionary-status').textContent = '';
+});
+
+// 3. THE "GHOST" (RANDOM WORD) GENERATOR
+const ghostWords = [
+    "virus", "nova", "silence", "cut", "fold", "machine", "control", "agent", 
+    "interzone", "scanner", "flicker", "dust", "image", "sound", "fear", "death", 
+    "monopoly", "station", "flesh", "ticket", "explode", "dream", "reality", 
+    "studio", "leech", "terminal", "language", "addict", "junk", "needle"
+];
+
+document.getElementById('random-word').addEventListener('click', () => {
+    // Pick a random Burroughs-esque word
+    const random = ghostWords[Math.floor(Math.random() * ghostWords.length)];
+    document.getElementById('dictionary-search').value = random;
+    lookupWord(random);
+});
+        /* =========================
+   THE WORD IS A VIRUS
+========================= */
+console.log(
+    "%c EXPRESS CUT %c v1.0 ONLINE ", 
+    "background: #ff0033; color: #000; font-weight: bold; padding: 4px;", 
+    "background: #000; color: #ff0033; border: 1px solid #ff0033; padding: 3px;"
+);
+console.log(
+    "%c'Listen to my last words any world. Listen all you boards syndicates and governments of the earth. And you powers behind what filth deals consummated in what lavatory to take what is not yours. To sell the ground from unborn feet forever...'", 
+    "color: #444; font-family: monospace; font-style: italic; font-size: 10px;"
+);
     </script>
 </body>
 </html>
