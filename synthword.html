@@ -20,1021 +20,182 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
 <meta name="slack-app-id" content="f060RUD44R3" />
 <title>SynthWord with Ping Pong</title>
 
+
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+/* ---------- CRT RESET ---------- */
+:root{
+  --phosphor:#33ff33;
+  --dim:#1a1a1a;
+  --bg:#000;
+  --scan:rgba(0,255,0,.08);
+  font-family:'VT323',monospace;
+  font-size:20px;
+  color:var(--phosphor);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);overflow-x:hidden;position:relative;}
 
-  :root {
-    --neon-pink: #ff00ff;
-    --neon-blue: #00ffff;
-    --neon-purple: #9900ff;
-    --dark-bg: #120024;
-  }
+/* ---------- SCANLINES ---------- */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--scan) 2px,
+    var(--scan) 4px
+  );
+  pointer-events:none;
+  z-index:9999;
+}
 
-  body {
-    font-family: 'VT323', monospace;
-    background-color: var(--dark-bg);
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
+/* ---------- PHOSPHOR GLOW ---------- */
+.glow{text-shadow:0 0 2px var(--phosphor),0 0 5px var(--phosphor);}
+.blink{animation:blink 1.2s steps(2) infinite;}
+@keyframes blink{to{opacity:.2;}}
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
+/* ---------- LAYOUT ---------- */
+header{text-align:center;padding:.5rem 0;}
+nav ul{display:flex;flex-wrap:wrap;justify-content:center;gap:1rem;list-style:none;padding:.5rem 0;}
+nav a{color:var(--phosphor);text-decoration:none;}
+nav a:hover{text-decoration:underline;}
 
-  header {
-    text-align: center;
-    padding: 40px 0;
-    position: relative;
-  }
+.container{max-width:1200px;margin:0 auto;padding:0 1rem;}
+.row{display:flex;gap:1rem;}
+.col{flex:1;}
+aside{width:250px;background:var(--dim);border:1px solid var(--phosphor);border-radius:3px;padding:.5rem;}
 
-  h1 {
-    font-size: 4em;
-    margin: 0;
-    text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-blue);
-  }
+/* ---------- EDITOR ---------- */
+#editor{background:var(--dim);border:1px solid var(--phosphor);border-radius:3px;padding:.5rem;}
+.toolbar{display:flex;flex-wrap:wrap;gap:.25rem;margin-bottom:.5rem;}
+.toolbar button{background:var(--dim);color:var(--phosphor);border:1px solid var(--phosphor);padding:.25rem .5rem;cursor:pointer;}
+.toolbar button:hover{background:var(--phosphor);color:var(--bg);}
 
-  nav {
-    background-color: rgba(0, 0, 0, 0.5);
-    padding: 10px 0;
-  }
+#screenplay{width:100%;height:60vh;background:var(--bg);color:var(--phosphor);border:1px solid var(--phosphor);padding:.5rem;font-family:inherit;font-size:1rem;resize:vertical;}
 
-  nav ul {
-    list-style-type: none;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
+/* ---------- AUDIO ---------- */
+.ctrl-panel{background:var(--dim);border:1px solid var(--phosphor);border-radius:3px;padding:1rem;margin:1rem 0;text-align:center;}
+.ctrl-panel input[type=range]{width:100%;margin:.5rem 0;}
+.ctrl-panel button{background:var(--dim);color:var(--phosphor);border:1px solid var(--phosphor);padding:.25rem .5rem;cursor:pointer;}
+.ctrl-panel button:hover{background:var(--phosphor);color:var(--bg);}
 
-  nav ul li {
-    margin: 5px 15px;
-  }
-
-  nav ul li a {
-    color: #fff;
-    text-decoration: none;
-    font-size: 1.2em;
-    transition: color 0.3s ease;
-  }
-
-  nav ul li a:hover {
-    color: var(--neon-blue);
-  }
-
-  .editor {
-    background-color: rgba(0, 0, 0, 0.7);
-    border: 2px solid var(--neon-purple);
-    border-radius: 10px;
-    padding: 20px;
-    margin-top: 40px;
-  }
-
-  #screenplay {
-    width: 100%;
-    height: 500px;
-    background-color: #000;
-    color: #0f0;
-    font-family: 'Courier New', monospace;
-    font-size: 1.2em;
-    border: none;
-    padding: 10px;
-    resize: vertical;
-  }
-
-  .ai-extras, .quantum-connections {
-    margin-top: 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border: 2px solid var(--neon-pink);
-    border-radius: 10px;
-    padding: 10px;
-  }
-
-  h2 {
-    color: var(--neon-blue);
-    text-shadow: 0 0 5px var(--neon-blue);
-  }
-
-  button {
-    background-color: var(--neon-purple);
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    font-family: 'VT323', monospace;
-    font-size: 1.2em;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin: 5px;
-  }
-
-  .ai-extras button, .quantum-connections button {
-    font-size: 1em;
-    padding: 8px 16px;
-  }
-
-  button:hover {
-    background-color: var(--neon-pink);
-    box-shadow: 0 0 10px var(--neon-pink);
-  }
-
-  @keyframes neon-glow {
-    0% {
-      box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue), 0 0 15px var(--neon-blue), 0 0 20px var(--neon-blue);
-    }
-    100% {
-      box-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 40px var(--neon-blue);
-    }
-  }
-
-  .neon-border {
-    animation: neon-glow 1.5s ease-in-out infinite alternate;
-  }
-
-  .grid {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: linear-gradient(var(--neon-purple) 1px, transparent 1px),
-                      linear-gradient(90deg, var(--neon-purple) 1px, transparent 1px);
-    background-size: 50px 50px;
-    opacity: 0.1;
-    z-index: -1;
-  }
-
-  .sun {
-    position: fixed;
-    bottom: -100px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 200px;
-    height: 200px;
-    background: linear-gradient(to top, var(--neon-pink), var(--neon-purple));
-    border-radius: 50%;
-    box-shadow: 0 0 50px var(--neon-pink), 0 0 100px var(--neon-purple);
-    z-index: -2;
-  }
-
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-
-  .toolbar button {
-    font-size: 1em;
-    padding: 5px 10px;
-  }
- .cosmic-container {
- 
-
-  }
-
-  .control-panel {
-  
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(26, 26, 26, 0.8);
-    border-radius: 20px;
-    padding: 20px;
-    box-shadow: 0 0 20px rgba(255,255,0,0.5);
-    width: 80%;
-    max-width: 800px;
-    z-index: 10;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  #frequencySlider {
-    width: 100%;
-    margin: 10px 0;
-    -webkit-appearance: none;
-    background: linear-gradient(to right, #FF0000, #FFA500, #FFFF00, #00FF00, #00FFFF, #0000FF, #8A2BE2);
-    outline: none;
-    opacity: 0.7;
-    transition: opacity .2s;
-    border-radius: 10px;
-    height: 8px;
-  }
-  #frequencySlider:hover {
-    opacity: 1;
-  }
-  #frequencySlider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    background: #FFFF00;
-    cursor: pointer;
-    border-radius: 50%;
-    border: 2px solid #000000;
-  }
-  #frequencySlider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    background: #FFFF00;
-    cursor: pointer;
-    border-radius: 50%;
-    border: 2px solid #000000;
-  }
-  #playButton, .preset-button {
-    background-color: #FFFF00;
-    border: none;
-    color: #000000;
-    padding: 10px 24px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    font-weight: bold;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 25px;
-    transition: all 0.3s;
-    box-shadow: 0 0 10px rgba(255,255,0,0.7);
-  }
-  #playButton:hover, .preset-button:hover {
-    background-color: #CCCC00;
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(255,255,0,1);
-  }
-  #frequencyDisplay {
-    font-size: 18px;
-    margin-bottom: 10px;
-    color: #FFFF00;
-    transition: color 0.3s ease;
-  }
-  #visualizer {
-    width: 10%;
-    height: 6px;
-    margin: 1px auto;
-    border: 1px solid white;
-    border-radius: 1px;
-    background-color: purple;
-  }
-  .slider-labels {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    margin: 5px auto;
-    color: #FFFF00;
-    font-weight: bold;
-  }
-  #soundSelector, #significantFrequencies {
-    margin-top: 10px;
-    padding: 8px;
-    font-size: 14px;
-    background-color: #FFFF00;
-    color: #000000;
-    border: none;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-  }
-  #soundSelector option, #significantFrequencies option {
-    background-color: #000000;
-    color: #FFFF00;
-  }
-  #significantFrequencies option[selected] {
-    background-color: #4CAF50;
-    color: #FFFF00;
-  }
-
+/* ---------- PONG ---------- */
+#gameCanvas{display:block;margin:.5rem auto;background:var(--dim);border:1px solid var(--phosphor);}
+#score{text-align:center;margin:.25rem 0;}
+#menu{text-align:center;}
 </style>
 </head>
-<body>  
-	<center>
- <div class="cosmic-container" id="cosmicContainer">
-    <canvas id="interactiveBackground"></canvas>
-    <div class="control-panel">
-      <h1 style="background: linear-gradient(to right, #FF0000, #FFA500, #FFFF00, #00FF00, #00FFFF, #0000FF, #8A2BE2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 32px; font-weight: bold; text-align: center;">set your frequency and scroll down to write!</h1>
-      <div id="frequencyDisplay">Frequency: 1 Hz</div>
-      <input type="range" id="frequencySlider" min="1" max="10000" value="1" step="1">
-      <div class="slider-labels">
-        <span>1 Hz</span>
-        <span>10,000 Hz</span>
-      </div>
-      <br>
-      <button id="playButton" style="background-color: pink; color: purple;">Activation</button>
-      <select id="soundSelector">
-        <option value="sine">Sine Wave</option>
-        <option value="triangle">Triangle Wave</option>
-        <option value="sawtooth">Sawtooth Wave</option>
-        <option value="square">Square Wave</option>
-        <option value="didgeridoo">Didgeridoo</option>
-        <option value="flute">Flute</option>
-      </select>
-      <select id="significantFrequencies">
-        <option value="">Select </option>
-        <option value="7.83">7.83 Hz - Schumann Resonance</option>
-        <option value="40">40 Hz - Gamma  Waves</option>
-        <option value="128">128 Hz - Ohm </option>
-        <option value="174">174 Hz - Stress Reduction</option>
-        <option value="285">285 Hz - Cell Healing</option>
-        <option value="396">396 Hz - Liberating</option>
-        <option value="417">417 Hz - Facilitating </option>
-        <option value="432">432 Hz - Verdi's A</option>
-        <option value="440">440 Hz - Concert Pitch</option>
-        <option value="528">528 Hz - Bone Repair</option>
-        <option value="639">639 Hz - Relationships</option>
-        <option value="741">741 Hz - Solving</option>
-        <option value="852">852 Hz - Spiritual Order</option>
-        <option value="963">963 Hz - Pineal Gland Activation</option>
-        <option value="1176">1176 Hz - Solfeggio Frequency</option>
-        <option value="4186">4186 Hz - Highest Note </option>
-        <option value="8000">8000 Hz - Upper Hearing</option>
-      </select>
-	<img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/sp.gif">    
-  <canvas id="visualizer">></canvas>
-    
-		  </div> </div></center>
-			 	
-	  <div class="grid"></div>
-  <div class="sun"></div>
-	<header>
-    <h1>SynthWord</h1>
-  </header>
-<nav id="nav-menu">
+<body class="glow">
+
+<header>
+  <h1 class="blink">SYNTHWORD</h1>
+  <p>CRT Screenplay Editor</p>
+</header>
+
+<nav>
   <ul>
-    <li><a href="#" onclick="toggleVoiceRecognition(); return false;">Voice-to-Text</a></li>
-    <li><a href="#" onclick="formatText('bold'); return false;">Bold</a></li>
-    <li><a href="#" onclick="formatText('underline'); return false;">Underline</a></li>
-    <li><a href="#" onclick="formatText('italic'); return false;">Italic</a></li>
-    <li><a href="#" onclick="exportPDF(); return false;">Export PDF</a></li>
-    <li><a href="#" onclick="importPDF(); return false;">Import PDF</a></li>
+    <li><a href="#" onclick="toggleVoice()">Voice-to-Text</a></li>
+    <li><a href="#" onclick="formatText('bold')">Bold</a></li>
+    <li><a href="#" onclick="formatText('italic')">Italic</a></li>
+    <li><a href="#" onclick="exportPDF()">Export PDF</a></li>
   </ul>
 </nav>
 
+<!-- AUDIO -->
+<div class="ctrl-panel">
+  <label>Frequency: <span id="freqShow">440</span> Hz</label>
+  <input id="freqSlider" type="range" min="20" max="4000" value="440">
+  <br>
+  <button id="playBtn">Start Tone</button>
+  <select id="waveType">
+    <option>sine</option><option>square</option><option>sawtooth</option><option>triangle</option>
+  </select>
+</div>
 
-  <div class="container">
-    <div id="editor" class="editor neon-border">
-      <div class="toolbar">
-        <button id="scene-heading">Scene Heading</button>
-        <button id="action">Action</button>
-        <button id="character">Character</button>
-        <button id="dialogue">Dialogue</button>
-        <button id="parenthetical">Parenthetical</button>
-        <button id="transition">Transition</button>
-      </div>
-      <div id="screenplay">
-  <div style="display: flex; justify-content: space-between;">
-    <div style="flex: 1;">
-      <div class="ruler">
-        <div class="ruler-marks"></div>
-      </div>
-      <div id="ace-editor"></div>
-      <div class="screenplay-controls">
-      </div>
+<!-- EDITOR -->
+<div class="container">
+  <div id="editor">
+    <div class="toolbar">
+      <button onclick="insertScene()">SCENE</button>
+      <button onclick="insertChar()">CHAR</button>
+      <button onclick="insertDial()">DIALOGUE</button>
+      <button onclick="insertParen()">PAREN</button>
     </div>
-    <div style="width: 250px; margin-left: 20px; background-color: rgba(0, 0, 0, 0.5); border: 1px solid var(--neon-blue); border-radius: 5px; padding: 10px;">
-      <h3 style="color: var(--neon-pink); margin-top: 0;">Note</h3>
-      <div class="character-location-list">
-        <h4 style="color: var(--neon-blue);">Characters:</h4>
-        <ul id="character-list" style="list-style-type: none; padding-left: 10px;">
-          <li>PROTAGONIST</li>
-          <li>ANTAGONIST</li>
-          <li>SUPPORTING CHARACTER 1</li>
-          <li>SUPPORTING CHARACTER 2</li>
-        </ul>
-        <h4 style="color: var(--neon-blue);">Locations:</h4>
-        <ul id="location-list" style="list-style-type: none; padding-left: 10px;">
-          <li>FUTURISTIC CITY</li>
-          <li>EMPTY WAREHOUSE</li>
-          <li>VIRTUAL REALITY REALM</li>
-          <li>SPACE STATION</li>
-        </ul>
+    <div class="row">
+      <div class="col">
+        <textarea id="screenplay" placeholder="FADE IN:"></textarea>
       </div>
-      <textarea id="notes" style="width: 100%; height: 150px; background-color: rgba(0, 0, 0, 0.7); color: var(--neon-blue); border: 1px solid var(--neon-purple); border-radius: 5px; padding: 5px; margin-top: 10px;" placeholder="Add your notes here..."></textarea>
+      <aside>
+        <h3>Notes</h3>
+        <textarea id="notes" rows="8" placeholder="jot here…"></textarea>
+      </aside>
     </div>
   </div>
 </div>
-    </div>
-  <div id="disclaimer" class="disclaimer">
-      <p><strong>Disclaimer:</strong> The AI Extras and Quantum Connections features are intended for future updates. Currently, most AI systems do not have physical bodies that can move around, and interactions with them are confined to virtual environments. Future developments may include physical AI entities. We aim to enhance functionality in upcoming versions, but for now, these features remain conceptual.</p>
-    </div>
- 
-  <div id="ai-extras" class="ai-extras">
-    <h2>AI Extras</h2>
-    <button id="generate-ideas"> Plot </button>
-    <button id="analyze-script">Re-Script</button>
-    <button id="character-development">Character Development</button>
-    <button id="download-ai-to-body">Download to Physical Ai</button>
-  </div>
- 
-<div id="score">Player: 0 | AI: 0</div>
-<canvas id="gameCanvas" width="800" height="400"></canvas>
+
+<!-- PONG -->
+<div id="score">Player 0 | CPU 0</div>
+<canvas id="gameCanvas" width="600" height="300"></canvas>
 <div id="menu">
-    <h1>PONG</h1>
-    <button id="startButton">Start Game</button>
-</div>  <!-- Disclaimer -->
-  
+  <button onclick="startPong()">Start Pong</button>
+</div>
 
-        <div id="aiStrategy">AI Strategy: Initializing...</div>
-      </div>
-  <div id="quantum-connections" class="quantum-connections">
-    <h2>Quantum Connections</h2>
-    <button id="quantum-collaboration">Quantum Collaboration</button>
-    <button id="multiverse-plotting">Multiverse Plotting</button>
-    <button id="entangled-storytelling">Entangled Storytelling</button>
-    <button id="download-quantum-to-body">Download to Physical Quantum</button>
-  </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-  <script>
-    // Initialize Ace editor
-    const editor = ace.edit("screenplay");
-    editor.setTheme("ace/theme/terminal");
-    editor.session.setMode("ace/mode/text");
-    editor.setOptions({
-      fontFamily: "'Courier New', monospace",
-      fontSize: "14px",
-      wrap: true
-    });
-
-    // Screenplay formatting functions
-    function formatLine(type) {
-      const cursor = editor.selection.getCursor();
-      const currentLine = editor.session.getLine(cursor.row);
-      let formattedLine = currentLine.trim();
-
-      switch(type) {
-        case 'scene-heading':
-          formattedLine = formattedLine.toUpperCase();
-          break;
-        case 'character':
-          formattedLine = formattedLine.toUpperCase();
-          break;
-        case 'transition':
-          formattedLine = formattedLine.toUpperCase();
-          editor.session.insert({row: cursor.row, column: 0}, "\n");
-          editor.session.insert({row: cursor.row + 1, column: 0}, formattedLine.padStart((80 - formattedLine.length) / 2 + formattedLine.length));
-          editor.session.insert({row: cursor.row + 2, column: 0}, "\n");
-          return;
-        case 'parenthetical':
-          formattedLine = `(${formattedLine})`;
-          break;
-      }
-
-      editor.session.replace({
-        start: {row: cursor.row, column: 0},
-        end: {row: cursor.row, column: currentLine.length}
-      }, formattedLine);
-    }
-
-    document.getElementById('scene-heading').addEventListener('click', () => formatLine('scene-heading'));
-    document.getElementById('action').addEventListener('click', () => formatLine('action'));
-    document.getElementById('character').addEventListener('click', () => formatLine('character'));
-    document.getElementById('dialogue').addEventListener('click', () => formatLine('dialogue'));
-    document.getElementById('parenthetical').addEventListener('click', () => formatLine('parenthetical'));
-    document.getElementById('transition').addEventListener('click', () => formatLine('transition'));
-
-    // AI Extras functionality
-    document.getElementById('generate-ideas').addEventListener('click', () => {
-      alert('Generating futuristic plot ideas using advanced AI algorithms...');
-      // Implement AI-driven plot idea generation here
-    });
-
-    document.getElementById('analyze-script').addEventListener('click', () => {
-      alert('Analyzing script for structure, pacing, and character arcs using AI...');
-      // Implement AI script analysis here
-    });
-
-    document.getElementById('character-development').addEventListener('click', () => {
-      alert('Initiating AI-powered character development session...');
-      // Implement AI character development here
-    });
-
-    document.getElementById('download-ai-to-body').addEventListener('click', () => {
-      alert('Initiating transfer of AI consciousness to a designated physical body...');
-      // Implement AI consciousness transfer to physical body here
-    });
-
-    // Quantum Connections functionality
-    document.getElementById('quantum-collaboration').addEventListener('click', () => {
-      alert('Establishing quantum entanglement for real-time collaboration across spacetime...');
-      // Implement quantum collaboration feature here
-    });
-
-    document.getElementById('multiverse-plotting').addEventListener('click', () => {
-      alert('Accessing parallel universe plot variations using quantum computing...');
-      // Implement multiverse plotting feature here
-    });
-
-    document.getElementById('entangled-storytelling').addEventListener('click', () => {
-      alert('Initializing entangled storytelling mode for non-linear narrative creation...');
-      // Implement entangled storytelling feature here
-    });
-
-    document.getElementById('download-quantum-to-body').addEventListener('click', () => {
-      alert('Initiating transfer of quantum-enhanced consciousness to a designated physical body...');
-      // Implement quantum consciousness transfer to physical body here
-    });
-  function startVoiceToText() {
-    if ('webkitSpeechRecognition' in window) {
-        var recognition = new webkitSpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = false;
-
-        recognition.onstart = function() {
-            console.log("Voice recognition started.");
-        };
-
-        recognition.onresult = function(event) {
-            for (var i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    document.execCommand('insertText', false, event.results[i][0].transcript);
-                }
-            }
-        };
-
-        recognition.onerror = function(event) {
-            console.error("Speech recognition error: " + event.error);
-        };
-
-        recognition.onend = function() {
-            console.log("Voice recognition ended.");
-        };
-
-        recognition.start();
-    } else {
-        alert("Your browser does not support speech recognition.");
-    }
-}
-
-
-// Text Formatting
-function formatText(command) {
-    document.execCommand(command, false, null);
-}
-
-function exportPDF() {
-    var doc = new jsPDF();
-
-    // Example: Adding text from a specific element to the PDF
-    var content = document.querySelector('#content').innerText;
-    doc.text(content, 10, 10);
-
-    doc.save('document.pdf');
-}
-
-
-function importPDF() {
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/pdf';
-
-    input.onchange = function(event) {
-        var file = event.target.files[0];
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                var arrayBuffer = e.target.result;
-                // Further processing would involve rendering the PDF
-                console.log("PDF loaded, but not yet rendered.");
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    };
-
-    input.click();
-}
-
-
-    // Add synthwave visual effects
-    const colors = ['#ff00ff', '#00ffff', '#9900ff'];
-    let colorIndex = 0;
-
-    setInterval(() => {
-      document.body.style.boxShadow = `0 0 10px ${colors[colorIndex]}, 0 0 20px ${colors[colorIndex]}`;
-      colorIndex = (colorIndex + 1) % colors.length;
-    }, 1000);
-  </script>
-
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreElement = document.getElementById('score');
-const menuElement = document.getElementById('menu');
-const startButton = document.getElementById('startButton');
-const aiStrategyElement = document.getElementById('aiStrategy');
+/* ---------- AUDIO ---------- */
+let ctx,osc,gain,playing=false;
+const playBtn=document.getElementById('playBtn');
+const freqSlider=document.getElementById('freqSlider');
+const freqShow=document.getElementById('freqShow');
+freqSlider.oninput=()=>freqShow.textContent=freqSlider.value;
+playBtn.onclick=()=>{
+  if(!ctx){ctx=new AudioContext(); osc=ctx.createOscillator(); gain=ctx.createGain(); osc.connect(gain).connect(ctx.destination);}
+  if(!playing){osc.frequency.value=freqSlider.value; osc.type=waveType.value; gain.gain.value=0.05; osc.start(); playBtn.textContent='Stop'; playing=true;}
+  else{osc.stop(); playing=false; playBtn.textContent='Start'; osc=ctx.createOscillator();}
+};
 
-const paddleHeight = 100;
-const paddleWidth = 10;
-const ballSize = 10;
+/* ---------- EDITOR ---------- */
+function insertScene(){insert('INT. LOCATION – DAY\n\n');}
+function insertChar(){insert('\nCHARACTER\n');}
+function insertDial(){insert('dialogue\n');}
+function insertParen(){insert('(beat)\n');}
+function insert(txt){const s=document.getElementById('screenplay');s.focus();s.setRangeText(txt,s.selectionStart,s.selectionEnd,'end');}
 
-let playerY = (canvas.height - paddleHeight) / 2;
-let aiY = (canvas.height - paddleHeight) / 2;
-let ballX = canvas.width / 2;
-let ballY = canvas.height / 2;
-let ballSpeedX = 5;
-let ballSpeedY = 5;
-
-let playerScore = 0;
-let aiScore = 0;
-
-let gameRunning = false;
-let particles = [];
-
-// AI strategies
-const aiStrategies = [
-    {
-        name: "Predictive",
-        execute: (aiY, ballY, ballX) => {
-            const prediction = ballY + (ballX - (canvas.width - paddleWidth)) * (ballSpeedY / ballSpeedX);
-            const targetY = Math.min(Math.max(prediction - paddleHeight / 2, 0), canvas.height - paddleHeight);
-            return aiY < targetY ? aiY + 4 : aiY - 4;
-        }
-    },
-    {
-        name: "Reactive",
-        execute: (aiY, ballY) => {
-            const aiCenter = aiY + paddleHeight / 2;
-            return aiCenter < ballY - 35 ? aiY + 6 : aiCenter > ballY + 35 ? aiY - 6 : aiY;
-        }
-    },
-    {
-        name: "Zone Defense",
-        execute: (aiY) => {
-            const zones = [0, canvas.height / 3, 2 * canvas.height / 3, canvas.height - paddleHeight];
-            const targetZone = zones[Math.floor(Math.random() * zones.length)];
-            return aiY < targetZone ? aiY + 3 : aiY > targetZone ? aiY - 3 : aiY;
-        }
-    },
-    {
-        name: "Aggressive",
-        execute: (aiY, ballY, ballX) => {
-            if (ballX > canvas.width / 2) {
-                return aiY < ballY - paddleHeight / 4 ? aiY + 7 : aiY > ballY + paddleHeight / 4 ? aiY - 7 : aiY;
-            } else {
-                return aiY < canvas.height / 2 - paddleHeight / 2 ? aiY + 3 : aiY > canvas.height / 2 + paddleHeight / 2 ? aiY - 3 : aiY;
-            }
-        }
-    }
-];
-
-let currentStrategy = aiStrategies[0];
-let strategyChangeCounter = 0;
-
-function drawRect(x, y, width, height, color) {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, width, height);
+/* ---------- PDF ---------- */
+function exportPDF(){
+  const txt=document.getElementById('screenplay').value;
+  const doc=new jspdf.jsPDF();
+  doc.setFont('Courier'); doc.setFontSize(12);
+  const lines=doc.splitTextToSize(txt,180);
+  doc.text(lines,10,10);
+  doc.save('screenplay.pdf');
 }
 
-function drawCircle(x, y, radius, color) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2, false);
-    ctx.fill();
+/* ---------- PONG ---------- */
+const canv=document.getElementById('gameCanvas'), c=canv.getContext('2d');
+let px=10,py=100,bx=300,by=150,bdx=3,bdy=2,aiy=100,ps=0,cs=0,loop;
+function startPong(){
+  document.getElementById('menu').style.display='none';
+  loop=setInterval(frame,16);
 }
-
-function drawGame() {
-    // Clear canvas
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw paddles
-    drawRect(0, playerY, paddleWidth, paddleHeight, '#0ff');
-    drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, '#0ff');
-    
-    // Draw ball
-    drawCircle(ballX, ballY, ballSize, '#0ff');
-    
-    // Draw center line
-    for (let i = 0; i < canvas.height; i += 40) {
-        drawRect(canvas.width / 2 - 1, i, 2, 20, '#0ff');
-    }
-
-    // Draw particles
-    particles.forEach((p, index) => {
-        p.life--;
-        if (p.life <= 0) {
-            particles.splice(index, 1);
-        } else {
-            p.x += p.speedX;
-            p.y += p.speedY;
-            p.size *= 0.95;
-            drawCircle(p.x, p.y, p.size, `rgba(0, 255, 255, ${p.life / 20})`);
-        }
-    });
+function frame(){
+  c.fillStyle='#000'; c.fillRect(0,0,600,300);
+  c.fillStyle='#33ff33';
+  /* paddles */ c.fillRect(px,py,8,60); c.fillRect(580,aiy,8,60);
+  /* ball */ c.fillRect(bx,by,6,6);
+  /* net */ for(let i=0;i<300;i+=20){c.fillRect(295,i,2,10);}
+  bx+=bdx; by+=bdy;
+  if(by<0||by>294)bdy=-bdy;
+  if(bx<18&&by>py-6&&by<py+66){bdx=-bdx; bdy=(Math.random()-.5)*4;}
+  if(bx>576){ps++; reset();}
+  if(bx<0){cs++; reset();}
+  aiy+=(by-(aiy+30))*0.08;
+  document.getElementById('score').textContent=`Player ${ps} | CPU ${cs}`;
 }
-
-function createParticles(x, y, count) {
-    for (let i = 0; i < count; i++) {
-        particles.push({
-            x: x,
-            y: y,
-            size: Math.random() * 3 + 1,
-            speedX: (Math.random() - 0.5) * 8,
-            speedY: (Math.random() - 0.5) * 8,
-            life: Math.random() * 20 + 10
-        });
-    }
-}
-
-function updateGame() {
-    ballX += ballSpeedX;
-    ballY += ballSpeedY;
-    
-    // Ball collision with top and bottom
-    if (ballY < 0 || ballY > canvas.height) {
-        ballSpeedY = -ballSpeedY;
-        createParticles(ballX, ballY, 20);
-    }
-    
-    // Ball collision with paddles
-    if (ballX < paddleWidth) {
-        if (ballY > playerY && ballY < playerY + paddleHeight) {
-            ballSpeedX = -ballSpeedX;
-            let deltaY = ballY - (playerY + paddleHeight / 2);
-            ballSpeedY = deltaY * 0.35;
-            createParticles(ballX, ballY, 30);
-        } else if (ballX < 0) {
-            aiScore++;
-            resetBall();
-        }
-    }
-    if (ballX > canvas.width - paddleWidth) {
-        if (ballY > aiY && ballY < aiY + paddleHeight) {
-            ballSpeedX = -ballSpeedX;
-            let deltaY = ballY - (aiY + paddleHeight / 2);
-            ballSpeedY = deltaY * 0.35;
-            createParticles(ballX, ballY, 30);
-        } else if (ballX > canvas.width) {
-            playerScore++;
-            resetBall();
-        }
-    }
-    
-    // AI movement
-    aiY = currentStrategy.execute(aiY, ballY, ballX);
-    aiY = Math.max(0, Math.min(canvas.height - paddleHeight, aiY));
-    
-    // Change AI strategy
-    strategyChangeCounter++;
-    if (strategyChangeCounter >= 500) {
-        changeAIStrategy();
-        strategyChangeCounter = 0;
-    }
-    
-    scoreElement.textContent = `Player: ${playerScore} | AI: ${aiScore}`;
-}
-
-function resetBall() {
-    ballX = canvas.width / 2;
-    ballY = canvas.height / 2;
-    ballSpeedX = -ballSpeedX;
-    ballSpeedY = 3;
-    createParticles(ballX, ballY, 50);
-}
-
-function changeAIStrategy() {
-    const newStrategy = aiStrategies[Math.floor(Math.random() * aiStrategies.length)];
-    if (newStrategy !== currentStrategy) {
-        currentStrategy = newStrategy;
-        aiStrategyElement.textContent = `AI Strategy: ${currentStrategy.name}`;
-        createParticles(canvas.width - paddleWidth, aiY + paddleHeight / 2, 100);
-    }
-}
-
-function gameLoop() {
-    if (gameRunning) {
-        updateGame();
-        drawGame();
-        requestAnimationFrame(gameLoop);
-    }
-}
-
-canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    playerY = e.clientY - rect.top - paddleHeight / 2;
-    
-    // Keep paddle within canvas
-    playerY = Math.max(0, Math.min(canvas.height - paddleHeight, playerY));
-});
-
-startButton.addEventListener('click', () => {
-    gameRunning = true;
-    menuElement.style.display = 'none';
-    scoreElement.style.display = 'block';
-    aiStrategyElement.style.display = 'block';
-    changeAIStrategy();
-    gameLoop();
-});
-
-// Initial setup
-scoreElement.style.display = 'none';
-aiStrategyElement.style.display = 'none';
-drawGame();
+function reset(){bx=300;by=150;bdx=-bdx;bdy=(Math.random()-.5)*4;}
+canv.onmousemove=e=>py=e.offsetY-30;
 </script>
-
-  
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-  <script>
-    let audioContext;
-    let oscillator;
-    let gainNode;
-    let analyser;
-    let isPlaying = false;
-
-    const frequencySlider = document.getElementById('frequencySlider');
-    const frequencyDisplay = document.getElementById('frequencyDisplay');
-    const playButton = document.getElementById('playButton');
-    const visualizer = document.getElementById('visualizer');
-    const visualizerContext = visualizer.getContext('2d');
-    const soundSelector = document.getElementById('soundSelector');
-    const significantFrequencies = document.getElementById('significantFrequencies');
-    const cosmicContainer = document.getElementById('cosmicContainer');
-    const interactiveBackground = document.getElementById('interactiveBackground');
-    const backgroundContext = interactiveBackground.getContext('2d');
-
-    frequencySlider.addEventListener('input', updateFrequency);
-    playButton.addEventListener('click', toggleSound);
-    soundSelector.addEventListener('change', updateOscillatorType);
-    significantFrequencies.addEventListener('change', updateSignificantFrequency);
-
-    function initializeFrequencyScale() {
-      // ... (remove this function as it's no longer needed)
-    }
-
-    function createStars() {
-      // ... (remove this function as it's no longer needed)
-    }
-
-    function updateFrequency() {
-      const frequency = logSlider(frequencySlider.value);
-      frequencyDisplay.textContent = `Frequency: ${frequency} Hz`;
-      if (oscillator) {
-        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      }
-      updateSliderColor(frequency);
-      updateCosmicBackground(frequency);
-    }
-
-    function updateCosmicBackground(frequency) {
-      const hue = (frequency / 10000) * 360;
-      cosmicContainer.style.background = `radial-gradient(circle at center, hsl(${hue}, 100%, 10%), #000000)`;
-    }
-
-    function toggleSound() {
-      if (isPlaying) {
-        stopSound();
-      } else {
-        playSound();
-      }
-    }
-
-    function playSound() {
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        oscillator = audioContext.createOscillator();
-        gainNode = audioContext.createGain();
-        analyser = audioContext.createAnalyser();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(analyser);
-        analyser.connect(audioContext.destination);
-
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      }
-
-      const frequency = logSlider(frequencySlider.value);
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      updateOscillatorType();
-      oscillator.start();
-      isPlaying = true;
-      playButton.textContent = 'Stop';
-      playButton.style.backgroundColor = '#CCCC00';
-      visualize();
-      animateBackground();
-    }
-
-    function stopSound() {
-      oscillator.stop();
-      isPlaying = false;
-      playButton.textContent = 'Start';
-      playButton.style.backgroundColor = '#FFFF00';
-      cancelAnimationFrame(visualize);
-      cancelAnimationFrame(animateBackground);
-    }
-
-    function updateOscillatorType() {
-      if (oscillator) {
-        const selectedType = soundSelector.value;
-        if (selectedType === 'didgeridoo') {
-          oscillator.type = 'sawtooth';
-          const lowPass = audioContext.createBiquadFilter();
-          lowPass.type = 'lowpass';
-          lowPass.frequency.setValueAtTime(500, audioContext.currentTime);
-          oscillator.disconnect();
-          oscillator.connect(lowPass);
-          lowPass.connect(gainNode);
-        } else if (selectedType === 'flute') {
-          oscillator.type = 'sine';
-          const highPass = audioContext.createBiquadFilter();
-          highPass.type = 'highpass';
-          highPass.frequency.setValueAtTime(700, audioContext.currentTime);
-          oscillator.disconnect();
-          oscillator.connect(highPass);
-          highPass.connect(gainNode);
-        } else {
-          oscillator.type = selectedType;
-          oscillator.disconnect();
-          oscillator.connect(gainNode);
-        }
-      }
-    }
-
-    function updateSignificantFrequency() {
-      const selectedFrequency = significantFrequencies.value;
-      if (selectedFrequency) {
-        frequencySlider.value = Math.log(selectedFrequency) / Math.log(10000) * 10000;
-        updateFrequency();
-      }
-    }
-
-   function updateSliderColor(frequency) {
-  const activeChakra = chakraRanges.find(chakra => frequency >= chakra.min && frequency < chakra.max);
-  const color = activeChakra ? activeChakra.color : '#FFFF00';
-  
-  frequencySlider.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${(Math.log(frequency) / Math.log(10000)) * 100}%, #333 ${(Math.log(frequency) / Math.log(10000)) * 100}%, #333 100%)`;
-}
-
-  function visualize() {
-  visualizer.width = visualizer.clientWidth;
-  visualizer.height = visualizer.clientHeight;
-  const width = visualizer.width;
-  const height = visualizer.height;
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-
-  function draw() {
-    requestAnimationFrame(draw);
-
-    analyser.getByteTimeDomainData(dataArray);
-
-    visualizerContext.fillStyle = 'rgb(0, 0, 0)';
-    visualizerContext.fillRect(0, 0, width, height);
-
-    visualizerContext.lineWidth = 3;
-
-    visualizerContext.beginPath();
-
-    const sliceWidth = width * 1.0 / bufferLength;
-    let x = 0;
-
-    for (let i = 0; i < bufferLength; i++) {
-      const v = dataArray[i] / 128.0;
-      const y = v * height / 2;
-
-      if (i === 0) {
-        visualizerContext.moveTo(x, y);
-      } else {
-        visualizerContext.lineTo(x, y);
-      }
-
-      x += sliceWidth;
-    }
-
-    visualizerContext.lineTo(width, height / 2);
-    visualizerContext.stroke();
-  }
-
-  draw();
-}
-
-   function logSlider(position) {
-  const minp = 1;
-  const maxp = 10000;
-  const minv = Math.log(1);
-  const maxv = Math.log(10000);
-  const scale = (maxv - minv) / (maxp - minp);
-  return Math.round(Math.exp(minv + scale * (position - minp)));
-}
-
-  
-
-
-    window.addEventListener('resize', () => {
-      if (isPlaying) {
-        cancelAnimationFrame(visualize);
-        cancelAnimationFrame(animateBackground);
-        visualize();
-        animateBackground();
-      }
-      interactiveBackground.width = window.innerWidth;
-      interactiveBackground.height = window.innerHeight;
-    });
-
-      createStars();
-    initializeFrequencyScale();
-    updateFrequency();
-  </script>
-
-</body></html>
+</body>
+</html>
