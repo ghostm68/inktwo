@@ -707,6 +707,7 @@ async function loadDictionaries() {
         if (res && res.data) {
             dictionaryCache[`source${i}`] = res.data;
             loadedSources++;
+            // Pre-index Russian for speed
             if (i === 4 && Array.isArray(res.data)) {
                 res.data.forEach(item => {
                     if (item.word) russianIndex.set(item.word.toLowerCase(), item.synonyms || []);
@@ -744,7 +745,7 @@ async function searchDictionary() {
     let found = false;
     let html = `<div><span class="word-title">${word}</span></div><div style="margin-top:0.5rem;">`;
 
-    // English Webster
+    // English Webster (Sources 1-3)
     for (let i = 0; i < 3; i++) {
         const dict = dictionaryCache[`source${i}`];
         if (dict && dict[lowWord]) {
@@ -753,7 +754,7 @@ async function searchDictionary() {
         }
     }
 
-    // German
+    // German (Source 3)
     const gerDict = dictionaryCache['source3'];
     if (gerDict) {
         const matches = Object.entries(gerDict).filter(([g, e]) => g.toLowerCase() === lowWord || e.toLowerCase().includes(lowWord));
@@ -765,19 +766,23 @@ async function searchDictionary() {
         }
     }
 
-    // Russian
+    // Russian (Source 4)
     if (russianIndex.has(lowWord)) {
         found = true;
-        html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;"><div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS</div><div style="margin-top:0.4rem;">${russianIndex.get(lowWord).slice(0, 12).map(s => `<span class="synonym-tag" onclick="quickSearch('${s}')">${s}</span>`).join(' ')}</div></div>`;
+        html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                    <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS</div>
+                    <div style="margin-top:0.4rem;">${russianIndex.get(lowWord).slice(0, 12).map(s => `<span class="synonym-tag" onclick="quickSearch('${s}')">${s}</span>`).join(' ')}</div>
+                </div>`;
     }
 
-    // Chinese
+    // Chinese (Source 5)
     const chiDict = dictionaryCache['source5'];
     if (chiDict) {
         const chiMatches = Object.entries(chiDict).filter(([char, pin]) => char === word || pin.toLowerCase() === lowWord);
         if (chiMatches.length > 0) {
             found = true;
-            html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;"><div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇨🇳 CHINESE</div>`;
+            html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                        <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇨🇳 CHINESE</div>`;
             chiMatches.slice(0, 5).forEach(([char, pin]) => html += `<div style="margin-top:0.3rem;">${char} → ${pin}</div>`);
             html += `</div>`;
         }
@@ -815,12 +820,13 @@ function getRandomWord() {
 }
 
 /* =========================
-   AI & UI EVENT LISTENERS
+   MAIN INITIALIZATION
 ========================= */
 window.addEventListener('load', () => {
+    // Start dictionary loading
     loadDictionaries();
 
-    // === AI GENERATION ===
+    // === AI GENERATION LOGIC ===
     document.getElementById('creativity').addEventListener('input', (e) => {
         document.getElementById('creativityValue').textContent = e.target.value;
     });
@@ -854,13 +860,14 @@ window.addEventListener('load', () => {
         } catch (error) {
             output.classList.remove('generating');
             output.textContent = `❌ Error: ${error.message}`;
+            console.error('AI Generation Error:', error);
         } finally {
             button.disabled = false;
             button.textContent = 'INITIATE';
         }
     });
 
-    // === DICTIONARY LISTENERS ===
+    // === DICTIONARY EVENT LISTENERS ===
     document.getElementById('search-button').addEventListener('click', searchDictionary);
     document.getElementById('dictionary-search').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchDictionary();
@@ -871,7 +878,7 @@ window.addEventListener('load', () => {
         document.getElementById('dictionary-result').innerHTML = `<div class="no-results">Ready<br><small>Sources available</small></div>`;
     });
 
-    // === NOTEPAD LISTENERS ===
+    // === NOTEPAD & UTILITY LISTENERS ===
     document.getElementById('copyButton').addEventListener('click', () => {
         navigator.clipboard.writeText(document.getElementById('output').textContent);
         const btn = document.getElementById('copyButton');
@@ -910,10 +917,6 @@ window.addEventListener('load', () => {
         }
     });
 });
-       // === INITIALIZE ===
-        window.addEventListener('load', () => {
-            loadDictionaries();
-        });
 </script>
 </body>
     </html>
