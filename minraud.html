@@ -660,8 +660,7 @@
     </div>
     
     <!-- FOOTER -->
-    <footer>
-        <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 5 Source Lexicon + Live Thesaurus</p>
+    <footer><p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 7 Source Lexicon + Live Thesaurus</p>
         <p><a href="https://inkrealm.info">RETURN TO MAIN</a></p>
     </footer>
     
@@ -675,14 +674,25 @@
             setTimeout(() => { splash.style.display = 'none'; }, 1000);
         }
 
-       // === DICTIONARY SOURCES (FIXED COMMA) ===
-        const dictionaryUrls = [
-            'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
-            'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
-            'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
-            'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json', // <--- Comma added here
-            'https://raw.githubusercontent.com/ijt/russian_english_dictionary/master/russian_english.json'
-        ];
+       // === DICTIONARY SOURCES (EXPANDED) ===
+const dictionaryUrls = [
+    // English dictionaries (0-2)
+    'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+    'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+    'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+    
+    // German-English (3)
+    'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json',
+    
+    // Russian-English (4)
+    'https://raw.githubusercontent.com/ijt/russian_english_dictionary/master/russian_english.json',
+    
+    // French-English (5)
+    'https://raw.githubusercontent.com/juliango202/TEDTranscripts/master/data/french_dictionary.json',
+    
+    // Slang/Urban (6)
+    'https://raw.githubusercontent.com/words/slang/master/index.json'
+];
         
         let dictionaryCache = {};
         let loadedSources = 0;
@@ -707,7 +717,7 @@
                     }
                 });
                 
-                statusEl.textContent = `Amazon Nova AI • Lexical Sources + Thesaurus Ready`;
+                statusEl.textContent = `Amazon Nova AI • 7 Lexical Sources + Thesaurus Ready`;
                 statusEl.style.color = loadedSources >= 3 ? '#ff0033' : '#ff0033';
                 
                 document.getElementById('dictionary-result').innerHTML = `<div class="no-results">
@@ -834,6 +844,52 @@
             }
         }
     }
+            // Search French-English dictionary (source 5)
+const frenchDict = dictionaryCache['source5'];
+if (frenchDict) {
+    const hasFrenchChars = /[àâäæçéèêëïîôùûüÿœ]/i.test(query);
+    
+    if (hasFrenchChars || frenchDict[query]) {
+        if (frenchDict[query]) {
+            definitionsFound = true;
+            html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                <div style="color: #ff0033; font-size: 0.75rem;"><strong>FRANÇAIS:</strong></div>
+                <div style="font-size: 0.85rem; margin: 0.3rem 0; font-family: 'Courier New', monospace;">
+                    ${query} → ${frenchDict[query]}
+                </div>
+            </div>`;
+        }
+    } else {
+        // English to French (reverse lookup)
+        const frenchMatches = Object.entries(frenchDict).filter(([fr, en]) => 
+            en.toLowerCase() === query || en.toLowerCase().startsWith(query + " ")
+        );
+        
+        if (frenchMatches.length > 0) {
+            definitionsFound = true;
+            html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                <div style="color: #ff0033; font-size: 0.75rem;"><strong>ÉQUIVALENTS FRANÇAIS:</strong></div>`;
+            frenchMatches.slice(0, 5).forEach(([fr, en]) => {
+                html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                    <span style="color: #ff6666; font-family: 'Courier New';">${fr}</span> → ${en}
+                </div>`;
+            });
+            html += `</div>`;
+        }
+    }
+}
+
+// Search Slang dictionary (source 6)
+const slangDict = dictionaryCache['source6'];
+if (slangDict && slangDict[query]) {
+    definitionsFound = true;
+    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+        <div style="color: #ff0033; font-size: 0.75rem;"><strong>SLANG:</strong></div>
+        <div style="font-size: 0.85rem; margin: 0.3rem 0; font-style: italic;">
+            ${slangDict[query]}
+        </div>
+    </div>`;
+}
             // Fetch synonyms from Datamuse API
             try {
                 const thesaurusResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=15`);
