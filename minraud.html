@@ -745,53 +745,74 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
         
         // === DICTIONARY SEARCH WITH THESAURUS ===
         
-           async function searchDictionary() {
+          async function searchDictionary() {
     const query = document.getElementById('dictionary-search').value.trim().toLowerCase();
     if (!query) return;
     
     const resultDiv = document.getElementById('dictionary-result');
-    resultDiv.innerHTML = '<div class="loading">Searching all sources...</div>';
+    resultDiv.innerHTML = '<div class="loading">Searching...</div>';
     
     let definitionsFound = false;
     let html = `<div><span class="word-title">${query}</span></div><div style="margin-top: 0.5rem;">`;
     
-    // === ENGLISH DICTIONARIES (sources 0-2) ===
+    // === ENGLISH DICTIONARIES (sources 0-2) - FULL DEFINITIONS ===
     for (let i = 0; i < 3; i++) {
         const dict = dictionaryCache[`source${i}`];
         if (dict && dict[query]) {
             definitionsFound = true;
             const definition = dict[query];
-            html += `<div style="margin-bottom: 0.5rem;">
-                <span class="part-of-speech">Dictionary ${i + 1}</span><br>
-                ${definition.substring(0, 300)}${definition.length > 300 ? '...' : ''}
+            html += `<div style="margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px solid #222;">
+                <span class="part-of-speech">WEBSTER'S ${i + 1}</span><br>
+                <div style="font-size: 0.85rem; line-height: 1.5; margin-top: 0.3rem;">${definition}</div>
             </div>`;
         }
     }
     
-    // === GERMAN ===
+    // === GERMAN - IMPROVED FORMAT ===
     const germanDict = dictionaryCache['source3'];
     if (germanDict) {
-        if (germanDict[query]) {
-            definitionsFound = true;
-            html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
-                <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN:</strong></div>
-                <div style="font-size: 0.85rem; margin: 0.3rem 0;">${query} → ${germanDict[query]}</div>
-            </div>`;
-        } else {
-            const germanMatches = Object.entries(germanDict)
-                .filter(([german, english]) => english.toLowerCase().includes(query))
-                .slice(0, 5);
-            
-            if (germanMatches.length > 0) {
+        const isCyrillic = /[а-яА-ЯёЁ]/.test(query);
+        
+        if (!isCyrillic) {
+            // English to German lookup
+            if (germanDict[query]) {
                 definitionsFound = true;
                 html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
-                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>GERMAN EQUIVALENTS:</strong></div>`;
-                germanMatches.forEach(([german, english]) => {
-                    html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
-                        <span style="color: #ff6666;">${german}</span> → ${english}
-                    </div>`;
-                });
-                html += `</div>`;
+                    <div style="color: #ff0033; font-size: 0.75rem; font-weight: bold;">🇩🇪 GERMAN</div>
+                    <div style="font-size: 0.9rem; margin: 0.4rem 0; font-family: 'Courier New', monospace;">
+                        <span style="color: #fff;">${query}</span> → <span style="color: #ff6666;">${germanDict[query]}</span>
+                    </div>
+                </div>`;
+            } else {
+                // Reverse lookup
+                const germanMatches = Object.entries(germanDict)
+                    .filter(([german, english]) => english.toLowerCase() === query || english.toLowerCase().includes(` ${query} `) || english.toLowerCase().startsWith(query + ' '))
+                    .slice(0, 5);
+                
+                if (germanMatches.length > 0) {
+                    definitionsFound = true;
+                    html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                        <div style="color: #ff0033; font-size: 0.75rem; font-weight: bold;">🇩🇪 GERMAN EQUIVALENTS</div>`;
+                    germanMatches.forEach(([german, english]) => {
+                        html += `<div style="font-size: 0.85rem; margin: 0.3rem 0;">
+                            <span style="color: #ff6666; font-family: 'Courier New';">${german}</span> 
+                            <span style="color: #666;">→</span> 
+                            <span style="color: #999;">${english}</span>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+            }
+        } else {
+            // German to English lookup
+            if (germanDict[query]) {
+                definitionsFound = true;
+                html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
+                    <div style="color: #ff0033; font-size: 0.75rem; font-weight: bold;">🇩🇪 GERMAN → ENGLISH</div>
+                    <div style="font-size: 0.9rem; margin: 0.4rem 0; font-family: 'Courier New', monospace;">
+                        <span style="color: #ff6666;">${query}</span> → <span style="color: #fff;">${germanDict[query]}</span>
+                    </div>
+                </div>`;
             }
         }
     }
@@ -801,16 +822,15 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
     if (russianDict && russianDict[query]) {
         definitionsFound = true;
         html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
-            <div style="color: #ff0033; font-size: 0.75rem;"><strong>RUSSIAN SYNONYMS:</strong></div>
-            <div style="font-size: 0.85rem; margin: 0.3rem 0; font-family: 'Courier New', monospace;">
+            <div style="color: #ff0033; font-size: 0.75rem; font-weight: bold;">🇷🇺 RUSSIAN SYNONYMS</div>
+            <div style="font-size: 0.85rem; margin: 0.4rem 0; font-family: 'Courier New', monospace;">
                 ${russianDict[query]}
             </div>
         </div>`;
     }
     
-    // === DATAMUSE API - COMPREHENSIVE ===
+    // === DATAMUSE - COMPACT (pronunciation + 3 defs max) ===
     try {
-        // Definitions + Pronunciation
         const defsResponse = await axios.get(
             `https://api.datamuse.com/words?sp=${query}&md=dpr&max=1`
         );
@@ -824,27 +844,28 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
                 if (ipaTag) {
                     const ipa = ipaTag.replace('ipa_pron:', '');
                     html += `<div style="margin-top: 0.5rem;">
-                        <span class="phonetic">/${ipa}/</span>
+                        <span class="phonetic">pronunciation: /${ipa}/</span>
                     </div>`;
                 }
             }
             
-            // Definitions
+            // Only first 3 definitions
             if (entry.defs && entry.defs.length > 0) {
                 definitionsFound = true;
                 html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
-                    <div style="color: #ff0033; font-size: 0.75rem;"><strong>DATAMUSE DEFINITIONS:</strong></div>`;
-                entry.defs.forEach(def => {
+                    <div style="color: #ff0033; font-size: 0.75rem; font-weight: bold;">MODERN USAGE</div>`;
+                
+                entry.defs.slice(0, 3).forEach(def => {
                     const [pos, ...rest] = def.split('\t');
                     const partOfSpeech = {
-                        'n': 'NOUN',
-                        'v': 'VERB',
-                        'adj': 'ADJECTIVE',
-                        'adv': 'ADVERB',
-                        'prep': 'PREPOSITION'
-                    }[pos] || pos.toUpperCase();
+                        'n': 'noun',
+                        'v': 'verb',
+                        'adj': 'adjective',
+                        'adv': 'adverb',
+                        'prep': 'preposition'
+                    }[pos] || pos;
                     
-                    html += `<div style="margin: 0.3rem 0;">
+                    html += `<div style="margin: 0.3rem 0; font-size: 0.85rem;">
                         <span style="color: #ff0033; font-size: 0.7rem;">${partOfSpeech}:</span> 
                         ${rest.join(' ')}
                     </div>`;
@@ -853,10 +874,8 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
             }
         }
         
-        // Synonyms
-        const synResponse = await axios.get(
-            `https://api.datamuse.com/words?rel_syn=${query}&max=15`
-        );
+        // Synonyms (12 max)
+        const synResponse = await axios.get(`https://api.datamuse.com/words?rel_syn=${query}&max=12`);
         if (synResponse.data && synResponse.data.length > 0) {
             definitionsFound = true;
             html += `<div style="margin-top: 0.5rem; border-top: 1px dashed #444; padding-top: 0.5rem;">
@@ -867,10 +886,8 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
             html += `</div>`;
         }
         
-        // Antonyms
-        const antResponse = await axios.get(
-            `https://api.datamuse.com/words?rel_ant=${query}&max=10`
-        );
+        // Antonyms (8 max)
+        const antResponse = await axios.get(`https://api.datamuse.com/words?rel_ant=${query}&max=8`);
         if (antResponse.data && antResponse.data.length > 0) {
             definitionsFound = true;
             html += `<div style="margin-top: 0.5rem;">
@@ -881,10 +898,8 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
             html += `</div>`;
         }
         
-        // Rhymes (for poetry/cut-ups)
-        const rhymeResponse = await axios.get(
-            `https://api.datamuse.com/words?rel_rhy=${query}&max=12`
-        );
+        // Rhymes (10 max)
+        const rhymeResponse = await axios.get(`https://api.datamuse.com/words?rel_rhy=${query}&max=10`);
         if (rhymeResponse.data && rhymeResponse.data.length > 0) {
             definitionsFound = true;
             html += `<div style="margin-top: 0.5rem;">
@@ -896,7 +911,7 @@ console.log(`✓ Loaded ${loadedSources}/5 dictionary sources`);
         }
         
     } catch (error) {
-        console.log('Datamuse API error (non-critical):', error);
+        console.log('Datamuse API error:', error);
     }
     
     html += `</div>`;
