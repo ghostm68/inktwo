@@ -665,7 +665,7 @@
     </footer>
     
     <script src="https://js.puter.com/v2/"></script>
-    
+
 <script>
 /* =========================
    SPLASH SCREEN
@@ -677,20 +677,22 @@ function enterSite() {
 }
 
 /* =========================
-   DICTIONARY SOURCES
-   (ONLY USER-APPROVED)
+   DICTIONARY SOURCES  (ONLY USER-APPROVED)
 ========================= */
 const dictionaryUrls = [
-    // English / Webster
+    // 0-2 English / Webster
     'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
     'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
     'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
 
-    // German
+    // 3 German
     'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json',
 
-    // Russian
-    'https://raw.githubusercontent.com/egorkaru/synonym_dictionary/master/dictionary.json'
+    // 4 Russian
+    'https://raw.githubusercontent.com/egorkaru/synonym_dictionary/master/dictionary.json',
+
+    // 5 Chinese pinyin
+    'https://raw.githubusercontent.com/guoyunhe/pinyin-json/master/pinyin.json'
 ];
 
 let dictionaryCache = {};
@@ -717,13 +719,13 @@ async function loadDictionaries() {
         }
     });
 
-    statusEl.textContent = 'Amazon Nova AI • Webster + German + Russian + Datamuse';
+    statusEl.textContent = 'Amazon Nova AI • Webster + German + Russian + Chinese + Datamuse';
     statusEl.style.color = '#ff0033';
 
     dictStatusEl.innerHTML =
-        loadedSources === 5
+        loadedSources === 6
             ? `<div style="color:#ff0033;">✓ All sources loaded</div>`
-            : `<div style="color:#ff9933;">⚠ Partial load (${loadedSources}/5)</div>`;
+            : `<div style="color:#ff9933;">⚠ Partial load (${loadedSources}/6)</div>`;
 
     document.getElementById('dictionary-result').innerHTML =
         `<div class="no-results">Ready<br><small>Search a word</small></div>`;
@@ -756,44 +758,55 @@ async function searchDictionary() {
         }
     }
 
-/* ===== GERMAN ===== */
-const germanArr = dictionaryCache['source3'];   // it is an array
-if (Array.isArray(germanArr)) {
-  const hit = germanArr.find(
-    item => item.German && item.German.toLowerCase() === query
-  );
-  if (hit) {
-    found = true;
-    html += `
-    <div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-      <div style="color:#ff0033;font-size:0.75rem;"><strong>GERMAN</strong></div>
-      <div>${hit.German} → ${hit.English}</div>
-    </div>`;
-  }
-}
+    /* ===== GERMAN ===== */
+    const germanArr = dictionaryCache['source3'];
+    if (Array.isArray(germanArr)) {
+        const hit = germanArr.find(
+            item => item.German && item.German.toLowerCase() === query
+        );
+        if (hit) {
+            found = true;
+            html += `
+            <div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                <div style="color:#ff0033;font-size:0.75rem;"><strong>GERMAN</strong></div>
+                <div>${hit.German} → ${hit.English}</div>
+            </div>`;
+        }
+    }
 
-/* ===== RUSSIAN ===== */
-const russianArr = dictionaryCache['source4'];  // also an array
-if (Array.isArray(russianArr)) {
-  const hit = russianArr.find(
-    item => item.word && item.word.toLowerCase() === query
-  );
-  if (hit && hit.synonyms && hit.synonyms.length) {
-    found = true;
-    html += `
-    <div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-      <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">
-        🇷🇺 RUSSIAN SYNONYMS
-      </div>
-      <div style="margin-top:0.4rem;">
-        ${hit.synonyms
-          .slice(0, 12)
-          .map(w => `<span class="synonym-tag">${w}</span>`)
-          .join(' ')}
-      </div>
-    </div>`;
-  }
-}
+    /* ===== RUSSIAN ===== */
+    const russianArr = dictionaryCache['source4'];
+    if (Array.isArray(russianArr)) {
+        const hit = russianArr.find(
+            item => item.word && item.word.toLowerCase() === query
+        );
+        if (hit && hit.synonyms && hit.synonyms.length) {
+            found = true;
+            html += `
+            <div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">
+                    🇷🇺 RUSSIAN SYNONYMS
+                </div>
+                <div style="margin-top:0.4rem;">
+                    ${hit.synonyms
+                      .slice(0, 12)
+                      .map(w => `<span class="synonym-tag">${w}</span>`)
+                      .join(' ')}
+                </div>
+            </div>`;
+        }
+    }
+
+    /* ===== CHINESE PINYIN ===== */
+    const pinyinMap = dictionaryCache['source5'];
+    if (pinyinMap && pinyinMap[query]) {
+        found = true;
+        html += `
+        <div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+            <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🔊 CHINESE</div>
+            <div style="margin-top:0.3rem;">${query} → ${pinyinMap[query]}</div>
+        </div>`;
+    }
 
     /* ===== DATAMUSE: SYN / ANT / RHYME ONLY ===== */
     try {
@@ -890,6 +903,5 @@ document.getElementById('clear-dict').addEventListener('click', () => {
         `<div class="no-results">Ready</div>`;
 });
 </script>
-
 </body>
 </html>
