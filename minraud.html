@@ -667,7 +667,6 @@
     <script src="https://js.puter.com/v2/"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
 <script>
 /* =========================
    SPLASH & NAVIGATION
@@ -815,7 +814,6 @@ async function searchDictionary() {
    RANDOM WORD FUNCTION (FIXED)
 ========================= */
 function getRandomWord() {
-    // Pick from the first Webster dictionary
     const dict = dictionaryCache['source0'];
     if (dict) {
         const keys = Object.keys(dict);
@@ -833,7 +831,7 @@ function quickSearch(word) {
 }
 
 /* =========================
-   EVENT LISTENERS
+   EVENT LISTENERS (DICTIONARY)
 ========================= */
 window.addEventListener('load', loadDictionaries);
 
@@ -842,7 +840,6 @@ document.getElementById('dictionary-search').addEventListener('keypress', e => {
     if (e.key === 'Enter') searchDictionary();
 });
 
-// Use ID 'random-word' to match your HTML
 const randomBtn = document.getElementById('random-word');
 if (randomBtn) {
     randomBtn.addEventListener('click', getRandomWord);
@@ -855,6 +852,91 @@ if (clearBtn) {
         document.getElementById('dictionary-result').innerHTML = '<div class="no-results">Ready</div>';
     });
 }
+
+/* =========================
+   AI GENERATION & NOTEBOOK LOGIC 
+========================= */
+document.getElementById('creativity').addEventListener('input', (e) => {
+    document.getElementById('creativityValue').textContent = e.target.value;
+});
+
+document.getElementById('generateButton').addEventListener('click', async function() {
+    const prompt = document.getElementById('prompt').value;
+    const model = document.getElementById('modelSelect').value;
+    const temp = parseFloat(document.getElementById('creativity').value);
+    
+    if (!prompt) return;
+    
+    const button = this;
+    const output = document.getElementById('output');
+    
+    button.disabled = true;
+    button.textContent = 'TRANSMITTING...';
+    output.classList.add('generating');
+    output.textContent = '◬ Amazon Nova is thinking...';
+    
+    try {
+        if (typeof puter === 'undefined') {
+            throw new Error("Puter.js not loaded. Check internet connection.");
+        }
+        
+        const response = await puter.ai.chat(prompt, {
+            model: model,
+            temperature: temp,
+            max_tokens: 2000
+        });
+        
+        output.classList.remove('generating');
+        output.textContent = typeof response === 'object' && response.message 
+            ? response.message.content 
+            : response;
+    } catch (error) {
+        output.classList.remove('generating');
+        output.textContent = `❌ Error: ${error.message}`;
+        console.error('AI Generation Error:', error);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'INITIATE';
+    }
+});
+
+document.getElementById('copyButton').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('output').textContent);
+    const btn = document.getElementById('copyButton');
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 1500);
+});
+
+document.getElementById('importButton').addEventListener('click', () => {
+    const notepad = document.getElementById('notepad');
+    notepad.value += (notepad.value ? '\n\n' : '') + document.getElementById('output').textContent;
+    const btn = document.getElementById('importButton');
+    btn.textContent = 'IMPORTED!';
+    setTimeout(() => btn.textContent = 'IMPORT', 1500);
+});
+
+document.getElementById('exportButton').addEventListener('click', () => {
+    const content = document.getElementById('notepad').value;
+    if (!content) return alert('Notepad is empty');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nova-notepad.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearButton').addEventListener('click', () => {
+    if (confirm('Clear notepad?')) document.getElementById('notepad').value = '';
+});
+
+document.getElementById('prompt').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        document.getElementById('generateButton').click();
+    }
+});
 </script>
 </body>
 </html>
