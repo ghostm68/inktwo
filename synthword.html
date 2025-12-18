@@ -518,6 +518,25 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
   ::-webkit-scrollbar-thumb:hover {
     background: var(--light-red);
   }
+	.control-header {
+    display: flex; /* Aligns children (h3 and img) in a row */
+    align-items: center; /* Vertically centers the items */
+    justify-content: space-between; /* Puts space between heading and image */
+    margin-bottom: 15px; /* Adds space below the header */
+}
+
+.control-header h3 {
+    margin: 0; /* Removes default margin from the heading */
+    color: #ff3333; /* Your red accent color */
+}
+
+.control-header img {
+    width: 222px;
+    height: 222px;
+    object-fit: contain; /* Ensures the GIF fits nicely within the square */
+    border: 1px solid #444; /* Optional: subtle border matching your theme */
+    border-radius: 4px; /* Optional: rounds the corners slightly */
+}
 </style>
 </head>
 <body>
@@ -544,7 +563,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
       <!-- Left Column - Controls & Notes -->
       <div class="left-column">
         <div class="control-panel">
-          <h3>Frequency Control</h3>
+          <h3>Frequency Control</h3>  <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/sp.gif" alt="Spinning Symbol">
           <div id="frequencyDisplay2">Frequency: 1 Hz</div>
           <input type="range" id="frequencySlider2" min="1" max="10000" value="1" step="1">
           <div class="slider-labels">
@@ -823,7 +842,6 @@ function importPDF() {
 
 
 <script>
-// Replace your entire Pong script (the long one) with this:
 const canv = document.getElementById('gameCanvas');
 const c = canv.getContext('2d');
 
@@ -837,18 +855,89 @@ let bx = 175, by = 125; // Ball position
 let bdx = 3, bdy = 2;   // Ball direction
 let aiy = 100;          // AI paddle
 let ps = 0, cs = 0;     // Player & CPU scores
-let loop;               // Game loop reference
+let loop = null;        // Game loop reference
+let gamePaused = false; // Pause state
+let gameStarted = false; // Game start state
+
+// Get DOM elements
+const startButton = document.getElementById('startButton');
+const scoreElement = document.getElementById('score');
+const aiStrategyElement = document.getElementById('aiStrategy');
+
+// Create pause button dynamically
+const pauseButton = document.createElement('button');
+pauseButton.textContent = 'Pause Game';
+pauseButton.id = 'pauseButton';
+pauseButton.style.cssText = `
+    background-color: #333;
+    color: #ff3333;
+    border: 1px solid #ff3333;
+    padding: 6px 12px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: 'VT323', monospace;
+    font-size: 1em;
+`;
+pauseButton.addEventListener('click', togglePause);
+
+// Add pause button to game menu
+document.getElementById('menu').appendChild(pauseButton);
 
 // Start game function
 function startPong() {
-    document.getElementById('menu').style.display = 'none';
-    document.getElementById('score').style.display = 'block';
-    document.getElementById('aiStrategy').style.display = 'block';
+    if (!gameStarted) {
+        document.getElementById('menu').style.display = 'none';
+        scoreElement.style.display = 'block';
+        aiStrategyElement.style.display = 'block';
+        gameStarted = true;
+        gamePaused = false;
+        pauseButton.textContent = 'Pause Game';
+    }
+    startGameLoop();
+}
+
+// Start or restart the game loop
+function startGameLoop() {
+    if (loop) clearInterval(loop); // Clear any existing loop
     loop = setInterval(frame, 16); // ~60 FPS
+}
+
+// Pause/Unpause function
+function togglePause() {
+    if (!gameStarted) return;
+    
+    gamePaused = !gamePaused;
+    
+    if (gamePaused) {
+        clearInterval(loop);
+        pauseButton.textContent = 'Resume Game';
+        drawPausedScreen();
+    } else {
+        startGameLoop();
+        pauseButton.textContent = 'Pause Game';
+    }
+}
+
+// Draw paused screen overlay
+function drawPausedScreen() {
+    c.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    c.fillRect(0, 0, canv.width, canv.height);
+    
+    c.fillStyle = '#ff3333';
+    c.font = '24px VT323';
+    c.textAlign = 'center';
+    c.fillText('GAME PAUSED', canv.width/2, canv.height/2 - 20);
+    
+    c.fillStyle = '#ccc';
+    c.font = '16px VT323';
+    c.fillText('Click "Resume Game" to continue', canv.width/2, canv.height/2 + 20);
 }
 
 // Game frame
 function frame() {
+    if (gamePaused) return;
+    
     // Clear canvas with dark gray background
     c.fillStyle = '#111';
     c.fillRect(0, 0, canv.width, canv.height);
@@ -918,11 +1007,11 @@ function frame() {
     aiy = Math.max(0, Math.min(canv.height - 40, aiy));
     
     // Update score display
-    document.getElementById('score').textContent = `Player ${ps} | CPU ${cs}`;
+    scoreElement.textContent = `Player ${ps} | CPU ${cs}`;
     
     // Simple AI strategy display
     let strategies = ["Defensive", "Predictive", "Reactive", "Aggressive"];
-    document.getElementById('aiStrategy').textContent = 
+    aiStrategyElement.textContent = 
         `AI Strategy: ${strategies[Math.floor((ps + cs) / 2) % 4]}`;
 }
 
@@ -936,17 +1025,47 @@ function reset() {
 
 // Mouse controls for player paddle
 canv.onmousemove = e => {
+    if (gamePaused || !gameStarted) return;
+    
     const rect = canv.getBoundingClientRect();
     py = e.clientY - rect.top - 20;
     py = Math.max(0, Math.min(canv.height - 40, py));
 };
 
 // Start button event
-document.getElementById('startButton').addEventListener('click', startPong);
+startButton.addEventListener('click', startPong);
+
+// Add keyboard shortcut for pause (Space key)
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && gameStarted) {
+        e.preventDefault(); // Prevent space from scrolling page
+        togglePause();
+    }
+    
+    // Optional: Add 'R' key to reset scores
+    if (e.code === 'KeyR' && gameStarted) {
+        ps = 0;
+        cs = 0;
+        reset();
+        scoreElement.textContent = `Player ${ps} | CPU ${cs}`;
+    }
+});
 
 // Initial game state
-document.getElementById('score').style.display = 'none';
-document.getElementById('aiStrategy').style.display = 'none';
+scoreElement.style.display = 'none';
+aiStrategyElement.style.display = 'none';
+
+// Draw initial game state
+function drawInitialState() {
+    c.fillStyle = '#111';
+    c.fillRect(0, 0, canv.width, canv.height);
+    
+    c.fillStyle = '#ff3333';
+    c.font = '20px VT323';
+    c.textAlign = 'center';
+    c.fillText('Click "Start Game" to begin', canv.width/2, canv.height/2);
+}
+drawInitialState();
 </script>
 
   
