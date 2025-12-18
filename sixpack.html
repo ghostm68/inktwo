@@ -890,43 +890,105 @@
     });
 
     async function runModelWithPuter(model, prompt) {
-        const outputEl = document.getElementById(`output-${model.id}`);
-        const statusEl = document.getElementById(`status-${model.id}`);
+    const outputEl = document.getElementById(`output-${model.id}`);
+    const statusEl = document.getElementById(`status-${model.id}`);
 
+    try {
+        if (statusEl) {
+            statusEl.textContent = '◆ STREAMING...';
+            statusEl.className = 'model-status loading';
+        }
+
+        // TRY PUTER FIRST
+        const stream = await puter.ai.chat(prompt, {
+            model: model.name,
+            stream: true
+        });
+
+        let fullResponse = '';
+        
+        for await (const chunk of stream) {
+            if (chunk.text) {
+                fullResponse += chunk.text;
+                if (outputEl) {
+                    outputEl.textContent = fullResponse;
+                    outputEl.scrollTop = outputEl.scrollHeight;
+                }
+            }
+        }
+
+        conversationData.responses[model.label] = fullResponse;
+
+        if (statusEl) {
+            statusEl.textContent = '✓ COMPLETE';
+            statusEl.className = 'model-status';
+        }
+
+    } catch (error) {
+        console.error(`Puter failed for ${model.name}, trying Pollinations:`, error);
+        
+        // FALLBACK TO POLLINATIONS
         try {
             if (statusEl) {
-                statusEl.textContent = '◆ STREAMING...';
+                statusEl.textContent = '◆ FALLBACK...';
                 statusEl.className = 'model-status loading';
             }
 
-            const stream = await puter.ai.chat(prompt, {
-                model: model.name,
-                stream: true
+            // Try same model on Pollinations first
+            let pollinationsModel = model.name;
+            
+            const response = await fetch("https://text.pollinations.ai/openai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: pollinationsModel,
+                    messages: [{ role: "user", content: prompt }],
+                    seed: Math.floor(Math.random() * 1_000_000)
+                })
             });
 
-            let fullResponse = '';
-            
-            for await (const chunk of stream) {
-                if (chunk.text) {
-                    fullResponse += chunk.text;
-                    if (outputEl) {
-                        outputEl.textContent = fullResponse;
-                        outputEl.scrollTop = outputEl.scrollHeight;
-                    }
+            if (!response.ok) {
+                // If specific model fails on Pollinations, try generic OpenAI
+                console.log(`${pollinationsModel} unavailable, using OpenAI fallback`);
+                
+                const retryResponse = await fetch("https://text.pollinations.ai/openai", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "openai",
+                        messages: [{ role: "user", content: prompt }],
+                        seed: Math.floor(Math.random() * 1_000_000)
+                    })
+                });
+                
+                if (!retryResponse.ok) throw new Error("All fallbacks failed");
+                
+                const data = await retryResponse.json();
+                const fullResponse = data.choices?.[0]?.message?.content || "No response";
+                
+                if (outputEl) outputEl.textContent = fullResponse;
+                conversationData.responses[model.label] = fullResponse;
+                
+                if (statusEl) {
+                    statusEl.textContent = '✓ COMPLETE (GPT)';
+                    statusEl.className = 'model-status';
+                }
+            } else {
+                const data = await response.json();
+                const fullResponse = data.choices?.[0]?.message?.content || "No response";
+                
+                if (outputEl) outputEl.textContent = fullResponse;
+                conversationData.responses[model.label] = fullResponse;
+                
+                if (statusEl) {
+                    statusEl.textContent = '✓ COMPLETE (BACKUP)';
+                    statusEl.className = 'model-status';
                 }
             }
-
-            // Store response
-            conversationData.responses[model.label] = fullResponse;
-
-            if (statusEl) {
-                statusEl.textContent = '✓ COMPLETE';
-                statusEl.className = 'model-status';
-            }
-
-        } catch (error) {
-            console.error(`Error with ${model.name}:`, error);
-            const errorMsg = `ERROR: ${error.message || 'Model unavailable'}`;
+            
+        } catch (fallbackError) {
+            console.error(`All systems failed for ${model.name}:`, fallbackError);
+            const errorMsg = `ERROR: All systems unavailable`;
             
             if (outputEl) outputEl.textContent = errorMsg;
             conversationData.responses[model.label] = errorMsg;
@@ -937,6 +999,7 @@
             }
         }
     }
+}
 
     // Copy individual model response to clipboard
     function copyModel(id) {
