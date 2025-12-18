@@ -854,6 +854,37 @@ if (clearBtn) {
 /* =========================
    AI GENERATION & NOTEBOOK LOGIC 
 ========================= */
+/* =========================
+   AI GENERATION & NOTEBOOK LOGIC 
+========================= */
+
+// 1. POLLINATIONS AI FALLBACK SYSTEM
+async function useBackupSystem(prompt) {
+    // Pollinations doesn't support "Amazon Nova", so we switch to their best general model (OpenAI/Mistral)
+    const backupModel = 'openai'; 
+    
+    console.warn(`System Alert: Rerouting to Backup Node (${backupModel})...`);
+    
+    try {
+        const response = await fetch('https://text.pollinations.ai/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: prompt }],
+                model: backupModel,
+                seed: Math.floor(Math.random() * 9999) // Random seed for variety
+            }),
+        });
+        
+        if (!response.ok) throw new Error("Backup Connection Failed");
+        return await response.text();
+        
+    } catch (e) {
+        throw new Error(`Backup System Failure: ${e.message}`);
+    }
+}
+
+// 2. UI HELPERS
 document.getElementById('creativity').addEventListener('input', (e) => {
     document.getElementById('creativityValue').textContent = e.target.value;
 });
@@ -868,36 +899,67 @@ document.getElementById('generateButton').addEventListener('click', async functi
     const button = this;
     const output = document.getElementById('output');
     
+    // UI State: Processing
     button.disabled = true;
     button.textContent = 'TRANSMITTING...';
     output.classList.add('generating');
     output.textContent = '◬ Amazon Nova is thinking...';
     
     try {
+        // --- PRIMARY ATTEMPT: PUTER.JS ---
         if (typeof puter === 'undefined') {
-            throw new Error("Puter.js not loaded. Check internet connection.");
+            throw new Error("Puter.js library missing");
         }
         
+        // Attempt to call the Amazon Nova model via Puter
         const response = await puter.ai.chat(prompt, {
             model: model,
             temperature: temp,
             max_tokens: 2000
         });
         
-        output.classList.remove('generating');
-        output.textContent = typeof response === 'object' && response.message 
+        // Handle Puter response formats
+        const textResponse = typeof response === 'object' && response.message 
             ? response.message.content 
             : response;
-    } catch (error) {
+
         output.classList.remove('generating');
-        output.textContent = `❌ Error: ${error.message}`;
-        console.error('AI Generation Error:', error);
+        output.textContent = textResponse;
+
+    } catch (error) {
+        // --- FAILSAFE TRIGGERED ---
+        
+        // Fix for "Error: undefined" -> safely extract the error message
+        let errorMessage = "Unknown Error";
+        if (typeof error === 'string') errorMessage = error;
+        else if (error.message) errorMessage = error.message;
+        else errorMessage = JSON.stringify(error);
+
+        console.warn('Primary Model Failed:', errorMessage);
+        
+        // Update UI to show fallback is happening
+        output.textContent = `⚠️ Primary Link Severed (${errorMessage}). \n⟳ Rerouting to Pollinations AI...`;
+        
+        try {
+            // EXECUTE FALLBACK
+            const backupResponse = await useBackupSystem(prompt);
+            
+            output.classList.remove('generating');
+            output.textContent = backupResponse; // Success from backup
+            
+        } catch (backupError) {
+            // CRITICAL FAILURE (Both failed)
+            output.classList.remove('generating');
+            output.textContent = `❌ SYSTEM FAILURE.\nPrimary: ${errorMessage}\nBackup: ${backupError.message}`;
+        }
     } finally {
+        // Reset Button
         button.disabled = false;
         button.textContent = 'INITIATE';
     }
 });
 
+// 3. UTILITY BUTTONS (Copy, Import, Save, Clear)
 document.getElementById('copyButton').addEventListener('click', () => {
     navigator.clipboard.writeText(document.getElementById('output').textContent);
     const btn = document.getElementById('copyButton');
@@ -907,7 +969,13 @@ document.getElementById('copyButton').addEventListener('click', () => {
 
 document.getElementById('importButton').addEventListener('click', () => {
     const notepad = document.getElementById('notepad');
-    notepad.value += (notepad.value ? '\n\n' : '') + document.getElementById('output').textContent;
+    const aiText = document.getElementById('output').textContent;
+    // Don't import if it's an error message
+    if(aiText.startsWith('❌') || aiText.startsWith('⚠️')) {
+        alert("Cannot import error messages.");
+        return;
+    }
+    notepad.value += (notepad.value ? '\n\n' : '') + aiText;
     const btn = document.getElementById('importButton');
     btn.textContent = 'IMPORTED!';
     setTimeout(() => btn.textContent = 'IMPORT', 1500);
