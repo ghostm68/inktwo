@@ -564,6 +564,95 @@
 
         #notepad { min-height: 280px; }
         #prompt { min-height: 120px; }
+        /* --- NOVA EXPRESS MODULES --- */
+.mixer-controls {
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 8px; 
+    margin: 10px 0;
+}
+
+.module-btn {
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    padding: 10px;
+    cursor: pointer;
+    font-family: "Nova Flat", monospace; /* Matches your font */
+    text-align: left;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.module-btn:hover {
+    background: #ff0033; /* RED HOVER */
+    border-color: #ff0033;
+    color: #000; /* BLACK TEXT ON RED */
+    box-shadow: 0 0 10px rgba(255, 0, 51, 0.4);
+}
+
+.module-btn:active {
+    background: #fff;
+    color: #000;
+}
+
+/* The Icons - strictly text based now */
+.express-icon { 
+    font-size: 1.2rem; 
+    font-weight: bold;
+    color: #ff0033; /* Start Red */
+}
+
+/* When button is hovered, icon turns black */
+.module-btn:hover .express-icon {
+    color: #000;
+}
+
+/* INPUTS FOR THE MACHINE */
+#mixerSource {
+    width: 100%;
+    height: 60px; 
+    font-family: 'Courier New', monospace; 
+    font-size: 0.8rem; 
+    background: #050505; 
+    color: #666; 
+    border: 1px dashed #333;
+    resize: none;
+    padding: 5px;
+    box-sizing: border-box; /* Fixes padding issues */
+}
+
+#mixerOutput {
+    width: 100%;
+    height: 100px; 
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    background: #050505;
+    color: #f0f0f0; /* White Text */
+    border: 1px solid #ff0033; /* Red Border */
+    resize: none;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+#mixerOutput::placeholder { color: #ff0033; opacity: 0.5; }
+
+/* TINY BUTTONS */
+.mini-btn {
+    font-size: 0.65rem; 
+    padding: 4px; 
+    background: #1a1a1a; 
+    border: 1px solid #333; 
+    color: #666;
+}
+.mini-btn:hover {
+    color: #ff0033;
+    border-color: #ff0033;
+}
     </style>
 </head>
 <body>
@@ -587,16 +676,67 @@
         </h1>
         <p class="subtitle">AMAZON NOVA AI <img width="32" height="32" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif">INTERFACE</p>
 
-        <div class="container">
-            <!-- Column 1: Notepad -->
-            <div class="panel">
-                <h2>NOTEPAD</h2>
-                <textarea id="notepad" placeholder="Your workspace..."></textarea>
-                <div class="controls-row">
-                    <button id="exportButton">SAVE</button>
-                    <button id="clearButton">CLEAR</button>
-                </div>
-            </div>
+ 
+       <!-- Column 1: Notepad & Cut-Up -->
+<div class="column-wrapper" style="display: flex; flex-direction: column; gap: 0.6rem;">
+    
+    <!-- TOP: STANDARD NOTEPAD -->
+    <div class="panel">
+        <h2>NOTEPAD</h2>
+        <textarea id="notepad" placeholder="Your workspace..."></textarea>
+        <div class="controls-row">
+            <button id="exportButton">SAVE</button>
+            <button id="clearButton">CLEAR</button>
+        </div>
+    </div>
+
+    <!-- BOTTOM: NOVA EXPRESS MACHINE -->
+    <div class="panel" style="border: 1px solid #ff0033;">
+        <h2 style="color: #ff0033; border-color: #ff0033; letter-spacing: 2px;">
+            <span style="font-size:1.2rem; vertical-align:middle;">✇</span> NOVA EXPRESS
+        </h2>
+        
+        <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+            <button id="pullFromNotepadBtn" class="mini-btn" style="flex:1;">⇩ PULL PAD</button>
+            <button id="pullFromAiBtn" class="mini-btn" style="flex:1;">⇩ PULL AI</button>
+        </div>
+
+        <!-- The Source Buffer -->
+        <textarea id="mixerSource" placeholder="RAW DATA BUFFER..."></textarea>
+
+        <!-- The Modules (Strict Color Glyphs) -->
+        <div class="mixer-controls">
+            
+            <!-- 1. The Scissor -->
+            <button class="module-btn" data-algo="scramble">
+                <span class="express-icon">✃</span> SCISSOR
+            </button>
+
+            <!-- 2. The Fold-In -->
+            <button class="module-btn" data-algo="fold">
+                <span class="express-icon">≣</span> FOLD-IN
+            </button>
+
+            <!-- 3. The Third Mind -->
+            <button class="module-btn" data-algo="chunks">
+                <span class="express-icon">❖</span> 3RD MIND
+            </button>
+
+            <!-- 4. Reverse Vector -->
+            <button class="module-btn" data-algo="reverse">
+                <span class="express-icon">⇄</span> REVERSE
+            </button>
+        </div>
+
+        <label style="color:#666; font-size:0.7rem; text-transform:uppercase;">Result Stream:</label>
+        <textarea id="mixerOutput" placeholder="Waiting for input..."></textarea>
+        
+        <button id="pushToNotepadBtn" style="width: 100%; margin-top:5px; background: #3d020a; border-color: #ff0033; color: #ff0033;">
+            ⇧ UPLOAD TO NOTEPAD
+        </button>
+    </div>
+    
+</div>
 
             <!-- Column 2: AI Controls -->
             <div class="panel">
@@ -1004,5 +1144,83 @@ document.getElementById('prompt').addEventListener('keydown', (e) => {
     }
 });
 </script>
+    <script>
+        /* =========================
+   NOVA EXPRESS CUT-UP LOGIC
+========================= */
+
+// 1. DATA FLOW
+document.getElementById('pullFromNotepadBtn').addEventListener('click', () => {
+    document.getElementById('mixerSource').value = document.getElementById('notepad').value;
+});
+
+document.getElementById('pullFromAiBtn').addEventListener('click', () => {
+    document.getElementById('mixerSource').value = document.getElementById('output').textContent;
+});
+
+document.getElementById('pushToNotepadBtn').addEventListener('click', () => {
+    const mix = document.getElementById('mixerOutput').value;
+    if (!mix) return;
+    const notepad = document.getElementById('notepad');
+    notepad.value += (notepad.value ? '\n\n--- NOVA EXPRESS ---\n' : '') + mix;
+});
+
+// 2. ALGORITHMS
+const modules = {
+    // Scissor: Random word shuffle
+    scramble: (text) => {
+        const words = text.split(/\s+/);
+        for (let i = words.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [words[i], words[j]] = [words[j], words[i]];
+        }
+        return words.join(' ');
+    },
+
+    // Fold-In: Interleaves lines (1, 51, 2, 52...)
+    fold: (text) => {
+        const lines = text.split('\n').filter(l => l.trim() !== '');
+        const half = Math.floor(lines.length / 2);
+        const first = lines.slice(0, half);
+        const second = lines.slice(half);
+        let result = [];
+        for(let i=0; i < Math.max(first.length, second.length); i++) {
+            if(first[i]) result.push(first[i]);
+            if(second[i]) result.push(second[i]);
+        }
+        return result.join('\n');
+    },
+
+    // Third Mind: Chunks of 2-5 words shuffled
+    chunks: (text) => {
+        const words = text.split(/\s+/);
+        let chunks = [];
+        while(words.length > 0) {
+            let size = Math.floor(Math.random() * 4) + 1;
+            chunks.push(words.splice(0, size).join(' '));
+        }
+        for (let i = chunks.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
+        }
+        return chunks.join(' ');
+    },
+
+    // Reverse
+    reverse: (text) => {
+        return text.split(' ').reverse().join(' ');
+    }
+};
+
+// 3. EVENT LISTENERS
+document.querySelectorAll('.module-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const algo = btn.dataset.algo;
+        const source = document.getElementById('mixerSource').value;
+        if (!source.trim()) return; // Silent fail if empty
+        document.getElementById('mixerOutput').value = modules[algo](source);
+    });
+});
+    </script>
 </body>
 </html>
