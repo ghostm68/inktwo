@@ -792,10 +792,10 @@ body::before {
         transform: translateX(-100%);
     }
 }  
-    /* CSS for New York Times Ticker - Slow & Red */
-#nytimes-ticker-container {
+/* CSS for ScienceDaily Ticker */
+#sciencedaily-ticker-container {
     width: 100%;
-    background: #0a0a0a;
+    background: #0c0c0c;
     border-top: 1px solid #222;
     border-bottom: 1px solid #222;
     margin: 0 0 2rem 0;
@@ -804,7 +804,7 @@ body::before {
     overflow: hidden;
 }
 
-#nytimes-ticker-heading {
+#sciencedaily-ticker-heading {
     color: #777;
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -814,26 +814,26 @@ body::before {
     font-weight: normal;
 }
 
-.nytimes-ticker-wrapper {
+.sciencedaily-ticker-wrapper {
     width: 100%;
     overflow: hidden;
     white-space: nowrap;
     position: relative;
 }
 
-#nytimes-ticker {
+#sciencedaily-ticker {
     display: inline-block;
     white-space: nowrap;
-    animation: ticker-scroll-nyt 90s linear infinite; /* FASTER: 90 seconds */
+    animation: ticker-scroll-sd 100s linear infinite; /* Standard speed */
     padding-left: 100%;
 }
 
-#nytimes-ticker.paused {
+#sciencedaily-ticker.paused {
     animation-play-state: paused;
 }
 
-#nytimes-ticker a {
-    color: #ff0033 !important; /* FORCED RED */
+#sciencedaily-ticker a {
+    color: #ff9933 !important; /* Distinct orange tint */
     text-decoration: none;
     margin: 0 3rem;
     font-size: 0.9rem;
@@ -844,20 +844,15 @@ body::before {
     transition: all 0.4s;
 }
 
-#nytimes-ticker a:hover {
+#sciencedaily-ticker a:hover {
     color: #fff !important;
-    text-shadow: 0 0 12px rgba(255, 0, 51, 0.9);
+    text-shadow: 0 0 12px rgba(255, 153, 51, 0.9);
     opacity: 1;
 }
 
-/* SLOW scroll animation */
-@keyframes ticker-scroll-nyt {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
+@keyframes ticker-scroll-sd {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
 }    
     </style>
 </head>
@@ -1022,14 +1017,15 @@ body::before {
     <div class="france24-ticker-wrapper">
         <div id="france24-ticker"></div>
     </div><br>
-    <!-- New York Times Main Ticker - 90s Red -->
-<div id="nytimes-ticker-container">
-    <div id="nytimes-ticker-heading">
-        <span style="color: #ff0033;">LONG WAVE:</span> THE NEW YORK TIMES
+    <!-- ScienceDaily Society & Culture Ticker (Fallback) -->
+<div id="sciencedaily-ticker-container">
+    <div id="sciencedaily-ticker-heading">
+        <span style="color: #ff0033;">DATA STREAM:</span> SCIENCEDAILY - SOCIETY & CULTURE
     </div>
-    <div class="nytimes-ticker-wrapper">
-        <div id="nytimes-ticker"></div>
+    <div class="sciencedaily-ticker-wrapper">
+        <div id="sciencedaily-ticker"></div>
     </div>
+</div>
 </div>
 </div>
 </div> <!-- FOOTER -->
@@ -1625,31 +1621,34 @@ async function fetchFrance24Ticker() {
         tickerElement.innerHTML = `<span style="color: #ff0033;">[FEED OFFLINE]</span>`;
     }
 }
-// JavaScript for New York Times Main Feed Ticker
-async function fetchNYTimesMainTicker() {
-    const tickerElement = document.getElementById('nytimes-ticker');
-    const feedUrl = 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml'; // MAIN FEED
+// JavaScript for ScienceDaily Society & Culture Ticker (Robust Fallback)
+async function fetchScienceDailyTicker() {
+    const tickerElement = document.getElementById('sciencedaily-ticker');
+    // Using the 'Society' top news feed - very reliable
+    const feedUrl = 'https://www.sciencedaily.com/rss/top/society.xml';
     const proxyUrl = 'https://api.allorigins.win/raw?url=';
 
     try {
-        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Linking to NYT Main... ]</span>';
+        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Accessing Research Stream... ]</span>';
         const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
-        if (!response.ok) throw new Error(`Signal Lost: ${response.status}`);
+        if (!response.ok) throw new Error(`Network Error: ${response.status}`);
         const xmlText = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
         const items = xmlDoc.querySelectorAll('item');
         
         if (items.length === 0) {
-            tickerElement.innerHTML = '<span style="color: #ff0033;">[ MAIN FEED SILENT ]</span>';
+            tickerElement.innerHTML = '<span style="color: #ff9933;">[ Research Feed Empty ]</span>';
             return;
         }
         
         let tickerHTML = '';
         items.forEach(item => {
-            const title = item.querySelector('title')?.textContent || 'Headline';
+            const title = item.querySelector('title')?.textContent || 'Research Update';
             const link = item.querySelector('link')?.textContent || '#';
-            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}">${title}</a>`;
+            // Clean up "ScienceDaily: " prefix if present
+            const cleanTitle = title.replace(/^ScienceDaily:\s*/i, '');
+            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${cleanTitle}">${cleanTitle}</a>`;
         });
         
         tickerElement.innerHTML = tickerHTML;
@@ -1659,15 +1658,15 @@ async function fetchNYTimesMainTicker() {
         tickerElement.addEventListener('mouseleave', () => tickerElement.classList.remove('paused'));
         
     } catch (error) {
-        console.error('NYT Main Ticker error:', error);
-        tickerElement.innerHTML = `<span style="color: #ff0033;">[ NYT MAIN OFFLINE ]</span>`;
+        console.error('ScienceDaily Ticker error:', error);
+        tickerElement.innerHTML = `<span style="color: #ff9933;">[ SCIENCE FEED OFFLINE ]</span>`;
     }
 }
 
 // Initialize both tickers when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    fetchFrance24Ticker();
-    fetchNYTimesTicker(); // Add this line
+    fetchFrance24Ticker();     // Starts the France 24 Culture ticker
+    fetchScienceDailyTicker(); // Starts the ScienceDaily Society & Culture ticker
 });
         
     </script>
