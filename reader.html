@@ -2,116 +2,167 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>b/R-im reader</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://js.puter.com/v2/"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Special+Elite&display=swap" rel="stylesheet">
   <style>
+    :root { 
+      --red: #ff0000; 
+      --black: #050505; 
+      --dark-grey: #121212; 
+      --white: #d1d1d1; 
+    }
+    
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
     body {
-      font-family: 'Courier New', monospace;
+      font-family: 'Nova Mono', monospace;
+      background: var(--black);
+      color: var(--white);
+      margin: 0;
+      touch-action: manipulation;
     }
+    
+    /* CRT Scanline Overlay */
+    body::after {
+      content: " "; 
+      display: block; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      bottom: 0; 
+      right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+      z-index: 999; 
+      background-size: 100% 3px, 3px 100%; 
+      pointer-events: none;
+    }
+    
     .highlight {
-      background-color: #fbbf24;
-      color: #111827;
+      background-color: var(--red);
+      color: var(--black);
       padding: 1px 3px;
-      border-radius: 2px;
+      border-radius: 0;
     }
+    
     .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
+      width: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: #1f2937;
+      background: var(--black);
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background-color: #fbbf24;
-      border-radius: 4px;
-      border: 2px solid #1f2937;
+      background-color: var(--red);
+      border-radius: 3px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background-color: #f59e0b;
+      background-color: #cc0000;
+    }
+    
+    input, textarea, select {
+      font-family: 'Nova Mono', monospace;
+    }
+    
+    button {
+      font-family: 'Nova Mono', monospace;
+      user-select: none;
+      cursor: pointer;
+    }
+    
+    .special-elite {
+      font-family: 'Special Elite', serif;
     }
   </style>
 </head>
-<body class="bg-gray-800 text-gray-300 font-mono antialiased p-4 sm:p-6 md:p-8">
+<body class="bg-gray-900 text-gray-300 antialiased p-4 sm:p-6 md:p-8" style="background: var(--black); color: var(--white);">
   <div class="max-w-4xl mx-auto">
-    <div id="controls" class="sticky top-0 bg-gray-800 pt-4 pb-6 border-b border-gray-600 z-10">
-      <h1 class="text-3xl font-bold text-yellow-400 mb-4">⚡ b/R-im reader ⚡</h1>
-<a href="https://inkrealm.info" 
-   class="absolute top-6 right-4 sm:right-8 text-xs font-mono text-yellow-700 border border-yellow-800 px-2 py-1 hover:text-yellow-400 hover:border-yellow-400 transition-all duration-300 uppercase tracking-widest no-underline z-50">
-  Return to Realm
-</a>
+    <div id="controls" class="sticky top-0 pt-4 pb-6 border-b z-10" style="background: var(--black); border-color: var(--red);">
+      <h1 class="text-3xl font-bold mb-4" style="color: var(--red); font-family: 'Special Elite', serif;">⚡ b/R-im reader ⚡</h1>
+      <a href="https://inkrealm.info" 
+         class="absolute top-6 right-4 sm:right-8 text-xs font-mono border px-2 py-1 hover:bg-red-600 transition-all duration-300 uppercase tracking-widest no-underline z-50"
+         style="color: #666; border-color: #333;">
+        Return to Realm
+      </a>
+      
       <input
         type="text"
         id="searchBox"
-        class="w-full bg-gray-700 border border-gray-600 text-gray-200 p-2 text-sm focus:outline-none focus:border-yellow-400 transition-all duration-300 mb-2"
+        class="w-full border p-2 text-sm focus:outline-none transition-all duration-300 mb-2"
+        style="background: var(--dark-grey); border-color: #222; color: var(--white); font-size: 16px;"
         placeholder="Search: inky AND korea, doan OR siti, brim -politics, &quot;exact phrase&quot;"
         aria-label="Search entries"
       />
-      <div id="searchStats" class="text-xs text-gray-500 min-h-[14px] mb-4"></div>
+      <div id="searchStats" class="text-xs min-h-[14px] mb-4" style="color: #666;"></div>
 
       <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-4">
-        <button id="prevBtn" class="bg-transparent border border-yellow-400 text-yellow-400 py-2 px-4 text-sm hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300" aria-label="Previous entry">← Previous</button>
-        <button id="nextBtn" class="bg-transparent border border-yellow-400 text-yellow-400 py-2 px-4 text-sm hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300" aria-label="Next entry">Next →</button>
-        <button id="randomBtn" class="bg-transparent border border-yellow-400 text-yellow-400 py-2 px-4 text-sm hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300" aria-label="Random entry">⚡---⚡</button>
-        <button id="indexBtn" class="bg-transparent border border-yellow-400 text-yellow-400 py-2 px-4 text-sm hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300" aria-label="Toggle index">BRIM Index</button>
+        <button id="prevBtn" class="bg-transparent border py-2 px-4 text-sm transition-colors duration-300" style="border-color: var(--red); color: var(--red);" aria-label="Previous entry">← Previous</button>
+        <button id="nextBtn" class="bg-transparent border py-2 px-4 text-sm transition-colors duration-300" style="border-color: var(--red); color: var(--red);" aria-label="Next entry">Next →</button>
+        <button id="randomBtn" class="bg-transparent border py-2 px-4 text-sm transition-colors duration-300" style="border-color: var(--red); color: var(--red);" aria-label="Random entry">⚡---⚡</button>
+        <button id="indexBtn" class="bg-transparent border py-2 px-4 text-sm transition-colors duration-300" style="border-color: var(--red); color: var(--red);" aria-label="Toggle index">BRIM Index</button>
       </div>
 
       <div id="filterBtns" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-4">
-        <button class="filter-btn bg-transparent border border-gray-600 text-gray-400 py-1 px-3 text-xs hover:bg-gray-700 hover:border-yellow-400 transition-colors duration-300" data-filter="all">All</button>
-        <button class="filter-btn bg-transparent border border-yellow-400 text-yellow-400 py-1 px-3 text-xs hover:bg-yellow-400 hover:text-gray-900 transition-colors duration-300" data-filter="fragments">Fragments</button>
-        <button class="filter-btn bg-transparent border border-amber-400 text-amber-400 py-1 px-3 text-xs hover:bg-amber-400 hover:text-gray-900 transition-colors duration-300" data-filter="passages">Passages</button>
-        <button class="filter-btn bg-transparent border border-orange-400 text-orange-400 py-1 px-3 text-xs hover:bg-orange-400 hover:text-gray-900 transition-colors duration-300" data-filter="sections">Sections</button>
-        <button class="filter-btn bg-transparent border border-yellow-300 text-yellow-300 py-1 px-3 text-xs hover:bg-yellow-300 hover:text-gray-900 transition-colors duration-300" data-filter="sketches">Sketches</button>
-        <button class="filter-btn bg-transparent border border-amber-300 text-amber-300 py-1 px-3 text-xs hover:bg-amber-300 hover:text-gray-900 transition-colors duration-300" data-filter="vignettes">Vignettes</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #333; color: #666;" data-filter="all">All</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: var(--red); color: var(--red);" data-filter="fragments">Fragments</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #cc0000; color: #cc0000;" data-filter="passages">Passages</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff3333; color: #ff3333;" data-filter="sections">Sections</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff6666; color: #ff6666;" data-filter="sketches">Sketches</button>
+        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff9999; color: #ff9999;" data-filter="vignettes">Vignettes</button>
       </div>
 
-      <div id="dateNav" class="mt-4 max-h-80 overflow-y-auto border border-gray-600 p-2 transition-all duration-300 hidden custom-scrollbar"></div>
+      <div id="dateNav" class="mt-4 max-h-80 overflow-y-auto border p-2 transition-all duration-300 hidden custom-scrollbar" style="border-color: #222;"></div>
       
       <div class="mt-4">
-        <label for="puter-model-select" class="block text-sm font-medium text-gray-400 mb-1">
+        <label for="puter-model-select" class="block text-sm font-medium mb-1" style="color: #666;">
           Select AI Model
         </label>
         <select
           id="puter-model-select"
-          class="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-yellow-400 focus:border-yellow-400 sm:text-sm"
+          class="w-full p-2 border rounded-md focus:ring-red-600 focus:border-red-600 sm:text-sm"
+          style="background: var(--dark-grey); border-color: #222; color: var(--white);"
           aria-label="Select AI model"
         ></select>
-        <p class="text-xs text-gray-500 mt-1">
+        <p class="text-xs mt-1" style="color: #555;">
           These models are provided via the Puter SDK.
         </p>
       </div>
 
-      <div class="mt-8 pt-6 border-t border-gray-600">
-        <h2 class="text-2xl font-bold text-yellow-400 mb-4">AI Editor</h2>
+      <div class="mt-8 pt-6 border-t" style="border-color: #222;">
+        <h2 class="text-2xl font-bold mb-4 special-elite" style="color: var(--red);">AI Editor</h2>
         
         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-400 mb-2">Context for AI:</label>
+          <label class="block text-sm font-medium mb-2" style="color: #666;">Context for AI:</label>
           <div class="flex flex-wrap gap-2">
-            <button class="context-btn bg-yellow-500 border border-yellow-500 text-gray-900 py-1 px-3 text-xs hover:bg-yellow-600 transition-colors duration-300" data-context="current">Current BRIM</button>
-            <button class="context-btn bg-gray-700 border border-gray-600 text-gray-300 py-1 px-3 text-xs hover:bg-gray-600 transition-colors duration-300" data-context="all">All BRIMs</button>
-            <button class="context-btn bg-gray-700 border border-gray-600 text-gray-300 py-1 px-3 text-xs hover:bg-gray-600 transition-colors duration-300" data-context="none">No Context</button>
+            <button class="context-btn border py-1 px-3 text-xs transition-colors duration-300" style="background: var(--red); border-color: var(--red); color: var(--black);" data-context="current">Current BRIM</button>
+            <button class="context-btn border py-1 px-3 text-xs transition-colors duration-300" style="background: var(--dark-grey); border-color: #333; color: #888;" data-context="all">All BRIMs</button>
+            <button class="context-btn border py-1 px-3 text-xs transition-colors duration-300" style="background: var(--dark-grey); border-color: #333; color: #888;" data-context="none">No Context</button>
           </div>
-          <p class="text-xs text-gray-500 mt-1" id="contextInfo">AI will have access to the BRIM you're currently reading</p>
+          <p class="text-xs mt-1" id="contextInfo" style="color: #555;">AI will have access to the BRIM you're currently reading</p>
         </div>
         
         <div class="mb-4">
-          <label for="aiInput" class="block text-sm font-medium text-gray-400 mb-1">Your message to the AI:</label>
-          <textarea id="aiInput" class="w-full bg-gray-700 border border-gray-600 text-gray-200 p-2 text-sm focus:outline-none focus:border-yellow-400 transition-all duration-300 min-h-[80px]" placeholder="Ask about themes, editing suggestions, continuity, or anything else..." aria-label="AI input"></textarea>
+          <label for="aiInput" class="block text-sm font-medium mb-1" style="color: #666;">Your message to the AI:</label>
+          <textarea id="aiInput" class="w-full border p-2 text-sm focus:outline-none transition-all duration-300 min-h-[80px]" style="background: var(--dark-grey); border-color: #222; color: var(--white); font-size: 16px;" placeholder="Ask about themes, editing suggestions, continuity, or anything else..." aria-label="AI input"></textarea>
         </div>
-        <button id="askAiBtn" class="bg-yellow-500 text-gray-900 py-2 px-6 text-sm hover:bg-yellow-600 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold" aria-label="Ask AI">Ask AI</button>
+        <button id="askAiBtn" class="py-2 px-6 text-sm transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold" style="background: var(--red); color: var(--black);" aria-label="Ask AI">Ask AI</button>
         <div class="mb-4 mt-6">
-          <label for="aiResponse" class="block text-sm font-medium text-gray-400 mb-1">AI Response:</label>
-          <div id="aiResponse" class="w-full bg-gray-700 border border-gray-600 text-gray-200 p-3 text-sm min-h-[120px] max-h-[500px] overflow-y-auto custom-scrollbar whitespace-pre-wrap" aria-live="polite">
-            <p class="text-gray-500 italic">Responses from the selected AI model will appear here.</p>
+          <label for="aiResponse" class="block text-sm font-medium mb-1" style="color: #666;">AI Response:</label>
+          <div id="aiResponse" class="w-full border p-3 text-sm min-h-[120px] max-h-[500px] overflow-y-auto custom-scrollbar whitespace-pre-wrap special-elite" style="background: var(--dark-grey); border-color: #222; color: var(--white);" aria-live="polite">
+            <p class="italic" style="color: #555;">Responses from the selected AI model will appear here.</p>
           </div>
         </div>
       </div>
 
-      <div id="entryInfo" class="text-gray-500 text-xs mt-4 mb-4"></div>
+      <div id="entryInfo" class="text-xs mt-4 mb-4" style="color: #666;"></div>
     </div>
 
-    <div id="loading" class="text-center py-12 text-yellow-400 text-lg">Loading brim.txt...</div>
-    <div id="content" class="text-sm leading-relaxed whitespace-pre-wrap" style="display:none;"></div>
+    <div id="loading" class="text-center py-12 text-lg" style="color: var(--red);">Loading brim.txt...</div>
+    <div id="content" class="text-sm leading-relaxed whitespace-pre-wrap special-elite" style="display:none;"></div>
   </div>
 
   <script>
@@ -127,7 +178,6 @@
     };
 
    const AVAILABLE_PUTER_MODELS = [
-  // === RECOMMENDED FOR LITERARY WORK ===
   { group: '⭐ RECOMMENDED FOR BRIM', options: [
     { value: 'deepseek-chat', label: 'DeepSeek Chat V3 (Best Free) 🏆' },
     { value: 'openrouter/anthropic/claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Best Overall) 👑' },
@@ -135,21 +185,18 @@
     { value: 'google/gemma-3-12b-it:free', label: 'Gemma 3 12B (Solid Free) ✨' },
   ]},
   
-  // === GPT-5 SERIES (Latest OpenAI) ===
   { group: '🔥 GPT-5 SERIES (Latest 2025)', options: [
     { value: 'gpt-5.2-pro', label: 'GPT-5.2 Pro (Maximum Quality) 💎' },
     { value: 'gpt-5.2', label: 'GPT-5.2 (Deep Reasoning) 🧠' },
     { value: 'gpt-5.2-chat', label: 'GPT-5.2 Chat (Fast & Conversational) ⚡' },
   ]},
   
-  // === TIER 1: RELIABLE & FREE ===
   { group: '🟢 RELIABLE (Tested & Working)', options: [
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Baseline)' },
     { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B (Free)' },
     { value: 'google/gemma-3-4b-it:free', label: 'Gemma 3 4B (Free)' },
   ]},
   
-  // === TIER 2: PREMIUM OPENROUTER ===
   { group: '🔵 PREMIUM (OpenRouter - Best Quality)', options: [
     { value: 'openrouter/openai/gpt-4o', label: 'GPT-4o (Dec 2024)' },
     { value: 'openrouter/openai/gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
@@ -169,7 +216,6 @@
     { value: 'openrouter/meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B' },
   ]},
   
-  // === TIER 3: EXPERIMENTAL & SPECIALIZED ===
   { group: '🟡 EXPERIMENTAL (Advanced Features)', options: [
     { value: 'openrouter/xai/grok-beta', label: 'Grok Beta (xAI)' },
     { value: 'openrouter/xai/grok-2-1212', label: 'Grok 2 (Latest)' },
@@ -180,7 +226,6 @@
     { value: 'openrouter/cohere/command-r7b-12-2024', label: 'Command R7B (Dec 2024)' },
   ]},
   
-  // === TIER 4: LIQUID AI (Novel Architectures) ===
   { group: '💧 LIQUID AI (Next-Gen Architecture)', options: [
     { value: 'liquid/lfm-40b', label: 'LFM 40B (Flagship) 🌊' },
     { value: 'liquid/lfm-40b:free', label: 'LFM 40B (Free Tier)' },
@@ -189,7 +234,6 @@
     { value: 'liquid/lfm-1b', label: 'LFM 1B (Ultra-fast)' },
   ]},
   
-  // === TIER 5: SPECIALIZED (Research & Coding) ===
   { group: '🟣 SPECIALIZED (Domain Specific)', options: [
     { value: 'openrouter/deepseek/deepseek-coder', label: 'DeepSeek Coder (Code)' },
     { value: 'openrouter/qwen/qwen-2.5-72b-instruct', label: 'Qwen 2.5 72B' },
@@ -199,7 +243,6 @@
     { value: 'openrouter/perplexity/llama-3.1-sonar-large-128k-online', label: 'Sonar Large (Web Search)' },
   ]},
   
-  // === TIER 6: COMPACT & EFFICIENT ===
   { group: '⚡ COMPACT (Fast & Efficient)', options: [
     { value: 'openrouter/google/gemma-2-9b-it', label: 'Gemma 2 9B' },
     { value: 'openrouter/google/gemma-2-27b-it', label: 'Gemma 2 27B' },
@@ -237,6 +280,21 @@
     const askAiBtn = document.getElementById('askAiBtn');
     const aiResponseDiv = document.getElementById('aiResponse');
     const contextInfo = document.getElementById('contextInfo');
+
+    // Add hover effects to buttons
+    document.addEventListener('mouseover', e => {
+      if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn')) {
+        e.target.style.background = 'var(--red)';
+        e.target.style.color = 'var(--black)';
+      }
+    });
+    
+    document.addEventListener('mouseout', e => {
+      if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && e.target.id !== 'askAiBtn') {
+        e.target.style.background = 'transparent';
+        e.target.style.color = 'var(--red)';
+      }
+    });
 
     function debounce(func, delay) {
       return function(...args) {
@@ -292,12 +350,12 @@
 
     function getTagClass(tag) {
       switch (tag) {
-        case 'fragments': return 'border-yellow-400 text-yellow-400';
-        case 'passages': return 'border-amber-400 text-amber-400';
-        case 'sections': return 'border-orange-400 text-orange-400';
-        case 'sketches': return 'border-yellow-300 text-yellow-300';
-        case 'vignettes': return 'border-amber-300 text-amber-300';
-        default: return 'border-gray-600 text-gray-400';
+        case 'fragments': return 'border-red-600 text-red-600';
+        case 'passages': return 'border-red-700 text-red-700';
+        case 'sections': return 'border-red-500 text-red-500';
+        case 'sketches': return 'border-red-400 text-red-400';
+        case 'vignettes': return 'border-red-300 text-red-300';
+        default: return 'border-gray-600 text-gray-600';
       }
     }
 
@@ -311,7 +369,7 @@
         if (entries.length > 0) showEntry(0);
         buildIndex();
       } catch (error) {
-        loadingDiv.innerHTML = `<p class="text-red-400">Error loading file. Make sure brim.txt is in the same folder.</p><p class="text-xs text-gray-500 mt-2">${error.message}</p>`;
+        loadingDiv.innerHTML = `<p style="color: var(--red);">Error loading file. Make sure brim.txt is in the same folder.</p><p class="text-xs mt-2" style="color: #555;">${error.message}</p>`;
       }
     }
 
@@ -382,14 +440,14 @@
 
     function showEntry(entryId) {
       if (entries.length === 0) {
-        contentDiv.innerHTML = '<p class="text-gray-500 text-center">No content loaded.</p>';
+        contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No content loaded.</p>';
         entryInfo.textContent = '';
         return;
       }
 
       const entry = entries.find(e => e.id === entryId);
       if (!entry) {
-        contentDiv.innerHTML = '<p class="text-gray-500 text-center">No matching entry found.</p>';
+        contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No matching entry found.</p>';
         entryInfo.textContent = '';
         return;
       }
@@ -404,7 +462,7 @@
       const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
       const wordCount = entry.content.split(/\s+/).length;
 
-      entryInfo.innerHTML = `BRIM: <span class="text-yellow-400 font-bold">${entry.title}</span>${resultInfo}${filterInfo} <span class="text-gray-600">• ${wordCount} words</span>
+      entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
         <div class="inline-flex ml-2">${entry.tags.map(tag => 
           `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
         ).join('')}</div>`;
@@ -420,28 +478,35 @@
       const items = isSearching ? searchResults : getFilteredEntries();
 
       if (items.length === 0) {
-        dateNav.innerHTML = '<p class="text-gray-500 text-sm p-2">No entries found.</p>';
+        dateNav.innerHTML = '<p class="text-sm p-2" style="color: #555;">No entries found.</p>';
         return;
       }
 
       items.forEach(entry => {
         const div = document.createElement('div');
-        div.className = 'group block p-2 cursor-pointer border-b border-gray-700 last:border-b-0 hover:bg-gray-700 transition-colors duration-200';
+        div.className = 'group block p-2 cursor-pointer border-b last:border-b-0 transition-colors duration-200';
+        div.style.borderColor = '#111';
         div.setAttribute('data-id', entry.id);
         
         const preview = entry.content.replace(/\n/g, ' ').substring(0, 100).trim();
         div.innerHTML = `
-          <div class="flex items-center text-yellow-400 group-hover:text-yellow-300 text-sm font-bold">
+          <div class="flex items-center text-sm font-bold" style="color: var(--red);">
             ${entry.title} ${entry.tags.map(tag => 
               `<span class="inline-block px-2 py-0.5 ml-2 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
             ).join('')}
           </div>
-          <div class="text-xs text-gray-500 mt-1 italic">${preview}...</div>
+          <div class="text-xs mt-1 italic" style="color: #555;">${preview}...</div>
         `;
         div.addEventListener('click', () => {
           showEntry(entry.id);
           dateNav.classList.add('hidden');
           isIndexVisible = false;
+        });
+        div.addEventListener('mouseover', () => {
+          div.style.background = '#0a0a0a';
+        });
+        div.addEventListener('mouseout', () => {
+          div.style.background = 'transparent';
         });
         dateNav.appendChild(div);
       });
@@ -496,7 +561,7 @@
     }
 
     async function generateWithPuterAI(prompt, model, responseElement) {
-      responseElement.innerHTML = `<p class="text-yellow-400 animate-pulse">Connecting to ${model}...</p>`;
+      responseElement.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Connecting to ${model}...</p>`;
       try {
         const fullPrompt = buildAIPrompt(prompt);
         const response = await puter.ai.chat(fullPrompt, { model, temperature: 0.7, max_tokens: 2000 });
@@ -507,17 +572,25 @@
         if (error.message.includes('rate limit')) errorMsg = `⏱️ Rate limit exceeded. Try again in a few moments.`;
         else if (error.message.includes('auth')) errorMsg = `🔐 Authentication required. Puter.js requires email confirmation.`;
         else if (error.message.includes('Network')) errorMsg = `🌐 Network error. Check your connection.`;
-        responseElement.innerHTML = `<p class="text-red-400">❌ ${errorMsg}</p>`;
+        responseElement.innerHTML = `<p style="color: var(--red);">❌ ${errorMsg}</p>`;
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       loadText();
       populatePuterModels();
-      document.querySelector('.filter-btn[data-filter="all"]').classList.add('bg-yellow-500', 'text-gray-900', 'border-yellow-500');
+      document.querySelector('.filter-btn[data-filter="all"]').style.background = 'var(--red)';
+      document.querySelector('.filter-btn[data-filter="all"]').style.color = 'var(--black)';
+      document.querySelector('.filter-btn[data-filter="all"]').style.borderColor = 'var(--red)';
     });
 
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
+    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
+    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
+    
+    aiInput.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
+    aiInput.addEventListener('blur', e => e.target.style.borderColor = '#222');
+    
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
@@ -530,18 +603,22 @@
     document.getElementById('filterBtns').addEventListener('click', e => {
       if (e.target.classList.contains('filter-btn')) {
         document.querySelectorAll('.filter-btn').forEach(btn => {
-          btn.classList.remove('bg-yellow-500', 'text-gray-900');
+          btn.style.background = 'transparent';
           const tag = btn.dataset.filter;
           if (tag === 'all') {
-            btn.classList.remove('border-yellow-500');
-            btn.classList.add('border-gray-600', 'text-gray-400');
+            btn.style.borderColor = '#333';
+            btn.style.color = '#666';
           } else {
-            btn.classList.remove('border-yellow-500');
-            btn.classList.add(...getTagClass(tag).split(' '));
+            const classes = getTagClass(tag);
+            const colors = classes.split(' ');
+            btn.style.borderColor = colors[0].replace('border-', '');
+            btn.style.color = colors[1].replace('text-', '');
           }
         });
-        e.target.classList.add('bg-yellow-500', 'text-gray-900', 'border-yellow-500');
-        e.target.classList.remove(...getTagClass(e.target.dataset.filter).split(' ').filter(c => c));
+        e.target.style.background = 'var(--red)';
+        e.target.style.color = 'var(--black)';
+        e.target.style.borderColor = 'var(--red)';
+        
         currentFilter = e.target.dataset.filter;
         if (isSearching) performSearch(searchQuery);
         else {
@@ -559,7 +636,7 @@
     askAiBtn.addEventListener('click', async () => {
       const msg = aiInput.value.trim();
       if (!msg) {
-        aiResponseDiv.innerHTML = '<p class="text-red-400">Please enter a message.</p>';
+        aiResponseDiv.innerHTML = '<p style="color: var(--red);">Please enter a message.</p>';
         return;
       }
       askAiBtn.disabled = true;
@@ -567,7 +644,7 @@
       try {
         await generateWithPuterAI(msg, puterModelSelect.value, aiResponseDiv);
       } catch (error) {
-        aiResponseDiv.innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+        aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
       } finally {
         askAiBtn.disabled = false;
         aiInput.disabled = false;
@@ -578,11 +655,14 @@
     document.addEventListener('click', e => {
       if (e.target.classList.contains('context-btn')) {
         document.querySelectorAll('.context-btn').forEach(btn => {
-          btn.classList.remove('bg-yellow-500', 'text-gray-900', 'border-yellow-500');
-          btn.classList.add('bg-gray-700', 'text-gray-300', 'border-gray-600');
+          btn.style.background = 'var(--dark-grey)';
+          btn.style.color = '#888';
+          btn.style.borderColor = '#333';
         });
-        e.target.classList.remove('bg-gray-700', 'text-gray-300', 'border-gray-600');
-        e.target.classList.add('bg-yellow-500', 'text-gray-900', 'border-yellow-500');
+        e.target.style.background = 'var(--red)';
+        e.target.style.color = 'var(--black)';
+        e.target.style.borderColor = 'var(--red)';
+        
         aiContext = e.target.dataset.context;
         const descriptions = {
           current: 'AI will have access to the BRIM you\'re currently reading',
