@@ -722,6 +722,76 @@ body::before {
     box-shadow: 0 0 100px rgba(0, 0, 0, 0.9), 0 0 50px rgba(255, 0, 51, 0.8);
     cursor: zoom-out;
 }
+    /* CSS for France 24 Ticker - Add to your existing style block */
+#france24-ticker-container {
+    width: 100%;
+    background: #111;
+    border-top: 2px solid #ff0033;
+    border-bottom: 2px solid #ff0033;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    position: relative;
+}
+
+#france24-ticker-heading {
+    color: #fff;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.3rem;
+    text-align: center;
+}
+
+.france24-ticker-wrapper {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+#france24-ticker {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker-scroll 60s linear infinite;
+    padding-left: 100%;
+    /* Animation will be controlled by JS */
+}
+
+#france24-ticker.paused {
+    animation-play-state: paused;
+}
+
+#france24-ticker a {
+    color: #aaa;
+    text-decoration: none;
+    margin: 0 2rem;
+    font-size: 0.85rem;
+    border-left: 1px solid #333;
+    padding-left: 1rem;
+    transition: color 0.3s;
+}
+
+#france24-ticker a:hover {
+    color: #ff0033;
+    text-shadow: 0 0 8px rgba(255, 0, 51, 0.7);
+}
+
+#france24-ticker a:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+
+/* Ticker scroll animation */
+@keyframes ticker-scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}    
     </style>
 </head>
 <body>
@@ -876,8 +946,16 @@ body::before {
             Loading 5 lexical sources + thesaurus...
         </div>
     </div>
-    
- <!-- FOOTER -->
+<!-- France 24 News Ticker -->
+<div id="france24-ticker-container">
+    <div id="france24-ticker-heading">
+        <span style="color: #ff0033;">LIVE FEED:</span> FRANCE 24 CULTURE
+    </div>
+    <!-- The marquee will scroll here -->
+    <div class="france24-ticker-wrapper">
+        <div id="france24-ticker"></div>
+    </div>
+</div> <!-- FOOTER -->
     <footer>
         <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 7 Source Lexicon + Live Thesaurus</p>
         
@@ -1421,6 +1499,58 @@ console.log(
     "%c'Listen to my last words any world. Listen all you boards syndicates and governments of the earth. And you powers behind what filth deals consummated in what lavatory to take what is not yours. To sell the ground from unborn feet forever...'", 
     "color: #444; font-family: monospace; font-style: italic; font-size: 10px;"
 );
+    </script>
+    <script>
+        // JavaScript for France 24 Ticker - Add to your existing script section
+async function fetchFrance24Ticker() {
+    const tickerElement = document.getElementById('france24-ticker');
+    const feedUrl = 'https://www.france24.com/en/culture/rss';
+    
+    // Using a CORS proxy for development
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+    
+    try {
+        tickerElement.innerHTML = '<span style="color: #666;">Receiving transmission...</span>';
+        
+        const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
+        if (!response.ok) throw new Error(`Network error: ${response.status}`);
+        
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        const items = xmlDoc.querySelectorAll('item');
+        
+        if (items.length === 0) {
+            tickerElement.innerHTML = '<span style="color: #666;">No headlines received.</span>';
+            return;
+        }
+        
+        let tickerHTML = '';
+        items.forEach(item => {
+            const title = item.querySelector('title')?.textContent || 'No title';
+            const link = item.querySelector('link')?.textContent || '#';
+            
+            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}">${title}</a>`;
+        });
+        
+        tickerElement.innerHTML = tickerHTML;
+        
+        // Pause on hover for better readability
+        tickerElement.addEventListener('mouseenter', () => {
+            tickerElement.classList.add('paused');
+        });
+        tickerElement.addEventListener('mouseleave', () => {
+            tickerElement.classList.remove('paused');
+        });
+        
+    } catch (error) {
+        console.error('Ticker error:', error);
+        tickerElement.innerHTML = `<span style="color: #ff0033;">[FEED OFFLINE]</span>`;
+    }
+}
+
+// Load the ticker when your page is ready
+document.addEventListener('DOMContentLoaded', fetchFrance24Ticker);
     </script>
 </body>
 </html>
