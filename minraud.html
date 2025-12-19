@@ -791,6 +791,73 @@ body::before {
     100% {
         transform: translateX(-100%);
     }
+}  
+    /* CSS for New York Times Ticker - Slow & Red */
+#nytimes-ticker-container {
+    width: 100%;
+    background: #0a0a0a;
+    border-top: 1px solid #222;
+    border-bottom: 1px solid #222;
+    margin: 0 0 2rem 0;
+    padding: 0.5rem;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+}
+
+#nytimes-ticker-heading {
+    color: #777;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    font-weight: normal;
+}
+
+.nytimes-ticker-wrapper {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+#nytimes-ticker {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker-scroll-nyt 120s linear infinite; /* SLOW: 120 seconds */
+    padding-left: 100%;
+}
+
+#nytimes-ticker.paused {
+    animation-play-state: paused;
+}
+
+#nytimes-ticker a {
+    color: #ff0033 !important; /* FORCED RED */
+    text-decoration: none;
+    margin: 0 3rem;
+    font-size: 0.9rem;
+    border-left: 1px solid #333;
+    padding-left: 1.5rem;
+    font-weight: bold;
+    opacity: 0.9;
+    transition: all 0.4s;
+}
+
+#nytimes-ticker a:hover {
+    color: #fff !important;
+    text-shadow: 0 0 12px rgba(255, 0, 51, 0.9);
+    opacity: 1;
+}
+
+/* SLOW scroll animation */
+@keyframes ticker-scroll-nyt {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
 }    
     </style>
 </head>
@@ -949,12 +1016,21 @@ body::before {
 <!-- France 24 News Ticker -->
 <div id="france24-ticker-container">
     <div id="france24-ticker-heading">
-        <span style="color: #ff0033;">LIVE FEED:</span> FRANCE 24 CULTURE
+        <span style="color: #ff0033;">LIVE FEED:</span> FRANCE24 CULTURE
     </div>
     <!-- The marquee will scroll here -->
     <div class="france24-ticker-wrapper">
         <div id="france24-ticker"></div>
+    </div><br>
+    <!-- New York Times Arts Ticker - Slow Red -->
+<div id="nytimes-ticker-container">
+    <div id="nytimes-ticker-heading">
+        <span style="color: #ff0033;">LONG WAVE:</span> THE NYTIMES - ARTS
     </div>
+    <div class="nytimes-ticker-wrapper">
+        <div id="nytimes-ticker"></div>
+    </div>
+</div>
 </div> <!-- FOOTER -->
     <footer>
         <p>&copy; 2026 INKREALM-NEXUS | Amazon Nova AI • 7 Source Lexicon + Live Thesaurus</p>
@@ -1548,9 +1624,51 @@ async function fetchFrance24Ticker() {
         tickerElement.innerHTML = `<span style="color: #ff0033;">[FEED OFFLINE]</span>`;
     }
 }
+        // JavaScript for New York Times Arts Ticker
+async function fetchNYTimesTicker() {
+    const tickerElement = document.getElementById('nytimes-ticker');
+    const feedUrl = 'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml';
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
 
-// Load the ticker when your page is ready
-document.addEventListener('DOMContentLoaded', fetchFrance24Ticker);
+    try {
+        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Establishing NYT Arts link... ]</span>';
+        const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
+        if (!response.ok) throw new Error(`Signal Lost: ${response.status}`);
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        const items = xmlDoc.querySelectorAll('item');
+        
+        if (items.length === 0) {
+            tickerElement.innerHTML = '<span style="color: #ff0033;">[ ARTS FEED SILENT ]</span>';
+            return;
+        }
+        
+        let tickerHTML = '';
+        items.forEach(item => {
+            const title = item.querySelector('title')?.textContent?.replace(' - The New York Times', '') || 'Headline';
+            const link = item.querySelector('link')?.textContent || '#';
+            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}">${title}</a>`;
+        });
+        
+        tickerElement.innerHTML = tickerHTML;
+        
+        // Pause on hover
+        tickerElement.addEventListener('mouseenter', () => tickerElement.classList.add('paused'));
+        tickerElement.addEventListener('mouseleave', () => tickerElement.classList.remove('paused'));
+        
+    } catch (error) {
+        console.error('NYT Ticker error:', error);
+        tickerElement.innerHTML = `<span style="color: #ff0033;">[ NYT ARTS OFFLINE ]</span>`;
+    }
+}
+
+// Initialize both tickers when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fetchFrance24Ticker();
+    fetchNYTimesTicker(); // Add this line
+});
+        
     </script>
 </body>
 </html>
