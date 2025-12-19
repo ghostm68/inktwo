@@ -824,7 +824,7 @@ body::before {
 #nytimes-ticker {
     display: inline-block;
     white-space: nowrap;
-    animation: ticker-scroll-nyt 120s linear infinite; /* SLOW: 120 seconds */
+    animation: ticker-scroll-nyt 90s linear infinite; /* FASTER: 90 seconds */
     padding-left: 100%;
 }
 
@@ -1022,14 +1022,15 @@ body::before {
     <div class="france24-ticker-wrapper">
         <div id="france24-ticker"></div>
     </div><br>
-    <!-- New York Times Arts Ticker - Slow Red -->
+    <!-- New York Times Main Ticker - 90s Red -->
 <div id="nytimes-ticker-container">
     <div id="nytimes-ticker-heading">
-        <span style="color: #ff0033;">LONG WAVE:</span> THE NYTIMES - ARTS
+        <span style="color: #ff0033;">LONG WAVE:</span> THE NEW YORK TIMES
     </div>
     <div class="nytimes-ticker-wrapper">
         <div id="nytimes-ticker"></div>
     </div>
+</div>
 </div>
 </div> <!-- FOOTER -->
     <footer>
@@ -1624,14 +1625,14 @@ async function fetchFrance24Ticker() {
         tickerElement.innerHTML = `<span style="color: #ff0033;">[FEED OFFLINE]</span>`;
     }
 }
-        // JavaScript for New York Times Arts Ticker
-async function fetchNYTimesTicker() {
+// JavaScript for New York Times Main Feed Ticker
+async function fetchNYTimesMainTicker() {
     const tickerElement = document.getElementById('nytimes-ticker');
-    const feedUrl = 'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml';
+    const feedUrl = 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml'; // MAIN FEED
     const proxyUrl = 'https://api.allorigins.win/raw?url=';
 
     try {
-        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Establishing NYT Arts link... ]</span>';
+        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Linking to NYT Main... ]</span>';
         const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
         if (!response.ok) throw new Error(`Signal Lost: ${response.status}`);
         const xmlText = await response.text();
@@ -1640,13 +1641,13 @@ async function fetchNYTimesTicker() {
         const items = xmlDoc.querySelectorAll('item');
         
         if (items.length === 0) {
-            tickerElement.innerHTML = '<span style="color: #ff0033;">[ ARTS FEED SILENT ]</span>';
+            tickerElement.innerHTML = '<span style="color: #ff0033;">[ MAIN FEED SILENT ]</span>';
             return;
         }
         
         let tickerHTML = '';
         items.forEach(item => {
-            const title = item.querySelector('title')?.textContent?.replace(' - The New York Times', '') || 'Headline';
+            const title = item.querySelector('title')?.textContent || 'Headline';
             const link = item.querySelector('link')?.textContent || '#';
             tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}">${title}</a>`;
         });
@@ -1658,8 +1659,8 @@ async function fetchNYTimesTicker() {
         tickerElement.addEventListener('mouseleave', () => tickerElement.classList.remove('paused'));
         
     } catch (error) {
-        console.error('NYT Ticker error:', error);
-        tickerElement.innerHTML = `<span style="color: #ff0033;">[ NYT ARTS OFFLINE ]</span>`;
+        console.error('NYT Main Ticker error:', error);
+        tickerElement.innerHTML = `<span style="color: #ff0033;">[ NYT MAIN OFFLINE ]</span>`;
     }
 }
 
