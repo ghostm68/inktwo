@@ -1173,3 +1173,84 @@ if (menuToggle && mainHeader) {
     });
 }
 
+// ===== FOOTER MESSAGE ROTATOR =====
+(function() {
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFooterRotator);
+  } else {
+    initFooterRotator();
+  }
+
+  function initFooterRotator() {
+    const systemMessages = [
+      "◈ LIVE_SYSTEM ◈ LOAD: 43% ◈ UPTIME: 316H ◈",
+      "◈ SYSTEM ◈ MEMORY: 78% ◈ THREADS: 24 ◈",
+      "◈ CORE ◈ TEMP: 42°C ◈ POWER: STABLE ◈",
+      "◈ NETWORK ◈ LATENCY: 18ms ◈ THROUGHPUT: 94% ◈",
+      "◈ SECURITY ◈ FIREWALL: ACTIVE ◈ SCAN: CLEAN ◈"
+    ];
+
+    const statusMessages = [
+      "▲ ENCRYPTION: ACTIVE ▲",
+      "▲ THREAT_LEVEL: LOW ▲",
+      "▲ BACKUP: SYNCHRONIZED ▲",
+      "▲ AI_MODULES: ONLINE ▲",
+      "▲ REALITY: STABLE ▲"
+    ];
+
+    let messageIndex = 0;
+    let rotationInterval;
+
+    function rotateMessages() {
+      const systemEl = document.getElementById('system-message');
+      const statusEl = document.getElementById('status-message');
+      
+      if (!systemEl || !statusEl) return;
+      
+      systemEl.textContent = systemMessages[messageIndex % systemMessages.length];
+      statusEl.textContent = statusMessages[messageIndex % statusMessages.length];
+      
+      // Optional fade effect
+      systemEl.style.transition = 'opacity 0.3s';
+      statusEl.style.transition = 'opacity 0.3s';
+      systemEl.style.opacity = '0.5';
+      statusEl.style.opacity = '0.5';
+      
+      setTimeout(() => {
+        systemEl.style.opacity = '1';
+        statusEl.style.opacity = '1';
+      }, 100);
+      
+      messageIndex++;
+    }
+
+    function startRotation() {
+      // Clear any existing interval
+      if (rotationInterval) clearInterval(rotationInterval);
+      
+      // Initial rotation
+      rotateMessages();
+      
+      // Set up continuous rotation every 5 seconds
+      rotationInterval = setInterval(rotateMessages, 5000);
+    }
+
+    function stopRotation() {
+      if (rotationInterval) {
+        clearInterval(rotationInterval);
+        rotationInterval = null;
+      }
+    }
+
+    // Public API (optional - if you want to control it from elsewhere)
+    window.footerRotator = {
+      start: startRotation,
+      stop: stopRotation,
+      rotate: rotateMessages
+    };
+
+    // Start automatically
+    startRotation();
+  }
+})();
