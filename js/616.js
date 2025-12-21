@@ -312,7 +312,8 @@ const asciiArt = {
         "        ::::::::::::::::::::::::",
         "        ........................"
     ],
-	  'SKULL': [
+    
+    'SKULL': [
         "    .-''''''-.",
         "  .'          '.",
         " /   O      O   \\",
@@ -391,14 +392,14 @@ function generateCustomASCII(text, style) {
         'block': ['█', '▓', '▒', '░', ' '],
         'simple': ['#', '*', '+', '.', ' '],
         'matrix': ['ア', 'イ', 'ウ', 'エ', 'オ'],
-        'witch': ['☾', '✧', '☽', '☆', '✵']
-	 'binary': ['0', '1'],
-    'shade': ['▓', '▒', '░', '·', ' '],
-    'lines': ['─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼'],
-    'emoji': ['🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜'],
-    'greek': ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ'],
-    'runes': ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ', 'ᚺ', 'ᚾ']
-};
+        'witch': ['☾', '✧', '☽', '☆', '✵'],
+        'binary': ['0', '1'],
+        'shade': ['▓', '▒', '░', '·', ' '],
+        'lines': ['─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼'],
+        'emoji': ['🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜'],
+        'greek': ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ'],
+        'runes': ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ', 'ᚺ', 'ᚾ']
+    };
     
     const charSet = chars[style] || chars.block;
     const result = [];
@@ -483,9 +484,7 @@ function generateASCII() {
     container.classList.add('ascii-glitch');
     setTimeout(() => container.classList.remove('ascii-glitch'), 300);
 }
-	
-// --- EXPORT FUNCTIONS ---
-	
+
 // --- EXPORT FUNCTIONS ---
 function clearChat() {
     // Now clears ASCII art and resets
@@ -500,29 +499,7 @@ function clearChat() {
     document.getElementById('ascii-input').value = '';
 }
 
-function exportChat() {
-    // Export ASCII art as text file
-    const asciiContent = document.getElementById('ascii-container').textContent;
-    const textBlob = new Blob([asciiContent], { type: 'text/plain' });
-    const textUrl = URL.createObjectURL(textBlob);
-    const textLink = document.createElement('a');
-    textLink.href = textUrl;
-    textLink.download = `ascii-art-${Date.now()}.txt`;
-    textLink.click();
-    
-    // Download the MP3 file after a short delay
-    setTimeout(() => {
-        const audio = document.getElementById('viz-audio');
-        if (audio && audio.src) {
-            const audioLink = document.createElement('a');
-            audioLink.href = audio.src;
-            audioLink.download = 'imthroughwithloveTWOSKINNYGIRLS.mp3';
-            audioLink.click();
-        }
-    }, 100);
-}
-
-// Optional: Rename functions to be more accurate
+// Choose ONE of these export functions (remove the other):
 function exportASCII() {
     const asciiContent = document.getElementById('ascii-container').textContent;
     const textBlob = new Blob([asciiContent], { type: 'text/plain' });
@@ -533,9 +510,28 @@ function exportASCII() {
     textLink.click();
 }
 
+// If you want to keep exportAll (but remove MP3 download since you're monetizing)
 function exportAll() {
-    // Export ASCII
+    // Export ASCII only (removed MP3 download for monetization)
     exportASCII();
+    
+    // If you want to add something else instead of MP3, add it here
+    // For example: export a screenshot, additional data, etc.
+}
+
+// Remove or comment out the duplicate exportChat function
+/*
+function exportChat() {
+    // Export ASCII art as text file
+    const asciiContent = document.getElementById('ascii-container').textContent;
+    const textBlob = new Blob([asciiContent], { type: 'text/plain' });
+    const textUrl = URL.createObjectURL(textBlob);
+    const textLink = document.createElement('a');
+    textLink.href = textUrl;
+    textLink.download = `ascii-art-${Date.now()}.txt`;
+    textLink.click();
+}
+*/
     
     // Export MP3
     setTimeout(() => {
