@@ -334,6 +334,7 @@ function colorizeASCII(lines) {
 
 function generateCustomASCII(text, style) {
     const chars = {
+		'runes': ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ'],
         'block': ['█', '▓', '▒', '░', ' '],
         'simple': ['#', '*', '+', '.', ' '],
         'matrix': ['ア', 'イ', 'ウ', 'エ', 'オ'],
