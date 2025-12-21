@@ -1316,12 +1316,26 @@ document.addEventListener('click', (e) => {
       </div>
     </section>
 
-    <section class="sigil-forge" onclick="forgeSigil()">
-      <div class="absolute top-2 left-4 text-[9px] text-zinc-700 uppercase tracking-widest">Sigil_Forge_v4.2</div>
-      <canvas id="sigil-canvas" width="300" height="300"></canvas>
-      <div id="witch-status" class="mt-4 text-[10px] text-red-900 font-bold uppercase animate-pulse">Scanning...</div>
-    </section>
-  </div>
+<section class="sigil-forge">
+    <div class="absolute top-2 left-4 text-[9px] text-zinc-700 uppercase tracking-widest">Audio_Viz_v4.2</div>
+    <canvas id="sigil-canvas" width="300" height="300"></canvas>
+    
+    <!-- Add your text here -->
+    <div style="text-align: center; margin-top: 10px;">
+        <p style="color: #666; font-size: 10px; font-family: 'Special Elite';">
+            i'm through with love- two skinny girls...
+        </p>
+    </div>
+    
+    <!-- Audio player -->
+    <audio id="viz-audio" controls style="margin-top: 10px; width: 280px;">
+        <source src="imthroughwithloveTWOSKINNYGIRLS.mp3" type="audio/mpeg">
+        Sorry, your browser doesn't support HTML5 audio.
+    </audio>
+    
+    <!-- Status text (keeping your existing id) -->
+    <div id="witch-status" class="mt-4 text-[10px] text-red-900 font-bold uppercase animate-pulse">Audio Ready</div>
+</section>
 	
   <footer>
     <div>INKREALM_PROXIMITY_CORE // PROTOCOL_6.16</div>
@@ -1446,166 +1460,156 @@ document.addEventListener('click', (e) => {
   }
 
   // --- SIGIL FORGE ENGINE (SIMPLIFIED) ---
-  const canvas = document.getElementById('sigil-canvas');
-  const ctx = canvas.getContext('2d');
+ // ==== AUDIO VISUALIZER ====
+const canvas = document.getElementById('sigil-canvas');
+const ctx = canvas.getContext('2d');
+const audio = document.getElementById('viz-audio');
+let audioContext, analyser, source, dataArray;
 
-function forgeSigil() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  
-  // Create points around a circle (Kamea-style)
-  const numPoints = 7 + Math.floor(Math.random() * 5); // 7-11 points
-  const radius = 120;
-  const points = [];
-  
-  for (let i = 0; i < numPoints; i++) {
-    const angle = (i / numPoints) * Math.PI * 2;
-    points.push({
-      x: centerX + radius * Math.cos(angle),
-      y: centerY + radius * Math.sin(angle)
-    });
-  }
-  
-  // Draw flowing curves between random points with VARIED LINE WEIGHTS
-  ctx.strokeStyle = Math.random() > 0.3 ? "#ff0000" : "#ffffff";
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  const connections = 3 + Math.floor(Math.random() * 4); // 3-6 flowing lines
-  const usedPoints = new Set();
-  const pathIntersections = []; // Track where paths meet for inner shapes
-  
-  let currentPoint = Math.floor(Math.random() * numPoints);
-  usedPoints.add(currentPoint);
-  
-  for (let i = 0; i < connections; i++) {
-    // VARY LINE WEIGHT for each connection
-    ctx.lineWidth = 1 + Math.floor(Math.random() * 3); // 1-3px varied thickness
+// Initialize audio context on first interaction
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        source = audioContext.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        
+        // Start visualization
+        visualize();
+        
+        // Update status
+        document.getElementById('witch-status').textContent = "Audio Active";
+        document.getElementById('witch-status').style.color = "#ff0000";
+    }
+}
+
+// Visualization function
+function visualize() {
+    if (!analyser) return;
     
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    requestAnimationFrame(visualize);
+    
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Clear with fade effect
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+    
+    const barWidth = (width / dataArray.length) * 2.5;
+    let barHeight;
+    let x = 0;
+    
+    // Draw frequency bars
+    for(let i = 0; i < dataArray.length; i++) {
+        barHeight = dataArray[i] / 2;
+        
+        // Red gradient based on frequency
+        const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+        gradient.addColorStop(0, '#ff0000');
+        gradient.addColorStop(0.7, '#ff4444');
+        gradient.addColorStop(1, '#ff8888');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Draw center waveform
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(points[currentPoint].x, points[currentPoint].y);
     
-    // Pick a new random point
-    let nextPoint;
-    do {
-      nextPoint = Math.floor(Math.random() * numPoints);
-    } while (usedPoints.has(nextPoint) && usedPoints.size < numPoints);
+    const sliceWidth = width * 1.0 / dataArray.length;
+    x = 0;
     
-    usedPoints.add(nextPoint);
+    for(let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * height / 2;
+        
+        if(i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        
+        x += sliceWidth;
+    }
     
-    // Create curved path using quadratic curve
-    const current = points[currentPoint];
-    const next = points[nextPoint];
-    
-    // Control point for curve (slightly offset toward center)
-    const cpX = (current.x + next.x) / 2 + (Math.random() - 0.5) * 40;
-    const cpY = (current.y + next.y) / 2 + (Math.random() - 0.5) * 40;
-    
-    ctx.quadraticCurveTo(cpX, cpY, next.x, next.y);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     
-    // Store intersection point (the connection point between paths)
-    pathIntersections.push({x: next.x, y: next.y});
-    
-    currentPoint = nextPoint;
-  }
-  
-  // Add INNER SHAPES at intersections
-  pathIntersections.forEach((point, idx) => {
-    if (Math.random() > 0.6) { // 40% chance for inner shape
-      const shapeType = Math.floor(Math.random() * 3); // 0=triangle, 1=square, 2=crescent
-      const size = 8 + Math.floor(Math.random() * 8); // 8-15px
-      
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      
-      switch(shapeType) {
-        case 0: // Triangle
-          ctx.moveTo(point.x, point.y - size);
-          ctx.lineTo(point.x - size * 0.866, point.y + size * 0.5);
-          ctx.lineTo(point.x + size * 0.866, point.y + size * 0.5);
-          ctx.closePath();
-          break;
-          
-        case 1: // Square
-          ctx.rect(point.x - size/2, point.y - size/2, size, size);
-          break;
-          
-        case 2: // Crescent (two overlapping circles)
-          ctx.arc(point.x - size/4, point.y, size/2, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(point.x + size/4, point.y, size/2, 0, Math.PI * 2);
-          break;
-      }
-      
-      // Sometimes fill, sometimes just outline
-      if (Math.random() > 0.5) {
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.fill();
-      } else {
-        ctx.stroke();
-      }
-    }
-  });
-  
-  // Add varied decorative circles
-  // Circles at connection points - varied sizes
-  usedPoints.forEach(idx => {
-    if (Math.random() > 0.3) { // 70% chance for each point
-      const circleSize = 2 + Math.floor(Math.random() * 6); // 2-7px radius
-      const isFilled = Math.random() > 0.5;
-      
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(points[idx].x, points[idx].y, circleSize, 0, Math.PI * 2);
-      
-      if (isFilled) {
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.fill();
-      } else {
-        ctx.stroke();
-      }
-    }
-  });
-  
-  // Random circles along the paths
-  if (Math.random() > 0.4) {
-    const numRandomCircles = 1 + Math.floor(Math.random() * 3); // 1-3 circles
-    for (let i = 0; i < numRandomCircles; i++) {
-      const randX = centerX + (Math.random() - 0.5) * radius * 1.5;
-      const randY = centerY + (Math.random() - 0.5) * radius * 1.5;
-      const randSize = 3 + Math.floor(Math.random() * 8); // 3-10px
-      
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(randX, randY, randSize, 0, Math.PI * 2);
-      
-      if (Math.random() > 0.6) {
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.fill();
-      } else {
-        ctx.stroke();
-      }
-    }
-  }
-  
-  // Center mark - varied
-  if (Math.random() > 0.5) {
-    const centerSize = 3 + Math.floor(Math.random() * 5); // 3-7px
-    ctx.lineWidth = 1;
+    // Draw pulsing circle in center
+    const centerSize = 10 + (dataArray[10] / 10);
     ctx.beginPath();
-    ctx.arc(centerX, centerY, centerSize, 0, Math.PI * 2);
-    
-    if (Math.random() > 0.5) {
-      ctx.fillStyle = ctx.strokeStyle;
-      ctx.fill();
-    } else {
-      ctx.stroke();
-    }
-  }
+    ctx.arc(width / 2, height / 2, centerSize, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 0, 0, ${0.3 + dataArray[5] / 400})`;
+    ctx.fill();
 }
+
+// Event listeners
+audio.addEventListener('play', function() {
+    initAudio();
+    document.getElementById('witch-status').textContent = "Playing...";
+    document.getElementById('witch-status').classList.add('animate-pulse');
+});
+
+audio.addEventListener('pause', function() {
+    document.getElementById('witch-status').textContent = "Paused";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+audio.addEventListener('ended', function() {
+    document.getElementById('witch-status').textContent = "Audio Ended";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+// Click canvas to play/pause
+canvas.addEventListener('click', function() {
+    if (audio.paused) {
+        audio.play();
+    } else {
+        audio.pause();
+    }
+});
+
+// Initialize with a static visualization when page loads
+function initStaticViz() {
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Draw initial static pattern
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw cool static pattern
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 1;
+    
+    for(let i = 0; i < 50; i++) {
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * width, Math.random() * height);
+        ctx.lineTo(Math.random() * width, Math.random() * height);
+        ctx.stroke();
+    }
+    
+    // Add text
+    ctx.fillStyle = '#666';
+    ctx.font = '10px "VT323"';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLICK TO PLAY AUDIO', width / 2, height / 2);
+}
+
+// Initialize on page load
+window.onload = initStaticViz;
   // --- AUDIO CORE ---
   let audioCtx, humOsc, isPowered = false;
   function togglePower() {
@@ -1721,18 +1725,18 @@ const logFragments = [
     textLink.download = 'sigil-forge-chat.txt';
     textLink.click();
     
-    // Export current sigil as PNG
+    // Download the MP3 file after a short delay
     setTimeout(() => {
-      canvas.toBlob(blob => {
-        const imgUrl = URL.createObjectURL(blob);
-        const imgLink = document.createElement('a');
-        imgLink.href = imgUrl;
-        imgLink.download = 'sigil-forge-sigil.png';
-        imgLink.click();
-      });
+        const audio = document.getElementById('viz-audio');
+        if (audio && audio.src) {
+            const audioLink = document.createElement('a');
+            audioLink.href = audio.src;
+            audioLink.download = 'imthroughwithloveTWOSKINNYGIRLS.mp3';
+            audioLink.click();
+        }
     }, 100);
-  }
-
+}
+	
   function exportDraft() {
     const content = document.getElementById('editor').innerText;
     const blob = new Blob([content], { type: 'text/plain' });
