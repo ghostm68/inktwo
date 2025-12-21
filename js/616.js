@@ -1150,8 +1150,7 @@ function initTTS() {
 
 // Initialize on page load
 window.addEventListener('load', initTTS);
-</script>
-	<script>
+
 		// Simple splash screen removal
 setTimeout(function() {
     var splash = document.getElementById('splashScreen');
