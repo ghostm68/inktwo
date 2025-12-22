@@ -127,19 +127,18 @@
     </div>
 </div>
 <script>
-// REPLACE YOUR ENTIRE EXECUTE FUNCTION WITH THIS
 document.getElementById('execBtn').onclick = async () => {
     const btn = document.getElementById('execBtn');
     const out = document.getElementById('output');
     const key = document.getElementById('apiKey').value;
     const prompt = document.getElementById('prompt').value;
-    const model = document.getElementById('modelId').value; // Grabs from the new select
-    const thinkingEnabled = document.getElementById('thinkingMode').checked;
+    
+    // THIS IS THE KEY: 'glm-4-flash' is usually the only one with a free balance
+    const model = "glm-4-flash"; 
 
-    if(!key) return alert("API KEY REQUIRED");
-    localStorage.setItem('zai_2471_key', key);
+    if(!key) return alert("API Key Required");
 
-    out.innerHTML = "ESTABLISHING NEURAL LINK...";
+    out.innerHTML = "SYSTEM: ESTABLISHING FREE-TIER LINK...";
     btn.disabled = true;
 
     try {
@@ -151,25 +150,27 @@ document.getElementById('execBtn').onclick = async () => {
             },
             body: JSON.stringify({
                 model: model,
-                messages: [{ role: "user", content: prompt }],
-                stream: true,
-                temperature: 0.7,
-                // Only send thinking if the user checked the box
-                ...(thinkingEnabled && { thinking: { type: "enabled" } })
+                messages: [
+                    { role: "user", content: prompt }
+                ],
+                // Matching their Java SDK parameters exactly:
+                thinking: { type: "enabled" },
+                max_tokens: 4096,
+                temperature: 0.6,
+                stream: true 
             })
         });
 
         if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`API ${response.status}: ${errBody}`);
+            const errorData = await response.json();
+            // If this says "No Balance", it means even the Flash model needs a top-up
+            throw new Error(errorData.error.message || "Connection Failed");
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullStory = "";
-        let thinkingOutput = "";
-
-        out.innerHTML = ""; // Clear for output
+        out.innerHTML = ""; 
 
         while (true) {
             const { done, value } = await reader.read();
@@ -179,43 +180,37 @@ document.getElementById('execBtn').onclick = async () => {
             const lines = chunk.split("\n");
 
             for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed === "data: [DONE]") continue;
+                if (line.trim().startsWith("data: ")) {
+                    const dataStr = line.trim().slice(6);
+                    if (dataStr === "[DONE]") break;
 
-                if (trimmed.startsWith("data: ")) {
                     try {
-                        const json = JSON.parse(trimmed.slice(6));
-                        const delta = json.choices[0].delta;
+                        const json = JSON.parse(dataStr);
+                        // Catching content from the 'delta' object as per their SDK
+                        const content = json.choices[0].delta.content || "";
+                        const reasoning = json.choices[0].delta.reasoning_content || "";
 
-                        // GLM-4.5/Air often uses 'reasoning_content' for Thinking
-                        const thought = delta.reasoning_content || "";
-                        const content = delta.content || "";
-
-                        if (thought) {
-                            thinkingOutput += thought;
-                            out.innerHTML = `<div style="color:#555; font-style:italic; font-size:0.8rem; border-left: 1px solid #333; padding-left: 10px; margin-bottom: 10px;">THINKING: ${thinkingOutput}</div>` + fullStory;
+                        if (reasoning) {
+                            out.innerHTML = `<div style="color:#555; font-size:0.8rem;">[THINKING]: ${reasoning}</div>` + fullStory;
                         }
-
                         if (content) {
                             fullStory += content;
-                            out.innerHTML = (thinkingOutput ? `<div style="color:#555; font-size:0.8rem; border-left: 1px solid #333; padding-left: 10px; margin-bottom: 10px;">THINKING: ${thinkingOutput}</div>` : "") + 
+                            out.innerHTML = (out.innerHTML.includes("[THINKING]") ? out.innerHTML.split("</div>")[0] + "</div>" : "") + 
                                             `<div style="color:#eee;">${fullStory}</div>`;
                         }
                         out.scrollTop = out.scrollHeight;
-                    } catch (e) {
-                        // Ignore partial JSON chunks
-                    }
+                    } catch (e) {}
                 }
             }
         }
     } catch (err) {
-        out.innerHTML = `<span style="color:var(--red)">INTERFACE ERROR: ${err.message}</span>`;
+        out.innerHTML = `<span style="color:red">TERMINAL ERROR: ${err.message}</span>`;
     } finally {
         btn.disabled = false;
         btn.textContent = "Execute Generation";
     }
 };
-
+</script>
 <script>
     const pulseGrid = document.getElementById('pulseGrid');
     const engineStatus = document.getElementById('engineStatus');
