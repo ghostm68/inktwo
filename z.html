@@ -5,70 +5,158 @@
     <link rel="shortcut icon" href="https://raw.githubusercontent.com/ghostm68/inktwo/main/Images/favicon.ico" />
     <title>2471 | OPENROUTER TERMINAL</title>
     <style>
-        :root { --bg: #0a0a0a; --panel: #121212; --border: #222; --red: #ff4444; --text: #eee; }
-        body { background: var(--bg); color: var(--text); font-family: 'Georgia', serif; margin: 0; padding: 1rem; overflow: hidden; }
-        .container { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 1rem; max-width: 1800px; margin: 0 auto; height: calc(100vh - 80px); }
-        .panel { background: var(--panel); border: 1px solid var(--border); padding: 1.2rem; display: flex; flex-direction: column; position: relative; }
-        h2 { color: var(--red); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; }
-        textarea, input, select { background: #000; color: #fff; border: 1px solid var(--border); padding: 10px; margin-bottom: 1rem; font-family: 'Courier New', monospace; font-size: 0.85rem; }
-        input[type="range"] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: var(--red); }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; background: var(--red); margin-top: -7px; cursor: pointer; }
-        button { background: transparent; color: #fff; border: 1px solid var(--red); padding: 12px; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; transition: 0.2s; }
-        button:hover { background: var(--red); color: #000; font-weight: bold; }
-        #output-area { flex: 1; background: #050505; padding: 15px; border: 1px solid #1a1a1a; overflow-y: auto; font-size: 0.95rem; line-height: 1.7; white-space: pre-wrap; }
-        #notepad { flex: 1; background: #050505; border: 1px solid #1a1a1a; resize: none; color: #aaa; }
+        :root { 
+            --bg: #0a0a0a; 
+            --panel: #121212; 
+            --border: #222; 
+            --red: #ff4444; 
+            --text: #eee; 
+            --dim: #444;
+        }
+
+        /* CUSTOM 2471 SCROLLBARS */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #222; border: 1px solid var(--red); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Georgia', serif; 
+            margin: 0; 
+            padding: 1rem; 
+            /* FIXED: Allow body to scroll if needed, but contain the app */
+            overflow-x: hidden;
+            overflow-y: auto; 
+        }
+
+        .container { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1.2fr; 
+            gap: 1rem; 
+            max-width: 1800px; 
+            margin: 0 auto; 
+            /* FIXED: Use min-height so it doesn't crush on small screens */
+            min-height: 90vh; 
+        }
+
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .panel { 
+            background: var(--panel); 
+            border: 1px solid var(--border); 
+            padding: 1.2rem; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative;
+            min-height: 500px; /* Ensures panels stay substantial */
+        }
+
+        h2 { 
+            color: var(--red); 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 10px; 
+            margin-top: 0; 
+        }
+
+        textarea, input, select { 
+            background: #000; 
+            color: #fff; 
+            border: 1px solid var(--border); 
+            padding: 10px; 
+            margin-bottom: 1rem; 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+        }
+
+        #output-area { 
+            flex: 1; 
+            background: #050505; 
+            padding: 15px; 
+            border: 1px solid #1a1a1a; 
+            overflow-y: scroll; /* FIXED: Always show scroll potential */
+            font-size: 0.95rem; 
+            line-height: 1.7; 
+            white-space: pre-wrap;
+            max-height: 60vh; /* Limits height to force scrolling */
+        }
+
+        #notepad { 
+            flex: 1; 
+            background: #050505; 
+            border: 1px solid #1a1a1a; 
+            resize: vertical; 
+            color: #ccc; 
+            overflow-y: auto;
+        }
+
+        /* KALI GRAPH */
         .kali-container { display: flex; align-items: flex-end; gap: 2px; height: 30px; margin-top: 10px; padding: 5px; background: #000; }
         .kali-bar { width: 5px; background: #222; background-image: linear-gradient(to bottom, rgba(0,0,0,0.5) 1px, transparent 1px); background-size: 100% 3px; transition: height 0.1s ease; }
         .active-engine .kali-bar { background-color: var(--red); }
+
+        button { background: transparent; color: #fff; border: 1px solid var(--red); padding: 12px; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; transition: 0.2s; margin-top: 5px;}
+        button:hover { background: var(--red); color: #000; font-weight: bold; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .status-footer { text-align: center; color: var(--dim); font-size: 0.6rem; padding: 20px; text-transform: uppercase; letter-spacing: 3px; }
     </style>
 </head>
 <body>
 
-    <div style="text-align: center; margin-bottom: 10px;">
-        <h1 style="margin:0; font-size: 1.2rem; letter-spacing: 5px; color: var(--text);">PROTOCOL 2471</h1>
+    <div style="text-align: center; margin-bottom: 15px;">
+        <h1 style="margin:0; font-size: 1.2rem; letter-spacing: 8px; color: var(--text);">PROTOCOL 2471</h1>
+        <div style="font-size: 0.6rem; color: var(--dim);">NEURAL INTERFACE // JOYCEAN LOOP ENABLED</div>
     </div>
 
     <div class="container">
+        <!-- ARCHIVE -->
         <div class="panel">
             <h2>Archive / Notepad</h2>
-            <textarea id="notepad" placeholder="Storage for generated artifacts..."></textarea>
-            <button id="exportBtn" style="margin-top:10px;">Export TXT</button>
+            <textarea id="notepad" placeholder="Awaiting manual entry or transfer..."></textarea>
+            <button id="exportBtn">Export Archive (.txt)</button>
         </div>
 
+        <!-- CONSOLE -->
         <div class="panel">
-            <h2>OpenRouter Console</h2>
-            <label style="font-size: 0.6rem; color: #666;">OPENROUTER API KEY</label>
+            <h2>Command Console</h2>
+            <label style="font-size: 0.6rem; color: var(--dim);">OPENROUTER_KEY</label>
             <input type="password" id="apiKey" placeholder="sk-or-...">
             
-            <label style="font-size: 0.6rem; color: #666;">ACTIVE MODEL</label>
+            <label style="font-size: 0.6rem; color: var(--dim);">TARGET_MODEL</label>
             <input type="text" id="modelId" value="z-ai/glm-4.5-air:free" readonly style="color:var(--red); border-color:var(--red)">
 
-            <label style="font-size: 0.6rem; color: #666;">NARRATIVE PARAMETERS</label>
-            <textarea id="prompt" style="height: 120px;" placeholder="Input story seed..."></textarea>
+            <label style="font-size: 0.6rem; color: var(--dim);">NARRATIVE_SEED</label>
+            <textarea id="prompt" style="height: 150px;" placeholder="Input parameters..."></textarea>
 
-            <label style="font-size: 0.6rem; color: #666;">ENTROPY: <span id="tempDisp">0.7</span></label>
-            <input type="range" id="temp" min="0" max="1" step="0.1" value="0.7">
-
-            <button id="execBtn" style="margin-top: 10px; font-size: 0.9rem;">Execute Generation</button>
+            <button id="execBtn" style="font-size: 0.9rem; font-weight: bold;">Execute Generation</button>
         </div>
 
+        <!-- OUTPUT -->
         <div class="panel" id="outputPanel">
-            <h2>System Output</h2>
-            <div id="output-area">Terminal Standby...</div>
+            <h2>Neural Output</h2>
+            <div id="output-area">Terminal Standby... Ready for cycle.</div>
             <div class="kali-container" id="kaliGrid"></div>
-            <button id="transferBtn" style="margin-top:10px;" disabled>➔ Transfer to Archive</button>
+            <button id="transferBtn" disabled>Transfer to Archive ➔</button>
         </div>
     </div>
 
-    <script>
-        const tempInput = document.getElementById('temp');
-        tempInput.oninput = () => document.getElementById('tempDisp').innerText = tempInput.value;
+    <div class="status-footer">
+        Riverrun, past Eve and Adam's, from swerve of shore to bend of bay...
+    </div>
 
+    <script>
         const savedKey = localStorage.getItem('2471_or_key');
         if(savedKey) document.getElementById('apiKey').value = savedKey;
 
-        for(let i=0; i<30; i++) {
+        // Generate Kali Grid
+        for(let i=0; i<35; i++) {
             const bar = document.createElement('div');
             bar.className = 'kali-bar';
             document.getElementById('kaliGrid').appendChild(bar);
@@ -76,12 +164,11 @@
 
         let engineActive = false;
         setInterval(() => {
-            const bars = document.querySelectorAll('.kali-bar');
-            bars.forEach(bar => {
-                const h = engineActive ? (Math.random() * 80 + 20) : (Math.random() * 10 + 5);
+            document.querySelectorAll('.kali-bar').forEach(bar => {
+                const h = engineActive ? (Math.random() * 85 + 15) : (Math.random() * 12 + 3);
                 bar.style.height = h + '%';
             });
-        }, 100);
+        }, 80);
 
         document.getElementById('execBtn').onclick = async () => {
             const btn = document.getElementById('execBtn');
@@ -89,12 +176,12 @@
             const key = document.getElementById('apiKey').value.trim();
             const prompt = document.getElementById('prompt').value.trim();
 
-            if(!key || !prompt) return alert("Credentials Missing.");
+            if(!key || !prompt) return alert("System Error: Credentials/Prompt Missing.");
             localStorage.setItem('2471_or_key', key);
 
             btn.disabled = true;
-            btn.textContent = "Routing...";
-            out.innerHTML = "<span style='color:#444'>Handshaking with OpenRouter...</span>";
+            btn.textContent = "Processing...";
+            out.innerHTML = "<span style='color:#444'>Accessing OpenRouter Gateway...</span>";
             engineActive = true;
             document.getElementById('outputPanel').classList.add('active-engine');
 
@@ -105,13 +192,13 @@
                         "Authorization": `Bearer ${key}`,
                         "Content-Type": "application/json",
                         "HTTP-Referer": "https://inkrealm.info",
-                        "X-Title": "2471 Terminal"
+                        "X-Title": "2471 Joyce Terminal"
                     },
                     body: JSON.stringify({
                         model: "z-ai/glm-4.5-air:free",
                         messages: [{ role: "user", content: prompt }],
                         stream: true,
-                        temperature: parseFloat(tempInput.value)
+                        temperature: 0.8
                     })
                 });
 
@@ -145,7 +232,7 @@
                 }
                 document.getElementById('transferBtn').disabled = false;
             } catch (err) {
-                out.innerHTML = `<span style="color:var(--red)">ROUTING FAILURE: ${err.message}</span>`;
+                out.innerHTML = `<span style="color:var(--red)">CRITICAL ERROR: ${err.message}</span>`;
             } finally {
                 btn.disabled = false;
                 btn.textContent = "Execute Generation";
@@ -155,7 +242,17 @@
         };
 
         document.getElementById('transferBtn').onclick = () => {
-            document.getElementById('notepad').value += "\n\n--- INCOMING TRANSMISSION ---\n" + document.getElementById('output-area').innerText;
+            const note = document.getElementById('notepad');
+            note.value += (note.value ? "\n\n" : "") + document.getElementById('output-area').innerText;
+            note.scrollTop = note.scrollHeight;
+        };
+
+        document.getElementById('exportBtn').onclick = () => {
+            const blob = new Blob([document.getElementById('notepad').value], {type: "text/plain"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "2471_joycean_archive.txt";
+            a.click();
         };
     </script>
 </body>
