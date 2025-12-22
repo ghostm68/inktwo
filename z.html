@@ -126,29 +126,35 @@
         <!-- 12-15 bars look best -->
     </div>
 </div>
+
 <script>
     const tempInput = document.getElementById('temp');
     tempInput.oninput = () => document.getElementById('tempVal').innerText = tempInput.value;
 
-    // Load saved key
     const savedKey = localStorage.getItem('zai_2471_key');
     if(savedKey) document.getElementById('apiKey').value = savedKey;
 
     document.getElementById('execBtn').onclick = async () => {
+        const btn = document.getElementById('execBtn');
+        const out = document.getElementById('output');
         const key = document.getElementById('apiKey').value;
         const prompt = document.getElementById('prompt').value;
         const model = document.getElementById('modelId').value;
-        const thinking = document.getElementById('thinkingMode').checked;
-        const out = document.getElementById('output');
+        const thinkingEnabled = document.getElementById('thinkingMode').checked;
         
         if(!key) return alert("Missing API Key");
         localStorage.setItem('zai_2471_key', key);
 
-        out.innerHTML = ""; // Clear previous output
-        document.getElementById('execBtn').disabled = true;
+        out.innerHTML = "Establishing Link...";
+        btn.disabled = true;
+        btn.textContent = "Processing...";
 
         try {
-            const response = await fetch("https://corsproxy.io/?https://api.z.ai/api/paas/v4/chat/completions", {
+            // Using an alternative proxy method that handles streams better
+            const apiUrl = "https://api.z.ai/api/paas/v4/chat/completions";
+            const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(apiUrl);
+
+            const response = await fetch(proxyUrl, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${key}`,
@@ -158,48 +164,69 @@
                     model: model,
                     messages: [{ role: "user", content: prompt }],
                     temperature: parseFloat(tempInput.value),
-                    thinking: thinking ? { type: "enabled" } : undefined,
-                    stream: true // ENABLE STREAMING
+                    // Only send thinking if enabled; some models error if it's sent as 'false'
+                    ...(thinkingEnabled && { thinking: { type: "enabled" } }),
+                    stream: true 
                 })
             });
+
+            if (!response.ok) {
+                const errData = await response.text();
+                throw new Error(`API Error ${response.status}: ${errData}`);
+            }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullText = "";
+            out.innerHTML = ""; // Clear for real output
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 
-                const chunk = decoder.decode(value);
+                const chunk = decoder.decode(value, { stream: true });
+                // Z.ai chunks are separated by "data: "
                 const lines = chunk.split("\n");
                 
                 for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        const dataStr = line.slice(6);
-                        if (dataStr === "[DONE]") break;
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed === "data: [DONE]") continue;
+                    
+                    if (trimmed.startsWith("data: ")) {
                         try {
-                            const json = JSON.parse(dataStr);
-                            const content = json.choices[0].delta.content || "";
-                            fullText += content;
-                            out.innerText = fullText; // Live update
-                            out.scrollTop = out.scrollHeight; // Auto-scroll
-                        } catch (e) {}
+                            const json = JSON.parse(trimmed.slice(6));
+                            const delta = json.choices[0].delta;
+                            
+                            // Catch standard content OR reasoning/thinking content
+                            const newBits = delta.content || delta.reasoning_content || "";
+                            
+                            if (newBits) {
+                                fullText += newBits;
+                                out.innerText = fullText;
+                                out.scrollTop = out.scrollHeight;
+                            }
+                        } catch (e) {
+                            console.log("Chunk parse error", e);
+                        }
                     }
                 }
             }
             document.getElementById('transferBtn').disabled = false;
         } catch (err) {
-            out.innerText = "Fatal Error: " + err.message;
+            console.error(err);
+            out.innerHTML = `<span style="color:var(--red)">SYSTEM ERROR: ${err.message}</span>`;
         } finally {
-            document.getElementById('execBtn').disabled = false;
+            btn.disabled = false;
+            btn.textContent = "Execute Generation";
         }
     };
 
     document.getElementById('transferBtn').onclick = () => {
-        document.getElementById('notepad').value += "\n\n" + document.getElementById('output').innerText;
+        const note = document.getElementById('notepad');
+        note.value += (note.value ? "\n\n" : "") + document.getElementById('output').innerText;
     };
 </script>
+
 
 <script>
     const pulseGrid = document.getElementById('pulseGrid');
