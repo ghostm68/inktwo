@@ -288,14 +288,20 @@ ok<!DOCTYPE html>
          onclick="this.classList.toggle('expanded')"
          title="Click to Enlarge">
         </div> 
-       <div class="header-center">
-<div class="header-center">
-  <select id="model-select">
+ <select id="model-select">
     <option value="deepseek/deepseek-chat:free">DEEPSEEK</option>
     <option value="amazon/nova-lite-v1:free">NOVA LITE</option>
     <option value="moonshotai/kimi-k2:free">KIMI K2</option>
     <option value="openai">GPTiv</option>
+    <!-- New Options -->
+    <option value="dolphin-openrouter">DOLPHIN</option>
+    <option value="dolphin-venice">Venice AI Direct</option>
 </select>
+
+<!-- Add this key area right after the select or in the header-center -->
+<div id="byok-keys" style="display:none; margin-left:10px; gap:5px;">
+    <input type="password" id="or-key" placeholder="OR KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+    <input type="password" id="v-key" placeholder="VENICE KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
 </div>
 </div>
         <div class="status-indicator">
@@ -721,7 +727,108 @@ setInterval(updateNewsFeed, 5 * 60 * 1000);   // every 5 minutes
 setInterval(updateMarketFeed, 60 * 1000);     // every 1 minute
 
 </script>
+<!-- DOLPHIN BYOK EXPANSION MODULE -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Reference the existing app instance
+    const terminal = window.app;
 
+    // 2. Logic to show/hide keys based on selection
+    const modelSelect = document.getElementById("model-select");
+    const keyArea = document.getElementById("byok-keys");
+    
+    modelSelect.addEventListener("change", (e) => {
+        keyArea.style.display = e.target.value.includes("dolphin") ? "flex" : "none";
+    });
+
+    // 3. Persistent Key Storage
+    document.getElementById("or-key").value = localStorage.getItem("ink_or_key") || "";
+    document.getElementById("v-key").value = localStorage.getItem("ink_v_key") || "";
+    
+    document.getElementById("or-key").addEventListener("change", (e) => localStorage.setItem("ink_or_key", e.target.value));
+    document.getElementById("v-key").addEventListener("change", (e) => localStorage.setItem("ink_v_key", e.target.value));
+
+    // 4. Create the Direct Dolphin Call Methods
+    terminal.callOpenRouter = async function(prompt) {
+        const key = document.getElementById("or-key").value;
+        if (!key) throw new Error("PASTE OPENROUTER KEY");
+        
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+                messages: [{role: "system", content: this.systemPrompt}, {role: "user", content: prompt}]
+            })
+        });
+        const data = await res.json();
+        return data.choices[0].message.content;
+    };
+
+    terminal.callVenice = async function(prompt) {
+        const key = document.getElementById("v-key").value;
+        if (!key) throw new Error("PASTE VENICE KEY");
+
+        const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "venice-uncensored",
+                messages: [{role: "system", content: this.systemPrompt}, {role: "user", content: prompt}],
+                venice_parameters: { include_venice_system_prompt: false }
+            })
+        });
+        const data = await res.json();
+        return data.choices[0].message.content;
+    };
+
+    // 5. Intercept the Original Generate function
+    const originalGenerate = terminal.generate.bind(terminal);
+
+    terminal.generate = async function() {
+        const selection = document.getElementById("model-select").value;
+        
+        // If it's a standard model, use the original script logic
+        if (!selection.includes("dolphin")) {
+            return originalGenerate();
+        }
+
+        // If it's Dolphin, use the new BYOK logic
+        if (this.isGenerating) return;
+        const input = document.getElementById("text-input");
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        this.isGenerating = true;
+        document.getElementById("send-button").disabled = true;
+        this.addMessage("user", prompt);
+        input.value = "";
+        const loadingId = this.addLoading();
+
+        try {
+            let text;
+            if (selection === "dolphin-openrouter") {
+                text = await this.callOpenRouter(prompt);
+            } else {
+                text = await this.callVenice(prompt);
+            }
+
+            this.removeLoading(loadingId);
+            const msgEl = this.addMessage("ai", "");
+            const contentEl = msgEl.querySelector(".message-content");
+            // Uses your existing typeText global function
+            typeText(contentEl, text);
+
+        } catch (err) {
+            this.removeLoading(loadingId);
+            this.addMessage("ai", `[BYOK ERROR] ${err.message}`);
+        } finally {
+            this.isGenerating = false;
+            document.getElementById("send-button").disabled = false;
+        }
+    };
+});
+</script>
 
 </body>
 </html>
