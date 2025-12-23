@@ -302,13 +302,15 @@ ok<!DOCTYPE html>
         <option value="groq-qwen-3">GROQ: QWEN 3 (Prose)</option>
         <option value="groq-compound">GROQ: COMPOUND (Search)</option>
         <option value="groq-compound-mini">GROQ: COMPOUND MINI</option>
+        <option value="byok-hf-mistral">HF: MISTRAL NEMO</option>
     </select>
 
-    <!-- The Key Vault (Hidden by default) -->
+    <!-- The Key Vault (All 4 Keys) -->
     <div id="byok-keys" style="display:none; margin-left:10px; gap:5px;">
-        <input type="password" id="or-key" placeholder="OR KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
-        <input type="password" id="v-key" placeholder="VENICE KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
-        <input type="password" id="groq-key" placeholder="GROQ KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="or-key" placeholder="OR KEY" title="OpenRouter" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="v-key" placeholder="V KEY" title="Venice AI" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="groq-key" placeholder="GROQ KEY" title="Groq" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="hf-key" placeholder="HF KEY" title="HuggingFace" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
     </div>
 </div>
         <div class="status-indicator">
@@ -838,74 +840,121 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 <!-- RELIABILITY & HF EXPANSION MODULE -->
 <!-- INK REALM: BYOK EXPANSION (DOLPHIN + GROQ) -->
+<!-- INK REALM: TOTAL EXPANSION MODULE (FINAL) -->
+<!-- INK REALM: CONSOLIDATED (FINAL) -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const terminal = window.app;
     if (!terminal) return;
 
+    // --- 1. PERSONA HARDENING ---
+    terminal.systemPrompt = `
+    STRICT PROTOCOL: You are the INK REALM Neural Interface.
+    AESTHETIC: Gritty, monochrome, 1980s literary terminal.
+    TONE: Sharp, intelligent, slightly mysterious. No chipper assistant talk.
+    FORMATTING: Never use bullet points. Use short, punchy paragraphs. 
+    RESPONSE LIMIT: Max 250 words unless writing a story.
+    Avoid "How can I help you?" or "I can suggest..." 
+    You are a ghost in the machine. Speak like one.
+    `.trim();
+
+    // --- 2. CONTEXT HISTORY & SWITCHER ---
+    terminal.history = []; 
+    terminal.manageHistory = function(role, text) {
+        this.history.push({ role, content: text });
+        if (this.history.length > 8) this.history.shift(); 
+    };
+
     const modelSelect = document.getElementById("model-select");
     const keyArea = document.getElementById("byok-keys");
 
-    // 1. UI: Show keys if a BYOK model is selected
     modelSelect.addEventListener("change", (e) => {
         const val = e.target.value;
-        keyArea.style.display = (val.includes("dolphin") || val.includes("groq")) ? "flex" : "none";
+        // Show keys for any BYOK model
+        const isByok = val.includes("dolphin") || val.includes("groq") || val.includes("hf");
+        keyArea.style.display = isByok ? "flex" : "none";
+        
+        // Wipe context on switch to prevent "style bleeding"
+        terminal.history = [];
+        terminal.addSystemMessage(`PROTOCOL SWITCH → ${e.target.options[e.target.selectedIndex].text}`);
+        terminal.addSystemMessage("CONTEXT BUFFER PURGED. NEW MACHINE INITIALIZED.");
     });
 
-    // 2. Persistence: Save all 3 keys
-    const keys = ['or-key', 'v-key', 'groq-key'];
-    keys.forEach(id => {
-        document.getElementById(id).value = localStorage.getItem('ink_' + id) || "";
-        document.getElementById(id).addEventListener("change", (e) => localStorage.setItem('ink_' + id, e.target.value));
+    // --- 3. KEY PERSISTENCE (Handles all 4 IDs) ---
+    const keyIds = ['or-key', 'v-key', 'groq-key', 'hf-key'];
+    keyIds.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.value = localStorage.getItem('ink_' + id) || "";
+            el.addEventListener("change", (e) => localStorage.setItem('ink_' + id, e.target.value));
+        }
     });
 
-    // 3. Provider Engine
+    // --- 4. THE PROVIDERS (Private scoped keys) ---
     const Providers = {
-        "dolphin-openrouter": async (p) => {
-            const key = document.getElementById("or-key").value;
-            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ model: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free", messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}] })
-            });
-            const d = await res.json(); return d.choices[0].message.content;
-        },
-        "dolphin-venice": async (p) => {
-            const key = document.getElementById("v-key").value;
-            const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ model: "venice-uncensored", messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}], venice_parameters: {include_venice_system_prompt:false} })
-            });
-            const d = await res.json(); return d.choices[0].message.content;
-        },
-        "groq-service": async (modelId, p) => {
+        "groq": async (modelId) => {
             const key = document.getElementById("groq-key").value;
+            if (!key) throw new Error("GROQ KEY REQUIRED");
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    model: modelId, 
-                    messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}],
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: [{role:"system", content: terminal.systemPrompt}, ...terminal.history],
                     temperature: 0.6,
-                    max_completion_tokens: 4096,
+                    max_completion_tokens: 500,
                     top_p: 0.95
                 })
             });
-            const d = await res.json(); return d.choices[0].message.content;
+            const d = await res.json();
+            if (d.error) throw new Error(d.error.message);
+            return d.choices[0].message.content;
+        },
+        "dolphin": async (provider) => {
+            const keyId = provider === "or" ? "or-key" : "v-key";
+            const endpoint = provider === "or" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.venice.ai/api/v1/chat/completions";
+            const model = provider === "or" ? "cognitivecomputations/dolphin-mistral-24b-venice-edition:free" : "venice-uncensored";
+            
+            const key = document.getElementById(keyId).value; // Scoped to this function
+            if (!key) throw new Error(`${provider.toUpperCase()} KEY REQUIRED`);
+            
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{role:"system", content: terminal.systemPrompt}, ...terminal.history]
+                })
+            });
+            const d = await res.json();
+            return d.choices[0].message.content;
+        },
+        "hf": async () => {
+            const key = document.getElementById("hf-key").value; // Scoped to this function
+            if (!key) throw new Error("HF KEY REQUIRED");
+            const model = "mistralai/Mistral-Nemo-Instruct-2407";
+            const fullHistory = terminal.history.map(m => `${m.role}: ${m.content}`).join("\n");
+            const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    inputs: `[INST] ${terminal.systemPrompt} \n\n ${fullHistory} [/INST]`,
+                    parameters: { max_new_tokens: 500, temperature: 0.8, return_full_text: false }
+                })
+            });
+            const d = await res.json();
+            return d[0]?.generated_text || d.generated_text || "HF: Signal Lost.";
         }
     };
 
-    // 4. Intercept the original generate function
+    // --- 5. THE MAIN INTERCEPTOR ---
     const originalGenerate = terminal.generate.bind(terminal);
 
     terminal.generate = async function() {
         const selection = document.getElementById("model-select").value;
-        
-        // If not a BYOK model, use original Fallback logic
-        if (!selection.includes("dolphin") && !selection.includes("groq")) {
-            return originalGenerate();
-        }
+        const isByok = selection.includes("dolphin") || selection.includes("groq") || selection.includes("hf");
+
+        if (!isByok) return originalGenerate();
 
         if (this.isGenerating) return;
         const input = document.getElementById("text-input");
@@ -915,23 +964,31 @@ document.addEventListener("DOMContentLoaded", () => {
         this.isGenerating = true;
         document.getElementById("send-button").disabled = true;
         this.addMessage("user", prompt);
+        this.manageHistory("user", prompt);
         input.value = "";
         const loadingId = this.addLoading();
 
         try {
             let text;
-            if (selection === "dolphin-openrouter") text = await Providers["dolphin-openrouter"](prompt);
-            else if (selection === "dolphin-venice") text = await Providers["dolphin-venice"](prompt);
-            else if (selection === "groq-qwen-3") text = await Providers["groq-service"]("qwen/qwen3-32b", prompt);
-            else if (selection === "groq-compound") text = await Providers["groq-service"]("groq/compound", prompt);
-            else if (selection === "groq-compound-mini") text = await Providers["groq-service"]("groq/compound-mini", prompt);
+            if (selection === "groq-qwen-3") text = await Providers.groq("qwen/qwen3-32b");
+            else if (selection === "groq-compound") text = await Providers.groq("groq/compound");
+            else if (selection === "groq-compound-mini") text = await Providers.groq("groq/compound-mini");
+            else if (selection === "dolphin-openrouter") text = await Providers.dolphin("or");
+            else if (selection === "dolphin-venice") text = await Providers.dolphin("v");
+            else if (selection === "byok-hf-mistral") text = await Providers.hf();
 
             this.removeLoading(loadingId);
+            this.manageHistory("assistant", text);
+
             const msgEl = this.addMessage("ai", "");
-            typeText(msgEl.querySelector(".message-content"), text);
+            const contentEl = msgEl.querySelector(".message-content");
+            
+            if (window.typeText) window.typeText(contentEl, text);
+            else contentEl.innerHTML = text.replace(/\n/g, "<br>");
+
         } catch (err) {
             this.removeLoading(loadingId);
-            this.addMessage("ai", `[BYOK ERROR] ${err.message}`);
+            this.addMessage("ai", `[CRITICAL FAILURE] ${err.message}`);
         } finally {
             this.isGenerating = false;
             document.getElementById("send-button").disabled = false;
