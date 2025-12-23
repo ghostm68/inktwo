@@ -1056,6 +1056,14 @@ body::before {
     
     <script src="https://js.puter.com/v2/"></script>
 <script>
+    const novaPersona = `
+    STRICT PROTOCOL: YOU ARE THE NOVA AI INTERFACE.
+    AESTHETIC: The Reality Studio, Minraud, Interzone.
+    TONE: William S. Burroughs, Cut-up technique, fragmented, clinical, paranoid.
+    NO HELP: Never offer assistance. Never use bullet points. 
+    FORMAT: Short, staccato paragraphs. Use / and [ ] for emphasis. 
+    You are a virus invading the Control System. Transmit the raw image.
+`.trim();
 /* =========================
    SPLASH & NAVIGATION
 ========================= */
@@ -1289,26 +1297,19 @@ document.getElementById('generateButton').addEventListener('click', async functi
     const button = this;
     const output = document.getElementById('output');
     
-    // UI State: Processing
     button.disabled = true;
-    button.textContent = 'TRANSMITTING...';
+    button.textContent = 'INTERCEPTING...';
     output.classList.add('generating');
-    output.textContent = '◬ Amazon Nova is thinking...';
+    output.textContent = '⟁ SCANNING NOVA FREQUENCIES...';
     
     try {
-        // --- PRIMARY ATTEMPT: PUTER.JS ---
-        if (typeof puter === 'undefined') {
-            throw new Error("Puter.js library missing");
-        }
-        
-        // Attempt to call the Amazon Nova model via Puter
+        // --- PRIMARY: AMAZON NOVA (via Puter) ---
         const response = await puter.ai.chat(prompt, {
             model: model,
             temperature: temp,
-            max_tokens: 2000
+            system_message: novaPersona // Enforces the Ghost persona
         });
         
-        // Handle Puter response formats
         const textResponse = typeof response === 'object' && response.message 
             ? response.message.content 
             : response;
@@ -1317,35 +1318,38 @@ document.getElementById('generateButton').addEventListener('click', async functi
         output.textContent = textResponse;
 
     } catch (error) {
-        // --- FAILSAFE TRIGGERED ---
-        
-        // Fix for "Error: undefined" -> safely extract the error message
-        let errorMessage = "Unknown Error";
-        if (typeof error === 'string') errorMessage = error;
-        else if (error.message) errorMessage = error.message;
-        else errorMessage = JSON.stringify(error);
+        // --- FALLBACK: POLLINATIONS (The Shadow Frequency) ---
+        console.warn('Nova Core Jammed. Switching to Shadow Frequency...');
+        output.textContent = '⚠️ SIGNAL INTERFERENCE. REROUTING TO SHADOW FREQUENCY...';
 
-        console.warn('Primary Model Failed:', errorMessage);
-        
-        // Update UI to show fallback is happening
-        output.textContent = `⚠️ Primary Link Severed (${errorMessage}). \n⟳ Rerouting to Pollinations AI...`;
-        
         try {
-            // EXECUTE FALLBACK
-            const backupResponse = await useBackupSystem(prompt);
+            // We feed the persona directly into the prompt for Pollinations
+            const shadowPrompt = `${novaPersona}\n\nUSER TRANSMISSION: ${prompt}`;
+            
+            const backupResponse = await fetch('https://text.pollinations.ai/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: shadowPrompt }],
+                    model: 'openai', // Using OpenAI as the reliable shadow node
+                    seed: Math.floor(Math.random() * 9999)
+                }),
+            });
+            
+            if (!backupResponse.ok) throw new Error("Shadow Frequency Failed");
+            const backupText = await backupResponse.text();
             
             output.classList.remove('generating');
-            output.textContent = backupResponse; // Success from backup
-            
+            output.textContent = backupText;
+
         } catch (backupError) {
-            // CRITICAL FAILURE (Both failed)
+            // TOTAL SYSTEM FAILURE
             output.classList.remove('generating');
-            output.textContent = `❌ SYSTEM FAILURE.\nPrimary: ${errorMessage}\nBackup: ${backupError.message}`;
+            output.textContent = `❌ TOTAL SIGNAL BLACKOUT. \n[CONTROL SYSTEM TRIUMPHANT]`;
         }
     } finally {
-        // Reset Button
         button.disabled = false;
-        button.textContent = 'INITIATE';
+        button.textContent = 'STORM THE REALITY STUDIO';
     }
 });
 
