@@ -288,21 +288,28 @@ ok<!DOCTYPE html>
          onclick="this.classList.toggle('expanded')"
          title="Click to Enlarge">
         </div> 
- <select id="model-select">
-    <option value="deepseek/deepseek-chat:free">DEEPSEEK</option>
-    <option value="amazon/nova-lite-v1:free">NOVA LITE</option>
-    <option value="moonshotai/kimi-k2:free">KIMI K2</option>
-    <option value="openai">GPTiv</option>
-    <!-- New Options -->
-    <option value="dolphin-openrouter">DOLPHIN</option>
-    <option value="dolphin-venice">Venice AI Direct</option>
-</select>
+<div class="header-center" style="display:flex; align-items:center;">
+    <select id="model-select">
+        <!-- Original Fallback Models -->
+        <option value="deepseek/deepseek-chat:free">DEEPSEEK</option>
+        <option value="amazon/nova-lite-v1:free">NOVA LITE</option>
+        <option value="moonshotai/kimi-k2:free">KIMI K2</option>
+        <option value="openai">GPTiv</option>
+        
+        <!-- BYOK Models -->
+        <option value="dolphin-openrouter">DOLPHIN (OpenRouter)</option>
+        <option value="dolphin-venice">DOLPHIN (Venice Direct)</option>
+        <option value="groq-qwen-3">GROQ: QWEN 3 (Prose)</option>
+        <option value="groq-compound">GROQ: COMPOUND (Search)</option>
+        <option value="groq-compound-mini">GROQ: COMPOUND MINI</option>
+    </select>
 
-<!-- Add this key area right after the select or in the header-center -->
-<div id="byok-keys" style="display:none; margin-left:10px; gap:5px;">
-    <input type="password" id="or-key" placeholder="OR KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
-    <input type="password" id="v-key" placeholder="VENICE KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
-</div>
+    <!-- The Key Vault (Hidden by default) -->
+    <div id="byok-keys" style="display:none; margin-left:10px; gap:5px;">
+        <input type="password" id="or-key" placeholder="OR KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="v-key" placeholder="VENICE KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+        <input type="password" id="groq-key" placeholder="GROQ KEY" style="background:#111; color:#fff; border:1px solid #333; font-size:10px; width:70px;">
+    </div>
 </div>
         <div class="status-indicator">
             <span id="status-text">CONNECTING</span>
@@ -829,6 +836,108 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 });
 </script>
+<!-- RELIABILITY & HF EXPANSION MODULE -->
+<!-- INK REALM: BYOK EXPANSION (DOLPHIN + GROQ) -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const terminal = window.app;
+    if (!terminal) return;
 
+    const modelSelect = document.getElementById("model-select");
+    const keyArea = document.getElementById("byok-keys");
+
+    // 1. UI: Show keys if a BYOK model is selected
+    modelSelect.addEventListener("change", (e) => {
+        const val = e.target.value;
+        keyArea.style.display = (val.includes("dolphin") || val.includes("groq")) ? "flex" : "none";
+    });
+
+    // 2. Persistence: Save all 3 keys
+    const keys = ['or-key', 'v-key', 'groq-key'];
+    keys.forEach(id => {
+        document.getElementById(id).value = localStorage.getItem('ink_' + id) || "";
+        document.getElementById(id).addEventListener("change", (e) => localStorage.setItem('ink_' + id, e.target.value));
+    });
+
+    // 3. Provider Engine
+    const Providers = {
+        "dolphin-openrouter": async (p) => {
+            const key = document.getElementById("or-key").value;
+            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free", messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}] })
+            });
+            const d = await res.json(); return d.choices[0].message.content;
+        },
+        "dolphin-venice": async (p) => {
+            const key = document.getElementById("v-key").value;
+            const res = await fetch("https://api.venice.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ model: "venice-uncensored", messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}], venice_parameters: {include_venice_system_prompt:false} })
+            });
+            const d = await res.json(); return d.choices[0].message.content;
+        },
+        "groq-service": async (modelId, p) => {
+            const key = document.getElementById("groq-key").value;
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    model: modelId, 
+                    messages: [{role:"system", content: terminal.systemPrompt}, {role:"user", content:p}],
+                    temperature: 0.6,
+                    max_completion_tokens: 4096,
+                    top_p: 0.95
+                })
+            });
+            const d = await res.json(); return d.choices[0].message.content;
+        }
+    };
+
+    // 4. Intercept the original generate function
+    const originalGenerate = terminal.generate.bind(terminal);
+
+    terminal.generate = async function() {
+        const selection = document.getElementById("model-select").value;
+        
+        // If not a BYOK model, use original Fallback logic
+        if (!selection.includes("dolphin") && !selection.includes("groq")) {
+            return originalGenerate();
+        }
+
+        if (this.isGenerating) return;
+        const input = document.getElementById("text-input");
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        this.isGenerating = true;
+        document.getElementById("send-button").disabled = true;
+        this.addMessage("user", prompt);
+        input.value = "";
+        const loadingId = this.addLoading();
+
+        try {
+            let text;
+            if (selection === "dolphin-openrouter") text = await Providers["dolphin-openrouter"](prompt);
+            else if (selection === "dolphin-venice") text = await Providers["dolphin-venice"](prompt);
+            else if (selection === "groq-qwen-3") text = await Providers["groq-service"]("qwen/qwen3-32b", prompt);
+            else if (selection === "groq-compound") text = await Providers["groq-service"]("groq/compound", prompt);
+            else if (selection === "groq-compound-mini") text = await Providers["groq-service"]("groq/compound-mini", prompt);
+
+            this.removeLoading(loadingId);
+            const msgEl = this.addMessage("ai", "");
+            typeText(msgEl.querySelector(".message-content"), text);
+        } catch (err) {
+            this.removeLoading(loadingId);
+            this.addMessage("ai", `[BYOK ERROR] ${err.message}`);
+        } finally {
+            this.isGenerating = false;
+            document.getElementById("send-button").disabled = false;
+        }
+    };
+});
+</script>
 </body>
 </html>
