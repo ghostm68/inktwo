@@ -1712,54 +1712,92 @@ const status = document.getElementById('download-status');
 const bar = document.getElementById('progress-bar');
 const percent = document.getElementById('progress-percent');
 const output = document.getElementById('output');
+const generateBtn = document.getElementById('generateButton');
+
+// 1. SAVE THE ORIGINAL CLOUD LOGIC
+const cloudLogic = generateBtn.onclick;
 
 btn.onclick = async () => {
     try {
-        if (!navigator.gpu) throw new Error("WEBGPU NOT SUPPORTED.");
+        // 2. HARDWARE PROBE (The Shield)
+        if (!navigator.gpu) {
+            throw new Error("WebGPU API not found. Use a modern browser like Chrome.");
+        }
 
-        btn.style.display = 'none';
+        // PHYSICAL PROBE: Check if the Graphics Card actually answers
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+            throw new Error("GPU detected but refused the handshake. Hardware acceleration might be off.");
+        }
+
+        btn.disabled = true;
+        btn.textContent = "SYNCING CORE...";
         status.style.display = 'block';
-        output.textContent = "⟁ PROBING NEURAL CORE... ACCESSING LLAMA-NOVA FREQUENCY.";
+        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
 
-        // No appConfig needed for Llama-3.2; WebLLM knows it by heart
+        // 3. START WEBLLM ENGINE
         engine = await webllm.CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
                 const p = Math.round(report.progress * 100);
                 bar.style.width = p + '%';
                 percent.textContent = p;
                 
-                // This lets you see the actual "Nova" weights loading
-                if (p < 100) output.textContent = "⟁ LOADING: " + report.text;
-                else output.textContent = "⟁ CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                if (p < 100) {
+                    output.textContent = "⟁ SYNCING: " + report.text;
+                } else {
+                    btn.style.display = 'none';
+                    output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                }
             }
         });
-        
 
-        // RE-BIND THE GENERATE BUTTON
-        document.getElementById('generateButton').onclick = async () => {
+        // 4. HIJACK THE GENERATE BUTTON (SUCCESS PATH)
+        generateBtn.onclick = async () => {
             const prompt = document.getElementById('prompt').value;
             if (!prompt) return;
             
+            generateBtn.disabled = true;
             output.textContent = "⟁ LOCAL INFERENCE IN PROGRESS...";
-            const messages = [
-                { role: "system", content: "You are the INK REALM Neural Interface. Staccato prose only." },
-                { role: "user", content: prompt }
-            ];
+            
+            try {
+                const messages = [
+                    { role: "system", content: "You are the INK REALM Neural Interface. Staccato prose only." },
+                    { role: "user", content: prompt }
+                ];
 
-            const chunks = await engine.chat.completions.create({ messages, stream: true });
-            let fullText = "";
-            for await (const chunk of chunks) {
-                fullText += chunk.choices[0]?.delta?.content || "";
-                output.textContent = fullText;
+                const chunks = await engine.chat.completions.create({ messages, stream: true });
+                let fullText = "";
+                output.textContent = ""; 
+
+                for await (const chunk of chunks) {
+                    fullText += chunk.choices[0]?.delta?.content || "";
+                    output.textContent = fullText;
+                }
+            } catch (genErr) {
+                output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
+            } finally {
+                generateBtn.disabled = false;
             }
         };
 
     } catch (err) {
+        // 5. THE NEURAL REROUTE (FAIL PATH)
+        console.warn("Local Core failed:", err.message);
+        
         status.style.display = 'none';
-        btn.disabled = false;
-        btn.textContent = "LOCAL CORE FAILED";
-        output.textContent = "[CRITICAL FAILURE]: " + err.message;
-        console.error(err);
+        btn.disabled = true;
+        btn.textContent = "CORE UNAVAILABLE";
+        btn.style.borderColor = "#222";
+        btn.style.color = "#444";
+        
+        // Explain the diagnostic to the guest
+        output.textContent = `[SIGNAL REDIRECTED]: Local Core unavailable on this device. 
+        
+        DIAGNOSTIC: ${err.message}
+        FAILSAFE: Using Cloud Nova Frequency.`;
+        
+        // Restore the original cloud logic
+        if (cloudLogic) generateBtn.onclick = cloudLogic;
     }
 };
 </script>
