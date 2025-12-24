@@ -1688,57 +1688,69 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchFrance24Ticker();     // Starts the France 24 Culture ticker
     fetchScienceDailyTicker(); // Starts the ScienceDaily Society & Culture ticker
 });
-        
-    </script>
-    <!-- WEB-LLM ENGINE -->
+<!-- INK REALM: HARDENED LOCAL CORE -->
 <script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-const modelId = "LFM-1.2B-q4f16_1-MLC"; // The Liquid AI Browser-Port
-
+const modelId = "LFM-1.2B-q4f16_1-MLC"; 
 let engine;
+
 const btn = document.getElementById('loadCoreBtn');
 const status = document.getElementById('download-status');
 const bar = document.getElementById('progress-bar');
 const percent = document.getElementById('progress-percent');
+const output = document.getElementById('output');
 
 btn.onclick = async () => {
-    btn.style.display = 'none';
-    status.style.display = 'block';
+    try {
+        btn.disabled = true;
+        btn.textContent = "CHECKING HARDWARE...";
+        status.style.display = 'block';
 
-    // 1. Initialize the Engine
-    engine = await webllm.CreateMLCEngine(modelId, {
-        initProgressCallback: (report) => {
-            const p = Math.round(report.progress * 100);
-            bar.style.width = p + '%';
-            percent.textContent = p;
-            if (p === 100) status.textContent = "CORE STABLE. LOCAL NOVA ONLINE.";
+        // Check if WebGPU exists
+        if (!navigator.gpu) {
+            throw new Error("WebGPU NOT SUPPORTED. USE CLOUD NOVA INSTEAD.");
         }
-    });
 
-    // 2. Hijack the generate button to use the Local Engine
-    document.getElementById('generateButton').onclick = async () => {
-        const prompt = document.getElementById('prompt').value;
-        const output = document.getElementById('output');
-        
-        output.textContent = "⟁ LOCAL INFERENCE IN PROGRESS...";
-        
-        const messages = [
-            { role: "system", content: "You are the INK REALM Neural Interface. Staccato prose only." },
-            { role: "user", content: prompt }
-        ];
+        output.textContent = "⟁ PROBING NEURAL CORE... PLEASE STAND BY.";
 
-        const chunks = await engine.chat.completions.create({ messages, stream: true });
-        
-        let fullText = "";
-        output.textContent = ""; // Clear for streaming
-        
-        for await (const chunk of chunks) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            fullText += content;
-            output.textContent = fullText; // Real-time streaming
-        }
-    };
+        engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (report) => {
+                const p = Math.round(report.progress * 100);
+                bar.style.width = p + '%';
+                percent.textContent = p;
+                // Log the actual text coming from the engine to the output
+                output.textContent = "STATUS: " + report.text;
+                if (p === 100) output.textContent = "CORE STABLE. LOCAL NOVA ONLINE.";
+            }
+        });
+
+        // RE-BIND THE GENERATE BUTTON
+        document.getElementById('generateButton').onclick = async () => {
+            const prompt = document.getElementById('prompt').value;
+            if (!prompt) return;
+            
+            output.textContent = "⟁ LOCAL INFERENCE IN PROGRESS...";
+            const messages = [
+                { role: "system", content: "You are the INK REALM Neural Interface. Staccato prose only." },
+                { role: "user", content: prompt }
+            ];
+
+            const chunks = await engine.chat.completions.create({ messages, stream: true });
+            let fullText = "";
+            for await (const chunk of chunks) {
+                fullText += chunk.choices[0]?.delta?.content || "";
+                output.textContent = fullText;
+            }
+        };
+
+    } catch (err) {
+        status.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = "LOCAL CORE FAILED";
+        output.textContent = "[CRITICAL FAILURE]: " + err.message;
+        console.error(err);
+    }
 };
 </script>
 </body>
