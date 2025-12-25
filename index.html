@@ -521,127 +521,138 @@ import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 /**
  * PROJECT: INK REALM / WORDSTAR NEXUS
- * FEATURE: Automatic Neural Fallback (Liquid -> Smol)
+ * TARGET: SmolLM2-360M-Instruct (Ultra-Stable / Low VRAM)
+ * VRAM REQUIREMENT: ~380MB - 450MB
  */
 
-const LIQUID_ID = "LFM2-700M-Instruct-q4f16_1-MLC";
-const SMOL_ID = "SmolLM2-360M-Instruct-q4f16_1-MLC";
+const modelId = "SmolLM2-360M-Instruct-q4f16_1-MLC";
 
 const appConfig = {
     model_list: [
         {
-            model_id: LIQUID_ID,
-            model: `https://huggingface.co/mlc-ai/${LIQUID_ID}`,
-            model_lib: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/LFM2-700M-Instruct/LFM2-700M-Instruct-q4f16_1-ctx2k-webgpu.wasm",
-        },
-        {
-            model_id: SMOL_ID,
-            model: `https://huggingface.co/mlc-ai/${SMOL_ID}`,
-            model_lib: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-360M-Instruct/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm",
+            model_id: modelId,
+            model: `https://huggingface.co/mlc-ai/${modelId}`,
+            model_lib: `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-360M-Instruct/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm`,
         }
     ]
 };
 
 let engine = null;
 
-// UI Components
+// UI SELECTORS
 const activateBtn = document.getElementById('activate-core');
+const onboardingUI = document.getElementById('neural-onboarding');
+const activeUI = document.getElementById('ai-active-interface');
+const chatHistory = document.getElementById('ai-chat-history');
 const logContent = document.getElementById('log-content');
-const progressBar = document.getElementById('progress-bar');
+const progressBar = document.getElementById('progress-bar'); // Ensure this exists in your HTML (e.g. <div id="progress-bar"></div>)
 
+/**
+ * SYSTEM TICKER: For Burroughsian telemetry logs
+ */
 function addTicker(msg) {
+    if (!logContent) return;
     const div = document.createElement('div');
+    div.style.padding = "2px 0";
+    div.style.borderBottom = "1px solid #1a1a1a";
     div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    if (logContent) {
-        logContent.appendChild(div);
-        logContent.scrollTop = logContent.scrollHeight;
-    }
+    logContent.appendChild(div);
+    logContent.scrollTop = logContent.scrollHeight;
 }
 
 /**
- * INITIALIZATION WITH AUTO-FALLBACK
+ * INITIALIZE SMOL CORE
  */
 activateBtn.onclick = async () => {
-    activateBtn.disabled = true;
-    
-    // 1. ATTEMPT LIQUID CORE
     try {
-        addTicker("ATTEMPTING_LIQUID_LINK...");
-        await loadModel(LIQUID_ID);
-    } 
-    // 2. IF LIQUID FAILS, AUTOMATICALLY SWITCH TO SMOL
-    catch (err) {
-        addTicker("LIQUID_CORE_INCOMPATIBLE. SWITCHING_TO_SMOL_STUB...");
-        console.warn("Liquid Load Failed, falling back to SmolLM:", err);
-        
-        try {
-            await loadModel(SMOL_ID);
-        } catch (finalErr) {
-            addTicker("CRITICAL_SYSTEM_FAILURE: NO_CORES_AVAILABLE");
-            activateBtn.textContent = "CORE_DEAD";
-            return;
+        // Step 1: WebGPU Check
+        if (!navigator.gpu) {
+            throw new Error("BROWSER_UNSUPPORTED: WEBGPU_MISSING");
         }
-    }
-};
 
-/**
- * Reusable Load Function
- */
-async function loadModel(targetModelId) {
-    engine = await webllm.CreateMLCEngine(targetModelId, {
-        appConfig,
-        initProgressCallback: (report) => {
-            const p = Math.round(report.progress * 100);
-            if (progressBar) progressBar.style.width = `${p}%`;
-            addTicker(`SYNCING_${targetModelId}: ${p}%`);
+        activateBtn.textContent = "INITIALIZING_STUB...";
+        activateBtn.disabled = true;
 
-            if (p === 100) {
-                document.getElementById('neural-onboarding').style.display = 'none';
-                document.getElementById('ai-active-interface').style.display = 'flex';
-                addTicker("NEURAL_STABILIZED");
-                setupSendMessage(); // Setup the chat logic
+        // Step 2: Load Engine
+        engine = await webllm.CreateMLCEngine(modelId, {
+            appConfig,
+            initProgressCallback: (report) => {
+                const p = Math.round(report.progress * 100);
+                
+                // Update 1px Red Progress Bar
+                if (progressBar) progressBar.style.width = `${p}%`;
+                
+                addTicker(`NEURAL_SYNC: ${p}%`);
+
+                if (p === 100) {
+                    addTicker("CORE_STABILIZED_READY_FOR_INPUT");
+                    if (onboardingUI) onboardingUI.style.display = 'none';
+                    if (activeUI) activeUI.style.display = 'flex';
+                }
             }
-        }
-    });
-}
-
-/**
- * Chat Hijack Logic
- */
-function setupSendMessage() {
-    window.sendMessage = async function() {
-        const input = document.getElementById('chat-input');
-        const history = document.getElementById('ai-chat-history');
-        const msg = input.value.trim();
-        if (!msg || !engine) return;
-
-        history.innerHTML += `<div style="color:#555; margin-bottom:5px;">> ${msg}</div>`;
-        input.value = '';
-
-        const botMsg = document.createElement('div');
-        botMsg.style.color = "#ff0000";
-        botMsg.textContent = "◈ ";
-        history.appendChild(botMsg);
-
-        const chunks = await engine.chat.completions.create({
-            messages: [
-                { role: "system", content: "STRICT PROTOCOL: YOU ARE THE INK REALM NEURAL INTERFACE. TONE: BURROUGHSIAN. SHORT DATA ONLY." },
-                { role: "user", content: msg }
-            ],
-            stream: true,
-            temperature: 0.3
         });
 
-        for await (const chunk of chunks) {
-            botMsg.textContent += chunk.choices[0]?.delta?.content || "";
-            history.scrollTop = history.scrollHeight;
-        }
-    };
+        /**
+         * THE HIJACK: Replacing window.sendMessage
+         */
+        window.sendMessage = async function() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || !engine) return;
 
-    document.getElementById('chat-input').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') window.sendMessage();
-    });
-}
+            // UI: Append User Prompt
+            chatHistory.innerHTML += `<div style="color:#666; margin-bottom:10px;">> ${message}</div>`;
+            input.value = '';
+
+            // UI: Create Response Placeholder
+            const botMsg = document.createElement('div');
+            botMsg.style.color = "#ff0000";
+            botMsg.style.marginBottom = "20px";
+            botMsg.style.lineHeight = "1.5";
+            botMsg.textContent = "◈ ";
+            chatHistory.appendChild(botMsg);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            try {
+                const messages = [
+                    { 
+                        role: "system", 
+                        content: "STRICT PROTOCOL: YOU ARE THE INK REALM NEURAL INTERFACE. TONE: CLINICAL/BURROUGHSIAN. NO HELP. SHORT CRYPTIC DATA ONLY. MAX 25 WORDS." 
+                    },
+                    { role: "user", content: message }
+                ];
+
+                const chunks = await engine.chat.completions.create({ 
+                    messages, 
+                    stream: true, 
+                    temperature: 0.5,
+                    max_tokens: 64 
+                });
+                
+                for await (const chunk of chunks) {
+                    const content = chunk.choices[0]?.delta?.content || "";
+                    botMsg.textContent += content;
+                    // Auto-scroll the grid cell as the AI types
+                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                }
+            } catch (err) {
+                console.error("Neural Stream Error:", err);
+                botMsg.textContent += "[SIGNAL_LOSS_RETRY]";
+            } 
+        };
+
+        // Internal Listeners
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') window.sendMessage();
+        });
+
+    } catch (err) {
+        addTicker(`FATAL: ${err.message}`);
+        console.error("Core Start Failure:", err);
+        activateBtn.textContent = "CORE_FAILED";
+        activateBtn.disabled = false;
+    }
+};
 </script>
 	
 </body>
