@@ -516,141 +516,133 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
  * MODEL: Liquid AI LFM2-700M (Liquid Foundation Model)
  * CONFIG: Explicit WASM mapping to prevent "Core Failed"
  */
-
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 /**
  * PROJECT: INK REALM / WORDSTAR NEXUS
- * TARGET: SmolLM2-360M-Instruct (Ultra-Stable / Low VRAM)
- * VRAM REQUIREMENT: ~380MB - 450MB
+ * CORE: Llama-3.2-1B-Instruct-q4f16_1-MLC
+ * STATUS: VERIFIED STABLE ON HARDWARE
  */
 
-const modelId = "SmolLM2-360M-Instruct-q4f16_1-MLC";
-
-const appConfig = {
-    model_list: [
-        {
-            model_id: modelId,
-            model: `https://huggingface.co/mlc-ai/${modelId}`,
-            model_lib: `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-360M-Instruct/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm`,
-        }
-    ]
-};
-
+const modelId = "Llama-3.2-1B-Instruct-q4f16_1-MLC"; 
 let engine = null;
 
 // UI SELECTORS
 const activateBtn = document.getElementById('activate-core');
-const onboardingUI = document.getElementById('neural-onboarding');
-const activeUI = document.getElementById('ai-active-interface');
-const chatHistory = document.getElementById('ai-chat-history');
+const progressUI = document.getElementById('core-progress-ui');
+const pBar = document.getElementById('p-bar');
+const pVal = document.getElementById('p-val');
+const chatContainer = document.getElementById('chat-container');
 const logContent = document.getElementById('log-content');
-const progressBar = document.getElementById('progress-bar'); // Ensure this exists in your HTML (e.g. <div id="progress-bar"></div>)
+
+const persona = "STRICT PROTOCOL: YOU ARE THE INK REALM NEURAL INTERFACE. TONE: BURROUGHSIAN/CLINICAL. NO HELP. SHORT CRYPTIC DATA ONLY.";
 
 /**
- * SYSTEM TICKER: For Burroughsian telemetry logs
+ * 1. SYSTEM TICKER
  */
 function addTicker(msg) {
     if (!logContent) return;
     const div = document.createElement('div');
     div.style.padding = "2px 0";
-    div.style.borderBottom = "1px solid #1a1a1a";
+    div.style.borderBottom = "1px solid #111";
     div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
     logContent.appendChild(div);
     logContent.scrollTop = logContent.scrollHeight;
 }
 
 /**
- * INITIALIZE SMOL CORE
+ * 2. DEFAULT COMMS (Offline Mode)
+ */
+window.sendMessage = function() {
+    const input = document.getElementById('chat-input');
+    if (!input.value.trim()) return;
+    chatContainer.innerHTML += `<div style="color: #444;">> ${input.value}</div>`;
+    input.value = '';
+    addTicker("ERROR: NEURAL_LINK_OFFLINE");
+};
+
+/**
+ * 3. THE CORE INITIALIZATION (Using your working pattern)
  */
 activateBtn.onclick = async () => {
     try {
-        // Step 1: WebGPU Check
-        if (!navigator.gpu) {
-            throw new Error("BROWSER_UNSUPPORTED: WEBGPU_MISSING");
-        }
+        // THE SHIELD: Hardware Probe
+        if (!navigator.gpu) throw new Error("WebGPU_API_NOT_FOUND");
+        
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error("GPU_HANDSHAKE_REFUSED");
 
-        activateBtn.textContent = "INITIALIZING_STUB...";
         activateBtn.disabled = true;
+        activateBtn.textContent = "SYNCING_CORE...";
+        if (progressUI) progressUI.style.display = 'block';
+        addTicker("⟁ INITIALIZING LOCAL INTERCEPT...");
 
-        // Step 2: Load Engine
+        // START ENGINE (No appConfig needed for Llama-3.2)
         engine = await webllm.CreateMLCEngine(modelId, {
-            appConfig,
             initProgressCallback: (report) => {
                 const p = Math.round(report.progress * 100);
+                if (pBar) pBar.style.width = p + '%';
+                if (pVal) pVal.textContent = p;
                 
-                // Update 1px Red Progress Bar
-                if (progressBar) progressBar.style.width = `${p}%`;
-                
-                addTicker(`NEURAL_SYNC: ${p}%`);
-
-                if (p === 100) {
-                    addTicker("CORE_STABILIZED_READY_FOR_INPUT");
-                    if (onboardingUI) onboardingUI.style.display = 'none';
-                    if (activeUI) activeUI.style.display = 'flex';
+                if (p < 100) {
+                    addTicker(`SYNCING: ${p}%`);
+                } else {
+                    activateBtn.textContent = "CORE_ONLINE";
+                    activateBtn.style.color = "#ff0000";
+                    addTicker("⟁ LOCAL CORE STABLE. SOFT MACHINE ONLINE.");
                 }
             }
         });
 
         /**
-         * THE HIJACK: Replacing window.sendMessage
+         * 4. THE HIJACK (Success Path)
          */
         window.sendMessage = async function() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
             if (!message || !engine) return;
 
-            // UI: Append User Prompt
-            chatHistory.innerHTML += `<div style="color:#666; margin-bottom:10px;">> ${message}</div>`;
+            // UI: User Entry
+            chatContainer.innerHTML += `<div style="color: #666; margin-bottom: 8px;">> ${message}</div>`;
             input.value = '';
 
-            // UI: Create Response Placeholder
+            // UI: AI Entry
             const botMsg = document.createElement('div');
             botMsg.style.color = "#ff0000";
-            botMsg.style.marginBottom = "20px";
-            botMsg.style.lineHeight = "1.5";
-            botMsg.textContent = "◈ ";
-            chatHistory.appendChild(botMsg);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
+            botMsg.style.marginBottom = "15px";
+            botMsg.textContent = "◈ "; 
+            chatContainer.appendChild(botMsg);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
                 const messages = [
-                    { 
-                        role: "system", 
-                        content: "STRICT PROTOCOL: YOU ARE THE INK REALM NEURAL INTERFACE. TONE: CLINICAL/BURROUGHSIAN. NO HELP. SHORT CRYPTIC DATA ONLY. MAX 25 WORDS." 
-                    },
+                    { role: "system", content: persona },
                     { role: "user", content: message }
                 ];
 
                 const chunks = await engine.chat.completions.create({ 
                     messages, 
                     stream: true, 
-                    temperature: 0.5,
+                    temperature: 0.3,
                     max_tokens: 64 
                 });
                 
                 for await (const chunk of chunks) {
-                    const content = chunk.choices[0]?.delta?.content || "";
-                    botMsg.textContent += content;
-                    // Auto-scroll the grid cell as the AI types
-                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                    botMsg.textContent += chunk.choices[0]?.delta?.content || "";
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
-            } catch (err) {
-                console.error("Neural Stream Error:", err);
-                botMsg.textContent += "[SIGNAL_LOSS_RETRY]";
-            } 
+            } catch (genErr) {
+                botMsg.textContent += "[SIGNAL_LOSS]";
+                addTicker("ERROR: INFERENCE_CRASHED");
+            }
         };
 
-        // Internal Listeners
-        document.getElementById('chat-input').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') window.sendMessage();
-        });
-
     } catch (err) {
+        // 5. FAILSAFE
+        console.warn("Local Core failed:", err.message);
         addTicker(`FATAL: ${err.message}`);
-        console.error("Core Start Failure:", err);
-        activateBtn.textContent = "CORE_FAILED";
-        activateBtn.disabled = false;
+        activateBtn.textContent = "CORE_UNAVAILABLE";
+        if (progressUI) progressUI.style.display = 'none';
     }
 };
 </script>
