@@ -141,21 +141,46 @@
         
 <!-- HEADER -->
 
-    <header>
-        <div id="status" class="status">INITIALIZING NEURAL LINK...</div>
-    </header>
-    <div id="progress-bar"></div>
+    <!-- HEADER -->
+<header>
+    <div id="status" class="status">SYSTEM STANDBY</div>
+</header>
 
-    <div id="chat-container">
-        <div class="message ai-msg">
-            System Online. Gemma is here.
-        </div>
-    </div>
+<!-- PROGRESS BAR (Hidden initially) -->
+<div id="progress-bar" style="width: 0%; height: 4px; background: #00ff00; display: none; transition: width 0.2s;"></div>
 
-    <div id="input-area">
-        <textarea id="user-input" placeholder="Enter command..." disabled></textarea>
-        <button id="send-btn" disabled>TRANSMIT</button>
+<!-- START SCREEN OVERLAY (New) -->
+<div id="start-screen" style="text-align: center; padding: 50px 20px;">
+    <h2 style="color: #fff; font-family: monospace;">NEURAL LINK v1.0</h2>
+    <p style="color: #888; margin-bottom: 20px;">
+        Warning: This requires downloading a large Neural Model (555MB).<br>
+        WiFi is recommended.
+    </p>
+    <button id="init-btn" style="
+        background: #00ff00; 
+        color: #000; 
+        border: none; 
+        padding: 15px 30px; 
+        font-family: monospace; 
+        font-weight: bold; 
+        cursor: pointer; 
+        font-size: 16px;">
+        INITIALIZE SYSTEM
+    </button>
+</div>
+
+<!-- CHAT AREA (Hidden initially) -->
+<div id="chat-container" style="display: none;">
+    <div class="message ai-msg">
+        System Online. Gemma is here.
     </div>
+</div>
+
+<!-- INPUT AREA -->
+<div id="input-area">
+    <textarea id="user-input" placeholder="Enter command..." disabled></textarea>
+    <button id="send-btn" disabled>TRANSMIT</button>
+</div>
  <div class="orb-container">
         <svg class="glitch-orb" viewBox="0 0 100 100">
             <circle class="orb-circle" cx="50" cy="50" r="45" />
@@ -163,120 +188,127 @@
         </svg>
     </div>
     <!-- GOOGLE MEDIAPIPE LOGIC -->
-  <script type="module">
-        import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
+ <script type="module">
+    import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
 
-        const output = document.getElementById('chat-container');
-        const input = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const status = document.getElementById('status');
-        const progressBar = document.getElementById('progress-bar');
+    // --- 1. GRAB ALL HTML ELEMENTS ---
+    // These 'const' act as remote controls for your HTML tags
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progress-bar');
+    const output = document.getElementById('chat-container');
+    const input = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    
+    // New elements for the start sequence
+    const initBtn = document.getElementById('init-btn');
+    const startScreen = document.getElementById('start-screen');
 
-        let llm = null;
+    let llm = null;
+    const modelUrl = 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task'; 
 
-        // *** CONFIGURATION ***
-        const modelUrl = 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task'; 
-
-        async function initAI() {
-            try {
-                // 1. Load the Engine
-                const genai = await FilesetResolver.forGenAiTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-                );
-
-                // 2. Load the Model
-                status.innerText = "DOWNLOADING MODEL (555MB)...";
-                progressBar.style.width = "50%";
-
-                /* 
-                   SETTINGS EXPLAINED FOR 270M MODEL:
-                   - temperature: 0.8 (Higher = less repetition, more creative. 1.0 is max.)
-                   - topK: 40 (Standard balance)
-                   - maxTokens: 1000 (Limit response length)
-                   Note: 'repetitionPenalty' is removed because it often crashes the web SDK.
-                */
-                llm = await LlmInference.createFromOptions(genai, {
-                    baseOptions: { modelAssetPath: modelUrl },
-                    maxTokens: 1000,
-                    temperature: 0.6, 
-                    topK: 20,
-                    randomSeed: Math.floor(Math.random() * 10000) // Helps variety
-                });
-
-                // 3. Ready
-                progressBar.style.width = "100%";
-                setTimeout(() => { progressBar.style.display = 'none'; }, 500);
-                
-                status.innerText = "CONNECTED";
-                status.classList.add('ready');
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
-
-            } catch (err) {
-                console.error(err);
-                status.innerText = "CONNECTION FAILED: " + err.message;
-                status.classList.add('error');
-                output.innerHTML += `<div class="message ai-msg" style="color:red">ERROR: Could not load model.<br>Check console for details.</div>`;
-            }
-        }
-
-        // Handle User Input
-        async function handleChat() {
-            const text = input.value.trim();
-            if (!text || !llm) return;
-
-            // Add User Message
-            appendMessage(text, 'user-msg');
-            input.value = '';
-            input.disabled = true; // Lock input while thinking
-
-            try {
-                // Add AI Placeholder
-                const aiDiv = appendMessage("Thinking...", 'ai-msg');
-                
-                // Stream the response
-                let fullResponse = "";
-                
-                // Note: The 270M model works best with a simple prompt structure
-                const prompt = text; 
-
-                await llm.generateResponse(prompt, (partialResult) => {
-                    fullResponse += partialResult;
-                    aiDiv.innerText = fullResponse;
-                    output.scrollTop = output.scrollHeight;
-                });
-                
-            } catch (err) {
-                console.error(err);
-                appendMessage("Error generating response.", 'ai-msg');
-            }
-
-            input.disabled = false;
-            input.focus();
-        }
-
-        function appendMessage(text, className) {
-            const div = document.createElement('div');
-            div.className = `message ${className}`;
-            div.innerText = text;
-            output.appendChild(div);
-            output.scrollTop = output.scrollHeight;
-            return div;
-        }
-
-        // Event Listeners
-        sendBtn.addEventListener('click', handleChat);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleChat();
-            }
-        });
-
-        // Start
+    // --- 2. CLICK EVENT (The Trigger) ---
+    // The code waits here until the user clicks.
+    initBtn.addEventListener('click', () => {
+        // Hide the start button
+        startScreen.style.display = 'none';
+        
+        // Show the chat container and progress bar
+        output.style.display = 'block';
+        progressBar.style.display = 'block';
+        
+        // Update Status
+        status.innerText = "INITIALIZING NETWORK...";
+        
+        // actually run the loader
         initAI();
-    </script>
+    });
+
+    // --- 3. THE LOADER ---
+    async function initAI() {
+        try {
+            const genai = await FilesetResolver.forGenAiTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
+            );
+
+            // Update Status & Progress Bar
+            status.innerText = "DOWNLOADING MODEL (555MB)...";
+            progressBar.style.width = "30%";
+
+            llm = await LlmInference.createFromOptions(genai, {
+                baseOptions: { 
+                    modelAssetPath: modelUrl,
+                    delegate: 'GPU' // Try to use Phone GPU
+                },
+                maxTokens: 1000,
+                temperature: 0.6,
+                topK: 20
+            });
+
+            // DONE LOADING
+            progressBar.style.width = "100%";
+            status.innerText = "SYSTEM ONLINE";
+            status.style.color = "#00ff00"; // Green text
+            
+            // Hide progress bar after a brief moment
+            setTimeout(() => { progressBar.style.display = 'none'; }, 500);
+
+            // Unlock inputs
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+
+        } catch (err) {
+            console.error(err);
+            status.innerText = "CONNECTION FAILED";
+            status.style.color = "red";
+            alert("Failed to load model: " + err.message);
+            // Bring back the start button so they can try again
+            startScreen.style.display = 'block';
+        }
+    }
+
+    // --- 4. CHAT LOGIC (Same as before) ---
+    async function handleChat() {
+        const text = input.value.trim();
+        if (!text || !llm) return;
+
+        appendMessage(text, 'user-msg');
+        input.value = '';
+        input.disabled = true;
+
+        try {
+            const aiDiv = appendMessage("Thinking...", 'ai-msg');
+            let fullResponse = "";
+            
+            await llm.generateResponse(text, (partialResult) => {
+                fullResponse += partialResult;
+                aiDiv.innerText = fullResponse;
+                output.scrollTop = output.scrollHeight;
+            });
+        } catch (err) {
+            appendMessage("Error: " + err.message, 'ai-msg');
+        }
+        input.disabled = false;
+        input.focus();
+    }
+
+    function appendMessage(text, className) {
+        const div = document.createElement('div');
+        div.className = `message ${className}`;
+        div.innerText = text;
+        output.appendChild(div);
+        output.scrollTop = output.scrollHeight;
+        return div;
+    }
+
+    sendBtn.addEventListener('click', handleChat);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleChat();
+        }
+    });
+</script>
     <div class="container">
     <style>
                   
