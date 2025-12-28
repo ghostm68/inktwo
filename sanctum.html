@@ -163,7 +163,7 @@
         </svg>
     </div>
     <!-- GOOGLE MEDIAPIPE LOGIC -->
-    <script type="module">
+  <script type="module">
         import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
 
         const output = document.getElementById('chat-container');
@@ -175,24 +175,32 @@
         let llm = null;
 
         // *** CONFIGURATION ***
-        // MAKE SURE THIS MATCHES YOUR R2 SETUP EXACTLY
-      const modelUrl = 'https://gemma.inkrealm.info/gemma3-270m-it-q8-web.task'; 
+        const modelUrl = 'https://gemma.inkrealm.info/gemma3-270m-it-q8-web.task'; 
 
-async function initAI() {
-    try {
-        // 1. Load the Engine
-        const genai = await FilesetResolver.forGenAiTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-        ); 
-                // 2. Load the Model (with progress bar)
+        async function initAI() {
+            try {
+                // 1. Load the Engine
+                const genai = await FilesetResolver.forGenAiTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
+                );
+
+                // 2. Load the Model
                 status.innerText = "DOWNLOADING MODEL (276MB)...";
                 progressBar.style.width = "50%";
 
+                /* 
+                   SETTINGS EXPLAINED FOR 270M MODEL:
+                   - temperature: 0.8 (Higher = less repetition, more creative. 1.0 is max.)
+                   - topK: 40 (Standard balance)
+                   - maxTokens: 1000 (Limit response length)
+                   Note: 'repetitionPenalty' is removed because it often crashes the web SDK.
+                */
                 llm = await LlmInference.createFromOptions(genai, {
                     baseOptions: { modelAssetPath: modelUrl },
                     maxTokens: 1000,
-                    temperature: 0.7,
-                    topK: 40
+                    temperature: 0.8, 
+                    topK: 40,
+                    randomSeed: Math.floor(Math.random() * 10000) // Helps variety
                 });
 
                 // 3. Ready
@@ -209,61 +217,38 @@ async function initAI() {
                 console.error(err);
                 status.innerText = "CONNECTION FAILED: " + err.message;
                 status.classList.add('error');
-                output.innerHTML += `<div class="message ai-msg" style="color:red">ERROR: Could not load model from ${modelUrl}. <br>Check your R2 CORS settings or Zero Trust login.</div>`;
+                output.innerHTML += `<div class="message ai-msg" style="color:red">ERROR: Could not load model.<br>Check console for details.</div>`;
             }
         }
 
         // Handle User Input
-       async function initAI() {
-    try {
-        // 1. Load the Engine
-        const genai = await FilesetResolver.forGenAiTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-        );
-        
-        // 2. Load the Model (with progress bar) - ONLY ONCE HERE
-        status.innerText = "DOWNLOADING MODEL (585MB)...";
-        progressBar.style.width = "50%";
-        
-        llm = await LlmInference.createFromOptions(genai, {
-            baseOptions: { modelAssetPath: modelUrl },
-            maxTokens: 1024,
-            temperature: 0.9,
-            topK: 50,
-            topP: 0.95,
-            repetitionPenalty: 1.2
-        });
-        
-        // 3. Ready
-        progressBar.style.width = "100%";
-        // ... rest of your init code
-    } catch (err) {
-        // ... error handling
-    }
-}
+        async function handleChat() {
+            const text = input.value.trim();
+            if (!text || !llm) return;
 
-async function handleChat() {
-    const text = input.value.trim();
-    if (!text || !llm) return;
-    
-    // Just use the already-loaded llm here
-    appendMessage(text, 'user-msg');
-    input.value = '';
-    input.disabled = true;
+            // Add User Message
+            appendMessage(text, 'user-msg');
+            input.value = '';
+            input.disabled = true; // Lock input while thinking
+
             try {
                 // Add AI Placeholder
                 const aiDiv = appendMessage("Thinking...", 'ai-msg');
                 
                 // Stream the response
                 let fullResponse = "";
-                await llm.generateResponse(text, (partialResult) => {
+                
+                // Note: The 270M model works best with a simple prompt structure
+                const prompt = text; 
+
+                await llm.generateResponse(prompt, (partialResult) => {
                     fullResponse += partialResult;
                     aiDiv.innerText = fullResponse;
-                    // Auto-scroll to bottom
                     output.scrollTop = output.scrollHeight;
                 });
                 
             } catch (err) {
+                console.error(err);
                 appendMessage("Error generating response.", 'ai-msg');
             }
 
