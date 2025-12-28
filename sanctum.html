@@ -176,7 +176,7 @@
 
         // *** CONFIGURATION ***
         // MAKE SURE THIS MATCHES YOUR R2 SETUP EXACTLY
-      const modelUrl = 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm'; 
+      const modelUrl = 'https://gemma.inkrealm.info/gemma3-270m-it-q8-web.task'; 
 
 async function initAI() {
     try {
@@ -185,7 +185,7 @@ async function initAI() {
             "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
         ); 
                 // 2. Load the Model (with progress bar)
-                status.innerText = "DOWNLOADING MODEL (585MB)...";
+                status.innerText = "DOWNLOADING MODEL (276MB)...";
                 progressBar.style.width = "50%";
 
                 llm = await LlmInference.createFromOptions(genai, {
@@ -214,15 +214,42 @@ async function initAI() {
         }
 
         // Handle User Input
-        async function handleChat() {
-            const text = input.value.trim();
-            if (!text || !llm) return;
+       async function initAI() {
+    try {
+        // 1. Load the Engine
+        const genai = await FilesetResolver.forGenAiTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
+        );
+        
+        // 2. Load the Model (with progress bar) - ONLY ONCE HERE
+        status.innerText = "DOWNLOADING MODEL (585MB)...";
+        progressBar.style.width = "50%";
+        
+        llm = await LlmInference.createFromOptions(genai, {
+            baseOptions: { modelAssetPath: modelUrl },
+            maxTokens: 1024,
+            temperature: 0.9,
+            topK: 50,
+            topP: 0.95,
+            repetitionPenalty: 1.2
+        });
+        
+        // 3. Ready
+        progressBar.style.width = "100%";
+        // ... rest of your init code
+    } catch (err) {
+        // ... error handling
+    }
+}
 
-            // Add User Message
-            appendMessage(text, 'user-msg');
-            input.value = '';
-            input.disabled = true; // Lock input while thinking
-
+async function handleChat() {
+    const text = input.value.trim();
+    if (!text || !llm) return;
+    
+    // Just use the already-loaded llm here
+    appendMessage(text, 'user-msg');
+    input.value = '';
+    input.disabled = true;
             try {
                 // Add AI Placeholder
                 const aiDiv = appendMessage("Thinking...", 'ai-msg');
