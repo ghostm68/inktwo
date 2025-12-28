@@ -134,55 +134,46 @@
 
 /* 1. Force the container to float ABOVE the scanlines and background */
 #chat-container {
-    position: relative; /* Or 'absolute' if you want it fixed in place */
-    z-index: 9999 !important; /* The Nuclear Option: Sit on top of everything */
+    /* 1. VISIBILITY: Don't force 'block' here, or it shows up before you click the button! */
+    /* display: block !important;  <-- DELETE THIS LINE */
     
-    /* 2. Force visibility and dimensions */
-    display: block !important;
-    height: 400px !important; /* Force a height so it doesn't collapse */
-    min-height: 200px;
+    /* 2. DYNAMIC HEIGHT */
+    height: 60vh !important;       /* Take up 60% of the screen height */
+    max-height: 600px;             /* But don't get too big on huge monitors */
+    min-height: 200px;             /* Don't get too small */
+    
+    /* 3. LAYOUT */
     width: 95%;
     margin: 10px auto;
-    overflow-y: auto !important; /* Enable scroll inside the box */
+    overflow-y: auto !important;   /* Scrollbar is mandatory */
     
-    /* 3. High-Contrast Terminal Look (Ignores Global Theme) */
-    background-color: rgba(0, 0, 0, 0.9) !important; /* 90% opaque black */
-    border: 1px solid #00ff00 !important; /* Bright green border */
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
-    padding: 15px;
-    font-family: 'Courier New', monospace;
-}
-
-/* 4. Make sure the text is actually visible */
-.message {
-    display: block !important;
-    opacity: 1 !important;
-    color: #fff !important;
-    margin-bottom: 8px;
-    padding: 5px;
-    border-bottom: 1px dashed #333;
-}
-
-.ai-msg {
-    color: #00ff00 !important; /* Classic Terminal Green */
-    text-shadow: 0 0 5px #00ff00;
-}
-
-.user-msg {
-    color: #ffffff !important; /* Cyan for User */
-    text-align: right;
-}
-
-/* 5. Fix the Input Area reset */
-#input-area {
+    /* 4. BUNKER STYLING (Keep this) */
     position: relative;
     z-index: 9999 !important;
-    background: #000;
-    padding: 10px;
-    border-top: 1px solid #333;
-    display: flex !important; /* Force Flexbox */
-    gap: 10px;
+    background-color: rgba(0, 0, 0, 0.95);
+    border: 1px solid #333;
 }
+
+ /* COLORS: UPDATED TO WHITE AS REQUESTED */
+    .message { margin-bottom: 10px; display: block; }
+    
+    .ai-msg {
+        color: #ffffff !important; /* <--- WHITE TEXT */
+        border-left: 3px solid #ffffff; /* White bar */
+    }
+
+    .user-msg {
+        color: #888 !important; /* Grey for user, so AI pops */
+        text-align: right;
+    }
+
+    /* Button Styling */
+    .core-btn {
+        display: block; width: 100%; padding: 15px; 
+        margin-bottom: 10px; border: none; font-weight: bold; cursor: pointer;
+        font-family: monospace; text-transform: uppercase;
+    }        
+
 
     </style>
 </head>
@@ -200,32 +191,38 @@
 </header>
 
 <!-- SELECTION SCREEN -->
-<div id="selection-screen" style="text-align: center; padding: 40px;">
-    <h3>SELECT NEURAL CORE</h3>
+<!-- SELECTION SCREEN -->
+<div id="selection-screen" style="max-width: 400px; margin: 0 auto; padding: 20px;">
+    <h3 style="text-align:center; color:#fff;">SELECT NEURAL CORE</h3>
     
-    <!-- Option 1: MediaPipe -->
-    <button id="btn-gemma" style="display:block; width:100%; padding: 15px; margin-bottom:10px; background:#f0f4f5; border:none; font-weight:bold;">
-        LOAD GEMMA (555MB) <br><small>Faster, Google Tech</small>
+    <!-- 1. GEMMA (MediaPipe) -->
+    <button id="btn-gemma" class="core-btn" style="background:#00ff00;">
+        LOAD GEMMA 1B (CPU/MediaPipe)
     </button>
 
-    <!-- Option 2: WebLLM -->
-    <button id="btn-qwen" style="display:block; width:100%; padding: 15px; background:#626769; border:none; font-weight:bold;">
-        LOAD QWEN (700MB) <br><small>Smarter, WebLLM Tech</small>
+    <!-- 2. QWEN (WebLLM Unified) -->
+    <button id="btn-qwen" class="core-btn" style="background:#00d4ff;">
+        LOAD QWEN 0.5B (GPU/Chat)
+    </button>
+
+    <!-- 3. LLAMA (Your App Code) -->
+    <button id="btn-llama" class="core-btn" style="background:#ff0055; color:white;">
+        LOAD LLAMA 3.2 1B (GPU/Raw)
     </button>
 </div>
 
-<!-- SHARED PROGRESS BAR -->
-<div id="progress-container" style="display:none;">
-    <div id="progress-bar" style="width: 0%; height: 4px; background: #fff; transition: width 0.2s;"></div>
-    <div id="progress-text" style="text-align:center; font-size:12px; margin-top:5px;">0%</div>
+<!-- LOADING & UI -->
+<div id="progress-container" style="display:none; text-align:center;">
+    <div id="status">INITIALIZING...</div>
+    <div id="progress-bar" style="width:0%; height:4px; background:#fff; margin:10px auto;"></div>
+    <div id="progress-text">0%</div>
 </div>
 
-<!-- CHAT UI (Shared by both) -->
-<div id="chat-container" style="display: none; height: 300px; overflow-y: auto; border: 1px solid #333; margin-top: 20px;"></div>
+<div id="chat-container"></div>
 
-<div id="input-area" style="display:none; margin-top: 10px;">
-    <textarea id="user-input" placeholder="Enter command..."></textarea>
-    <button id="send-btn">TRANSMIT</button>
+<div id="input-area" style="display:none; margin-top:10px; position:relative; z-index:9999;">
+    <textarea id="user-input" placeholder="Enter command..." style="width:70%; background:#222; color:#fff; border:1px solid #444;"></textarea>
+    <button id="send-btn" style="width:25%; background:#fff; color:#000; font-weight:bold;">TRANSMIT</button>
 </div>
  <div class="orb-container">
         <svg class="glitch-orb" viewBox="0 0 100 100">
@@ -238,14 +235,12 @@
     import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-    // --- DOM ELEMENTS ---
+    // --- DOM ---
     const status = document.getElementById('status');
     const chatContainer = document.getElementById('chat-container');
     const input = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const inputArea = document.getElementById('input-area');
-    
-    // Screens
     const selectionScreen = document.getElementById('selection-screen');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
@@ -253,199 +248,151 @@
 
     // --- STATE ---
     let activeEngine = null; 
-    let mediapipeSession = null;
-    let webllmSession = null;
+    let session = null; 
     let chatHistory = []; 
-    
-    // Valid "FilesetResolver" (The engine capability)
-    let genaiFileset = null; 
+    let genaiFileset = null; // Pre-heater for Gemma
 
-    // ==========================================
-    // 0. AUTO-START ENGINE WARMUP (Fixes Slowness)
-    // ==========================================
-    (async function preheatEngine() {
-        try {
-            console.log("Pre-heating MediaPipe Wasm...");
-            // Start downloading the small Wasm engine immediately
-            genaiFileset = await FilesetResolver.forGenAiTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-            );
-            console.log("Engine Ready.");
-        } catch (e) {
-            console.error("Engine Preheat Failed:", e);
-        }
+    // PRE-HEAT MEDIAPIPE (CPU)
+    (async function preheat() {
+        try { genaiFileset = await FilesetResolver.forGenAiTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"); } 
+        catch (e) { console.log(e); }
     })();
 
-    // ==========================================
-    // 1. LOAD GEMMA (MediaPipe)
-    // ==========================================
+    // ============================================
+    // 1. GEMMA (MediaPipe / CPU)
+    // ============================================
     document.getElementById('btn-gemma').addEventListener('click', async () => {
         uiStartLoad();
         activeEngine = 'mediapipe';
+        if (!genaiFileset) genaiFileset = await FilesetResolver.forGenAiTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm");
         
-        try {
-            // Check if engine is ready, if not, wait for it
-            if (!genaiFileset) {
-                status.innerText = "WAITING FOR ENGINE...";
-                genaiFileset = await FilesetResolver.forGenAiTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-                );
-            }
-            
-            status.innerText = "DOWNLOADING GEMMA 1B...";
-
-            mediapipeSession = await LlmInference.createFromOptions(genaiFileset, {
-                baseOptions: { 
-                    modelAssetPath: 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task',
-                    
-                },
-                maxTokens: 1000,
-                temperature: 0.4, // Slightly higher to prevent "freezing"
-                topK: 40,
-                randomSeed: Math.floor(Math.random() * 10000)
-            });
-
-            uiFinishLoad("GEMMA 1B ONLINE");
-
-        } catch (err) { uiHandleError(err); }
+        status.innerText = "DOWNLOADING GEMMA...";
+        session = await LlmInference.createFromOptions(genaiFileset, {
+            baseOptions: { modelAssetPath: 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task' },
+            maxTokens: 1000, temperature: 0.4, topK: 40
+        });
+        uiFinishLoad("GEMMA ONLINE");
     });
 
-    // ==========================================
-    // 2. LOAD QWEN (WebLLM)
-    // ==========================================
+    // ============================================
+    // 2. QWEN (WebLLM / GPU / With History)
+    // ============================================
     document.getElementById('btn-qwen').addEventListener('click', async () => {
         uiStartLoad();
-        activeEngine = 'webllm';
+        activeEngine = 'qwen';
+        chatHistory = [{ role: "system", content: "You are helpful." }];
         
-        try {
-            chatHistory = [
-                { role: "system", content: "You are a helpful AI. Keep answers concise." }
-            ];
-
-            webllmSession = await webllm.CreateMLCEngine(
-                "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", 
-                {
-                    initProgressCallback: (report) => {
-                        const p = Math.round(report.progress * 100);
-                        progressBar.style.width = p + '%';
-                        progressText.innerText = `Loading: ${p}%`;
-                        status.innerText = report.text;
-                    }
-                }
-            );
-
-            uiFinishLoad("QWEN 0.5B ONLINE");
-
-        } catch (err) { uiHandleError(err); }
+        session = await webllm.CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+            initProgressCallback: (report) => uiUpdateProgress(report)
+        });
+        uiFinishLoad("QWEN ONLINE");
     });
 
-    // ==========================================
-    // 3. CHAT LOGIC
-    // ==========================================
+    // ============================================
+    // 3. LLAMA 3.2 (WebLLM / GPU / RAW MODE)
+    // ============================================
+    // Uses the "Raw" logic from your app snippet (Stateless, potentially faster)
+    document.getElementById('btn-llama').addEventListener('click', async () => {
+        uiStartLoad();
+        activeEngine = 'llama-raw';
+        
+        // Using Llama-3.2-1B as mentioned in your comment
+        session = await webllm.CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
+            initProgressCallback: (report) => uiUpdateProgress(report)
+        });
+        uiFinishLoad("LLAMA RAW ONLINE");
+    });
+
+    // ============================================
+    // UNIFIED CHAT HANDLER
+    // ============================================
     async function handleChat() {
         const text = input.value.trim();
         if (!text) return;
 
-        // UI Updates
         appendMessage(text, 'user-msg');
         input.value = '';
         input.disabled = true;
-        sendBtn.disabled = true;
-
         const aiDiv = appendMessage("Thinking...", 'ai-msg');
         let fullResponse = "";
 
         try {
+            // --- GEMMA ---
             if (activeEngine === 'mediapipe') {
-                // --- GEMMA LOGIC ---
-                
-                // If the formatted prompt fails, we might need to fallback to raw text
-                // formatting: <start_of_turn>user\nPROMPT<end_of_turn>\n<start_of_turn>model\n
                 const prompt = `<start_of_turn>user\n${text}<end_of_turn>\n<start_of_turn>model\n`;
-
-                await mediapipeSession.generateResponse(prompt, (partial) => {
+                await session.generateResponse(prompt, (partial) => {
                     fullResponse += partial;
-                    aiDiv.innerText = fullResponse; // Update screen
-                    scrollToBottom();
-                });
-
-                // SAFETY CHECK: If model returns nothing
-                if (!fullResponse) {
-                    aiDiv.innerText = "[Error: Model returned empty response. Try refreshing.]";
-                }
-            } 
-            else if (activeEngine === 'webllm') {
-                // --- QWEN LOGIC ---
-                chatHistory.push({ role: "user", content: text });
-
-                const chunks = await webllmSession.chat.completions.create({ 
-                    messages: chatHistory, 
-                    stream: true,
-                    temperature: 0.4
-                });
-                
-                aiDiv.innerText = ""; 
-                for await (const chunk of chunks) {
-                    const content = chunk.choices[0]?.delta?.content || "";
-                    fullResponse += content;
                     aiDiv.innerText = fullResponse;
-                    scrollToBottom();
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
+            }
+            
+            // --- QWEN (With History) ---
+            else if (activeEngine === 'qwen') {
+                chatHistory.push({ role: "user", content: text });
+                const chunks = await session.chat.completions.create({ 
+                    messages: chatHistory, stream: true, temperature: 0.4 
+                });
+                aiDiv.innerText = "";
+                for await (const chunk of chunks) {
+                    fullResponse += chunk.choices[0]?.delta?.content || "";
+                    aiDiv.innerText = fullResponse;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
                 chatHistory.push({ role: "assistant", content: fullResponse });
             }
 
+            // --- LLAMA RAW (Stateless - Like your snippet) ---
+            else if (activeEngine === 'llama-raw') {
+                // We do NOT save history here. Just System + User.
+                // This mimics your app snippet logic.
+                const messages = [
+                    { role: "system", content: "You are a helpful assistant." },
+                    { role: "user", content: text }
+                ];
+                
+                const chunks = await session.chat.completions.create({ 
+                    messages: messages, stream: true 
+                });
+                
+                aiDiv.innerText = "";
+                for await (const chunk of chunks) {
+                    fullResponse += chunk.choices[0]?.delta?.content || "";
+                    aiDiv.innerText = fullResponse;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }
+
         } catch (err) {
-            console.error(err);
             aiDiv.innerText = "Error: " + err.message;
-            aiDiv.style.color = "red";
         }
 
-        // Reset UI
         input.disabled = false;
-        sendBtn.disabled = false;
         input.focus();
     }
 
-    // ==========================================
-    // 4. UI HELPERS
-    // ==========================================
+    // --- UI HELPERS ---
     function uiStartLoad() {
         selectionScreen.style.display = 'none';
         progressContainer.style.display = 'block';
-        status.innerText = "INITIALIZING CORE...";
+    }
+    
+    function uiUpdateProgress(report) {
+        const p = Math.round(report.progress * 100);
+        progressBar.style.width = p + '%';
+        progressText.innerText = p + '%';
+        status.innerText = report.text;
     }
 
-   function uiFinishLoad(msg) {
+    function uiFinishLoad(msg) {
         progressContainer.style.display = 'none';
-        
-        // OLD: chatContainer.style.display = 'block'; 
-        // NEW: Don't touch display style here, let the CSS !important handle it.
-        // Instead, just ensure the class is active if you use classes.
-        
-        // Force scroll to bottom to prove it loaded
-        const chatBox = document.getElementById('chat-container');
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        // Show Input Area explicitly
-        const inputArea = document.getElementById('input-area');
-        inputArea.style.display = 'flex'; 
-        
+        chatContainer.style.display = 'block';
+        inputArea.style.display = 'flex';
         status.innerText = msg;
-        status.style.color = "#00ff00";
-        input.disabled = false;
-        sendBtn.disabled = false;
+        status.style.color = "#00ff00"; // Keep status green
         
-        // Debug confirmation
-        console.log("UI Force-Loaded. Check Z-Index if still invisible.");
-    }
-
-    function uiHandleError(err) {
-        console.error(err);
-        status.innerText = "SYSTEM FAILURE";
-        status.style.color = "red";
-        alert("Load Failed: " + err.message);
-        selectionScreen.style.display = 'block';
-        progressContainer.style.display = 'none';
+        // Force scroll/visibility check
+        setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 100);
     }
 
     function appendMessage(text, className) {
@@ -453,22 +400,14 @@
         div.className = `message ${className}`;
         div.innerText = text;
         chatContainer.appendChild(div);
-        scrollToBottom();
-        return div;
-    }
-
-    function scrollToBottom() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
+        return div;
     }
 
     sendBtn.addEventListener('click', handleChat);
     input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleChat();
-        }
+        if (e.key === 'Enter') handleChat();
     });
-
 </script>
     <div class="container">
     <style>
