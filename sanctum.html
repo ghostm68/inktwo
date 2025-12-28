@@ -146,40 +146,33 @@
     <div id="status" class="status">SYSTEM STANDBY</div>
 </header>
 
-<!-- PROGRESS BAR (Hidden initially) -->
-<div id="progress-bar" style="width: 0%; height: 4px; background: #00ff00; display: none; transition: width 0.2s;"></div>
+<!-- SELECTION SCREEN -->
+<div id="selection-screen" style="text-align: center; padding: 40px;">
+    <h3>SELECT NEURAL CORE</h3>
+    
+    <!-- Option 1: MediaPipe -->
+    <button id="btn-gemma" style="display:block; width:100%; padding: 15px; margin-bottom:10px; background:#00ff00; border:none; font-weight:bold;">
+        LOAD GEMMA (555MB) <br><small>Faster, Google Tech</small>
+    </button>
 
-<!-- START SCREEN OVERLAY (New) -->
-<div id="start-screen" style="text-align: center; padding: 50px 20px;">
-    <h2 style="color: #fff; font-family: monospace;">NEURAL LINK v1.0</h2>
-    <p style="color: #888; margin-bottom: 20px;">
-        Warning: This requires downloading a large Neural Model (555MB).<br>
-        WiFi is recommended.
-    </p>
-    <button id="init-btn" style="
-        background: #00ff00; 
-        color: #000; 
-        border: none; 
-        padding: 15px 30px; 
-        font-family: monospace; 
-        font-weight: bold; 
-        cursor: pointer; 
-        font-size: 16px;">
-        INITIALIZE SYSTEM
+    <!-- Option 2: WebLLM -->
+    <button id="btn-qwen" style="display:block; width:100%; padding: 15px; background:#00d4ff; border:none; font-weight:bold;">
+        LOAD QWEN (700MB) <br><small>Smarter, WebLLM Tech</small>
     </button>
 </div>
 
-<!-- CHAT AREA (Hidden initially) -->
-<div id="chat-container" style="display: none;">
-    <div class="message ai-msg">
-        System Online. Gemma is here.
-    </div>
+<!-- SHARED PROGRESS BAR -->
+<div id="progress-container" style="display:none;">
+    <div id="progress-bar" style="width: 0%; height: 4px; background: #fff; transition: width 0.2s;"></div>
+    <div id="progress-text" style="text-align:center; font-size:12px; margin-top:5px;">0%</div>
 </div>
 
-<!-- INPUT AREA -->
-<div id="input-area">
-    <textarea id="user-input" placeholder="Enter command..." disabled></textarea>
-    <button id="send-btn" disabled>TRANSMIT</button>
+<!-- CHAT UI (Shared by both) -->
+<div id="chat-container" style="display: none; height: 300px; overflow-y: auto; border: 1px solid #333; margin-top: 20px;"></div>
+
+<div id="input-area" style="display:none; margin-top: 10px;">
+    <textarea id="user-input" placeholder="Enter command..."></textarea>
+    <button id="send-btn">TRANSMIT</button>
 </div>
  <div class="orb-container">
         <svg class="glitch-orb" viewBox="0 0 100 100">
@@ -188,125 +181,152 @@
         </svg>
     </div>
     <!-- GOOGLE MEDIAPIPE LOGIC -->
- <script type="module">
+<script type="module">
     import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-    // --- 1. GRAB ALL HTML ELEMENTS ---
-    // These 'const' act as remote controls for your HTML tags
+    // DOM ELEMENTS
     const status = document.getElementById('status');
-    const progressBar = document.getElementById('progress-bar');
-    const output = document.getElementById('chat-container');
+    const chatContainer = document.getElementById('chat-container');
     const input = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
-    
-    // New elements for the start sequence
-    const initBtn = document.getElementById('init-btn');
-    const startScreen = document.getElementById('start-screen');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const selectionScreen = document.getElementById('selection-screen');
 
-    let llm = null;
-    const modelUrl = 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task'; 
+    // STATE
+    let activeEngineType = null; // 'mediapipe' or 'webllm'
+    let mediapipeSession = null;
+    let webllmSession = null;
 
-    // --- 2. CLICK EVENT (The Trigger) ---
-    // The code waits here until the user clicks.
-    initBtn.addEventListener('click', () => {
-        // Hide the start button
-        startScreen.style.display = 'none';
+    // --- 1. LOAD GEMMA (MediaPipe) ---
+    document.getElementById('btn-gemma').addEventListener('click', async () => {
+        setupUIForLoad();
+        activeEngineType = 'mediapipe';
         
-        // Show the chat container and progress bar
-        output.style.display = 'block';
-        progressBar.style.display = 'block';
-        
-        // Update Status
-        status.innerText = "INITIALIZING NETWORK...";
-        
-        // actually run the loader
-        initAI();
-    });
-
-    // --- 3. THE LOADER ---
-    async function initAI() {
         try {
             const genai = await FilesetResolver.forGenAiTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
             );
-
-            // Update Status & Progress Bar
-            status.innerText = "DOWNLOADING MODEL (555MB)...";
-            progressBar.style.width = "30%";
-
-            llm = await LlmInference.createFromOptions(genai, {
+            
+            mediapipeSession = await LlmInference.createFromOptions(genai, {
                 baseOptions: { 
-                    modelAssetPath: modelUrl,
-                    delegate: 'GPU' // Try to use Phone GPU
+                    modelAssetPath: 'https://gemma.inkrealm.info/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task',
+                    delegate: 'GPU' 
                 },
                 maxTokens: 1000,
-                temperature: 0.6,
-                topK: 20
+                temperature: 0.6
             });
+            finalizeLoad("GEMMA ONLINE");
+        } catch (err) { handleError(err); }
+    });
 
-            // DONE LOADING
-            progressBar.style.width = "100%";
-            status.innerText = "SYSTEM ONLINE";
-            status.style.color = "#00ff00"; // Green text
-            
-            // Hide progress bar after a brief moment
-            setTimeout(() => { progressBar.style.display = 'none'; }, 500);
+    // --- 2. LOAD QWEN (WebLLM) ---
+    document.getElementById('btn-qwen').addEventListener('click', async () => {
+        setupUIForLoad();
+        activeEngineType = 'webllm';
+        
+        try {
+            // WebLLM handles progress via callback
+            webllmSession = await webllm.CreateMLCEngine(
+                "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", 
+                {
+                    initProgressCallback: (report) => {
+                        const p = Math.round(report.progress * 100);
+                        progressBar.style.width = p + '%';
+                        progressText.innerText = `Loading: ${p}%`;
+                        status.innerText = report.text;
+                    }
+                }
+            );
+            finalizeLoad("QWEN ONLINE");
+        } catch (err) { handleError(err); }
+    });
 
-            // Unlock inputs
-            input.disabled = false;
-            sendBtn.disabled = false;
-            input.focus();
-
-        } catch (err) {
-            console.error(err);
-            status.innerText = "CONNECTION FAILED";
-            status.style.color = "red";
-            alert("Failed to load model: " + err.message);
-            // Bring back the start button so they can try again
-            startScreen.style.display = 'block';
-        }
-    }
-
-    // --- 4. CHAT LOGIC (Same as before) ---
+    // --- 3. UNIFIED CHAT HANDLER ---
     async function handleChat() {
         const text = input.value.trim();
-        if (!text || !llm) return;
+        if (!text) return;
 
+        // UI Updates
         appendMessage(text, 'user-msg');
         input.value = '';
         input.disabled = true;
+        const aiDiv = appendMessage("Thinking...", 'ai-msg');
 
         try {
-            const aiDiv = appendMessage("Thinking...", 'ai-msg');
             let fullResponse = "";
-            
-            await llm.generateResponse(text, (partialResult) => {
-                fullResponse += partialResult;
-                aiDiv.innerText = fullResponse;
-                output.scrollTop = output.scrollHeight;
-            });
+
+            if (activeEngineType === 'mediapipe') {
+                // --- MEDIAPIPE LOGIC ---
+                await mediapipeSession.generateResponse(text, (partial) => {
+                    fullResponse += partial;
+                    aiDiv.innerText = fullResponse;
+                    scrollToBottom();
+                });
+            } 
+            else if (activeEngineType === 'webllm') {
+                // --- WEBLLM LOGIC ---
+                const messages = [{ role: "user", content: text }];
+                const chunks = await webllmSession.chat.completions.create({ messages, stream: true });
+                
+                aiDiv.innerText = ""; // Clear "Thinking..."
+                for await (const chunk of chunks) {
+                    const content = chunk.choices[0]?.delta?.content || "";
+                    fullResponse += content;
+                    aiDiv.innerText = fullResponse;
+                    scrollToBottom();
+                }
+            }
         } catch (err) {
-            appendMessage("Error: " + err.message, 'ai-msg');
+            aiDiv.innerText = "Error: " + err.message;
         }
+
         input.disabled = false;
         input.focus();
+    }
+
+    // --- HELPERS ---
+    function setupUIForLoad() {
+        selectionScreen.style.display = 'none';
+        progressContainer.style.display = 'block';
+        status.innerText = "INITIALIZING CORE...";
+    }
+
+    function finalizeLoad(msg) {
+        progressContainer.style.display = 'none';
+        chatContainer.style.display = 'block';
+        document.getElementById('input-area').style.display = 'block';
+        status.innerText = msg;
+        status.style.color = "#00ff00";
+    }
+
+    function handleError(err) {
+        console.error(err);
+        status.innerText = "FAILURE";
+        alert("Load Failed: " + err.message);
+        selectionScreen.style.display = 'block'; // Allow retry
+        progressContainer.style.display = 'none';
     }
 
     function appendMessage(text, className) {
         const div = document.createElement('div');
         div.className = `message ${className}`;
         div.innerText = text;
-        output.appendChild(div);
-        output.scrollTop = output.scrollHeight;
+        chatContainer.appendChild(div);
+        scrollToBottom();
         return div;
     }
 
+    function scrollToBottom() {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // LISTENERS
     sendBtn.addEventListener('click', handleChat);
     input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleChat();
-        }
+        if (e.key === 'Enter') handleChat();
     });
 </script>
     <div class="container">
