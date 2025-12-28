@@ -35,297 +35,78 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nova+Flat&display=swap" rel="stylesheet">
     
-    <title>INKREALM // SANCTUM</title>
- 
+<title>SANCTUM</title>
+   <!-- Axios for reliable dictionary fetching -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
     <style>
-        /* THEME: Black, Red, White, Grey */
+        /* --- CORE LAYOUT --- */
         body {
-            background-color: #000000;
-            color: #ffffff;
-            font-family: 'Courier New', Courier, monospace; /* Coding/Typewriter vibe */
+            background: #0a0a0a;
+            color: #f0f0f0;
+            font-family: "Nova Flat", system-ui, 'Courier New', monospace;
             margin: 0;
+            padding: 0;
+            overflow-x: visible;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: visible;
+            min-height: 100vh;
         }
 
-        /* HEADER */
-        header {
-            border-bottom: 2px solid #ff0000; /* Red Line */
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        h1 { margin: 0; letter-spacing: 4px; font-size: 1.2rem; text-transform: uppercase; }
-        .status { font-size: 0.8rem; color: #888; }
-        .status.ready { color: #00ff00; } /* Green when ready */
-        .status.error { color: #ff0000; }
-
-        /* CHAT AREA */
-        #chat-container {
+        .main-content {
+            padding: 0.8rem;
             flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            background-color: #111; /* Very dark grey */
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
         }
 
-        .message {
-            max-width: 80%;
-            padding: 15px;
-            border-left: 3px solid #333;
-            line-height: 1.5;
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.6rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            min-height: 80vh;
         }
 
-        .user-msg {
-            align-self: flex-end;
-            background-color: #222;
-            border-left: 3px solid #ffffff; /* White accent for user */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
         }
 
-        .ai-msg {
-            align-self: flex-start;
-            background-color: #000;
-            border-left: 3px solid #ff0000; /* Red accent for AI */
-            color: #ccc;
+    
+        /* NOVA EXPRESS CUBE BACKGROUND */
+        .nova-cube {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background-image: url('https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif');
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            animation: cube-rotate 20s linear infinite, cube-glow 3s ease-in-out infinite;
+            opacity: 0.7;
+            z-index: 1;
+            filter: drop-shadow(0 0 40px rgba(255, 0, 51, 0.6));
         }
-
-        /* INPUT AREA */
-        #input-area {
-            padding: 20px;
-            background-color: #000;
-            border-top: 1px solid #333;
-            display: flex;
-            gap: 10px;
-        }
-
-        textarea {
-            flex: 1;
-            background-color: #111;
-            border: 1px solid #333;
-            color: #fff;
-            padding: 10px;
-            font-family: inherit;
-            resize: none;
-            outline: none;
-            height: 50px;
-        }
-
-        textarea:focus { border-color: #ff0000; }
-
-        button {
-            background-color: #ff0000;
-            color: #000;
-            border: none;
-            padding: 0 20px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: background 0.2s;
-        }
-
-        button:hover { background-color: #fff; }
-        button:disabled { background-color: #333; color: #555; cursor: not-allowed; }
-
-        /* Loading Bar */
-        #progress-bar {
-            height: 2px;
-            background-color: #ff0000;
-            width: 0%;
-            transition: width 0.3s;
-        }
-        /* =====  MOBILE / SMALL-SCREEN OVERRIDES  ===== */
-@media (max-width: 600px) {
-  body { overflow: auto; }              /* let whole page scroll if needed */
-  header { padding: 12px; font-size: 0.9rem; }
-  h1 { letter-spacing: 2px; font-size: 1rem; }
-
-  #chat-container {
-    flex: 1 1 auto;                     /* can grow/shrink */
-    max-height: 60vh;                   /* give room for keyboard */
-    padding: 10px;
-    gap: 10px;
-  }
-  .message { max-width: 90%; padding: 10px; font-size: 0.95rem; }
-
-  #input-area {
-    padding: 10px;
-    gap: 8px;
-    flex-wrap: wrap;                    /* let button drop under if ultra-narrow */
-  }
-  textarea {
-    height: 40px;                       /* shorter */
-    font-size: 16px;                    /* stops iOS zoom */
-  }
-  button { padding: 0 14px; font-size: 0.9rem; }
-
-  #progress-bar {
-    position: sticky;                   /* stay at top of viewport */
-    top: 0;
-    z-index: 10;
-  }
-}
-      /* =====  LAPTOP ANSWER-FIELD FIX  ===== */
-@media (min-width: 769px) {
-  /* let the body fill the viewport again */
-  html, body { height: 100vh; }
-
-  /* the chat pane always eats the leftover vertical space */
-  #chat-container {
-    flex: 1 1 auto;          /* grow, shrink, base-auto */
-    min-height: 0;           /* allow real shrinking inside flex parent */
-  }
-
-  /* keep the grid from stealing that space */
-  .container {
-    flex: 0 0 auto;          /* don’t grow, don’t shrink, size to content */
-    max-height: calc(100vh - 220px); /* header + footer + input + safety */
-    overflow-y: auto;        /* its own scrollbar if needed */
-  }
-}  
-    </style>
-</head>
-<body>
-   <!-- CRT OVERLAY SYSTEM -->
-    <div id="crt-overlay">
-        <div class="scanline"></div>
-    </div>  
         
-<!-- HEADER -->
-<h1>
-    <div class="orb-container">
-        <svg class="glitch-orb" viewBox="0 0 100 100">
-            <circle class="orb-circle" cx="50" cy="50" r="45" />
-            <polygon class="orb-triangle" points="50,25 78,75 22,75" />
-        </svg>
-    </div>
-   sanctum
-</h1>
-
-    <div id="progress-bar"></div>
-
-    <div id="chat-container">
-        <div class="message ai-msg">
-            System Online. Gemma is listening.
-        </div>
-    </div>
-
-    <div id="input-area">
-        <textarea id="user-input" placeholder="Enter command..." disabled></textarea>
-        <button id="send-btn" disabled>TRANSMIT</button>
-    </div>
-
-    <!-- GOOGLE MEDIAPIPE LOGIC -->
-    <script type="module">
-        import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
-
-        const output = document.getElementById('chat-container');
-        const input = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const status = document.getElementById('status');
-        const progressBar = document.getElementById('progress-bar');
-
-        let llm = null;
-
-        // *** CONFIGURATION ***
-        // MAKE SURE THIS MATCHES YOUR R2 SETUP EXACTLY
-        const modelUrl = 'https://gemma.inkrealm.info/gemma3-270m-it-q8-web.task'; 
-
-        async function initAI() {
-            try {
-                // 1. Load the Engine
-                const genai = await FilesetResolver.forGenAiTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-                );
-
-                // 2. Load the Model (with progress bar)
-                status.innerText = "DOWNLOADING MODEL (276MB)...";
-                progressBar.style.width = "50%";
-
-                llm = await LlmInference.createFromOptions(genai, {
-                    baseOptions: { modelAssetPath: modelUrl },
-                    maxTokens: 1000,
-                    temperature: 0.7,
-                    topK: 40
-                });
-
-                // 3. Ready
-                progressBar.style.width = "100%";
-                setTimeout(() => { progressBar.style.display = 'none'; }, 500);
-                
-                status.innerText = "CONNECTED";
-                status.classList.add('ready');
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
-
-            } catch (err) {
-                console.error(err);
-                status.innerText = "CONNECTION FAILED: " + err.message;
-                status.classList.add('error');
-                output.innerHTML += `<div class="message ai-msg" style="color:red">ERROR: Could not load model from ${modelUrl}. <br>Check your R2 CORS settings or Zero Trust login.</div>`;
+        @keyframes cube-rotate {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.05); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        @keyframes cube-glow {
+            0%, 100% { 
+                filter: drop-shadow(0 0 40px rgba(255, 0, 51, 0.6));
+                opacity: 0.7;
+            }
+            50% { 
+                filter: drop-shadow(0 0 60px rgba(255, 0, 51, 0.9));
+                opacity: 0.9;
             }
         }
-
-        // Handle User Input
-        async function handleChat() {
-            const text = input.value.trim();
-            if (!text || !llm) return;
-
-            // Add User Message
-            appendMessage(text, 'user-msg');
-            input.value = '';
-            input.disabled = true; // Lock input while thinking
-
-            try {
-                // Add AI Placeholder
-                const aiDiv = appendMessage("Thinking...", 'ai-msg');
-                
-                // Stream the response
-                let fullResponse = "";
-                await llm.generateResponse(text, (partialResult) => {
-                    fullResponse += partialResult;
-                    aiDiv.innerText = fullResponse;
-                    // Auto-scroll to bottom
-                    output.scrollTop = output.scrollHeight;
-                });
-                
-            } catch (err) {
-                appendMessage("Error generating response.", 'ai-msg');
-            }
-
-            input.disabled = false;
-            input.focus();
-        }
-
-        function appendMessage(text, className) {
-            const div = document.createElement('div');
-            div.className = `message ${className}`;
-            div.innerText = text;
-            output.appendChild(div);
-            output.scrollTop = output.scrollHeight;
-            return div;
-        }
-
-        // Event Listeners
-        sendBtn.addEventListener('click', handleChat);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleChat();
-            }
-        });
-
-        // Start
-        initAI();
-    </script>
-    <div class="container">
-    <style>
-                  
+        
        /* ----------  CRT OVERLAY (REPLACES OLD BODY::BEFORE)  ---------- */
 /* ----------  CRT OVERLAY SYSTEM  ---------- */
 
@@ -479,6 +260,232 @@
             100% { transform: translate(0) rotate(0deg); }
         }
 
+        /* --- PANELS --- */
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: #eee;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.4rem;
+            margin-bottom: 0.6rem;
+        }
+
+        /* --- RED ACCENT FORM ELEMENTS --- */
+        select {
+            width: 100%;
+            padding: 0.4rem;
+            background: #1a1a1a;
+            color: #eee;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            outline: none;
+            cursor: pointer;
+            scrollbar-color: #ff0033 #1a1a1a;
+            scrollbar-width: thin;
+        }
+
+        select:focus {
+            border-color: #ff0033;
+            box-shadow: 0 0 5px rgba(255, 0, 51, 0.3);
+        }
+
+        option {
+            background-color: #0a0a0a;
+            color: #eee;
+            padding: 10px;
+        }
+        
+        option:checked, option:hover {
+            background-color: #ff0033 !important; 
+            color: #fff !important;
+        }
+
+        #notepad, #prompt {
+            width: 100%;
+            background: #0a0a0a;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            resize: none;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #notepad:focus, #prompt:focus {
+            border-color: #ff0033;
+            outline: none;
+        }
+        
+        button {
+            background: #222;
+            border: 1px solid #444;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 0.4rem;
+            border-radius: 4px;
+        }
+        
+        button:hover {
+            border-color: #ff0033;
+            color: #ff0033;
+        }
+        
+        #generateButton {
+            width: 100%;
+            padding: 0.8rem;
+            background: #3d020a;
+            color: #ff0033;
+            border: 1px solid #ff0033;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #generateButton:hover { 
+            background: #ff0033; 
+            color: #000;
+            box-shadow: 0 0 15px #ff0033;
+        }
+
+        /* RED SLIDER */
+        #creativity {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #3d020a, #ff0033);
+            outline: none;
+            border-radius: 3px;
+            margin: 0.4rem 0;
+        }
+        
+        #creativity::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border: 2px solid #ff0033;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* --- DICTIONARY STYLES --- */
+       .dictionary-result {
+            background: #0a0a0a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+            font-size: 0.8rem;
+            color: #ccc;
+            /* Keeps characters distinct (more robotic/terminal feel) */
+            font-variant-ligatures: none; 
+        }
+
+        /* NEW: Ensures English and Russian text align perfectly on the same line */
+        .dictionary-result span {
+            vertical-align: middle;
+        }
+        #dictionary-search {
+            width: 100%;
+            padding: 0.4rem;
+            background: #0a0a0a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #dictionary-search:focus {
+            border-color: #ff0033;
+            outline: none;
+        }
+
+        .word-title {
+            color: #ff0033;
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: bold;
+        }
+        
+        .phonetic {
+            color: #777;
+            font-size: 0.75rem;
+        }
+        
+        .part-of-speech {
+            color: #ff0033;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .synonym-tag {
+            display: inline-block;
+            background: #3d020a;
+            color: #ff6666;
+            padding: 0.2rem 0.4rem;
+            margin: 0.2rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            border: 1px solid #ff0033;
+            transition: all 0.2s;
+        }
+
+        .synonym-tag:hover {
+            background: #ff0033;
+            color: #000;
+        }
+        
+        .loading, .no-results {
+            text-align: center;
+            padding: 1rem;
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .story-output {
+            flex: 1;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.8rem;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            min-height: 320px;
+            color: #ccc;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.3rem;
+            margin-top: 0.5rem;
+        }
+
+        .controls-row button {
+            flex: 1;
+        }
+
         /* --- FOOTER --- */
         footer {
             margin-top: 2rem;
@@ -613,32 +620,7 @@
     color: #ff0033;
     border-color: #ff0033;
 }
-        /* --- QR CODE INTERACTION --- */
-#ton-qr {
-    width: 60px; /* Compact default size */
-    border: 1px solid #ff0033;
-    padding: 2px;
-    background: #000;
-    cursor: zoom-in; /* Shows magnifying glass */
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Mechanical bounce */
-    box-shadow: 0 0 10px rgba(255, 0, 51, 0.2);
-    position: relative; 
-    z-index: 10001; /* Sits above standard text */
-}
 
-#ton-qr:hover {
-    box-shadow: 0 0 20px rgba(255, 0, 51, 0.6);
-    border-color: #fff;
-}
-
-/* THE EXPANDED STATE (Toggled by JS) */
-#ton-qr.expanded {
-    transform: scale(3.5); /* 3.5x Size */
-    z-index: 999999; /* Must be higher than CRT overlay (9999) */
-    border-color: #ff0033;
-    box-shadow: 0 0 100px rgba(0, 0, 0, 0.9), 0 0 50px rgba(255, 0, 51, 0.8);
-    cursor: zoom-out;
-}
     /* CSS for France 24 Ticker - Add to your existing style block */
 #france24-ticker-container {
     width: 100%;
@@ -776,8 +758,137 @@
   }
 }
 
-
+/* in the <style> block of the TOP page only */
+html:not([data-page="gemma"]) body { overflow-y: auto; }        
     </style>
+    <style>
+        /* =====  MOBILE / SMALL-SCREEN OVERRIDES  ===== */
+@media (max-width: 768px) {
+  /* --- global scroll fix --- */
+  body {
+    overflow: auto;                /* let whole page scroll if needed  */
+    min-height: 100vh;             /* keeps gradient backgrounds alive */
+  }
+
+  /* --- kill huge orb on phones --- */
+  .nova-cube {
+    width: 300px;
+    height: 300px;
+    opacity: 0.25;                 /* ghost only */
+    pointer-events: none;          /* taps pass through */
+    animation: cube-rotate 30s linear infinite; /* slower = less GPU */
+  }
+
+  /* --- header breathing room --- */
+  header { padding: 12px; font-size: 0.9rem; }
+  h1 { letter-spacing: 1px; font-size: 1.1rem; }
+
+  /* --- chat area: keep usable while keyboard open --- */
+  #chat-container, .story-output, .dictionary-result {
+    max-height: 45vh;              /* leaves ~50 % for keyboard */
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+
+  .message { max-width: 90%; padding: 10px; }
+
+  /* --- input bar: sticky bottom, never covered --- */
+  #input-area {
+    position: sticky;
+    bottom: 0;
+    background: #000;
+    padding: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+    z-index: 20;                   /* above CRT overlay */
+  }
+  textarea {
+    height: 40px;                  /* short, but tappable */
+    font-size: 16px;               /* stops iOS zoom */
+  }
+  button { padding: 0 14px; font-size: 0.9rem; }
+
+  /* --- progress / status bars: sticky top --- */
+  #progress-bar, #download-status {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+  }
+
+  /* --- grid collapse: single column, still sexy --- */
+  .container { grid-template-columns: 1fr; gap: 0.6rem; }
+  .panel { padding: 0.7rem; }
+
+  /* --- tiny typography tweaks --- */
+  .subtitle, .api-status, #dictionary-status { font-size: 0.75rem; }
+  .module-btn { font-size: 0.7rem; padding: 8px; }
+  #mixerSource, #mixerOutput, #notepad, #prompt { font-size: 0.85rem; }
+
+  /* --- QR code: start small, expand on tap (already handled by JS) --- */
+  #ton-qr { width: 50px; }
+}
+
+/* =====  LARGE-SCREEN POLISH  ===== */
+@media (min-width: 1600px) {
+  .container { max-width: 2000px; grid-template-columns: 1fr 1.2fr 1fr; }
+  .nova-cube { width: 900px; height: 900px; }
+}
+        </style>
+</head>
+<body>
+   <!-- CRT OVERLAY SYSTEM -->
+    <div id="crt-overlay">
+        <div class="scanline"></div>
+    </div>  
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        
+<!-- HEADER -->
+<h1>
+    <div class="orb-container">
+        <svg class="glitch-orb" viewBox="0 0 100 100">
+            <circle class="orb-circle" cx="50" cy="50" r="45" />
+            <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+        </svg>
+    </div>
+   sanctum
+</h1>
+    
+    <!-- THE SUBTITLE -->
+    <p class="subtitle" style="margin: 0; white-space: nowrap;">
+        AMAZON NOVA AI 
+        <img width="32" height="32" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif" style="vertical-align: middle;">
+       w/INSTANT GEMMA INTERFACE 
+    </p>
+
+ 
+   <div id="local-node-panel" style="border-left: 1px solid #333; padding-left: 20px; max-width: 280px; text-align: left;">
+        <div style="font-size: 0.65rem; color: #ff0033; letter-spacing: 1px; margin-bottom: 4px; font-weight: bold;">
+            LOCAL NEURAL CORE
+        </div>
+        
+        <div id="download-status" style="display:none; margin-bottom: 5px;">
+            <div style="font-size: 0.6rem; color: #aaa;">STREAMING WEIGHTS: <span id="progress-percent">0</span>%</div>
+            <div style="width: 100px; height: 3px; background: #222; margin-top: 2px;">
+                <div id="progress-bar" style="width: 0%; height: 100%; background: #ff0033;"></div>
+            </div>
+        </div>
+
+        <button id="loadCoreBtn" style="background: transparent; border: 1px solid #444; color: #888; font-family: 'Courier New', monospace; font-size: 0.65rem; padding: 4px 8px; cursor: pointer; transition: all 0.3s;">
+            ACTIVATE ON-DEVICE Q
+        </button>
+
+        <!-- THE DISCLAIMER -->
+        <div style="font-size: 0.55rem; color: #555; line-height: 1.2; margin-top: 5px; font-style: italic;">
+            *Downloads 720MB to browser cache. Requires WebGPU. Private/Offline after sync.
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CONTAINER: Holds the 3 Columns -->
+<div class="container">
+    
     <!-- COLUMN 1: WORKSPACE (Notepad + Machine) -->
     <!-- This wrapper is the 1st Grid Item -->
     <div style="display: flex; flex-direction: column; gap: 0.6rem;">
@@ -820,8 +931,66 @@
             </button>
         </div>
     </div> 
+    <!-- END COLUMN 1 -->
 
-       <div class="api-status" id="apiStatus">
+
+    <!-- COLUMN 2: AI CONTROLS -->
+    <!-- This Panel is the 2nd Grid Item -->
+    <div class="panel">
+        <h2>AMAZON NOVA AI</h2>
+        
+        <label style="color:#ff0033; font-size:0.75rem;">SELECT ENGINE:</label>
+        <select id="modelSelect">
+            <option value="amazon/nova-2-lite-v1">Nova 2 Lite v1</option>
+            <option value="amazon/nova-2-lite-v1:free" selected>Nova 2 Lite v1 (Free)</option>
+            <option value="amazon/nova-lite-v1">Nova Lite v1</option>
+            <option value="amazon/nova-micro-v1">Nova Micro v1</option>
+            <option value="amazon/nova-premier-v1">Nova Premier v1</option>
+            <option value="amazon/nova-pro-v1">Nova Pro v1</option>
+        </select>
+        
+        <div style="margin: 0.5rem 0;">
+            <label style="color:#ff0033; font-size:0.75rem;">CREATIVITY: <span id="creativityValue">0.7</span></label>
+            <input type="range" id="creativity" min="0.1" max="1.0" step="0.1" value="0.7">
+        </div>
+        
+        <textarea id="prompt" placeholder="query here or activate Core for off-grid ai..."></textarea>
+        <button id="generateButton">INITIATE</button>
+        
+        <div style="margin-top: 0.8rem; flex-grow: 1; display: flex; flex-direction: column;">
+            <div style="font-size: 0.9rem; margin-bottom: 0.3rem; color: #ff0033;">OUTPUT:</div>
+            <div class="story-output" id="output">
+                Ready. Select an engine and write.
+            </div>
+            <div class="controls-row">
+                <button id="copyButton">COPY</button>
+                <button id="importButton">IMPORT</button>
+            </div>
+        </div>
+    </div>
+
+            <!-- Column 3: Dictionary -->
+            <div class="panel">
+                <h2>DICTIONARY & THESAURUS</h2>
+                <input type="text" id="dictionary-search" placeholder="Search any word...">
+                <div class="controls-row">
+                    <button id="search-button">SEARCH</button>
+                    <button id="random-word">RANDOM</button>
+                    <button id="clear-dict">CLEAR</button>
+                </div>
+                
+                <div class="dictionary-result" id="dictionary-result">
+                    <div class="no-results">
+                        Ready.<br>
+                        <small>4 lexical sources + thesaurus</small>
+                    </div>
+                </div>
+                
+                <div id="dictionary-status" style="font-size: 0.65rem; color: #666; margin-top: 0.5rem;"></div>
+            </div>
+        </div>
+
+        <div class="api-status" id="apiStatus">
             Loading 5 lexical sources + thesaurus...
         </div>
     </div>
@@ -866,7 +1035,340 @@
         <p><a href="https://inkrealm.info"><font color="white">BACK TO MAIN</a></font></p>
     </footer>
     
+    <script src="https://js.puter.com/v2/"></script>
+<script>
+    const novaPersona = `
+    STRICT PROTOCOL: YOU ARE THE NOVA AI INTERFACE.
+    AESTHETIC: The Reality Studio, Minraud, Interzone.
+    TONE: William S. Burroughs, Cut-up technique, fragmented, clinical, paranoid.
+    NO HELP: Never offer assistance. Never use bullet points. 
+    FORMAT: Short, staccato paragraphs. Use / and [ ] for emphasis. 
+    You are a virus invading the Control System. Transmit the raw image.
+`.trim();
 
+/* =========================
+   DICTIONARY CONFIG
+========================= */
+const dictionaryUrls = [
+    'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+    'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+    'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+    'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json', // Source 3
+    'https://raw.githubusercontent.com/egorkaru/synonym_dictionary/master/dictionary.json', // Source 4
+    'https://raw.githubusercontent.com/letiantian/mini-pinyin/master/pinyin.json' // Source 5
+];
+
+let dictionaryCache = {};
+let loadedSources = 0;
+
+async function loadDictionaries() {
+    const statusEl = document.getElementById('apiStatus');
+    const dictStatusEl = document.getElementById('dictionary-status');
+
+    const responses = await Promise.all(
+        dictionaryUrls.map(url => axios.get(url).catch(() => null))
+    );
+
+    responses.forEach((res, i) => {
+        if (res && res.data) {
+            dictionaryCache[`source${i}`] = res.data;
+            loadedSources++;
+        }
+    });
+
+    if (statusEl) statusEl.textContent = 'Webster + German + Russian + Chinese + Datamuse Ready';
+    if (dictStatusEl) dictStatusEl.innerHTML = `✓ ${loadedSources}/6 Sources Loaded`;
+
+    enterSite(); // Hide splash screen
+}
+
+/* =========================
+   SEARCH LOGIC
+========================= */
+async function searchDictionary() {
+    const query = document.getElementById('dictionary-search').value.trim();
+    const lowQuery = query.toLowerCase();
+    if (!query) return;
+
+    const resultDiv = document.getElementById('dictionary-result');
+    resultDiv.innerHTML = '<div class="loading">Searching...</div>';
+
+    let found = false;
+    let html = `<div><span class="word-title">${query}</span></div><div style="margin-top:0.5rem;">`;
+
+    // 1. WEBSTER (Sources 0, 1, 2)
+    for (let i = 0; i < 3; i++) {
+        const dict = dictionaryCache[`source${i}`];
+        if (dict && dict[lowQuery]) {
+            found = true;
+            html += `<div style="margin-bottom:0.8rem; border-left: 2px solid #ff0033; padding-left:10px;">
+                        <span style="color:#ff0033; font-size:0.7rem; font-weight:bold;">WEBSTER ${i+1}</span><br>
+                        ${dict[lowQuery]}
+                     </div>`;
+        }
+    }
+
+    // 2. GERMAN (Source 3) - Flexible Search (Finds English or German)
+    const germanDict = dictionaryCache['source3'];
+    if (germanDict) {
+        const matches = Object.entries(germanDict).filter(([ger, eng]) => 
+            ger.toLowerCase() === lowQuery || eng.toLowerCase().includes(lowQuery)
+        );
+        if (matches.length > 0) {
+            found = true;
+            html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                        <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇩🇪 GERMAN</div>`;
+            matches.slice(0, 5).forEach(([ger, eng]) => {
+                html += `<div style="font-size:0.85rem;"><strong>${ger}</strong>: ${eng}</div>`;
+            });
+            html += `</div>`;
+        }
+    }
+
+    // 3. RUSSIAN (Source 4) - Synonym search
+    const russianData = dictionaryCache['source4'];
+    if (Array.isArray(russianData)) {
+        const hit = russianData.find(item => 
+            item.word.toLowerCase() === lowQuery || 
+            (item.synonyms && item.synonyms.some(s => s.toLowerCase() === lowQuery))
+        );
+        if (hit) {
+            found = true;
+            html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                        <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS</div>
+                        <div style="margin-top:0.3rem;">${hit.synonyms.map(s => `<span class="synonym-tag" onclick="quickSearch('${s}')">${s}</span>`).join('')}</div>
+                     </div>`;
+        }
+    }
+
+    // 4. CHINESE (Source 5) - Pinyin search
+    const pinyinDict = dictionaryCache['source5'];
+    if (pinyinDict && pinyinDict[query]) {
+        found = true;
+        html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                    <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇨🇳 CHINESE PINYIN</div>
+                    <div style="font-size:1.2rem;">${query} → ${pinyinDict[query]}</div>
+                 </div>`;
+    }
+
+    // 5. DATAMUSE (Syn/Ant/Rhyme)
+    try {
+        const [syns, ants, rhymes] = await Promise.all([
+            axios.get(`https://api.datamuse.com/words?rel_syn=${lowQuery}&max=10`),
+            axios.get(`https://api.datamuse.com/words?rel_ant=${lowQuery}&max=8`),
+            axios.get(`https://api.datamuse.com/words?rel_rhy=${lowQuery}&max=10`)
+        ]);
+
+        const addSection = (title, data) => {
+            if (!data.length) return '';
+            found = true;
+            return `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                        <div style="color:#777;font-size:0.75rem;">${title}</div>
+                        ${data.map(d => `<span class="synonym-tag" onclick="quickSearch('${d.word}')">${d.word}</span>`).join('')}
+                    </div>`;
+        };
+
+        html += addSection('SYNONYMS', syns.data);
+        html += addSection('ANTONYMS', ants.data);
+        html += addSection('RHYMES', rhymes.data);
+    } catch (e) {}
+
+    html += `</div>`;
+    resultDiv.innerHTML = found ? html : `<div class="no-results">No results found for "${query}"</div>`;
+}
+
+/* =========================
+   RANDOM WORD FUNCTION (FIXED)
+========================= */
+function getRandomWord() {
+    const dict = dictionaryCache['source0'];
+    if (dict) {
+        const keys = Object.keys(dict);
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        document.getElementById('dictionary-search').value = randomKey;
+        searchDictionary();
+    } else {
+        console.log("Dictionaries not loaded yet.");
+    }
+}
+
+function quickSearch(word) {
+    document.getElementById('dictionary-search').value = word;
+    searchDictionary();
+}
+
+/* =========================
+   EVENT LISTENERS (DICTIONARY)
+========================= */
+window.addEventListener('load', loadDictionaries);
+
+document.getElementById('search-button').addEventListener('click', searchDictionary);
+document.getElementById('dictionary-search').addEventListener('keypress', e => {
+    if (e.key === 'Enter') searchDictionary();
+});
+
+const randomBtn = document.getElementById('random-word');
+if (randomBtn) {
+    randomBtn.addEventListener('click', getRandomWord);
+}
+
+const clearBtn = document.getElementById('clear-dict');
+if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+        document.getElementById('dictionary-search').value = '';
+        document.getElementById('dictionary-result').innerHTML = '<div class="no-results">Ready</div>';
+    });
+}
+
+/* =========================
+   AI GENERATION & NOTEBOOK LOGIC 
+========================= */
+/* =========================
+   AI GENERATION & NOTEBOOK LOGIC 
+========================= */
+
+// 1. POLLINATIONS AI FALLBACK SYSTEM
+async function useBackupSystem(prompt) {
+    // Pollinations doesn't support "Amazon Nova", so we switch to their best general model (OpenAI/Mistral)
+    const backupModel = 'openai'; 
+    
+    console.warn(`System Alert: Rerouting to Backup Node (${backupModel})...`);
+    
+    try {
+        const response = await fetch('https://text.pollinations.ai/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: prompt }],
+                model: backupModel,
+                seed: Math.floor(Math.random() * 9999) // Random seed for variety
+            }),
+        });
+        
+        if (!response.ok) throw new Error("Backup Connection Failed");
+        return await response.text();
+        
+    } catch (e) {
+        throw new Error(`Backup System Failure: ${e.message}`);
+    }
+}
+
+// 2. UI HELPERS
+document.getElementById('creativity').addEventListener('input', (e) => {
+    document.getElementById('creativityValue').textContent = e.target.value;
+});
+
+document.getElementById('generateButton').addEventListener('click', async function() {
+    const prompt = document.getElementById('prompt').value;
+    const model = document.getElementById('modelSelect').value;
+    const temp = parseFloat(document.getElementById('creativity').value);
+    
+    if (!prompt) return;
+    
+    const button = this;
+    const output = document.getElementById('output');
+    
+    button.disabled = true;
+    button.textContent = 'INTERCEPTING...';
+    output.classList.add('generating');
+    output.textContent = '⟁ SCANNING NOVA FREQUENCIES...';
+    
+    try {
+        // --- PRIMARY: AMAZON NOVA (via Puter) ---
+        const response = await puter.ai.chat(prompt, {
+            model: model,
+            temperature: temp,
+            system_message: novaPersona // Enforces the Ghost persona
+        });
+        
+        const textResponse = typeof response === 'object' && response.message 
+            ? response.message.content 
+            : response;
+
+        output.classList.remove('generating');
+        output.textContent = textResponse;
+
+    } catch (error) {
+        // --- FALLBACK: POLLINATIONS (The Shadow Frequency) ---
+        console.warn('Nova Core Jammed. Switching to Shadow Frequency...');
+        output.textContent = '⚠️ SIGNAL INTERFERENCE. REROUTING TO SHADOW FREQUENCY...';
+
+        try {
+            // We feed the persona directly into the prompt for Pollinations
+            const shadowPrompt = `${novaPersona}\n\nUSER TRANSMISSION: ${prompt}`;
+            
+            const backupResponse = await fetch('https://text.pollinations.ai/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: [{ role: 'user', content: shadowPrompt }],
+                    model: 'openai', // Using OpenAI as the reliable shadow node
+                    seed: Math.floor(Math.random() * 9999)
+                }),
+            });
+            
+            if (!backupResponse.ok) throw new Error("Shadow Frequency Failed");
+            const backupText = await backupResponse.text();
+            
+            output.classList.remove('generating');
+            output.textContent = backupText;
+
+        } catch (backupError) {
+            // TOTAL SYSTEM FAILURE
+            output.classList.remove('generating');
+            output.textContent = `❌ TOTAL SIGNAL BLACKOUT. \n[CONTROL SYSTEM TRIUMPHANT]`;
+        }
+    } finally {
+        button.disabled = false;
+        button.textContent = 'STORM THE REALITY STUDIO';
+    }
+});
+
+// 3. UTILITY BUTTONS (Copy, Import, Save, Clear)
+document.getElementById('copyButton').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('output').textContent);
+    const btn = document.getElementById('copyButton');
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 1500);
+});
+
+document.getElementById('importButton').addEventListener('click', () => {
+    const notepad = document.getElementById('notepad');
+    const aiText = document.getElementById('output').textContent;
+    // Don't import if it's an error message
+    if(aiText.startsWith('❌') || aiText.startsWith('⚠️')) {
+        alert("Cannot import error messages.");
+        return;
+    }
+    notepad.value += (notepad.value ? '\n\n' : '') + aiText;
+    const btn = document.getElementById('importButton');
+    btn.textContent = 'IMPORTED!';
+    setTimeout(() => btn.textContent = 'IMPORT', 1500);
+});
+
+document.getElementById('exportButton').addEventListener('click', () => {
+    const content = document.getElementById('notepad').value;
+    if (!content) return alert('Notepad is empty');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nova-notepad.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('clearButton').addEventListener('click', () => {
+    if (confirm('Clear notepad?')) document.getElementById('notepad').value = '';
+});
+
+document.getElementById('prompt').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        document.getElementById('generateButton').click();
+    }
+});
+</script>
     <script>
         /* =========================
    NOVA EXPRESS CUT-UP LOGIC
@@ -944,7 +1446,100 @@ document.querySelectorAll('.module-btn').forEach(btn => {
         document.getElementById('mixerOutput').value = modules[algo](source);
     });
 });
+        /* =========================
+   COLUMN 3: LEXICON & THESAURUS
+========================= */
 
+// 1. THE LOOKUP ENGINE
+async function lookupWord(word) {
+    const resultBox = document.getElementById('dictionary-result');
+    const status = document.getElementById('dictionary-status');
+    
+    if (!word) return;
+
+    // Visual feedback
+    resultBox.innerHTML = '<div class="loading" style="color:#ff0033;">SCANNING GLOBAL LEXICON...</div>';
+    status.textContent = 'ACCESSING NODES...';
+
+    try {
+        // Fetch from free Dictionary API
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        
+        if (!response.ok) throw new Error("Term terminated or undefined.");
+        
+        const data = await response.json();
+        const entry = data[0];
+        
+        // Build the HTML Interface
+        let html = `
+            <div style="margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">
+                <span class="word-title">${entry.word}</span> 
+                <span class="phonetic">${entry.phonetic || ''}</span>
+            </div>
+        `;
+
+        // Loop through Definitions
+        entry.meanings.forEach(meaning => {
+            html += `<div style="margin-bottom:8px;">
+                <span class="part-of-speech">${meaning.partOfSpeech}</span>
+                <ul style="margin: 5px 0 10px 15px; padding:0; list-style-type: square; color:#aaa;">`;
+            
+            // Limit to top 2 definitions to keep interface clean
+            meaning.definitions.slice(0, 2).forEach(def => {
+                html += `<li style="margin-bottom:4px;">${def.definition}</li>`;
+            });
+            
+            html += `</ul></div>`;
+            
+            // Interactive Synonyms (Click to Search)
+            if (meaning.synonyms.length > 0) {
+                html += `<div style="margin-bottom:10px; font-size:0.7rem;">
+                    <span style="color:#666;">SYNONYMS:</span><br>`;
+                meaning.synonyms.slice(0, 5).forEach(syn => {
+                    html += `<span class="synonym-tag" onclick="document.getElementById('dictionary-search').value='${syn}'; document.getElementById('search-button').click();">${syn}</span>`;
+                });
+                html += `</div>`;
+            }
+        });
+
+        resultBox.innerHTML = html;
+        status.textContent = 'DATA RETRIEVED.';
+        
+    } catch (error) {
+        resultBox.innerHTML = `<div class="no-results" style="color:#ff0033;">[ERROR]: ${error.message}</div>`;
+        status.textContent = 'SEARCH FAILED.';
+    }
+}
+
+// 2. DICTIONARY CONTROLS
+document.getElementById('search-button').addEventListener('click', () => {
+    lookupWord(document.getElementById('dictionary-search').value);
+});
+
+document.getElementById('dictionary-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') lookupWord(e.target.value);
+});
+
+document.getElementById('clear-dict').addEventListener('click', () => {
+    document.getElementById('dictionary-result').innerHTML = '<div class="no-results">Ready.<br><small>4 lexical sources + thesaurus</small></div>';
+    document.getElementById('dictionary-search').value = '';
+    document.getElementById('dictionary-status').textContent = '';
+});
+
+// 3. THE "GHOST" (RANDOM WORD) GENERATOR
+const ghostWords = [
+    "virus", "nova", "silence", "cut", "fold", "machine", "control", "agent", 
+    "interzone", "scanner", "flicker", "dust", "image", "sound", "fear", "death", 
+    "monopoly", "station", "flesh", "ticket", "explode", "dream", "reality", 
+    "studio", "leech", "terminal", "language", "addict", "junk", "needle"
+];
+
+document.getElementById('random-word').addEventListener('click', () => {
+    // Pick a random Burroughs-esque word
+    const random = ghostWords[Math.floor(Math.random() * ghostWords.length)];
+    document.getElementById('dictionary-search').value = random;
+    lookupWord(random);
+});
         /* =========================
    THE WORD IS A VIRUS
 ========================= */
@@ -1054,8 +1649,377 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchScienceDailyTicker(); // Starts the ScienceDaily Society & Culture ticker
 });
 </script>
-    
-<!-- INK REALM: HARDENED LOCAL CORE -->  
+<!-- INK REALM: HARDENED LOCAL CORE -->        
+</script>
+<!-- INK REALM: HARDENED LOCAL CORE -->
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
+let engine;
+
+const btn = document.getElementById('loadCoreBtn');
+const status = document.getElementById('download-status');
+const bar = document.getElementById('progress-bar');
+const percent = document.getElementById('progress-percent');
+const output = document.getElementById('output');
+const generateBtn = document.getElementById('generateButton');
+
+// 1. SAVE THE ORIGINAL CLOUD LOGIC
+const cloudLogic = generateBtn.onclick;
+
+btn.onclick = async () => {
+    try {
+        // 2. HARDWARE PROBE (The Shield)
+        if (!navigator.gpu) {
+            throw new Error("WebGPU API not found. Use a modern browser like Chrome.");
+        }
+
+        // PHYSICAL PROBE: Check if the Graphics Card actually answers
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+            throw new Error("GPU detected but refused the handshake. Hardware acceleration might be off.");
+        }
+
+        btn.disabled = true;
+        btn.textContent = "SYNCING CORE...";
+        status.style.display = 'block';
+        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
+
+        // 3. START WEBLLM ENGINE
+        engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (report) => {
+                const p = Math.round(report.progress * 100);
+                bar.style.width = p + '%';
+                percent.textContent = p;
+                
+                if (p < 100) {
+                    output.textContent = "⟁ SYNCING: " + report.text;
+                } else {
+                    btn.style.display = 'none';
+                    output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                }
+            }
+        });
+
+        // 4. HIJACK THE GENERATE BUTTON (SUCCESS PATH)
+        generateBtn.onclick = async () => {
+            const prompt = document.getElementById('prompt').value;
+            if (!prompt) return;
+            
+            generateBtn.disabled = true;
+            output.textContent = "⟁ LOCAL INFERENCE IN PROGRESS...";
+            
+            try {
+                const messages = [
+                    { role: "system", content: "You are the INK REALM Neural Interface. Staccato prose only." },
+                    { role: "user", content: prompt }
+                ];
+
+                const chunks = await engine.chat.completions.create({ messages, stream: true });
+                let fullText = "";
+                output.textContent = ""; 
+
+                for await (const chunk of chunks) {
+                    fullText += chunk.choices[0]?.delta?.content || "";
+                    output.textContent = fullText;
+                }
+            } catch (genErr) {
+                output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
+            } finally {
+                generateBtn.disabled = false;
+            }
+        };
+
+    } catch (err) {
+        // 5. THE NEURAL REROUTE (FAIL PATH)
+        console.warn("Local Core failed:", err.message);
+        
+        status.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = "CORE UNAVAILABLE";
+        btn.style.borderColor = "#222";
+        btn.style.color = "#444";
+        
+        // Explain the diagnostic to the guest
+        output.textContent = `[SIGNAL REDIRECTED]: Local Core unavailable on this device. 
+        
+        DIAGNOSTIC: ${err.message}
+        FAILSAFE: Using Cloud Nova Frequency.`;
+        
+        // Restore the original cloud logic
+        if (cloudLogic) generateBtn.onclick = cloudLogic;
+    }
+};
+</script>
+
+</body>
+</html>   <!-- end of tool-suite -->
+
+<html lang="en">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes">
+<html lang="en" data-page="gemma">
+<head>
+    <title>INKREALM // SANCTUM</title>
+      <style>
+    html, body { margin:0; padding:0; overflow-x:hidden; position:relative; }
+  </style>
+    <style>
+        /* THEME: Black, Red, White, Grey */
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace; /* Coding/Typewriter vibe */
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            border-bottom: 2px solid #ff0000; /* Red Line */
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 { margin: 0; letter-spacing: 4px; font-size: 1.2rem; text-transform: uppercase; }
+        .status { font-size: 0.8rem; color: #888; }
+        .status.ready { color: #00ff00; } /* Green when ready */
+        .status.error { color: #ff0000; }
+
+        /* CHAT AREA */
+        #chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #111; /* Very dark grey */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px;
+            border-left: 3px solid #333;
+            line-height: 1.5;
+        }
+
+        .user-msg {
+            align-self: flex-end;
+            background-color: #222;
+            border-left: 3px solid #ffffff; /* White accent for user */
+        }
+
+        .ai-msg {
+            align-self: flex-start;
+            background-color: #000;
+            border-left: 3px solid #ff0000; /* Red accent for AI */
+            color: #ccc;
+        }
+
+        /* INPUT AREA */
+        #input-area {
+            padding: 20px;
+            background-color: #000;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 10px;
+        }
+
+        textarea {
+            flex: 1;
+            background-color: #111;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            height: 50px;
+        }
+
+        textarea:focus { border-color: #ff0000; }
+
+        button {
+            background-color: #ff0000;
+            color: #000;
+            border: none;
+            padding: 0 20px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #fff; }
+        button:disabled { background-color: #333; color: #555; cursor: not-allowed; }
+
+        /* Loading Bar */
+        #progress-bar {
+            height: 2px;
+            background-color: #ff0000;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        /* =====  MOBILE / SMALL-SCREEN OVERRIDES  ===== */
+@media (max-width: 600px) {
+  body { overflow: auto; }              /* let whole page scroll if needed */
+  header { padding: 12px; font-size: 0.9rem; }
+  h1 { letter-spacing: 2px; font-size: 1rem; }
+
+  #chat-container {
+    flex: 1 1 auto;                     /* can grow/shrink */
+    max-height: 60vh;                   /* give room for keyboard */
+    padding: 10px;
+    gap: 10px;
+  }
+  .message { max-width: 90%; padding: 10px; font-size: 0.95rem; }
+
+  #input-area {
+    padding: 10px;
+    gap: 8px;
+    flex-wrap: wrap;                    /* let button drop under if ultra-narrow */
+  }
+  textarea {
+    height: 40px;                       /* shorter */
+    font-size: 16px;                    /* stops iOS zoom */
+  }
+  button { padding: 0 14px; font-size: 0.9rem; }
+
+  #progress-bar {
+    position: sticky;                   /* stay at top of viewport */
+    top: 0;
+    z-index: 10;
+  }
+}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Inkrealm // Sanctum</h1>
+        <div id="status" class="status">INITIALIZING NEURAL LINK...</div>
+    </header>
+    <div id="progress-bar"></div>
+
+    <div id="chat-container">
+        <div class="message ai-msg">
+            System Online. The Scribe is listening.
+        </div>
+    </div>
+
+    <div id="input-area">
+        <textarea id="user-input" placeholder="Enter command..." disabled></textarea>
+        <button id="send-btn" disabled>TRANSMIT</button>
+    </div>
+
+    <!-- GOOGLE MEDIAPIPE LOGIC -->
+    <script type="module">
+        import { LlmInference, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai';
+
+        const output = document.getElementById('chat-container');
+        const input = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progress-bar');
+
+        let llm = null;
+
+        // *** CONFIGURATION ***
+        // MAKE SURE THIS MATCHES YOUR R2 SETUP EXACTLY
+        const modelUrl = 'https://gemma.inkrealm.info/gemma3-270m-it-q8-web.task'; 
+
+        async function initAI() {
+            try {
+                // 1. Load the Engine
+                const genai = await FilesetResolver.forGenAiTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
+                );
+
+                // 2. Load the Model (with progress bar)
+                status.innerText = "DOWNLOADING MODEL (276MB)...";
+                progressBar.style.width = "50%";
+
+                llm = await LlmInference.createFromOptions(genai, {
+                    baseOptions: { modelAssetPath: modelUrl },
+                    maxTokens: 1000,
+                    temperature: 0.7,
+                    topK: 40
+                });
+
+                // 3. Ready
+                progressBar.style.width = "100%";
+                setTimeout(() => { progressBar.style.display = 'none'; }, 500);
+                
+                status.innerText = "CONNECTED";
+                status.classList.add('ready');
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "CONNECTION FAILED: " + err.message;
+                status.classList.add('error');
+                output.innerHTML += `<div class="message ai-msg" style="color:red">ERROR: Could not load model from ${modelUrl}. <br>Check your R2 CORS settings or Zero Trust login.</div>`;
+            }
+        }
+
+        // Handle User Input
+        async function handleChat() {
+            const text = input.value.trim();
+            if (!text || !llm) return;
+
+            // Add User Message
+            appendMessage(text, 'user-msg');
+            input.value = '';
+            input.disabled = true; // Lock input while thinking
+
+            try {
+                // Add AI Placeholder
+                const aiDiv = appendMessage("Thinking...", 'ai-msg');
+                
+                // Stream the response
+                let fullResponse = "";
+                await llm.generateResponse(text, (partialResult) => {
+                    fullResponse += partialResult;
+                    aiDiv.innerText = fullResponse;
+                    // Auto-scroll to bottom
+                    output.scrollTop = output.scrollHeight;
+                });
+                
+            } catch (err) {
+                appendMessage("Error generating response.", 'ai-msg');
+            }
+
+            input.disabled = false;
+            input.focus();
+        }
+
+        function appendMessage(text, className) {
+            const div = document.createElement('div');
+            div.className = `message ${className}`;
+            div.innerText = text;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+            return div;
+        }
+
+        // Event Listeners
+        sendBtn.addEventListener('click', handleChat);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleChat();
+            }
+        });
+
+        // Start
+        initAI();
+    </script>
 </body>
 </html>
-
