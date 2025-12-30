@@ -408,6 +408,87 @@
   border: 1px solid #57534e;
   margin-top: 30px;
 }  
+    /* Add blinking cursor to paper display */
+.paper-content {
+  /* ... your existing styles ... */
+  position: relative;
+}
+
+/* Add cursor after text */
+.paper-content:after {
+  content: '|';
+  animation: blink 1s infinite;
+  color: #000;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+ /* Formatting Toolbar */
+.formatting-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+  border: 1px solid #444;
+}
+
+.format-btn {
+  background: linear-gradient(to bottom, #444, #222);
+  border: none;
+  border-radius: 4px;
+  color: #ccc;
+  padding: 6px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.format-btn:hover {
+  background: linear-gradient(to bottom, #555, #333);
+  transform: translateY(-1px);
+}
+
+.format-btn[data-format="bold"] {
+  font-weight: bold;
+}
+
+.format-btn[data-format="italic"] {
+  font-style: italic;
+}
+
+.format-btn[data-format="underline"] {
+  text-decoration: underline;
+}
+
+#save-btn, #load-btn {
+  background: linear-gradient(to bottom, #2a5, #183);
+  color: white;
+  padding: 6px 15px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #444;
+  margin: 0 5px;
+}
+
+.toolbar-status {
+  font-size: 11px;
+  color: #0f0;
+  margin-left: auto;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+}   
  /* WebLLM Chat Panel */
 .chat-panel {
   position: fixed;
@@ -713,27 +794,17 @@
       </div>
       
       <!-- Typewriter Keys -->
-      <div class="typewriter-keys">
-        <div class="key-row">
-          <div class="key">Q</div><div class="key">W</div><div class="key">E</div><div class="key">R</div>
-          <div class="key">T</div><div class="key">Y</div><div class="key">U</div><div class="key">I</div>
-          <div class="key">O</div><div class="key">P</div>
-        </div>
-        <div class="key-row">
-          <div class="key">A</div><div class="key">S</div><div class="key">D</div><div class="key">F</div>
-          <div class="key">G</div><div class="key">H</div><div class="key">J</div><div class="key">K</div>
-          <div class="key">L</div>
-        </div>
-        <div class="key-row">
-          <div class="key shift">↑</div>
-          <div class="key">Z</div><div class="key">X</div><div class="key">C</div><div class="key">V</div>
-          <div class="key">B</div><div class="key">N</div><div class="key">M</div>
-          <div class="key return">↵</div>
-        </div>
-        <div class="key-row">
-          <div class="key spacebar"></div>
-        </div>
-      </div>
+     <!-- Replace the entire .typewriter-keys section with this: -->
+<div class="formatting-toolbar">
+  <button class="format-btn" data-format="bold" title="Bold (Ctrl+B)">B</button>
+  <button class="format-btn" data-format="italic" title="Italic (Ctrl+I)">I</button>
+  <button class="format-btn" data-format="underline" title="Underline (Ctrl+U)">U</button>
+  <div class="toolbar-separator"></div>
+  <button class="format-btn" id="save-btn" title="Save (Ctrl+S)">💾 SAVE</button>
+  <button class="format-btn" id="load-btn" title="Load">📂 LOAD</button>
+  <div class="toolbar-separator"></div>
+  <span class="toolbar-status" id="save-status"></span>
+</div>
       
       <!-- Carriage (moves as you type) -->
       <div class="carriage" id="carriage"></div>
@@ -769,6 +840,140 @@ class AnimatedTypewriter {
     this.carriagePosition = 0;
     this.maxCarriage = 95;
     
+    // ✅ CORRECT - Just declare the property
+    this.saveStatus = document.getElementById('save-status');
+    
+    this.init(); // This will call initFormatting
+  }
+  
+  init() {
+    this.textInput.addEventListener('input', () => this.updateDisplay());
+    this.textInput.addEventListener('keydown', (e) => this.handleKeyPress(e));
+    this.paperDisplay.addEventListener('click', () => this.textInput.focus());
+    
+    // ✅ Add this line:
+    this.initFormatting();
+    
+    this.textInput.focus();
+    this.updateDisplay();
+  }
+  
+  // ✅ Add formatting methods as separate class methods (after init but before updateDisplay):
+  initFormatting() {
+    // Format buttons
+    document.querySelectorAll('.format-btn[data-format]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const format = e.target.dataset.format;
+        this.applyFormat(format);
+      });
+    });
+
+    // Save button
+    document.getElementById('save-btn').addEventListener('click', () => this.saveDocument());
+    
+    // Load button
+    document.getElementById('load-btn').addEventListener('click', () => this.loadDocument());
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey) {
+        switch(e.key.toLowerCase()) {
+          case 'b': e.preventDefault(); this.applyFormat('bold'); break;
+          case 'i': e.preventDefault(); this.applyFormat('italic'); break;
+          case 'u': e.preventDefault(); this.applyFormat('underline'); break;
+          case 's': e.preventDefault(); this.saveDocument(); break;
+        }
+      }
+    });
+  }
+
+  applyFormat(format) {
+    const textarea = this.textInput;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    if (!selectedText) return; // No text selected
+    
+    const formats = {
+      bold: `**${selectedText}**`,
+      italic: `*${selectedText}*`,
+      underline: `__${selectedText}__`
+    };
+    
+    const newText = textarea.value.substring(0, start) + 
+                    formats[format] + 
+                    textarea.value.substring(end);
+    
+    textarea.value = newText;
+    this.updateDisplay();
+    
+    // Restore selection
+    textarea.focus();
+    textarea.setSelectionRange(start, start + formats[format].length);
+  }
+
+  saveDocument() {
+    const content = this.textInput.value;
+    localStorage.setItem('typewriter-document', content);
+    
+    this.saveStatus.textContent = '✓ Saved';
+    this.saveStatus.style.color = '#0f0';
+    
+    setTimeout(() => {
+      this.saveStatus.textContent = '';
+    }, 2000);
+    
+    console.log('Document saved:', content.length, 'chars');
+  }
+
+  loadDocument() {
+    const saved = localStorage.getItem('typewriter-document');
+    if (saved) {
+      this.textInput.value = saved;
+      this.updateDisplay();
+      
+      this.saveStatus.textContent = '✓ Loaded';
+      this.saveStatus.style.color = '#0a0';
+      
+      setTimeout(() => {
+        this.saveStatus.textContent = '';
+      }, 2000);
+      
+      console.log('Document loaded:', saved.length, 'chars');
+    } else {
+      this.saveStatus.textContent = '✗ No saved document';
+      this.saveStatus.style.color = '#f00';
+      
+      setTimeout(() => {
+        this.saveStatus.textContent = '';
+      }, 2000);
+    }
+  }
+  
+loadDocument() {
+  const saved = localStorage.getItem('typewriter-document');
+  if (saved) {
+    this.textInput.value = saved;
+    this.updateDisplay();
+    
+    this.saveStatus.textContent = '✓ Loaded';
+    this.saveStatus.style.color = '#0a0';
+    
+    setTimeout(() => {
+      this.saveStatus.textContent = '';
+    }, 2000);
+    
+    console.log('Document loaded:', saved.length, 'chars');
+  } else {
+    this.saveStatus.textContent = '✗ No saved document';
+    this.saveStatus.style.color = '#f00';
+    
+    setTimeout(() => {
+      this.saveStatus.textContent = '';
+    }, 2000);
+  }
+}   
     this.init();
   }
   
