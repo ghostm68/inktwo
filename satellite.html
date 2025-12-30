@@ -3,9 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typewriter Editor</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Special+Elite&display=swap" rel="stylesheet">
+  <title>INK REALM // TERMINAL</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Special+Elite&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-dark: #0a0a0a;
+      --bg-panel: #141414;
+      --border-color: #333;
+      --text-main: #e0e0e0;
+      --text-muted: #666;
+      --accent-red: #8a1c1c;
+      --accent-red-bright: #ff3333;
+      --paper-white: #e6e6e6;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -13,9 +24,9 @@
     }
 
     body {
-      font-family: 'Courier New', monospace;
-      background: linear-gradient(to bottom right, #292524, #1c1917, #000);
-      color: white;
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
       overflow: hidden;
       height: 100vh;
       display: flex;
@@ -23,858 +34,524 @@
       align-items: center;
     }
 
-    /* Text Area - Adjusted to align with paper */
-  /* Hidden textarea for animated typewriter */
-#text-input {
-  position: absolute;
-  top: 102px; /* Position over the paper roll area */
-  left: 55px; /* Position over the paper roll area */
-  width: 690px; /* Width of paper roll */
-  height: 180px; /* Height of paper roll */
-  opacity: 0; /* Makes it invisible but functional */
-  z-index: 100; /* Above everything so it can receive typing */
-  cursor: text;
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  padding: 15px;
-  caret-color: #000; /* Visible cursor */
-}
+    /* Background Video Overlay */
+    #background-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+      opacity: 0.4; /* Dimmed for better UI visibility */
+      filter: grayscale(100%) contrast(1.2); /* Forced Noir */
+    }
+    
+    .vignette {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle, transparent 40%, #000 100%);
+      z-index: -1;
+      pointer-events: none;
+    }
 
-/* Make sure the typewriter container is positioned */
-.typewriter-container {
-  position: relative;
-  width: 90%;
-  max-width: 800px;
-  margin: 0 auto;
-}
+    /* --- TYPEWRITER CONTAINER --- */
+    .typewriter-container {
+      position: relative;
+      width: 90%;
+      max-width: 860px;
+      margin: 0 auto;
+      z-index: 10;
+    }
 
-    /* Status Bar */
+    .typewriter-machine {
+      width: 100%;
+      position: relative;
+    }
+
+    .typewriter-body {
+      background: linear-gradient(to bottom, #222, #111);
+      border-radius: 4px;
+      padding: 30px 40px 20px;
+      box-shadow: 
+        0 30px 60px rgba(0,0,0,0.8),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      position: relative;
+      border: 1px solid #333;
+    }
+
+    .typewriter-top {
+      background: #1a1a1a;
+      height: 25px;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+    }
+
+    .typewriter-brand {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-weight: 600;
+      text-shadow: 0 1px 0 #000;
+    }
+
+    .brand-accent { color: var(--accent-red); }
+
+    /* --- PAPER ROLL --- */
+    .paper-roll {
+      background: #111;
+      height: 220px;
+      position: relative;
+      margin-bottom: 20px;
+      overflow: hidden;
+      border: 1px solid #222;
+      box-shadow: inset 0 0 20px #000;
+    }
+
+    .paper-sheet {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      background: var(--paper-white);
+      padding: 20px 30px;
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #111;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Markdown styling within the paper */
+    .paper-content b, .paper-content strong { font-weight: 900; color: #000; }
+    .paper-content i, .paper-content em { font-style: italic; }
+    .paper-content u { text-decoration: underline; text-decoration-color: var(--accent-red); }
+
+    .paper-content:after {
+      content: '▋';
+      animation: blink 1s infinite;
+      color: var(--accent-red);
+      font-size: 14px;
+      margin-left: 2px;
+      vertical-align: middle;
+    }
+
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+    /* Carriage */
+    .carriage {
+      position: absolute;
+      top: 45px;
+      left: 20px;
+      width: 4px;
+      height: 230px;
+      background: rgba(255, 0, 0, 0.3);
+      border-left: 1px solid var(--accent-red);
+      transition: left 0.1s ease-out;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* Hidden Input */
+    #text-input {
+      position: absolute;
+      opacity: 0;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 100;
+      cursor: text;
+    }
+
+    /* --- TOOLBAR --- */
+    .formatting-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 0;
+      padding: 12px;
+      background: #111;
+      border: 1px solid #333;
+      border-top: none;
+    }
+
+    .format-btn {
+      background: #222;
+      border: 1px solid #333;
+      color: #888;
+      padding: 8px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .format-btn:hover {
+      background: #333;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .format-btn:active {
+      transform: translateY(1px);
+    }
+
+    #save-btn:hover { border-color: var(--accent-red); color: var(--accent-red-bright); }
+    #load-btn:hover { border-color: #fff; color: #fff; }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 20px;
+      background: #333;
+      margin: 0 10px;
+    }
+
+    .toolbar-status {
+      font-size: 10px;
+      margin-left: auto;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* --- STATUS BAR --- */
     .status-bar {
-      margin-top: 1.5rem;
+      margin-top: 20px;
       text-align: center;
+      opacity: 0.7;
     }
 
     .status-badge {
       display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: rgba(41, 37, 36, 0.8);
-      backdrop-filter: blur(10px);
-      padding: 0.75rem 1.5rem;
-      border-radius: 9999px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-      border: 1px solid #57534e;
+      gap: 20px;
+      background: #000;
+      padding: 8px 20px;
+      border: 1px solid #333;
+      font-size: 11px;
+      color: #555;
     }
 
-    .status-text {
-      font-size: 0.875rem;
-      color: #d6d3d1;
-    }
+    .status-badge span b { color: #888; }
 
-    /* Debug overlay (visible with Ctrl+D) */
-    .debug-overlay {
-      position: absolute;
-      border: 2px solid red;
-      background: rgba(255, 0, 0, 0.1);
-      z-index: 5;
-      display: none;
-      pointer-events: none;
-    }
-
-    /* Position adjustment controls (for fine-tuning) */
-    .position-controls {
+    /* --- PANELS (Chat & Notepad) COMMON STYLES --- */
+    .panel {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(10, 10, 10, 0.95);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .panel-header {
+      background: #000;
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      color: #fff;
+      font-size: 11px;
+      letter-spacing: 2px;
+      font-weight: 600;
+    }
+
+    .panel-toggle-btn {
+      background: none;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .panel-toggle-btn:hover { color: #fff; }
+
+    /* --- CHAT PANEL --- */
+    .chat-panel {
+      top: 20px; left: 20px;
+      width: 340px;
+      border-left: 2px solid var(--accent-red);
+    }
+
+    .chat-content { padding: 15px; }
+
+    .model-status {
+      border: 1px solid #222;
+      background: #050505;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-size: 10px;
+    }
+
+    .status-line { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .status-label { color: #555; }
+    .status-value { color: #fff; font-weight: bold; }
+    
+    .status-dot {
+      display: inline-block; width: 6px; height: 6px; 
+      background: #333; border-radius: 50%; margin-left: 5px;
+    }
+    .status-dot.online { background: #fff; box-shadow: 0 0 5px #fff; }
+    .status-dot.error { background: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
+
+    .chat-messages {
+      height: 300px;
+      overflow-y: auto;
+      background: #050505;
+      border: 1px solid #222;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .message { margin-bottom: 10px; line-height: 1.4; }
+    .user-message { color: #fff; border-left: 2px solid #333; padding-left: 8px; }
+    .ai-message { color: #999; }
+    .sys-message { color: var(--accent-red); font-style: italic; opacity: 0.8; }
+
+    #llm-input {
+      width: 100%;
+      background: #111;
+      color: #fff;
+      border: 1px solid #333;
+      padding: 10px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      font-size: 12px;
+    }
+    #llm-input:focus { border-color: #666; }
+
+    .chat-controls { display: flex; gap: 5px; margin-top: 5px; }
+    
+    .ctrl-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #333;
+      background: #111;
+      color: #666;
+      font-size: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: 0.2s;
+    }
+    .ctrl-btn:hover { background: #222; color: #fff; }
+    .ctrl-btn.primary { border-color: #444; color: #ccc; }
+    .ctrl-btn.alert { border-color: #311; color: var(--accent-red); }
+    .ctrl-btn.alert:hover { background: var(--accent-red); color: #000; }
+
+    /* --- NOTEPAD --- */
+    .notepad-container {
+      bottom: 20px; right: 20px;
+      width: 300px;
+      border-right: 2px solid #fff;
+    }
+
+    .notepad-textarea {
+      width: 100%;
+      height: 250px;
+      background: #111;
+      color: #ddd;
+      border: none;
+      outline: none;
+      resize: none;
       padding: 15px;
-      border-radius: 8px;
-      z-index: 100;
-      display: none; /* Hidden by default */
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      line-height: 1.5;
     }
 
-    .position-controls.visible {
-      display: block;
+    .notepad-textarea::placeholder { color: #333; }
+
+    .notepad-footer {
+      padding: 5px 15px;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      color: #444;
+      font-size: 10px;
     }
-    /* Notepad Styles */
-.notepad-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 300px;
-  background: rgba(15, 15, 15, 0.95);
-  border: 1px solid #444;
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  font-family: 'Special Elite', 'Courier New', monospace;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-}
 
-.notepad-header {
-  background: rgba(0, 0, 0, 0.8);
-  padding: 8px 12px;
-  border-bottom: 1px solid #444;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: #333; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-.notepad-title {
-  color: #ffd700;
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-weight: bold;
-}
-
-.notepad-toggle {
-  background: transparent;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 8px;
-  border-radius: 3px;
-}
-
-.notepad-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.notepad-content {
-  padding: 12px;
-}
-
-.notepad-textarea {
-  width: 100%;
-  height: 200px;
-  background: transparent;
-  color: #0f0;
-  font-family: 'Special Elite', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.4;
-  border: none;
-  outline: none;
-  resize: none;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.notepad-textarea:empty:before {
-  content: attr(placeholder);
-  color: #666;
-}
-
-.notepad-status {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  font-size: 11px;
-  color: #888;
-  border-top: 1px solid #333;
-  padding-top: 8px;
-}
-
-.notepad-textarea::selection {
-  background: rgba(0, 255, 0, 0.3);
-}
-    /* Background Video */
-#background-video {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: -1;
-}
-/* Animated Typewriter */
-.typewriter-machine {
-  width: 800px;
-  max-width: 90%;
-  margin: 0 auto;
-  position: relative;
-}
-
-.typewriter-body {
-  background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
-  border-radius: 15px 15px 8px 8px;
-  padding: 30px 40px 20px;
-  box-shadow: 
-    0 20px 40px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(255,255,255,0.1);
-  position: relative;
-  border: 1px solid #444;
-}
-
-.typewriter-top {
-  background: #222;
-  height: 20px;
-  border-radius: 5px 5px 0 0;
-  margin-bottom: 25px;
-  position: relative;
-  border-bottom: 2px solid #333;
-}
-
-.typewriter-brand {
-  position: absolute;
-  top: 2px;
-  left: 20px;
-  color: #aaa;
-  font-size: 10px;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.typewriter-platen {
-  position: absolute;
-  top: 5px;
-  right: 20px;
-  width: 60px;
-  height: 10px;
-  background: #444;
-  border-radius: 2px;
-}
-
-/* Paper Roll */
-.paper-roll {
-  background: #f5f5f0;
-  height: 180px;
-  border-radius: 3px;
-  position: relative;
-  margin-bottom: 20px;
-  box-shadow: 
-    inset 0 0 10px rgba(0,0,0,0.1),
-    0 2px 4px rgba(0,0,0,0.2);
-  overflow: hidden;
-  border: 1px solid #ddd;
-}
-
-.paper-tear {
-  position: absolute;
-  top: -5px;
-  left: 10px;
-  right: 10px;
-  height: 5px;
-  background: #f5f5f0;
-  border-radius: 50%;
-  opacity: 0.7;
-}
-
-.paper-sheet {
-  position: absolute;
-  top: 10px;
-  left: 15px;
-  right: 15px;
-  bottom: 30px;
-  background: #fff;
-  padding: 15px;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #000;
-  overflow: hidden;
-}
-
-.paper-content {
-  height: 100%;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-weight: 500;
-}
-
-.paper-roll-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 30px;
-  background: repeating-linear-gradient(
-    to bottom,
-    #f5f5f0,
-    #f5f5f0 5px,
-    #e0e0d0 5px,
-    #e0e0d0 10px
-  );
-  border-top: 1px solid #ddd;
-}
-
-/* Typewriter Keys */
-.typewriter-keys {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  position: relative;
-  z-index: 2;
-}
-
-.key-row {
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-}
-
-.key {
-  width: 40px;
-  height: 35px;
-  background: linear-gradient(to bottom, #444, #222);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ccc;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  font-weight: bold;
-  box-shadow: 
-    0 2px 0 #111,
-    inset 0 1px 0 rgba(255,255,255,0.1);
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.1s;
-  position: relative;
-}
-
-.key:active {
-  transform: translateY(2px);
-  box-shadow: 
-    0 0 0 #111,
-    inset 0 1px 0 rgba(255,255,255,0.1);
-  background: linear-gradient(to bottom, #333, #111);
-}
-
-.key.shift {
-  width: 60px;
-  font-size: 14px;
-  color: #888;
-}
-
-.key.return {
-  width: 60px;
-  font-size: 16px;
-  color: #4a9;
-}
-
-.key.spacebar {
-  width: 280px;
-  height: 25px;
-  margin-top: 5px;
-}
-
-/* Carriage */
-.carriage {
-  position: absolute;
-  top: 50px;
-  left: 15px;
-  width: 5px;
-  height: 190px;
-  background: linear-gradient(to bottom, #666, #333);
-  border-radius: 2px;
-  transition: left 0.3s ease;
-  z-index: 1;
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
-}
-
-.carriage:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -5px;
-  width: 15px;
-  height: 10px;
-  background: #555;
-  border-radius: 2px;
-}
-
-/* Status Bar */
-.status-badge {
-  display: flex;
-  justify-content: center;
-  gap: 30px;
-  align-items: center;
-  background: rgba(41, 37, 36, 0.8);
-  backdrop-filter: blur(10px);
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  border: 1px solid #57534e;
-  margin-top: 30px;
-}  
-    /* Add blinking cursor to paper display */
-.paper-content {
-  /* ... your existing styles ... */
-  position: relative;
-}
-
-/* Add cursor after text */
-.paper-content:after {
-  content: '|';
-  animation: blink 1s infinite;
-  color: #000;
-  font-weight: bold;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
- /* Formatting Toolbar */
-.formatting-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 20px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 6px;
-  border: 1px solid #444;
-}
-
-.format-btn {
-  background: linear-gradient(to bottom, #444, #222);
-  border: none;
-  border-radius: 4px;
-  color: #ccc;
-  padding: 6px 12px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.format-btn:hover {
-  background: linear-gradient(to bottom, #555, #333);
-  transform: translateY(-1px);
-}
-
-.format-btn[data-format="bold"] {
-  font-weight: bold;
-}
-
-.format-btn[data-format="italic"] {
-  font-style: italic;
-}
-
-.format-btn[data-format="underline"] {
-  text-decoration: underline;
-}
-
-#save-btn, #load-btn {
-  background: linear-gradient(to bottom, #2a5, #183);
-  color: white;
-  padding: 6px 15px;
-}
-
-.toolbar-separator {
-  width: 1px;
-  height: 20px;
-  background: #444;
-  margin: 0 5px;
-}
-
-.toolbar-status {
-  font-size: 11px;
-  color: #0f0;
-  margin-left: auto;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 3px;
-}   
- /* WebLLM Chat Panel */
-.chat-panel {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 320px;
-  background: rgba(15, 15, 15, 0.95);
-  border: 1px solid #444;
-  border-radius: 4px;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-}
-
-.chat-header {
-  background: rgba(0, 0, 0, 0.8);
-  padding: 8px 12px;
-  border-bottom: 1px solid #444;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.chat-title {
-  color: #00ffff;
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-}
-
-.chat-toggle {
-  background: transparent;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 8px;
-  border-radius: 3px;
-}
-
-.chat-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.chat-content {
-  padding: 12px;
-}
-
-.model-status {
-  background: rgba(0, 20, 40, 0.8);
-  border: 1px solid #003355;
-  border-radius: 3px;
-  padding: 8px;
-  margin-bottom: 12px;
-  font-size: 11px;
-}
-
-.status-line {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.status-label {
-  color: #00aaff;
-  min-width: 60px;
-}
-
-.status-value {
-  color: #0f0;
-  margin-left: 8px;
-  font-weight: bold;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-left: 8px;
-  background: #f00;
-}
-
-.status-dot.online {
-  background: #0f0;
-  box-shadow: 0 0 8px #0f0;
-}
-
-.download-section {
-  background: rgba(20, 0, 0, 0.8);
-  border: 1px solid #550000;
-  border-radius: 3px;
-  padding: 8px;
-  margin-bottom: 12px;
-}
-
-.download-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  margin-bottom: 4px;
-}
-
-.download-label {
-  color: #ff4444;
-}
-
-.download-percent {
-  color: #ffaa00;
-  font-weight: bold;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 3px;
-  background: #222;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ff0033, #ff5500);
-  width: 0%;
-  transition: width 0.3s;
-}
-
-.chat-messages {
-  height: 300px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #333;
-  border-radius: 3px;
-  padding: 8px;
-  margin-bottom: 12px;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.empty-message {
-  color: #666;
-  font-style: italic;
-  text-align: center;
-  padding: 20px;
-}
-
-.message {
-  margin-bottom: 8px;
-}
-
-.user-message {
-  color: #00aaff;
-}
-
-.ai-message {
-  color: #0f0;
-}
-
-.chat-input-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-#llm-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  color: #0f0;
-  border: 1px solid #444;
-  border-radius: 3px;
-  padding: 8px;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  font-size: 11px;
-  resize: none;
-  outline: none;
-}
-
-#llm-input:focus {
-  border-color: #00aaff;
-}
-
-.chat-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.send-button, .load-button {
-  flex: 1;
-  padding: 6px;
-  border: none;
-  border-radius: 3px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.send-button {
-  background: #003355;
-  color: #00aaff;
-}
-
-.send-button:hover:not(:disabled) {
-  background: #004477;
-}
-
-.load-button {
-  background: #330000;
-  color: #ff4444;
-}
-
-.load-button:hover:not(:disabled) {
-  background: #550000;
-}
-
-.send-button:disabled, .load-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}   
   </style>
 </head>
 <body>
-  <body>
+
+  <!-- Audio: Optional Click Sound Placeholder -->
+  <!-- <audio id="key-sound" src="path_to_sound.mp3"></audio> -->
+
   <!-- Background Video -->
   <video id="background-video" autoplay muted loop playsinline>
     <source src="https://assets.mixkit.co/videos/preview/mixkit-typing-on-a-vintage-typewriter-close-up-4094-large.mp4" type="video/mp4">
-    <!-- Add fallback image if video doesn't load -->
-    <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/satellite.jpg" alt="Fallback background" style="width: 100%; height: 100%; object-fit: cover;">
   </video>
-  <!-- Left-side WebLLM Chat Panel -->
-<div class="chat-panel" id="chat-panel">
-  <div class="chat-header">
-    <span class="chat-title">WEBLLM TERMINAL</span>
-    <button class="chat-toggle" id="chat-toggle">💬</button>
-  </div>
-  
-  <div class="chat-content">
-    <!-- Model Status -->
-    <div class="model-status" id="model-status">
-      <div class="status-line">
-        <span class="status-label">MODEL:</span>
-        <span class="status-value" id="current-model">Qwen2.5-0.5B</span>
-      </div>
-      <div class="status-line">
-        <span class="status-label">STATUS:</span>
-        <span class="status-value" id="llm-status">OFFLINE</span>
-        <span class="status-dot" id="llm-dot"></span>
-      </div>
+  <div class="vignette"></div>
+
+  <!-- Left Chat Panel -->
+  <div class="panel chat-panel" id="chat-panel">
+    <div class="panel-header">
+      <span class="panel-title">NEURAL LINK // <span style="color:var(--accent-red)">01</span></span>
+      <button class="panel-toggle-btn" id="chat-toggle">_</button>
     </div>
     
-    <!-- Download Progress -->
-    <div class="download-section" id="download-section" style="display: none;">
-      <div class="download-header">
-        <span class="download-label">SYNCING WEIGHTS</span>
-        <span class="download-percent" id="progress-percent">0%</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-bar"></div>
-      </div>
-    </div>
-    
-    <!-- Chat Messages -->
-    <div class="chat-messages" id="llm-chat-messages">
-      <div class="empty-message">// Local neural interface ready</div>
-    </div>
-    
-    <!-- Chat Input -->
-    <div class="chat-input-section">
-      <textarea 
-        id="llm-input" 
-        placeholder="Query local neural core..."
-        rows="2"
-      ></textarea>
-      <div class="chat-controls">
-        <button id="send-llm" class="send-button">SEND</button>
-        <button id="loadCoreBtn" class="load-button">ACTIVATE</button>
-      </div>
-    </div>
-  </div>
-</div>
-  <!-- Rest of your code continues here -->
-<div class="typewriter-container">
-  <div class="typewriter-machine">
-    <!-- Typewriter Body -->
-    <div class="typewriter-body">
-      <div class="typewriter-top">
-        <div class="typewriter-brand">INK REALM</div>
-        <div class="typewriter-platen"></div>
-      </div>
-      
-      <!-- Paper Roll Area -->
-      <div class="paper-roll">
-        <div class="paper-tear"></div>
-        <div class="paper-sheet">
-          <!-- This shows only 5 lines at a time -->
-          <div class="paper-content" id="paper-display"></div>
+    <div class="chat-content">
+      <div class="model-status">
+        <div class="status-line">
+          <span class="status-label">CORE</span>
+          <span class="status-value">Qwen2.5-0.5B</span>
         </div>
-        <div class="paper-roll-bottom"></div>
+        <div class="status-line">
+          <span class="status-label">STATE</span>
+          <div>
+            <span class="status-value" id="llm-status">DISCONNECTED</span>
+            <span class="status-dot" id="llm-dot"></span>
+          </div>
+        </div>
+        <div id="download-progress" style="display:none; margin-top:5px; height:2px; background:#333; width:100%;">
+          <div id="progress-bar" style="height:100%; background:var(--accent-red); width:0%"></div>
+        </div>
       </div>
       
-      <!-- Typewriter Keys -->
-     <!-- Replace the entire .typewriter-keys section with this: -->
-<div class="formatting-toolbar">
-  <button class="format-btn" data-format="bold" title="Bold (Ctrl+B)">B</button>
-  <button class="format-btn" data-format="italic" title="Italic (Ctrl+I)">I</button>
-  <button class="format-btn" data-format="underline" title="Underline (Ctrl+U)">U</button>
-  <div class="toolbar-separator"></div>
-  <button class="format-btn" id="save-btn" title="Save (Ctrl+S)">💾 SAVE</button>
-  <button class="format-btn" id="load-btn" title="Load">📂 LOAD</button>
-  <div class="toolbar-separator"></div>
-  <span class="toolbar-status" id="save-status"></span>
-</div>
+      <div class="chat-messages" id="llm-chat-messages">
+        <div class="message sys-message">systemctl start neural_interface...</div>
+      </div>
       
-      <!-- Carriage (moves as you type) -->
-      <div class="carriage" id="carriage"></div>
+      <textarea id="llm-input" placeholder="Input command..." rows="2"></textarea>
+      
+      <div class="chat-controls">
+        <button id="send-llm" class="ctrl-btn primary">Transmit</button>
+        <button id="loadCoreBtn" class="ctrl-btn alert">Initialize</button>
+      </div>
     </div>
   </div>
 
-  <!-- Hidden textarea for actual input -->
-<textarea 
-  id="text-input" 
-  placeholder="Start typing..."
-  spellcheck="false"
-></textarea>
+  <!-- Main Typewriter Area -->
+  <div class="typewriter-container">
+    <div class="typewriter-machine">
+      <div class="typewriter-body">
+        
+        <div class="typewriter-top">
+          <div class="typewriter-brand">INK <span class="brand-accent">REALM</span></div>
+          <div style="width:40px; height:4px; background:#333;"></div>
+        </div>
+        
+        <div class="paper-roll">
+          <div class="paper-sheet">
+            <div class="paper-content" id="paper-display"></div>
+          </div>
+        </div>
 
-  <div class="status-bar">
-    <div class="status-badge">
-      <span class="status-text" id="char-count">0 characters</span>
-      <span class="status-text" id="line-count">Line: 1</span>
+        <div class="carriage" id="carriage"></div>
+
+        <!-- Toolbar -->
+        <div class="formatting-toolbar">
+          <button class="format-btn" data-format="bold" title="Bold (Ctrl+B)">B</button>
+          <button class="format-btn" data-format="italic" title="Italic (Ctrl+I)">I</button>
+          <button class="format-btn" data-format="underline" title="Underline (Ctrl+U)">U</button>
+          <div class="toolbar-separator"></div>
+          <button class="format-btn" id="save-btn">SAVE_DSK</button>
+          <button class="format-btn" id="load-btn">LOAD_DSK</button>
+          <span class="toolbar-status" id="save-status"></span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Hidden Logic Input -->
+    <textarea id="text-input" spellcheck="false"></textarea>
+
+    <div class="status-bar">
+      <div class="status-badge">
+        <span>LEN: <b id="char-count">0</b></span>
+        <span>LN: <b id="line-count">1</b></span>
+      </div>
     </div>
   </div>
-</div>
 
-  <script>
-// ========== ANIMATED TYPEWRITER ==========
-class AnimatedTypewriter {
+  <!-- Right Notepad Panel -->
+  <div class="panel notepad-container" id="notepad-container">
+    <div class="panel-header">
+      <span class="panel-title">SCRATCHPAD</span>
+      <button class="panel-toggle-btn" id="notepad-toggle">_</button>
+    </div>
+    <div class="notepad-content">
+      <div class="notepad-textarea" id="notepad-textarea" contenteditable="true" spellcheck="false" placeholder="// Quick notes..."></div>
+      <div class="notepad-footer">
+        <span id="notepad-char-count">0</span>
+        <span id="notepad-status">SYNC</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * INK REALM TYPEWRITER ENGINE
+ * Refactored for stability and aesthetics
+ */
+
+class TypewriterEngine {
   constructor() {
     this.textInput = document.getElementById('text-input');
     this.paperDisplay = document.getElementById('paper-display');
     this.carriage = document.getElementById('carriage');
     this.charCount = document.getElementById('char-count');
     this.lineCount = document.getElementById('line-count');
-    
-    this.maxVisibleLines = 5;
-    this.carriagePosition = 0;
-    this.maxCarriage = 95;
-    
-    // ✅ CORRECT - Just declare the property
     this.saveStatus = document.getElementById('save-status');
     
-    this.init(); // This will call initFormatting
+    this.maxVisibleLines = 6;
+    
+    // Bind logic
+    this.init();
   }
   
   init() {
+    // Input Event Listeners
     this.textInput.addEventListener('input', () => this.updateDisplay());
     this.textInput.addEventListener('keydown', (e) => this.handleKeyPress(e));
-    this.paperDisplay.addEventListener('click', () => this.textInput.focus());
+    this.textInput.addEventListener('click', () => this.updateCarriage());
+    this.textInput.addEventListener('keyup', () => this.updateCarriage());
     
-    // ✅ Add this line:
-    this.initFormatting();
+    // Focus management
+    document.querySelector('.typewriter-body').addEventListener('click', () => {
+      this.textInput.focus();
+    });
+
+    // Formatting & Save Logic
+    this.initToolbar();
     
+    // Initial Focus
     this.textInput.focus();
     this.updateDisplay();
   }
   
-  // ✅ Add formatting methods as separate class methods (after init but before updateDisplay):
-  initFormatting() {
+  initToolbar() {
     // Format buttons
     document.querySelectorAll('.format-btn[data-format]').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const format = e.target.dataset.format;
-        this.applyFormat(format);
+        this.applyFormat(e.target.dataset.format);
       });
     });
 
-    // Save button
+    // Save/Load
     document.getElementById('save-btn').addEventListener('click', () => this.saveDocument());
-    
-    // Load button
     document.getElementById('load-btn').addEventListener('click', () => this.loadDocument());
 
-    // Keyboard shortcuts
+    // Shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey) {
         switch(e.key.toLowerCase()) {
@@ -888,544 +565,242 @@ class AnimatedTypewriter {
   }
 
   applyFormat(format) {
-    const textarea = this.textInput;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
+    const field = this.textInput;
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    const selection = field.value.substring(start, end);
     
-    if (!selectedText) return; // No text selected
+    if (!selection) return;
     
-    const formats = {
-      bold: `**${selectedText}**`,
-      italic: `*${selectedText}*`,
-      underline: `__${selectedText}__`
+    const markers = {
+      bold: { start: '**', end: '**' },
+      italic: { start: '*', end: '*' },
+      underline: { start: '__', end: '__' }
     };
     
-    const newText = textarea.value.substring(0, start) + 
-                    formats[format] + 
-                    textarea.value.substring(end);
+    const m = markers[format];
+    const newText = field.value.substring(0, start) + 
+                    m.start + selection + m.end + 
+                    field.value.substring(end);
     
-    textarea.value = newText;
+    field.value = newText;
     this.updateDisplay();
-    
-    // Restore selection
-    textarea.focus();
-    textarea.setSelectionRange(start, start + formats[format].length);
+    field.focus();
+    field.setSelectionRange(start + m.start.length, end + m.start.length);
   }
 
   saveDocument() {
-    const content = this.textInput.value;
-    localStorage.setItem('typewriter-document', content);
-    
-    this.saveStatus.textContent = '✓ Saved';
-    this.saveStatus.style.color = '#0f0';
-    
-    setTimeout(() => {
-      this.saveStatus.textContent = '';
-    }, 2000);
-    
-    console.log('Document saved:', content.length, 'chars');
+    localStorage.setItem('ink-realm-doc', this.textInput.value);
+    this.showStatus('WRITTEN', '#fff');
   }
 
   loadDocument() {
-    const saved = localStorage.getItem('typewriter-document');
+    const saved = localStorage.getItem('ink-realm-doc');
     if (saved) {
       this.textInput.value = saved;
       this.updateDisplay();
-      
-      this.saveStatus.textContent = '✓ Loaded';
-      this.saveStatus.style.color = '#0a0';
-      
-      setTimeout(() => {
-        this.saveStatus.textContent = '';
-      }, 2000);
-      
-      console.log('Document loaded:', saved.length, 'chars');
+      this.showStatus('READ OK', '#fff');
     } else {
-      this.saveStatus.textContent = '✗ No saved document';
-      this.saveStatus.style.color = '#f00';
-      
-      setTimeout(() => {
-        this.saveStatus.textContent = '';
-      }, 2000);
+      this.showStatus('NO DATA', '#8a1c1c');
     }
   }
-  
-loadDocument() {
-  const saved = localStorage.getItem('typewriter-document');
-  if (saved) {
-    this.textInput.value = saved;
-    this.updateDisplay();
-    
-    this.saveStatus.textContent = '✓ Loaded';
-    this.saveStatus.style.color = '#0a0';
-    
-    setTimeout(() => {
-      this.saveStatus.textContent = '';
-    }, 2000);
-    
-    console.log('Document loaded:', saved.length, 'chars');
-  } else {
-    this.saveStatus.textContent = '✗ No saved document';
-    this.saveStatus.style.color = '#f00';
-    
-    setTimeout(() => {
-      this.saveStatus.textContent = '';
-    }, 2000);
-  }
-}   
-    this.init();
-  }
-  
-  init() {
-    this.textInput.addEventListener('input', () => this.updateDisplay());
-    this.textInput.addEventListener('keydown', (e) => this.handleKeyPress(e));
-  
-  // ADD THIS LINE:
-  this.paperDisplay.addEventListener('click', () => this.textInput.focus());
-  
-  this.textInput.focus();
 
-    
-    // Initialize
-    this.updateDisplay();
+  showStatus(msg, color) {
+    this.saveStatus.textContent = msg;
+    this.saveStatus.style.color = color;
+    setTimeout(() => { this.saveStatus.textContent = ''; }, 2000);
+  }
+
+  // Parses simple markdown for the visual display
+  renderText(text) {
+    let html = text
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // sanitize
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+      .replace(/\*(.*?)\*/g, '<i>$1</i>')
+      .replace(/__(.*?)__/g, '<u>$1</u>');
+    return html;
   }
   
   updateDisplay() {
     const text = this.textInput.value;
     
-    // Update character count
-    this.charCount.textContent = `${text.length} characters`;
-    
-    // Split into lines and show only last 5
+    // Update Stats
+    this.charCount.textContent = text.length;
     const lines = text.split('\n');
+    this.lineCount.textContent = lines.length;
+    
+    // Paper Scroll Logic (Show last N lines)
     const visibleLines = lines.slice(-this.maxVisibleLines);
-    this.paperDisplay.textContent = visibleLines.join('\n');
+    this.paperDisplay.innerHTML = visibleLines.map(line => this.renderText(line)).join('\n');
     
-    // Update line count
-    this.lineCount.textContent = `Line: ${lines.length}`;
-    
-    // Update carriage position
-    const lastLine = lines[lines.length - 1] || '';
-    this.carriagePosition = Math.min(this.maxCarriage, (lastLine.length / 80) * 100);
     this.updateCarriage();
   }
   
   updateCarriage() {
-    // Calculate carriage position (15px to 680px range)
-    const minLeft = 15;
-    const maxLeft = 680;
-    const leftPos = minLeft + (this.carriagePosition / 100) * (maxLeft - minLeft);
-    this.carriage.style.left = `${leftPos}px`;
+    // Simple carriage simulation based on cursor position in current line
+    // This is purely visual approx
+    const text = this.textInput.value;
+    const cursorPos = this.textInput.selectionStart;
+    
+    // Find last newline before cursor
+    const lastNewLine = text.lastIndexOf('\n', cursorPos - 1);
+    const charsInLine = cursorPos - (lastNewLine + 1);
+    
+    // Map chars (0-80 approx) to width (0-100%)
+    const pct = Math.min(95, (charsInLine / 75) * 100);
+    
+    // Range: 20px to ~700px
+    const leftPx = 20 + (pct / 100 * 680);
+    this.carriage.style.left = `${leftPx}px`;
   }
   
   handleKeyPress(event) {
-    // Animate carriage return on Enter
     if (event.key === 'Enter') {
-      this.animateCarriageReturn();
-    }
-    
-    // Find and animate key if it's a letter
-    if (event.key.length === 1 && event.key.match(/[a-z]/i)) {
-      this.animateKeyPress(event.key.toUpperCase());
-    }
-  }
-  
-  animateCarriageReturn() {
-    // Reset carriage to left
-    this.carriage.style.transition = 'left 0.5s ease';
-    this.carriage.style.left = '15px';
-    
-    setTimeout(() => {
-      this.carriage.style.transition = 'left 0.3s ease';
-    }, 500);
-  }
-  
-  animateKeyPress(keyChar) {
-    // Find the key element
-    const keys = document.querySelectorAll('.key:not(.shift):not(.return):not(.spacebar)');
-    const keyElement = Array.from(keys).find(k => k.textContent === keyChar);
-    
-    if (keyElement) {
-      keyElement.classList.add('pressed');
-      setTimeout(() => keyElement.classList.remove('pressed'), 100);
+      // Carriage Return Animation
+      this.carriage.style.transition = 'left 0.4s ease';
+      this.carriage.style.left = '20px';
+      setTimeout(() => { this.carriage.style.transition = 'left 0.1s ease-out'; }, 400);
     }
   }
 }
 
-// Initialize the animated typewriter
-const typewriter = new AnimatedTypewriter();
-
-// ========== NOTEPAD TOGGLE ==========
-const notepadToggle = document.getElementById('notepad-toggle');
-const notepadContainer = document.getElementById('notepad-container');
-
-if (notepadToggle && notepadContainer) {
-    notepadToggle.addEventListener('click', () => {
-        const isHidden = notepadContainer.style.display === 'none';
-        notepadContainer.style.display = isHidden ? 'block' : 'none';
-        notepadToggle.textContent = isHidden ? '📝' : '📋';
-    });
-    
-    // Optional: Toggle notepad with Ctrl+N
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 'n') {
-            e.preventDefault();
-            notepadToggle.click();
-        }
-    });
-}
-
-// ========== AUTO-FOCUS TEXTAREA ON PAGE LOAD ==========
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    document.getElementById('text-input').focus();
-  }, 500);
-});
-  </script>
-    <!-- Notepad Sidebar -->
-<div class="notepad-container" id="notepad-container">
-  <div class="notepad-header">
-    <span class="notepad-title">NOTEPAD</span>
-    <button class="notepad-toggle" id="notepad-toggle">📝</button>
-  </div>
-  <div class="notepad-content">
-    <div class="notepad-textarea" id="notepad-textarea" contenteditable="true" spellcheck="false" placeholder="Notes..."></div>
-    <div class="notepad-status">
-      <span id="notepad-char-count">0 chars</span>
-      <span id="notepad-status">●</span>
-    </div>
-  </div>
-</div>
-    <script>
-      // ========== NOTEPAD AUTO-SAVE ==========
+// ========== NOTEPAD LOGIC ==========
 (function() {
-    const notepad = document.getElementById('notepad-textarea');
-    const notepadCharCount = document.getElementById('notepad-char-count');
-    const notepadStatus = document.getElementById('notepad-status');
-    
-    if (!notepad) return;
+    const noteEl = document.getElementById('notepad-textarea');
+    const statusEl = document.getElementById('notepad-status');
+    const countEl = document.getElementById('notepad-char-count');
+    const container = document.getElementById('notepad-container');
+    const toggle = document.getElementById('notepad-toggle');
 
-    // Event listeners
-    notepad.addEventListener('input', debounce(500, saveNotepad));
-    window.addEventListener('DOMContentLoaded', loadNotepad);
-    window.addEventListener('hashchange', loadNotepad);
-    
-    // Update character count
-    notepad.addEventListener('input', () => {
-        notepadCharCount.textContent = `${notepad.textContent.length} chars`;
+    // Toggle
+    toggle.addEventListener('click', () => {
+      const isClosed = container.style.transform === 'translateY(85%)';
+      container.style.transform = isClosed ? 'translateY(0)' : 'translateY(85%)';
     });
 
-    // Load notepad from URL or localStorage
-    async function loadNotepad() {
-        try {
-            if (location.hash !== '') {
-                const params = new URLSearchParams(location.hash.slice(1));
-                const noteHash = params.get('note');
-                if (noteHash) await setNotepad(noteHash);
-            } else {
-                const saved = localStorage.getItem('notepad-hash');
-                if (saved) await setNotepad(saved);
-            }
-        } catch (e) {
-            console.log('No notepad loaded');
-        }
-    }
+    // Auto-save debounce
+    let timeout;
+    noteEl.addEventListener('input', () => {
+      countEl.textContent = noteEl.textContent.length;
+      statusEl.textContent = '...';
+      statusEl.style.color = '#888';
+      
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        localStorage.setItem('ink-realm-notes', noteEl.innerHTML);
+        statusEl.textContent = 'SAVED';
+        statusEl.style.color = '#fff';
+      }, 1000);
+    });
 
-    // Save notepad to URL and localStorage
-    async function saveNotepad() {
-        const hash = await getNotepadHash();
-        
-        try { 
-            localStorage.setItem('notepad-hash', hash);
-            notepadStatus.textContent = '✓ Saved';
-            notepadStatus.style.color = '#0f0';
-            
-            // Clear status after 2 seconds
-            setTimeout(() => {
-                notepadStatus.textContent = '●';
-                notepadStatus.style.color = '#888';
-            }, 2000);
-        } catch (e) {
-            notepadStatus.textContent = '✗ Error';
-            notepadStatus.style.color = '#f00';
-        }
-        
-        // Update URL hash with both article and notepad
-        const currentHash = new URLSearchParams(location.hash.slice(1) || '');
-        currentHash.set('note', hash);
-        const newHash = currentHash.toString();
-        
-        if (location.hash !== `#${newHash}`) {
-            history.replaceState({}, '', `#${newHash}`);
-        }
-    }
-
-    // Set notepad content from hash
-    async function setNotepad(hash) {
-        const content = await decompressNotepad(hash);
-        notepad.textContent = content;
-        notepadCharCount.textContent = `${content.length} chars`;
-    }
-
-    // Get hash from notepad content
-    async function getNotepadHash() {
-        const content = notepad.textContent;
-        return await compressNotepad(content);
-    }
-
-    // Compress notepad content
-    async function compressNotepad(string) {
-        const byteArray = new TextEncoder().encode(string);
-        const stream = new CompressionStream('deflate-raw');
-        const writer = stream.writable.getWriter();
-        writer.write(byteArray);
-        writer.close();
-        const buffer = await new Response(stream.readable).arrayBuffer();
-        return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-    }
-
-    // Decompress notepad content
-    async function decompressNotepad(b64) {
-        const byteArray = Uint8Array.from(
-            atob(b64.replace(/-/g, "+").replace(/_/g, "/")), 
-            c => c.charCodeAt(0)
-        );
-        const stream = new DecompressionStream('deflate-raw');
-        const writer = stream.writable.getWriter();
-        writer.write(byteArray);
-        writer.close();
-        const buffer = await new Response(stream.readable).arrayBuffer();
-        return new TextDecoder().decode(buffer);
-    }
-
-    // Debounce helper
-    function debounce(ms, fn) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), ms);
-        };
-    }
+    // Load
+    const saved = localStorage.getItem('ink-realm-notes');
+    if(saved) noteEl.innerHTML = saved;
 })();
 
-// ========== MAIN TEXTAREA AUTO-SAVE (OPTIONAL) ==========
-// If you want the main textarea to also auto-save, add this:
-(function() {
-    const mainTextarea = document.getElementById('text-input');
-    if (!mainTextarea) return;
-
-    // Debounced save function
-    const saveMainContent = debounce(1000, () => {
-        const content = mainTextarea.value;
-        localStorage.setItem('main-content', content);
-        console.log('Main content saved');
-    });
-
-    // Load on startup
-    window.addEventListener('DOMContentLoaded', () => {
-        const saved = localStorage.getItem('main-content');
-        if (saved) {
-            mainTextarea.value = saved;
-            charCount.textContent = `${saved.length} characters`;
-        }
-    });
-
-    // Save on input
-    mainTextarea.addEventListener('input', saveMainContent);
-
-    function debounce(ms, fn) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), ms);
-        };
-    }
-})();
-    </script>
-    <script>
-      // ========== WEBLLM CHAT PANEL ==========
-class InkRealmTerminal {
+// ========== WEBLLM TERMINAL LOGIC ==========
+class NeuralTerminal {
     constructor() {
         this.engine = undefined;
-        this.isGenerating = false;
-        this.currentModel = 'qwen-tiny';
-        this.modelName = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
-        
-        this.systemPrompt = "You are the INK REALM Neural Interface. Gritty, 1980s literary terminal aesthetic. Sharp prose.";
+        this.modelId = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
         this.init();
     }
 
     init() {
-        this.setupEvents();
-        this.updateStatus('OFFLINE');
+        // Toggle Logic
+        const toggle = document.getElementById('chat-toggle');
+        const panel = document.getElementById('chat-panel');
+        toggle.addEventListener('click', () => {
+            const isClosed = panel.style.transform === 'translateX(-90%)';
+            panel.style.transform = isClosed ? 'translateX(0)' : 'translateX(-90%)';
+        });
+
+        document.getElementById('send-llm').addEventListener('click', () => this.send());
+        document.getElementById('loadCoreBtn').addEventListener('click', () => this.load());
+        
+        document.getElementById('llm-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); }
+        });
     }
 
-    setupEvents() {
-        const sendBtn = document.getElementById('send-llm');
-        const loadBtn = document.getElementById('loadCoreBtn');
-        const chatInput = document.getElementById('llm-input');
-        
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendMessage());
-        }
-        
-        if (loadBtn) {
-            loadBtn.addEventListener('click', () => this.loadModel());
-        }
-        
-        if (chatInput) {
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-        }
+    log(role, text) {
+        const box = document.getElementById('llm-chat-messages');
+        const div = document.createElement('div');
+        div.className = `message ${role === 'user' ? 'user-message' : role === 'ai' ? 'ai-message' : 'sys-message'}`;
+        div.textContent = text;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
     }
 
-    updateStatus(status, isOnline = false) {
-        const statusEl = document.getElementById('llm-status');
-        const dotEl = document.getElementById('llm-dot');
-        
-        if (statusEl) statusEl.textContent = status;
-        if (dotEl) {
-            dotEl.textContent = isOnline ? '●' : '○';
-            dotEl.className = isOnline ? 'status-dot online' : 'status-dot';
-        }
+    status(state, type='neutral') {
+        const el = document.getElementById('llm-status');
+        const dot = document.getElementById('llm-dot');
+        el.textContent = state;
+        dot.className = `status-dot ${type}`;
     }
 
-    showProgress(percent) {
-        const progressSection = document.getElementById('download-section');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
+    async load() {
+        if(this.engine) return;
+        this.status('INITIALIZING...', 'neutral');
+        this.log('sys', '>> Allocating neural weights...');
         
-        if (progressSection) progressSection.style.display = 'block';
-        if (progressBar) progressBar.style.width = `${percent}%`;
-        if (progressPercent) progressPercent.textContent = `${Math.round(percent)}%`;
-    }
+        const bar = document.getElementById('progress-bar');
+        const progContainer = document.getElementById('download-progress');
+        progContainer.style.display = 'block';
 
-    hideProgress() {
-        const progressSection = document.getElementById('download-section');
-        if (progressSection) progressSection.style.display = 'none';
-    }
-
-    async loadModel() {
-        if (this.engine) {
-            this.addMessage('system', 'Model already loaded');
-            return;
-        }
-
-        this.updateStatus('LOADING...');
-        this.showProgress(0);
-        
         try {
-            // Import WebLLM
             const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.79");
             
-            this.engine = await CreateMLCEngine(this.modelName, {
+            this.engine = await CreateMLCEngine(this.modelId, {
                 initProgressCallback: (report) => {
-                    const percent = report.progress * 100;
-                    this.showProgress(percent);
+                    bar.style.width = `${report.progress * 100}%`;
                 }
             });
-
-            this.hideProgress();
-            this.updateStatus('ONLINE', true);
-            this.addMessage('system', `// Neural core activated: ${this.modelName}`);
             
-        } catch (error) {
-            console.error('Failed to load model:', error);
-            this.updateStatus('ERROR');
-            this.addMessage('system', `// Error: ${error.message}`);
-            this.hideProgress();
+            progContainer.style.display = 'none';
+            this.status('ONLINE', 'online');
+            this.log('sys', '>> Core active. Ready for input.');
+        } catch (e) {
+            this.status('FAILURE', 'error');
+            this.log('sys', `>> Critical Error: ${e.message}`);
         }
     }
 
-    async sendMessage() {
-        const inputEl = document.getElementById('llm-input');
-        const sendBtn = document.getElementById('send-llm');
+    async send() {
+        if(!this.engine) { this.log('sys', '!! Core not initialized. Press INITIALIZE.'); return; }
         
-        if (!inputEl || !this.engine || this.isGenerating) return;
-        
-        const message = inputEl.value.trim();
-        if (!message) return;
-        
-        // Add user message
-        this.addMessage('user', message);
-        inputEl.value = '';
-        
-        // Disable input while generating
-        this.isGenerating = true;
-        if (sendBtn) sendBtn.disabled = true;
-        
+        const input = document.getElementById('llm-input');
+        const val = input.value.trim();
+        if(!val) return;
+
+        this.log('user', val);
+        input.value = '';
+        input.disabled = true;
+
         try {
-            const messages = [
-                { role: 'system', content: this.systemPrompt },
-                { role: 'user', content: message }
-            ];
-            
             const reply = await this.engine.chat.completions.create({
-                messages: messages,
+                messages: [
+                    { role: "system", content: "You are a helpful, concise assistant in a noir terminal." },
+                    { role: "user", content: val }
+                ],
                 temperature: 0.7,
-                max_tokens: 500,
+                max_tokens: 256
             });
-            
-            const response = reply.choices[0]?.message?.content || 'No response';
-            this.addMessage('ai', response);
-            
-        } catch (error) {
-            console.error('Generation error:', error);
-            this.addMessage('system', `// Error: ${error.message}`);
-        } finally {
-            this.isGenerating = false;
-            if (sendBtn) sendBtn.disabled = false;
-            if (inputEl) inputEl.focus();
+            this.log('ai', reply.choices[0].message.content);
+        } catch (e) {
+            this.log('sys', `Error: ${e.message}`);
         }
-    }
-
-    addMessage(role, content) {
-        const messagesContainer = document.getElementById('llm-chat-messages');
-        if (!messagesContainer) return;
-        
-        // Remove empty message if present
-        const emptyMsg = messagesContainer.querySelector('.empty-message');
-        if (emptyMsg) emptyMsg.remove();
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
-        
-        const prefix = role === 'user' ? '> ' : role === 'ai' ? '// ' : '::: ';
-        messageDiv.textContent = `${prefix}${content}`;
-        
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        input.disabled = false;
+        input.focus();
     }
 }
 
-// Initialize WebLLM terminal
-const llmTerminal = new InkRealmTerminal();
+// Start Systems
+window.addEventListener('load', () => {
+    new TypewriterEngine();
+    new NeuralTerminal();
+});
 
-// Chat panel toggle
-const chatToggle = document.getElementById('chat-toggle');
-const chatPanel = document.getElementById('chat-panel');
-
-if (chatToggle && chatPanel) {
-    chatToggle.addEventListener('click', () => {
-        const isHidden = chatPanel.style.display === 'none';
-        chatPanel.style.display = isHidden ? 'block' : 'none';
-        chatToggle.textContent = isHidden ? '💬' : '🤖';
-    });
-    
-    // Toggle with Ctrl+L
-    document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 'l') {
-            e.preventDefault();
-            chatToggle.click();
-        }
-    });
-}
-    </script>
+</script>
 </body>
 </html>
