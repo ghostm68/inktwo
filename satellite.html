@@ -1,0 +1,292 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, MessageSquare, Minimize2, Maximize2 } from 'lucide-react';
+
+export default function TypewriterEditor() {
+  const [articleContent, setArticleContent] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [selectedModel, setSelectedModel] = useState('smol-360');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const articleRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    loadArticle();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (articleContent) saveArticle();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [articleContent]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  async function loadArticle() {
+    try {
+      if (location.hash) {
+        const content = await decompressArticle(location.hash.slice(1));
+        setArticleContent(content);
+      }
+    } catch (e) {
+      console.log('No saved article');
+    }
+  }
+
+  async function saveArticle() {
+    try {
+      const hash = await getArticleHash(articleContent);
+      if (location.hash !== hash) {
+        history.replaceState({}, '', hash);
+      }
+    } catch (e) {
+      console.error('Save failed');
+    }
+  }
+
+  async function compressArticle(string) {
+    const byteArray = new TextEncoder().encode(string);
+    const stream = new CompressionStream('deflate-raw');
+    const writer = stream.writable.getWriter();
+    writer.write(byteArray);
+    writer.close();
+    const buffer = await new Response(stream.readable).arrayBuffer();
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  }
+
+  async function decompressArticle(b64) {
+    const byteArray = Uint8Array.from(
+      atob(b64.replace(/-/g, "+").replace(/_/g, "/")),
+      c => c.charCodeAt(0)
+    );
+    const stream = new DecompressionStream('deflate-raw');
+    const writer = stream.writable.getWriter();
+    writer.write(byteArray);
+    writer.close();
+    const buffer = await new Response(stream.readable).arrayBuffer();
+    return new TextDecoder().decode(buffer);
+  }
+
+  async function getArticleHash(content) {
+    return '#' + await compressArticle(content);
+  }
+
+  async function handleSendMessage() {
+    if (!currentMessage.trim() || isLoading) return;
+
+    const userMsg = { role: 'user', content: currentMessage };
+    setChatMessages(prev => [...prev, userMsg]);
+    setCurrentMessage('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [
+            ...chatMessages,
+            userMsg
+          ].map(msg => ({ role: msg.role, content: msg.content }))
+        })
+      });
+
+      const data = await response.json();
+      const assistantMsg = {
+        role: 'assistant',
+        content: data.content?.[0]?.text || 'No response'
+      };
+      setChatMessages(prev => [...prev, assistantMsg]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Error connecting to AI. Please try again.'
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-stone-800 via-stone-900 to-black">
+      
+      <div className="h-full flex">
+        {/* Main Typewriter Area */}
+        <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+          <div className="relative w-full max-w-5xl">
+            {/* Typewriter Photo Container */}
+            <div className="relative w-full">
+              <img 
+                src="https://raw.githubusercontent.com/ghostm68/pantheon/main/satellite.jpg"
+                alt="Adler Typewriter"
+                className="w-full h-auto rounded-lg shadow-2xl"
+                style={{ filter: 'brightness(1.05) contrast(1.1)' }}
+              />
+              
+              {/* Overlay Text Area - Positioned on the paper section of the typewriter */}
+              <div className="absolute" style={{
+                top: '8%',
+                left: '16%',
+                width: '68%',
+                height: '42%',
+              }}>
+                {/* Paper texture overlay */}
+                <div 
+                  className="absolute inset-0 pointer-events-none opacity-20 rounded-sm"
+                  style={{
+                    backgroundImage: 'repeating-linear-gradient(transparent, transparent 26px, rgba(200,200,200,0.4) 26px, rgba(200,200,200,0.4) 27px)',
+                  }}
+                />
+                
+                {/* Subtle paper glow */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-sm"></div>
+                
+                {/* Red margin line */}
+                <div className="absolute left-10 top-0 bottom-0 w-[2px] bg-red-400/30 pointer-events-none"></div>
+
+                {/* ACTUAL TEXTAREA - This is where you type */}
+                <textarea
+                  ref={articleRef}
+                  value={articleContent}
+                  onChange={(e) => setArticleContent(e.target.value)}
+                  className="w-full h-full px-12 py-6 bg-transparent resize-none focus:outline-none font-mono text-gray-900 text-sm leading-[27px] z-10"
+                  placeholder="Start typing on the Adler..."
+                  style={{
+                    textShadow: '0 1px 2px rgba(255,255,255,0.8)',
+                    caretColor: '#1f2937',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Status bar below typewriter */}
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center gap-4 bg-stone-800/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-xl border border-stone-700">
+                <span className="text-sm text-stone-300 font-mono">
+                  {articleContent.length} characters
+                </span>
+                <span className="text-stone-600">•</span>
+                <span className="text-sm text-emerald-400 font-mono">
+                  Auto-saved to URL
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Chat Sidebar */}
+        <div className={`bg-stone-900/98 backdrop-blur-md border-l border-stone-700/50 flex flex-col transition-all duration-300 shadow-2xl ${isChatExpanded ? 'w-[28rem]' : 'w-80'}`}>
+          {/* Chat Header */}
+          <div className="p-4 border-b border-stone-700/50 flex items-center justify-between bg-stone-800/30">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-white font-semibold text-sm">AI Assistant</h2>
+                <p className="text-stone-500 text-xs">Ready to help</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsChatExpanded(!isChatExpanded)}
+              className="text-stone-400 hover:text-white transition-colors p-2 hover:bg-stone-700/50 rounded-lg"
+            >
+              {isChatExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Model Selection */}
+          <div className="p-4 border-b border-stone-700/50 bg-stone-800/20">
+            <label className="block text-stone-400 text-xs mb-2 font-mono uppercase tracking-wide">
+              Local Model Selection
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full bg-stone-800/80 text-white border border-stone-600/50 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            >
+              <optgroup label="FEATHERWEIGHT CORES (Under 800MB)">
+                <option value="smol-360">SMOL 360M (The Lite Choice)</option>
+                <option value="qwen-tiny">QWEN 0.5B (The Smart Choice)</option>
+                <option value="tiny-llama">TINY LLAMA (The Speed Choice)</option>
+              </optgroup>
+            </select>
+            <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-400 font-mono">
+              ⚡ Using Claude API for demo
+            </div>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-stone-900/50 to-stone-900/80">
+            {chatMessages.length === 0 && (
+              <div className="text-center text-stone-500 mt-16">
+                <div className="mb-4 mx-auto w-16 h-16 bg-stone-800/50 rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-8 h-8 opacity-30" />
+                </div>
+                <p className="text-sm">Ask me anything while you write</p>
+                <p className="text-xs mt-2 text-stone-600">I'm here to assist with research, editing, and ideas</p>
+              </div>
+            )}
+            {chatMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-xl px-4 py-2.5 shadow-lg ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
+                      : 'bg-stone-800/80 text-stone-100 border border-stone-700/50'
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-stone-800/80 border border-stone-700/50 rounded-xl px-4 py-3 shadow-lg">
+                  <div className="flex gap-1.5">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Chat Input */}
+          <div className="p-4 border-t border-stone-700/50 bg-stone-800/30">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask anything..."
+                disabled={isLoading}
+                className="flex-1 bg-stone-800/80 text-white border border-stone-600/50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 placeholder-stone-500 transition-all"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoading || !currentMessage.trim()}
+                className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-stone-700 disabled:to-stone-800 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-all shadow-lg hover:shadow-xl disabled:shadow-none"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
