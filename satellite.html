@@ -38,13 +38,13 @@
       display: block;
     }
 
-    /* Text Area - Positioned over the paper */
+    /* Text Area - Adjusted to align with paper */
     #text-input {
       position: absolute;
-      top: 27.5%;  /* Adjusted to match paper position */
-      left: 17.5%; /* Adjusted to match paper position */
-      width: 65%;  /* Adjusted to match paper width */
-      height: 42%; /* Adjusted to match paper height */
+      top: 27.5%;
+      left: 20.5%; /* Increased from 17.5% to move right by ~3% */
+      width: 61.5%; /* Slightly reduced width to maintain proportion */
+      height: 42%;
       background: transparent;
       border: none;
       outline: none;
@@ -53,7 +53,7 @@
       font-size: 15px;
       line-height: 1.7;
       color: #000;
-      padding: 20px 30px;
+      padding: 20px 25px; /* Reduced right padding slightly */
       text-shadow: 0 1px 1px rgba(255,255,255,0.5);
       caret-color: #000;
       overflow-y: auto;
@@ -106,6 +106,22 @@
       display: none;
       pointer-events: none;
     }
+
+    /* Position adjustment controls (for fine-tuning) */
+    .position-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 100;
+      display: none; /* Hidden by default */
+    }
+
+    .position-controls.visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -136,17 +152,47 @@
     </div>
   </div>
 
+  <!-- Position adjustment controls -->
+  <div class="position-controls" id="position-controls">
+    <div style="color: white; margin-bottom: 10px; font-size: 12px;">Adjust Position (Ctrl+P)</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px;">
+      <div>
+        <label style="color: #ccc;">Left: <span id="left-value">20.5</span>%</label>
+        <input type="range" id="left-slider" min="15" max="25" step="0.1" value="20.5" style="width: 100%;">
+      </div>
+      <div>
+        <label style="color: #ccc;">Top: <span id="top-value">27.5</span>%</label>
+        <input type="range" id="top-slider" min="20" max="35" step="0.1" value="27.5" style="width: 100%;">
+      </div>
+      <div>
+        <label style="color: #ccc;">Width: <span id="width-value">61.5</span>%</label>
+        <input type="range" id="width-slider" min="55" max="70" step="0.1" value="61.5" style="width: 100%;">
+      </div>
+      <div>
+        <label style="color: #ccc;">Height: <span id="height-value">42</span>%</label>
+        <input type="range" id="height-slider" min="35" max="50" step="0.1" value="42" style="width: 100%;">
+      </div>
+    </div>
+  </div>
+
   <script>
     // Character counter
     const textInput = document.getElementById('text-input');
     const charCount = document.getElementById('char-count');
     const debugOverlay = document.getElementById('debug-overlay');
+    const positionControls = document.getElementById('position-controls');
     
+    // Position values
+    let paperTopPercent = 27.5;
+    let paperLeftPercent = 20.5; // Increased by 3%
+    let paperWidthPercent = 61.5; // Reduced by 3.5%
+    let paperHeightPercent = 42;
+
     textInput.addEventListener('input', () => {
       charCount.textContent = `${textInput.value.length} characters`;
     });
 
-    // Function to update textarea position based on image
+    // Function to update textarea position
     function updateTextAreaPosition() {
       const img = document.getElementById('typewriter-image');
       const textarea = document.getElementById('text-input');
@@ -156,17 +202,7 @@
         return;
       }
       
-      // Get image dimensions
-      const imgWidth = img.offsetWidth;
-      const imgHeight = img.offsetHeight;
-      
-      // Calculate paper area percentages (adjust these as needed)
-      const paperTopPercent = 27.5;   // % from top of image
-      const paperLeftPercent = 17.5;  // % from left of image
-      const paperWidthPercent = 65;   // % of image width
-      const paperHeightPercent = 42;  // % of image height
-      
-      // Apply calculated positions
+      // Apply current position values
       textarea.style.top = `${paperTopPercent}%`;
       textarea.style.left = `${paperLeftPercent}%`;
       textarea.style.width = `${paperWidthPercent}%`;
@@ -180,27 +216,105 @@
         debugOverlay.style.height = `${paperHeightPercent}%`;
       }
       
+      // Update slider values display
+      document.getElementById('left-value').textContent = paperLeftPercent.toFixed(1);
+      document.getElementById('top-value').textContent = paperTopPercent.toFixed(1);
+      document.getElementById('width-value').textContent = paperWidthPercent.toFixed(1);
+      document.getElementById('height-value').textContent = paperHeightPercent.toFixed(1);
+      
       // Debug info
-      console.log('Image dimensions:', imgWidth, 'x', imgHeight);
       console.log('Textarea position:', {
-        top: textarea.style.top,
-        left: textarea.style.left,
-        width: textarea.style.width,
-        height: textarea.style.height
+        top: `${paperTopPercent}%`,
+        left: `${paperLeftPercent}%`,
+        width: `${paperWidthPercent}%`,
+        height: `${paperHeightPercent}%`
+      });
+    }
+
+    // Initialize sliders
+    function initializeSliders() {
+      const leftSlider = document.getElementById('left-slider');
+      const topSlider = document.getElementById('top-slider');
+      const widthSlider = document.getElementById('width-slider');
+      const heightSlider = document.getElementById('height-slider');
+      
+      leftSlider.value = paperLeftPercent;
+      topSlider.value = paperTopPercent;
+      widthSlider.value = paperWidthPercent;
+      heightSlider.value = paperHeightPercent;
+      
+      leftSlider.addEventListener('input', (e) => {
+        paperLeftPercent = parseFloat(e.target.value);
+        updateTextAreaPosition();
+      });
+      
+      topSlider.addEventListener('input', (e) => {
+        paperTopPercent = parseFloat(e.target.value);
+        updateTextAreaPosition();
+      });
+      
+      widthSlider.addEventListener('input', (e) => {
+        paperWidthPercent = parseFloat(e.target.value);
+        updateTextAreaPosition();
+      });
+      
+      heightSlider.addEventListener('input', (e) => {
+        paperHeightPercent = parseFloat(e.target.value);
+        updateTextAreaPosition();
       });
     }
 
     // Initialize on load and resize
-    window.addEventListener('load', updateTextAreaPosition);
+    window.addEventListener('load', () => {
+      updateTextAreaPosition();
+      initializeSliders();
+    });
+    
     window.addEventListener('resize', updateTextAreaPosition);
 
-    // Toggle debug overlay with Ctrl+D
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+      // Toggle debug overlay with Ctrl+D
       if (e.ctrlKey && e.key === 'd') {
         e.preventDefault();
         if (debugOverlay) {
           debugOverlay.style.display = debugOverlay.style.display === 'none' ? 'block' : 'none';
           console.log('Debug overlay toggled');
+        }
+      }
+      
+      // Toggle position controls with Ctrl+P
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        positionControls.classList.toggle('visible');
+        console.log('Position controls toggled');
+      }
+      
+      // Fine-tune position with arrow keys (when textarea is focused)
+      if (document.activeElement === textInput && e.ctrlKey) {
+        const step = 0.1;
+        
+        switch(e.key) {
+          case 'ArrowLeft':
+            e.preventDefault();
+            paperLeftPercent -= step;
+            updateTextAreaPosition();
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            paperLeftPercent += step;
+            updateTextAreaPosition();
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            paperTopPercent -= step;
+            updateTextAreaPosition();
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            paperTopPercent += step;
+            updateTextAreaPosition();
+            break;
         }
       }
     });
@@ -217,7 +331,6 @@
       const textarea = document.getElementById('text-input');
       const width = textarea.offsetWidth;
       
-      // Adjust font size based on width (responsive)
       if (width < 300) {
         textarea.style.fontSize = '12px';
       } else if (width < 500) {
