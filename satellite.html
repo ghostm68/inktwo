@@ -278,7 +278,84 @@
     ::-webkit-scrollbar-thumb { background: #333; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
   </style>
+<style>
 
+#sputnik-ticker-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(15, 15, 15, 0.95);
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+    overflow: hidden;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+}
+
+#sputnik-ticker {
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    animation: scroll-ticker 90s linear infinite;
+}
+
+#sputnik-ticker.paused {
+    animation-play-state: paused;
+}
+
+#sputnik-ticker a {
+    color: var(--accent);
+    text-decoration: none;
+    margin: 0 40px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: color 0.2s;
+}
+
+#sputnik-ticker a:hover {
+    color: #fff;
+}
+
+@keyframes scroll-ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+	/* Mobile-only adjustments */
+@media screen and (max-width: 768px) {
+    .dashboard {
+        grid-template-columns: 1fr; /* Single column */
+        grid-template-rows: auto auto auto; /* Stack vertically */
+        height: auto; /* Allow natural height */
+        gap: 10px;
+    }
+    
+    .panel {
+        min-height: 300px; /* Prevent panels from being too small */
+    }
+    
+    .terminal-panel {
+        order: 1; /* Chat on top */
+    }
+    
+    .editor-panel {
+        order: 2; /* Editor in middle */
+        min-height: 400px;
+    }
+    
+    .notepad-panel {
+        order: 3; /* Notepad on bottom */
+    }
+    
+    /* Make ticker text smaller on mobile */
+    #sputnik-ticker a {
+        font-size: 9px;
+        margin: 0 20px;
+    }
+}
+
+</style>
 </head>
 <body>
 
@@ -440,6 +517,12 @@ document.querySelectorAll('.btn[data-stamp]').forEach(btn => {
   <div style="background:#fff; padding:40px; border:1px solid #ccc; max-width:800px; margin:0 auto;">
     ${paper.innerHTML}
   </div>
+  <!-- Sputnik Globe Ticker Footer -->
+<div id="sputnik-ticker-container">
+    <div id="sputnik-ticker">
+        <span style="color: #666;">[ INITIALIZING FEED... ]</span>
+    </div>
+</div>
 </body>
 </html>`;
         
@@ -817,5 +900,62 @@ document.addEventListener('click', function initAudio() {
     document.removeEventListener('click', initAudio);
 }, { once: true });
   </script>
+	<script>
+		// JavaScript for Sputnik Globe Archive Ticker
+async function fetchSputnikTicker() {
+    const tickerElement = document.getElementById('sputnik-ticker');
+    const feedUrl = 'https://sputnikglobe.com/export/rss2/archive/index.xml';
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+
+    try {
+        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Loading Sputnik Feed... ]</span>';
+        
+        const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
+        if (!response.ok) throw new Error(`Network Error: ${response.status}`);
+        
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        const items = xmlDoc.querySelectorAll('item');
+        
+        if (items.length === 0) {
+            tickerElement.innerHTML = '<span style="color: #ff0033;">[ Feed Empty ]</span>';
+            return;
+        }
+        
+        let tickerHTML = '';
+        items.forEach(item => {
+            const title = item.querySelector('title')?.textContent || 'News Update';
+            const link = item.querySelector('link')?.textContent || '#';
+            const pubDate = item.querySelector('pubDate')?.textContent || '';
+            
+            // Format the date if available
+            let dateStr = '';
+            if (pubDate) {
+                const date = new Date(pubDate);
+                dateStr = ` [${date.toLocaleDateString()}]`;
+            }
+            
+            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}${dateStr}">${title}${dateStr}</a>`;
+        });
+        
+        tickerElement.innerHTML = tickerHTML;
+        
+        // Pause animation on hover
+        tickerElement.addEventListener('mouseenter', () => tickerElement.classList.add('paused'));
+        tickerElement.addEventListener('mouseleave', () => tickerElement.classList.remove('paused'));
+        
+    } catch (error) {
+        console.error('Sputnik Ticker error:', error);
+        tickerElement.innerHTML = `<span style="color: #ff0033;">[ SPUTNIK FEED OFFLINE - ${error.message} ]</span>`;
+    }
+}
+
+// Initialize ticker when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fetchSputnikTicker();
+});
+
+	</script>
 </body>
 </html>
