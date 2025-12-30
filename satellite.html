@@ -8,7 +8,7 @@
   <style>
     :root {
       --bg-dark: #0a0a0a;
-      --panel-bg: #111;
+      --panel-bg: rgba(15, 15, 15, 0.95);
       --border: #333;
       --text: #e0e0e0;
       --accent: #8a1c1c;
@@ -41,10 +41,10 @@
       z-index: -1; pointer-events: none;
     }
 
-    /* --- MAIN LAYOUT (3-Column Grid) --- */
+    /* --- LAYOUT --- */
     .dashboard {
       display: grid;
-      grid-template-columns: 260px 1fr 260px; /* Sidebars fixed, Center flexes */
+      grid-template-columns: 280px 1fr 280px;
       gap: 15px;
       width: 98%;
       max-width: 1600px;
@@ -53,16 +53,15 @@
       z-index: 10;
     }
 
-    /* --- COMMON PANEL STYLES --- */
     .panel {
-      background: rgba(15, 15, 15, 0.9);
+      background: var(--panel-bg);
       border: 1px solid var(--border);
       backdrop-filter: blur(10px);
       display: flex;
       flex-direction: column;
       border-radius: 4px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
     }
 
     .panel-header {
@@ -78,11 +77,8 @@
       justify-content: space-between;
       align-items: center;
     }
-    
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
-    .status-dot.active { background: #0f0; box-shadow: 0 0 5px #0f0; }
 
-    /* --- LEFT: NEURAL TERMINAL --- */
+    /* --- LEFT: CHAT --- */
     .terminal-panel { border-top: 2px solid var(--accent); }
     
     .chat-log {
@@ -98,7 +94,8 @@
     .log-msg { margin-bottom: 8px; line-height: 1.4; word-wrap: break-word; }
     .log-msg.user { color: #fff; border-left: 2px solid #333; padding-left: 8px; }
     .log-msg.sys { color: var(--accent); }
-    
+    .log-msg.info { color: #44aa44; }
+
     .chat-controls { padding: 10px; background: #111; border-top: 1px solid #222; }
     
     .chat-input {
@@ -108,13 +105,15 @@
     }
     .chat-input:focus { border-color: #666; }
     
+    .btn-group { display: flex; gap: 5px; }
     .btn-full { 
-      width: 100%; padding: 6px; background: #222; border: 1px solid #333; 
+      flex: 1; padding: 6px; background: #222; border: 1px solid #333; 
       color: #888; cursor: pointer; font-size: 10px; text-transform: uppercase; 
     }
     .btn-full:hover { background: #333; color: #fff; }
+    .btn-full.active { background: #113311; color: #44aa44; border-color: #225522; }
 
-    /* --- CENTER: TYPEWRITER EDITOR --- */
+    /* --- CENTER: EDITOR --- */
     .editor-panel {
       border: 1px solid #333;
       background: linear-gradient(180deg, #1a1a1a, #0d0d0d);
@@ -134,7 +133,8 @@
       cursor: pointer; min-width: 30px;
     }
     .btn:hover { background: #333; color: #fff; }
-    .btn.accent:hover { color: var(--accent); border-color: var(--accent); }
+    .btn.accent { border-color: #522; color: #a55; }
+    .btn.accent:hover { background: var(--accent); color: #fff; }
     
     .sep { width: 1px; height: 16px; background: #333; margin: 0 4px; }
 
@@ -150,7 +150,7 @@
     .paper-sheet {
       background: var(--paper);
       width: 100%;
-      max-width: 800px; /* Limits width so lines aren't too long */
+      max-width: 800px;
       height: 100%;
       padding: 40px 50px;
       font-family: 'Special Elite', 'Courier New', serif;
@@ -163,16 +163,19 @@
       box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
-    /* Selection & Formatting */
-    .paper-sheet::selection, .paper-sheet *::selection { background: var(--accent-dim); }
+    /* Formatting */
+    .paper-sheet::selection { background: var(--accent-dim); }
     .paper-sheet b { font-weight: 900; }
     .paper-sheet i { font-style: italic; }
     .paper-sheet u { text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
     
     .stamp-block { 
-      display: inline-block; border: 2px solid var(--accent); color: var(--accent);
-      padding: 2px 6px; font-weight: bold; transform: rotate(-2deg); font-size: 14px;
+      display: inline-block; border: 3px solid var(--accent); color: var(--accent);
+      padding: 4px 8px; font-weight: 900; transform: rotate(-3deg); 
+      font-size: 16px; letter-spacing: 2px;
+      margin: 0 5px;
     }
+    
     .redacted { background: #000; color: #000; padding: 0 4px; cursor: help; }
     .redacted:hover { color: #fff; }
 
@@ -197,13 +200,6 @@
     ::-webkit-scrollbar-track { background: #050505; }
     ::-webkit-scrollbar-thumb { background: #333; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
-
-    /* Responsive: Stack on mobile */
-    @media (max-width: 1000px) {
-      .dashboard { grid-template-columns: 1fr; height: auto; overflow-y: auto; display: block; }
-      .panel { height: 400px; margin-bottom: 20px; }
-      body { height: auto; padding: 20px 0; align-items: flex-start; }
-    }
   </style>
 </head>
 <body>
@@ -215,23 +211,26 @@
 
   <div class="dashboard">
     
-    <!-- LEFT: NEURAL TERMINAL (WebLLM) -->
+    <!-- LEFT: NEURAL TERMINAL -->
     <div class="panel terminal-panel">
       <div class="panel-header">
         <span>NEURAL LINK</span>
-        <div class="status-dot" id="ai-status-dot"></div>
+        <div style="width:8px; height:8px; background:#333; border-radius:50%;" id="ai-status-dot"></div>
       </div>
       <div class="chat-log" id="chat-log">
-        <div class="log-msg sys">// System initialized.</div>
-        <div class="log-msg sys">// Core Status: OFFLINE</div>
+        <div class="log-msg sys">// Interface Ready.</div>
+        <div class="log-msg sys">// Press INITIALIZE to load core.</div>
       </div>
       <div class="chat-controls">
-        <input type="text" class="chat-input" id="chat-input" placeholder="Enter command...">
-        <button class="btn-full" id="chat-send">TRANSMIT</button>
+        <input type="text" class="chat-input" id="chat-input" placeholder="Type message...">
+        <div class="btn-group">
+          <button class="btn-full active" id="btn-init-ai">INITIALIZE</button>
+          <button class="btn-full" id="chat-send">SEND</button>
+        </div>
       </div>
     </div>
 
-    <!-- CENTER: TYPEWRITER (Main) -->
+    <!-- CENTER: TYPEWRITER EDITOR -->
     <div class="panel editor-panel">
       <div class="panel-header">
         <span>INK REALM // TYPE II</span>
@@ -243,26 +242,27 @@
         <button class="btn" data-cmd="italic"><i>I</i></button>
         <button class="btn" data-cmd="underline"><u>U</u></button>
         <div class="sep"></div>
-        <button class="btn" id="btn-redact">██</button>
-        <button class="btn accent" id="btn-stamp">STAMP</button>
-        <button class="btn" id="btn-date">DATE</button>
+        <button class="btn" id="btn-redact" title="Redact Text">██</button>
+        <button class="btn accent" id="btn-stamp" title="Insert Stamp">STAMP</button>
+        <button class="btn" id="btn-date" title="Insert Date">DATE</button>
         <div class="sep"></div>
-        <button class="btn" id="btn-save">SAVE</button>
-        <button class="btn" id="btn-clear">CLEAR</button>
+        <button class="btn" id="btn-download" title="Save to Disk (File)">SAVE FILE</button>
+        <button class="btn accent" id="btn-clear" title="Clear All">CLEAR</button>
       </div>
 
       <div class="paper-container">
+        <!-- ContentEditable = True Magic -->
         <div id="paper" class="paper-sheet" contenteditable="true" spellcheck="false"></div>
       </div>
     </div>
 
-    <!-- RIGHT: NOTEPAD (URL Hash Save) -->
+    <!-- RIGHT: NOTEPAD -->
     <div class="panel notepad-panel">
       <div class="panel-header">
         <span>SCRATCHPAD</span>
-        <span>SYNCED</span>
+        <span>URL SYNC</span>
       </div>
-      <textarea id="note-input" placeholder="// Notes auto-save to URL..."></textarea>
+      <textarea id="note-input" placeholder="// Quick notes..."></textarea>
       <div class="note-footer">
         <span id="note-count">0 chars</span>
         <span id="note-status">IDLE</span>
@@ -272,40 +272,47 @@
   </div>
 
 <script>
-/**
- * INK REALM COMMAND CENTER
- * Integrated: ContentEditable Editor + WebLLM AI + URL Hash Notepad
- */
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- 1. TYPEWRITER ENGINE (Center) ---
+    // --- 1. TYPEWRITER ENGINE ---
     const paper = document.getElementById('paper');
     const saveStatus = document.getElementById('save-status');
 
-    // Init Content
+    // Load initial content
     if(!localStorage.getItem('ink-main')) {
         paper.innerHTML = `<div><b>CONFIDENTIAL REPORT</b></div><div><br></div><div>Subject: _________________</div><div>Date: <span class="redacted">1985-10-25</span></div><div><br></div><div>The quick brown fox jumps over the lazy dog.</div>`;
     } else {
         paper.innerHTML = localStorage.getItem('ink-main');
     }
 
-    // Formatting Logic
+    // -- Helper: Always ensure paper has focus before executing commands --
+    function restoreFocus() {
+        if (document.activeElement !== paper) {
+            paper.focus();
+        }
+    }
+
+    // Formatting Buttons (B/I/U)
     document.querySelectorAll('.btn[data-cmd]').forEach(btn => {
         btn.addEventListener('mousedown', (e) => {
-            e.preventDefault();
+            e.preventDefault(); // Prevent button from stealing focus
+            restoreFocus();
             document.execCommand(btn.dataset.cmd, false, null);
         });
     });
 
-    // Special Tools
+    // Special Tools: Date
     document.getElementById('btn-date').addEventListener('mousedown', (e) => {
         e.preventDefault();
+        restoreFocus();
         const d = new Date().toISOString().split('T')[0];
         document.execCommand('insertText', false, ` [${d}] `);
     });
 
+    // Special Tools: Redact
     document.getElementById('btn-redact').addEventListener('mousedown', (e) => {
         e.preventDefault();
+        restoreFocus();
         const sel = window.getSelection();
         const html = sel.toString().length > 0 
             ? `<span class="redacted">${sel.toString()}</span>`
@@ -313,18 +320,50 @@ document.addEventListener('DOMContentLoaded', () => {
         document.execCommand('insertHTML', false, html);
     });
 
+    // Special Tools: Stamp
     document.getElementById('btn-stamp').addEventListener('mousedown', (e) => {
         e.preventDefault();
+        restoreFocus();
+        // Insert HTML at cursor location
         document.execCommand('insertHTML', false, `&nbsp;<span class="stamp-block">TOP SECRET</span>&nbsp;`);
     });
 
-    document.getElementById('btn-save').addEventListener('click', () => {
+    // REAL SAVE TO DISK (Download File)
+    document.getElementById('btn-download').addEventListener('click', () => {
+        // 1. Create content blob
+        const content = `
+<!DOCTYPE html>
+<html>
+<head><title>Ink Realm Document</title></head>
+<body style="font-family:'Courier New'; padding:40px; background:#f0f0f0;">
+  <div style="background:#fff; padding:40px; border:1px solid #ccc; max-width:800px; margin:0 auto;">
+    ${paper.innerHTML}
+  </div>
+</body>
+</html>`;
+        
+        // 2. Create download link
+        const blob = new Blob([content], {type: 'text/html'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ink_realm_doc.html'; // Saves as HTML to keep Bold/Redaction
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // 3. Update UI
+        flashStatus('FILE SAVED');
+    });
+
+    // Background Auto-Save to LocalStorage (Safety)
+    paper.addEventListener('input', () => {
         localStorage.setItem('ink-main', paper.innerHTML);
-        flashStatus('SAVED TO DISK');
     });
 
     document.getElementById('btn-clear').addEventListener('click', () => {
-        if(confirm("Shred document?")) paper.innerHTML = '';
+        if(confirm("Permanently clear the paper?")) paper.innerHTML = '';
     });
 
     function flashStatus(msg) {
@@ -337,12 +376,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- 2. NOTEPAD ENGINE (Right - URL Hash) ---
+    // --- 2. NOTEPAD ENGINE (URL Hash) ---
     const noteInput = document.getElementById('note-input');
     const noteStatus = document.getElementById('note-status');
     const noteCount = document.getElementById('note-count');
 
-    // Compression Utilities
+    // Compression
     async function compress(str) {
         if(!str) return '';
         const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
@@ -355,10 +394,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const stream = new Blob([Uint8Array.from(atob(str), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));
             return await new Response(stream).text();
-        } catch(e) { console.error(e); return ''; }
+        } catch(e) { return ''; }
     }
 
-    // Load from URL or LocalStorage
     async function initNotes() {
         const hash = window.location.hash.slice(1);
         if(hash) {
@@ -371,18 +409,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initNotes();
 
-    // Auto-Save
     let noteTimer;
     noteInput.addEventListener('input', () => {
         noteCount.textContent = noteInput.value.length + " chars";
         noteStatus.textContent = '...';
-        
         clearTimeout(noteTimer);
         noteTimer = setTimeout(async () => {
             localStorage.setItem('ink-notes', noteInput.value);
             const compressed = await compress(noteInput.value);
             if(compressed) window.history.replaceState(null, null, '#' + compressed);
-            
             noteStatus.textContent = 'SAVED';
             noteStatus.style.color = '#fff';
             setTimeout(() => { noteStatus.textContent = 'IDLE'; noteStatus.style.color = '#555'; }, 1000);
@@ -390,14 +425,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // --- 3. NEURAL TERMINAL (Left - WebLLM) ---
+    // --- 3. NEURAL TERMINAL (WebLLM) ---
     const chatLog = document.getElementById('chat-log');
     const chatInput = document.getElementById('chat-input');
     const chatSend = document.getElementById('chat-send');
+    const btnInit = document.getElementById('btn-init-ai');
     const aiDot = document.getElementById('ai-status-dot');
     
     let engine = null;
-    const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // Fast, light model
+    const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
+
+    // Explicit Initialization Button
+    btnInit.addEventListener('click', async () => {
+        if(engine) return;
+        
+        btnInit.disabled = true;
+        btnInit.textContent = "LOADING...";
+        addLog('sys', 'Initializing Neural Core (Downloading ~300MB)...');
+        
+        try {
+            const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.79");
+            engine = await CreateMLCEngine(modelId, {
+                initProgressCallback: (report) => {
+                    const pct = Math.round(report.progress * 100);
+                    // Only log every 10% to avoid spam
+                    if(pct % 20 === 0 && pct > 0) {
+                        // Optional: update a specific element instead of spamming log
+                    }
+                }
+            });
+            
+            addLog('info', '>> CORE ONLINE. READY FOR INPUT.');
+            aiDot.style.background = '#0f0';
+            aiDot.style.boxShadow = '0 0 8px #0f0';
+            btnInit.textContent = "ACTIVE";
+            btnInit.style.borderColor = "#0f0";
+            btnInit.style.color = "#0f0";
+            
+        } catch(e) {
+            addLog('sys', 'Init Failed: ' + e.message);
+            btnInit.textContent = "RETRY";
+            btnInit.disabled = false;
+        }
+    });
 
     chatSend.addEventListener('click', handleChat);
     chatInput.addEventListener('keypress', (e) => {
@@ -407,35 +477,20 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleChat() {
         const txt = chatInput.value.trim();
         if(!txt) return;
+        
+        if(!engine) {
+            addLog('sys', '!! ERROR: Press INITIALIZE first.');
+            return;
+        }
 
         addLog('user', txt);
         chatInput.value = '';
         chatInput.disabled = true;
-        chatSend.disabled = true;
-
-        if(!engine) {
-            addLog('sys', 'Initializing Neural Core (approx 300MB)...');
-            try {
-                const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.79");
-                engine = await CreateMLCEngine(modelId, {
-                    initProgressCallback: (report) => {
-                        if(report.progress === 1) {
-                            addLog('sys', 'Core Online.');
-                            aiDot.classList.add('active');
-                        }
-                    }
-                });
-            } catch(e) {
-                addLog('sys', 'Init Failed: ' + e.message);
-                resetChat();
-                return;
-            }
-        }
 
         try {
             const chunks = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: "You are a noir terminal assistant. Be concise." },
+                    { role: "system", content: "You are a noir terminal assistant. Concise, helpful, slightly mysterious." },
                     { role: "user", content: txt }
                 ],
                 temperature: 0.7,
@@ -446,12 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('sys', 'Error: ' + e.message);
         }
 
-        resetChat();
-    }
-
-    function resetChat() {
         chatInput.disabled = false;
-        chatSend.disabled = false;
         chatInput.focus();
     }
 
