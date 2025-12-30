@@ -904,51 +904,43 @@ async function fetchSputnikTicker() {
     const proxyUrl = 'https://api.allorigins.win/raw?url=';
 
     try {
-        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Loading Sputnik Feed... ]</span>';
-        
+        tickerElement.innerHTML = '<span style="color: #666; font-style: italic;">[ Accessing Research Stream... ]</span>';
         const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
         if (!response.ok) throw new Error(`Network Error: ${response.status}`);
-        
         const xmlText = await response.text();
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
         const items = xmlDoc.querySelectorAll('item');
         
         if (items.length === 0) {
-            tickerElement.innerHTML = '<span style="color: #ff0033;">[ Feed Empty ]</span>';
+            tickerElement.innerHTML = '<span style="color: #ff0033;">[ Research Feed Empty ]</span>';
             return;
         }
         
         let tickerHTML = '';
         items.forEach(item => {
-            const title = item.querySelector('title')?.textContent || 'News Update';
+            const title = item.querySelector('title')?.textContent || 'Research Update';
             const link = item.querySelector('link')?.textContent || '#';
-            const pubDate = item.querySelector('pubDate')?.textContent || '';
-            
-            let dateStr = '';
-            if (pubDate) {
-                const date = new Date(pubDate);
-                dateStr = ` [${date.toLocaleDateString()}]`;
-            }
-            
-            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${title}${dateStr}">${title}${dateStr}</a>`;
+            // Clean up "ScienceDaily: " prefix if present
+            const cleanTitle = title.replace(/^Sputnik:\s*/i, '');
+            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${cleanTitle}">${cleanTitle}</a>`;
         });
         
         tickerElement.innerHTML = tickerHTML;
         
+        // Pause on hover
         tickerElement.addEventListener('mouseenter', () => tickerElement.classList.add('paused'));
         tickerElement.addEventListener('mouseleave', () => tickerElement.classList.remove('paused'));
         
     } catch (error) {
         console.error('Sputnik Ticker error:', error);
-        tickerElement.innerHTML = `<span style="color: #ff0033;">[ SPUTNIK FEED OFFLINE - ${error.message} ]</span>`;
+        tickerElement.innerHTML = `<span style="color: #ff0033;">[ SPUTNIK FEED OFFLINE ]</span>`;
     }
 }
 
-// Initialize on page load
+// Initialize both tickers when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    fetchSputnikTicker();
-});
+    fetchSputnikTicker();    
 	</script>
 </body>
 </html>
