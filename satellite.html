@@ -600,5 +600,151 @@ document.querySelectorAll('.btn[data-stamp]').forEach(btn => {
 });
 
   </script>
+  <script>
+    // --- TYPING SOUND ENGINE (Synth Version) ---
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let isMuted = false;
+let lastKeyTime = 0;
+
+// Typewriter click sound
+function playTypeSound() {
+    if (isMuted || !audioContext || document.activeElement !== paper) return;
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(80 + Math.random() * 40, audioContext.currentTime);
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.001);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.05);
+        
+    } catch(e) {
+        // Silent fail if audio not supported
+    }
+}
+
+// Space bar sound (deeper)
+function playSpaceSound() {
+    if (isMuted || !audioContext) return;
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(60 + Math.random() * 20, audioContext.currentTime);
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.002);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+        
+    } catch(e) {
+        // Silent fail
+    }
+}
+
+// Enter/Return bell sound
+function playBellSound() {
+    if (isMuted || !audioContext) return;
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+        
+    } catch(e) {
+        // Silent fail
+    }
+}
+
+// Connect to paper typing
+paper.addEventListener('keydown', (e) => {
+    const now = Date.now();
+    if (now - lastKeyTime < 50) return; // Debounce
+    
+    lastKeyTime = now;
+    
+    if (e.key === 'Enter') {
+        playBellSound();
+    } else if (e.key === ' ' || e.key === 'Spacebar') {
+        playSpaceSound();
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        playTypeSound();
+    }
+});
+
+// Connect to all editor buttons
+document.querySelectorAll('.btn[data-cmd], #btn-redact, #btn-date, .btn[data-stamp], #btn-stamp').forEach(btn => {
+    btn.addEventListener('mousedown', (e) => {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        playTypeSound();
+    });
+});
+
+// Add mute toggle to toolbar
+const muteBtn = document.createElement('button');
+muteBtn.className = 'btn';
+muteBtn.id = 'btn-mute';
+muteBtn.title = 'Toggle Typing Sounds';
+muteBtn.innerHTML = '🔊';
+muteBtn.style.marginLeft = 'auto';
+
+muteBtn.addEventListener('click', () => {
+    isMuted = !isMuted;
+    muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
+    if (isMuted && audioContext) {
+        audioContext.suspend();
+    } else if (audioContext) {
+        audioContext.resume();
+    }
+});
+
+// Insert mute button into toolbar (after last separator)
+const toolbar = document.querySelector('.toolbar');
+const lastSep = document.querySelectorAll('.sep');
+if (lastSep.length > 0) {
+    toolbar.insertBefore(muteBtn, lastSep[lastSep.length - 1].nextSibling);
+} else {
+    toolbar.appendChild(muteBtn);
+}
+
+// Resume audio on first user interaction (browser requirement)
+document.addEventListener('click', function initAudio() {
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    document.removeEventListener('click', initAudio);
+}, { once: true });
+  </script>
 </body>
 </html>
