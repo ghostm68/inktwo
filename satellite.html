@@ -394,64 +394,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 5. NOTEPAD ENGINE (Robust Auto-Save)
+    // 5. NOTEPAD ENGINE (With URL Compression)
     // ------------------------------------
     const notePanel = document.getElementById('notepad-panel');
     const noteInput = document.getElementById('note-input');
     const noteStatus = document.getElementById('note-status');
-
-    // Load
-    noteInput.value = localStorage.getItem('ink-notes') || "";
 
     // Toggle
     document.getElementById('note-toggle').addEventListener('click', () => {
         notePanel.classList.toggle('closed');
     });
 
-    // Auto-save
+    // --- Compression Logic ---
+    async function compress(str) {
+        const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+        const buffer = await new Response(stream).arrayBuffer();
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    }
+
+    async function decompress(str) {
+        const stream = new Blob([Uint8Array.from(atob(str), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+    }
+
+    // --- Load from URL or LocalStorage ---
+    async function initNotes() {
+        const hash = window.location.hash.slice(1); // Remove #
+        if(hash) {
+            try {
+                noteInput.value = await decompress(hash);
+                noteStatus.textContent = 'URL LOADED';
+            } catch(e) { console.error('Hash load failed', e); }
+        } else {
+            noteInput.value = localStorage.getItem('ink-notes') || "";
+        }
+    }
+    initNotes();
+
+    // --- Auto-Save to URL & LocalStorage ---
     let noteTimer;
     noteInput.addEventListener('input', () => {
         noteStatus.textContent = '...';
         clearTimeout(noteTimer);
-        noteTimer = setTimeout(() => {
+        noteTimer = setTimeout(async () => {
+            // 1. Save to LocalStorage (Backup)
             localStorage.setItem('ink-notes', noteInput.value);
+            
+            // 2. Save to URL (Shareable)
+            const compressed = await compress(noteInput.value);
+            window.history.replaceState(null, null, '#' + compressed);
+            
             noteStatus.textContent = 'SAVED';
             noteStatus.style.color = '#fff';
             setTimeout(() => { noteStatus.textContent = 'SYNCED'; noteStatus.style.color = '#444'; }, 1000);
         }, 1000);
     });
-
     // 6. CHAT PANEL
     // -------------
+  // 6. CHAT PANEL (Real WebLLM)
+    // ---------------------------
     const chatPanel = document.getElementById('chat-panel');
     const chatLog = document.getElementById('chat-log');
     const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send');
+    
+    let engine = null;
+    const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // Small, fast model
 
     document.getElementById('chat-toggle').addEventListener('click', () => {
         chatPanel.classList.toggle('closed');
     });
 
-    document.getElementById('chat-send').addEventListener('click', sendChat);
+    chatSendBtn.addEventListener('click', handleChat);
     chatInput.addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') sendChat();
+        if(e.key === 'Enter') handleChat();
     });
 
-    function sendChat() {
+    async function handleChat() {
         const txt = chatInput.value.trim();
         if(!txt) return;
 
+        // UI Updates
         addLog('user', txt);
         chatInput.value = '';
-        
-        // Sim response
-        setTimeout(() => {
-            const responses = [
-                "Command received.",
-                "Processing...",
-                "Link unstable.",
-                "Data logged."
-            ];
-            addLog('sys', responses[Math.floor(Math.random() * responses.length)]);
-        }, 600);
+        chatInput.disabled = true;
+        chatSendBtn.disabled = true;
+
+        // Initialize Engine if needed
+        if (!engine) {
+            addLog('sys', 'Initializing Neural Core... (This downloads ~300MB)');
+            try {
+                // Dynamic Import
+                const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.79");
+                engine = await CreateMLCEngine(modelId, {
+                    initProgressCallback: (report) => {
+                        // Optional: Show progress in log
+                        if(report.progress === 1) addLog('sys', 'Core Online.');
+                    }
+                });
+            } catch (err) {
+                addLog('sys', 'Init Failed: ' + err.message);
+                resetInput();
+                return;
+            }
+        }
+
+        // Generate Response
+        try {
+            const chunks = await engine.chat.completions.create({
+                messages: [{ role: "user", content: txt }],
+                temperature: 0.7,
+                max_tokens: 256,
+            });
+            addLog('sys', chunks.choices[0].message.content);
+        } catch (err) {
+            addLog('sys', 'Generation Error: ' + err.message);
+        }
+
+        resetInput();
+    }
+
+    function resetInput() {
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatInput.focus();
     }
 
     function addLog(role, text) {
@@ -461,7 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatLog.appendChild(div);
         chatLog.scrollTop = chatLog.scrollHeight;
     }
-});
 </script>
 </body>
 </html>
