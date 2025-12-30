@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>INK REALM // FINAL</title>
+  <title>INK REALM // COMMAND CENTER</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Special+Elite&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -11,8 +11,9 @@
       --panel-bg: #111;
       --border: #333;
       --text: #e0e0e0;
-      --accent: #8a1c1c; /* Blood Red */
-      --paper: #e6e6e6;  /* Off-white paper */
+      --accent: #8a1c1c;
+      --accent-dim: rgba(138, 28, 28, 0.3);
+      --paper: #e6e6e6;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,188 +29,181 @@
       align-items: center;
     }
 
-    /* --- ATMOSPHERE --- */
+    /* --- BACKGROUND --- */
     .bg-video {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; opacity: 0.25; z-index: -2;
+      object-fit: cover; opacity: 0.15; z-index: -2;
       filter: grayscale(100%) contrast(1.2);
     }
     .vignette {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(circle at center, transparent 30%, #000 100%);
+      background: radial-gradient(circle at center, transparent 40%, #000 100%);
       z-index: -1; pointer-events: none;
     }
 
-    /* --- EDITOR CONTAINER --- */
-    .editor-wrapper {
+    /* --- MAIN LAYOUT (3-Column Grid) --- */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 260px 1fr 260px; /* Sidebars fixed, Center flexes */
+      gap: 15px;
+      width: 98%;
+      max-width: 1600px;
+      height: 92vh;
       position: relative;
-      width: 90%; max-width: 850px;
       z-index: 10;
     }
 
-    .machine-body {
-      background: linear-gradient(180deg, #1a1a1a, #0d0d0d);
-      border: 1px solid #333;
+    /* --- COMMON PANEL STYLES --- */
+    .panel {
+      background: rgba(15, 15, 15, 0.9);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
       border-radius: 4px;
-      box-shadow: 0 40px 80px rgba(0,0,0,0.8);
-      padding: 5px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
-    .machine-header {
-      padding: 10px 20px;
-      display: flex; justify-content: space-between; align-items: center;
-      background: #080808; border-bottom: 1px solid #222;
-      color: #444; font-size: 11px; letter-spacing: 2px; font-weight: bold;
+    .panel-header {
+      background: #050505;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #666;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .brand span { color: var(--accent); }
+    
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+    .status-dot.active { background: #0f0; box-shadow: 0 0 5px #0f0; }
 
-    /* --- THE PAPER (ContentEditable) --- */
+    /* --- LEFT: NEURAL TERMINAL --- */
+    .terminal-panel { border-top: 2px solid var(--accent); }
+    
+    .chat-log {
+      flex: 1;
+      background: #080808;
+      padding: 12px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: #888;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    
+    .log-msg { margin-bottom: 8px; line-height: 1.4; word-wrap: break-word; }
+    .log-msg.user { color: #fff; border-left: 2px solid #333; padding-left: 8px; }
+    .log-msg.sys { color: var(--accent); }
+    
+    .chat-controls { padding: 10px; background: #111; border-top: 1px solid #222; }
+    
+    .chat-input {
+      width: 100%; background: #000; border: 1px solid #333;
+      color: #fff; padding: 8px; font-family: inherit; margin-bottom: 8px;
+      font-size: 11px; outline: none;
+    }
+    .chat-input:focus { border-color: #666; }
+    
+    .btn-full { 
+      width: 100%; padding: 6px; background: #222; border: 1px solid #333; 
+      color: #888; cursor: pointer; font-size: 10px; text-transform: uppercase; 
+    }
+    .btn-full:hover { background: #333; color: #fff; }
+
+    /* --- CENTER: TYPEWRITER EDITOR --- */
+    .editor-panel {
+      border: 1px solid #333;
+      background: linear-gradient(180deg, #1a1a1a, #0d0d0d);
+    }
+
+    .toolbar {
+      padding: 8px 12px;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex; gap: 6px; align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: #1a1a1a; border: 1px solid #333; color: #888;
+      padding: 5px 10px; font-family: inherit; font-size: 11px;
+      cursor: pointer; min-width: 30px;
+    }
+    .btn:hover { background: #333; color: #fff; }
+    .btn.accent:hover { color: var(--accent); border-color: var(--accent); }
+    
+    .sep { width: 1px; height: 16px; background: #333; margin: 0 4px; }
+
     .paper-container {
+      flex: 1;
       background: #050505;
       padding: 20px;
-      border: 1px solid #222;
-      height: 65vh; /* Responsive height */
-      max-height: 600px;
       overflow: hidden;
-      position: relative;
+      display: flex;
+      justify-content: center;
     }
 
     .paper-sheet {
       background: var(--paper);
       width: 100%;
+      max-width: 800px; /* Limits width so lines aren't too long */
       height: 100%;
       padding: 40px 50px;
-      
-      /* Typography */
       font-family: 'Special Elite', 'Courier New', serif;
       font-size: 18px;
       line-height: 1.6;
       color: #111;
-      
-      /* Interaction */
       outline: none;
       overflow-y: auto;
-      white-space: pre-wrap; /* Preserves tabs/spaces */
-      cursor: text;
-      
-      /* Shadows to look like paper */
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      white-space: pre-wrap;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
-    /* Selection Color (The native highlight) */
-    .paper-sheet::selection, .paper-sheet *::selection {
-      background: rgba(138, 28, 28, 0.2); /* Red tint */
-      color: inherit;
-    }
-
-    /* Formatting Styles */
-    .paper-sheet b, .paper-sheet strong { font-weight: 900; }
-    .paper-sheet i, .paper-sheet em { font-style: italic; }
+    /* Selection & Formatting */
+    .paper-sheet::selection, .paper-sheet *::selection { background: var(--accent-dim); }
+    .paper-sheet b { font-weight: 900; }
+    .paper-sheet i { font-style: italic; }
     .paper-sheet u { text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
     
-    /* Special Styles */
-    .stamp-confidential {
-      border: 2px solid var(--accent);
-      color: var(--accent);
-      font-weight: bold;
-      padding: 2px 6px;
-      font-size: 0.8em;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      display: inline-block;
-      transform: rotate(-2deg);
+    .stamp-block { 
+      display: inline-block; border: 2px solid var(--accent); color: var(--accent);
+      padding: 2px 6px; font-weight: bold; transform: rotate(-2deg); font-size: 14px;
     }
-    .redacted {
-      background: #000;
-      color: #000;
-      padding: 0 4px;
-    }
-    .redacted:hover { color: #fff; cursor: help; }
+    .redacted { background: #000; color: #000; padding: 0 4px; cursor: help; }
+    .redacted:hover { color: #fff; }
 
-    /* --- TOOLBAR --- */
-    .toolbar {
-      display: flex; gap: 8px; align-items: center;
-      background: #111;
-      padding: 10px 15px;
-      border-top: 1px solid #222;
-    }
-
-    .btn {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #888;
-      padding: 6px 12px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      cursor: pointer;
-      transition: 0.2s;
-      min-width: 32px;
-    }
-    .btn:hover { background: #333; color: #fff; }
-    .btn.active { background: #333; color: #fff; border-color: #666; }
-    .btn.accent:hover { border-color: var(--accent); color: var(--accent); }
-
-    .separator { width: 1px; height: 16px; background: #333; margin: 0 5px; }
-
-    .status { margin-left: auto; font-size: 10px; color: #555; text-transform: uppercase; }
-
-    /* --- SIDE PANELS --- */
-    .panel {
-      position: fixed;
-      background: rgba(15, 15, 15, 0.95);
-      border: 1px solid #333;
-      backdrop-filter: blur(10px);
-      z-index: 100;
-      transition: transform 0.3s ease;
-      width: 300px;
-    }
-
-    .panel-head {
-      background: #000; padding: 8px 12px;
-      display: flex; justify-content: space-between;
-      border-bottom: 1px solid #222;
-      font-size: 10px; letter-spacing: 1px; color: #666;
-    }
-    
-    .panel-toggle { background: none; border: none; color: #444; cursor: pointer; }
-    .panel-toggle:hover { color: #fff; }
-
-    /* Notepad */
-    .notepad-panel { bottom: 20px; right: 20px; border-right: 2px solid #fff; }
-    .notepad-panel.closed { transform: translateY(92%); }
+    /* --- RIGHT: NOTEPAD --- */
+    .notepad-panel { border-top: 2px solid #fff; }
     
     #note-input {
-      width: 100%; height: 200px;
+      flex: 1; width: 100%;
       background: #111; color: #bbb;
       border: none; outline: none; resize: none;
-      padding: 15px; font-family: 'Special Elite', monospace; font-size: 12px;
+      padding: 15px; font-family: 'Special Elite', monospace; font-size: 13px;
+      line-height: 1.5;
     }
-    .note-footer { padding: 5px 10px; background: #080808; font-size: 10px; color: #444; }
-
-    /* Chat */
-    .chat-panel { top: 20px; left: 20px; border-left: 2px solid var(--accent); }
-    .chat-panel.closed { transform: translateX(-92%); }
     
-    .chat-body { padding: 10px; }
-    .chat-log { 
-      height: 200px; overflow-y: auto; 
-      background: #050505; border: 1px solid #222; margin-bottom: 10px;
-      padding: 10px; font-size: 11px; color: #888;
+    .note-footer {
+      padding: 8px; background: #080808; border-top: 1px solid #222;
+      font-size: 10px; color: #555; display: flex; justify-content: space-between;
     }
-    .chat-input {
-      width: 100%; background: #111; border: 1px solid #333;
-      color: #fff; padding: 8px; font-family: inherit; margin-bottom: 5px;
-    }
-    .log-msg { margin-bottom: 6px; border-left: 2px solid #222; padding-left: 6px; }
-    .log-msg.sys { color: var(--accent); border-color: var(--accent); }
-    .log-msg.user { color: #fff; border-color: #444; }
 
     /* Scrollbars */
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-track { background: #050505; }
     ::-webkit-scrollbar-thumb { background: #333; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
+    /* Responsive: Stack on mobile */
+    @media (max-width: 1000px) {
+      .dashboard { grid-template-columns: 1fr; height: auto; overflow-y: auto; display: block; }
+      .panel { height: 400px; margin-bottom: 20px; }
+      body { height: auto; padding: 20px 0; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
@@ -219,253 +213,193 @@
   </video>
   <div class="vignette"></div>
 
-  <!-- MAIN EDITOR -->
-  <div class="editor-wrapper">
-    <div class="machine-body">
+  <div class="dashboard">
+    
+    <!-- LEFT: NEURAL TERMINAL (WebLLM) -->
+    <div class="panel terminal-panel">
+      <div class="panel-header">
+        <span>NEURAL LINK</span>
+        <div class="status-dot" id="ai-status-dot"></div>
+      </div>
+      <div class="chat-log" id="chat-log">
+        <div class="log-msg sys">// System initialized.</div>
+        <div class="log-msg sys">// Core Status: OFFLINE</div>
+      </div>
+      <div class="chat-controls">
+        <input type="text" class="chat-input" id="chat-input" placeholder="Enter command...">
+        <button class="btn-full" id="chat-send">TRANSMIT</button>
+      </div>
+    </div>
+
+    <!-- CENTER: TYPEWRITER (Main) -->
+    <div class="panel editor-panel">
+      <div class="panel-header">
+        <span>INK REALM // TYPE II</span>
+        <span id="save-status" style="color:#444">READY</span>
+      </div>
       
-      <div class="machine-header">
-        <div class="brand">INK <span>REALM</span></div>
-        <div id="date-display">1985-10-24</div>
+      <div class="toolbar">
+        <button class="btn" data-cmd="bold"><b>B</b></button>
+        <button class="btn" data-cmd="italic"><i>I</i></button>
+        <button class="btn" data-cmd="underline"><u>U</u></button>
+        <div class="sep"></div>
+        <button class="btn" id="btn-redact">██</button>
+        <button class="btn accent" id="btn-stamp">STAMP</button>
+        <button class="btn" id="btn-date">DATE</button>
+        <div class="sep"></div>
+        <button class="btn" id="btn-save">SAVE</button>
+        <button class="btn" id="btn-clear">CLEAR</button>
       </div>
 
       <div class="paper-container">
-        <!-- ContentEditable = Native highlighting, Native B/I/U -->
         <div id="paper" class="paper-sheet" contenteditable="true" spellcheck="false"></div>
       </div>
+    </div>
 
-      <div class="toolbar">
-        <button class="btn" data-cmd="bold" title="Bold (Ctrl+B)">B</button>
-        <button class="btn" data-cmd="italic" title="Italic (Ctrl+I)">I</button>
-        <button class="btn" data-cmd="underline" title="Underline (Ctrl+U)">U</button>
-        
-        <div class="separator"></div>
-        
-        <!-- Flavor Actions -->
-        <button class="btn" id="btn-redact" title="Insert Redacted Block">███</button>
-        <button class="btn accent" id="btn-stamp" title="Stamp Confidential">STAMP</button>
-        <button class="btn" id="btn-date" title="Insert Date">DATE</button>
-
-        <div class="separator"></div>
-
-        <button class="btn" id="btn-save">SAVE</button>
-        <button class="btn" id="btn-load">LOAD</button>
-        <button class="btn accent" id="btn-clear" title="New Sheet">CLEAR</button>
-
-        <div class="status" id="status-msg">READY</div>
+    <!-- RIGHT: NOTEPAD (URL Hash Save) -->
+    <div class="panel notepad-panel">
+      <div class="panel-header">
+        <span>SCRATCHPAD</span>
+        <span>SYNCED</span>
       </div>
-
-    </div>
-  </div>
-
-  <!-- NOTEPAD -->
-  <div class="panel notepad-panel closed" id="notepad-panel">
-    <div class="panel-head">
-      <span>SCRATCHPAD</span>
-      <button class="panel-toggle" id="note-toggle">_</button>
-    </div>
-    <textarea id="note-input" placeholder="// Quick notes auto-save here..."></textarea>
-    <div class="note-footer">
-      <span id="note-status">SYNCED</span>
-    </div>
-  </div>
-
-  <!-- CHAT / TERMINAL -->
-  <div class="panel chat-panel closed" id="chat-panel">
-    <div class="panel-head">
-      <span>NEURAL TERMINAL</span>
-      <button class="panel-toggle" id="chat-toggle">_</button>
-    </div>
-    <div class="chat-body">
-      <div class="chat-log" id="chat-log">
-        <div class="log-msg sys">System Online.</div>
+      <textarea id="note-input" placeholder="// Notes auto-save to URL..."></textarea>
+      <div class="note-footer">
+        <span id="note-count">0 chars</span>
+        <span id="note-status">IDLE</span>
       </div>
-      <input type="text" class="chat-input" id="chat-input" placeholder="Enter command...">
-      <button class="btn" style="width:100%" id="chat-send">TRANSMIT</button>
     </div>
+
   </div>
 
 <script>
 /**
- * INK REALM ENGINE (Native ContentEditable Version)
- * Reliable highlighting, reliable formatting.
+ * INK REALM COMMAND CENTER
+ * Integrated: ContentEditable Editor + WebLLM AI + URL Hash Notepad
  */
 document.addEventListener('DOMContentLoaded', () => {
-    
+
+    // --- 1. TYPEWRITER ENGINE (Center) ---
     const paper = document.getElementById('paper');
-    const statusMsg = document.getElementById('status-msg');
-    
-    // 1. INITIALIZATION
-    // -----------------
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date-display').textContent = today;
-    
-    // Default Text if empty
-    if(!localStorage.getItem('ink-content')) {
-        paper.innerHTML = `<div>Welcome to the <b>Ink Realm</b>.</div><div><br></div><div>This is a secure channel. You can <u>highlight text</u> naturally.</div><div>Use the toolbar below for formatting.</div><div><br></div><div>CONFIDENTIALITY NOTICE:</div><div><span class="redacted">The subject name</span> is currently under investigation.</div>`;
+    const saveStatus = document.getElementById('save-status');
+
+    // Init Content
+    if(!localStorage.getItem('ink-main')) {
+        paper.innerHTML = `<div><b>CONFIDENTIAL REPORT</b></div><div><br></div><div>Subject: _________________</div><div>Date: <span class="redacted">1985-10-25</span></div><div><br></div><div>The quick brown fox jumps over the lazy dog.</div>`;
     } else {
-        paper.innerHTML = localStorage.getItem('ink-content');
+        paper.innerHTML = localStorage.getItem('ink-main');
     }
 
-    // 2. CORE EDITOR LOGIC
-    // --------------------
-    
-    // Formatting Buttons (B/I/U)
-    // We use preventDefault() on mousedown so the focus stays on the paper
+    // Formatting Logic
     document.querySelectorAll('.btn[data-cmd]').forEach(btn => {
         btn.addEventListener('mousedown', (e) => {
             e.preventDefault();
             document.execCommand(btn.dataset.cmd, false, null);
-            updateStatus('FORMAT APPLIED');
         });
     });
 
-    // Handle Paste (Strip Formatting)
-    // We only want plain text, or the editor turns into a mess
-    paper.addEventListener('paste', (e) => {
-        e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData('text');
-        document.execCommand('insertText', false, text);
-    });
-
-    // 3. FLAVOR TOOLS
-    // ---------------
-    
-    // Insert Date
+    // Special Tools
     document.getElementById('btn-date').addEventListener('mousedown', (e) => {
         e.preventDefault();
-        const dateStr = new Date().toLocaleString('en-US', { monospace: true }).toUpperCase();
-        document.execCommand('insertText', false, ` [${dateStr}] `);
+        const d = new Date().toISOString().split('T')[0];
+        document.execCommand('insertText', false, ` [${d}] `);
     });
 
-    // Redaction Tool (Inserts a span with black background)
     document.getElementById('btn-redact').addEventListener('mousedown', (e) => {
         e.preventDefault();
-        const selection = window.getSelection();
-        if(selection.toString().length > 0) {
-            // If text selected, wrap it
-            document.execCommand('insertHTML', false, `<span class="redacted">${selection.toString()}</span>`);
-        } else {
-            // Else insert block
-            document.execCommand('insertHTML', false, `<span class="redacted">██████</span>`);
-        }
-    });
-
-    // Stamp Tool
-    document.getElementById('btn-stamp').addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        const stamps = ['CONFIDENTIAL', 'TOP SECRET', 'APPROVED', 'DENIED'];
-        const randomStamp = stamps[Math.floor(Math.random() * stamps.length)];
-        const html = `&nbsp;<span class="stamp-confidential">${randomStamp}</span>&nbsp;`;
+        const sel = window.getSelection();
+        const html = sel.toString().length > 0 
+            ? `<span class="redacted">${sel.toString()}</span>`
+            : `<span class="redacted">██████</span>`;
         document.execCommand('insertHTML', false, html);
     });
 
-    // Clear
-    document.getElementById('btn-clear').addEventListener('click', () => {
-        if(confirm("Destroy current document?")) {
-            paper.innerHTML = '';
-            updateStatus('PAPER SHREDDED');
-        }
+    document.getElementById('btn-stamp').addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        document.execCommand('insertHTML', false, `&nbsp;<span class="stamp-block">TOP SECRET</span>&nbsp;`);
     });
 
-    // 4. SAVE / LOAD SYSTEM
-    // ---------------------
     document.getElementById('btn-save').addEventListener('click', () => {
-        localStorage.setItem('ink-content', paper.innerHTML);
-        updateStatus('SAVED TO DISK', '#fff');
+        localStorage.setItem('ink-main', paper.innerHTML);
+        flashStatus('SAVED TO DISK');
     });
 
-    document.getElementById('btn-load').addEventListener('click', () => {
-        const saved = localStorage.getItem('ink-content');
-        if(saved) {
-            paper.innerHTML = saved;
-            updateStatus('LOADED', '#fff');
-        } else {
-            updateStatus('NO DATA FOUND', 'var(--accent)');
-        }
+    document.getElementById('btn-clear').addEventListener('click', () => {
+        if(confirm("Shred document?")) paper.innerHTML = '';
     });
 
-    function updateStatus(msg, color = '#555') {
-        statusMsg.textContent = msg;
-        statusMsg.style.color = color;
+    function flashStatus(msg) {
+        saveStatus.textContent = msg;
+        saveStatus.style.color = '#fff';
         setTimeout(() => {
-            statusMsg.textContent = 'READY';
-            statusMsg.style.color = '#555';
+            saveStatus.textContent = 'READY';
+            saveStatus.style.color = '#444';
         }, 2000);
     }
 
-    // 5. NOTEPAD ENGINE (Robust Auto-Save)
-    // 5. NOTEPAD ENGINE (With URL Compression)
-    // ------------------------------------
-    const notePanel = document.getElementById('notepad-panel');
+
+    // --- 2. NOTEPAD ENGINE (Right - URL Hash) ---
     const noteInput = document.getElementById('note-input');
     const noteStatus = document.getElementById('note-status');
+    const noteCount = document.getElementById('note-count');
 
-    // Toggle
-    document.getElementById('note-toggle').addEventListener('click', () => {
-        notePanel.classList.toggle('closed');
-    });
-
-    // --- Compression Logic ---
+    // Compression Utilities
     async function compress(str) {
+        if(!str) return '';
         const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
         const buffer = await new Response(stream).arrayBuffer();
         return btoa(String.fromCharCode(...new Uint8Array(buffer)));
     }
 
     async function decompress(str) {
-        const stream = new Blob([Uint8Array.from(atob(str), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));
-        return await new Response(stream).text();
+        if(!str) return '';
+        try {
+            const stream = new Blob([Uint8Array.from(atob(str), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));
+            return await new Response(stream).text();
+        } catch(e) { console.error(e); return ''; }
     }
 
-    // --- Load from URL or LocalStorage ---
+    // Load from URL or LocalStorage
     async function initNotes() {
-        const hash = window.location.hash.slice(1); // Remove #
+        const hash = window.location.hash.slice(1);
         if(hash) {
-            try {
-                noteInput.value = await decompress(hash);
-                noteStatus.textContent = 'URL LOADED';
-            } catch(e) { console.error('Hash load failed', e); }
+            noteInput.value = await decompress(hash);
+            noteStatus.textContent = 'URL LOAD';
         } else {
             noteInput.value = localStorage.getItem('ink-notes') || "";
         }
+        noteCount.textContent = noteInput.value.length + " chars";
     }
     initNotes();
 
-    // --- Auto-Save to URL & LocalStorage ---
+    // Auto-Save
     let noteTimer;
     noteInput.addEventListener('input', () => {
+        noteCount.textContent = noteInput.value.length + " chars";
         noteStatus.textContent = '...';
+        
         clearTimeout(noteTimer);
         noteTimer = setTimeout(async () => {
-            // 1. Save to LocalStorage (Backup)
             localStorage.setItem('ink-notes', noteInput.value);
-            
-            // 2. Save to URL (Shareable)
             const compressed = await compress(noteInput.value);
-            window.history.replaceState(null, null, '#' + compressed);
+            if(compressed) window.history.replaceState(null, null, '#' + compressed);
             
             noteStatus.textContent = 'SAVED';
             noteStatus.style.color = '#fff';
-            setTimeout(() => { noteStatus.textContent = 'SYNCED'; noteStatus.style.color = '#444'; }, 1000);
+            setTimeout(() => { noteStatus.textContent = 'IDLE'; noteStatus.style.color = '#555'; }, 1000);
         }, 1000);
     });
-    // 6. CHAT PANEL
-    // -------------
-  // 6. CHAT PANEL (Real WebLLM)
-    // ---------------------------
-    const chatPanel = document.getElementById('chat-panel');
+
+
+    // --- 3. NEURAL TERMINAL (Left - WebLLM) ---
     const chatLog = document.getElementById('chat-log');
     const chatInput = document.getElementById('chat-input');
-    const chatSendBtn = document.getElementById('chat-send');
+    const chatSend = document.getElementById('chat-send');
+    const aiDot = document.getElementById('ai-status-dot');
     
     let engine = null;
-    const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // Small, fast model
+    const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // Fast, light model
 
-    document.getElementById('chat-toggle').addEventListener('click', () => {
-        chatPanel.classList.toggle('closed');
-    });
-
-    chatSendBtn.addEventListener('click', handleChat);
+    chatSend.addEventListener('click', handleChat);
     chatInput.addEventListener('keypress', (e) => {
         if(e.key === 'Enter') handleChat();
     });
@@ -474,59 +408,62 @@ document.addEventListener('DOMContentLoaded', () => {
         const txt = chatInput.value.trim();
         if(!txt) return;
 
-        // UI Updates
         addLog('user', txt);
         chatInput.value = '';
         chatInput.disabled = true;
-        chatSendBtn.disabled = true;
+        chatSend.disabled = true;
 
-        // Initialize Engine if needed
-        if (!engine) {
-            addLog('sys', 'Initializing Neural Core... (This downloads ~300MB)');
+        if(!engine) {
+            addLog('sys', 'Initializing Neural Core (approx 300MB)...');
             try {
-                // Dynamic Import
                 const { CreateMLCEngine } = await import("https://esm.run/@mlc-ai/web-llm@0.2.79");
                 engine = await CreateMLCEngine(modelId, {
                     initProgressCallback: (report) => {
-                        // Optional: Show progress in log
-                        if(report.progress === 1) addLog('sys', 'Core Online.');
+                        if(report.progress === 1) {
+                            addLog('sys', 'Core Online.');
+                            aiDot.classList.add('active');
+                        }
                     }
                 });
-            } catch (err) {
-                addLog('sys', 'Init Failed: ' + err.message);
-                resetInput();
+            } catch(e) {
+                addLog('sys', 'Init Failed: ' + e.message);
+                resetChat();
                 return;
             }
         }
 
-        // Generate Response
         try {
             const chunks = await engine.chat.completions.create({
-                messages: [{ role: "user", content: txt }],
+                messages: [
+                    { role: "system", content: "You are a noir terminal assistant. Be concise." },
+                    { role: "user", content: txt }
+                ],
                 temperature: 0.7,
                 max_tokens: 256,
             });
             addLog('sys', chunks.choices[0].message.content);
-        } catch (err) {
-            addLog('sys', 'Generation Error: ' + err.message);
+        } catch(e) {
+            addLog('sys', 'Error: ' + e.message);
         }
 
-        resetInput();
+        resetChat();
     }
 
-    function resetInput() {
+    function resetChat() {
         chatInput.disabled = false;
-        chatSendBtn.disabled = false;
+        chatSend.disabled = false;
         chatInput.focus();
     }
 
-    function addLog(role, text) {
+    function addLog(role, txt) {
         const div = document.createElement('div');
         div.className = `log-msg ${role}`;
-        div.textContent = (role === 'user' ? '> ' : '') + text;
+        div.textContent = (role === 'user' ? '> ' : '') + txt;
         chatLog.appendChild(div);
         chatLog.scrollTop = chatLog.scrollHeight;
     }
+
+});
 </script>
 </body>
 </html>
