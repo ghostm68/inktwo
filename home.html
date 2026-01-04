@@ -42,132 +42,82 @@
 
     
     <meta name="theme-color" content="#34393F"/>
-	<style>
-/* 1. THE GLASS HUD (General) */
-.glass-hud {
-    position: fixed;
-    bottom: 20px;
-    z-index: 100; /* Layer 100: Above the artwork */
-    width: 260px;
-    padding: 15px;
-    border-radius: 12px;
-    background: rgba(10, 10, 10, 0.75); 
-    backdrop-filter: blur(12px); 
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #e0e0e0;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 0.8rem;
-    transition: all 0.3s ease;
-}
-
-/* 2. THE LEFT HUD (Visible) */
-.hud-left {
-    left: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-.hud-img {
-    width: 80px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.2);
-    margin-bottom: 10px;
-}
-
-/* 3. THE RIGHT HUD (Invisible for now) */
-.hud-right {
-    right: 20px;
-    /* This hides it completely but keeps the class ready */
-    display: none; 
-}
-
-/* 4. FIXING THE CONTROLS (The "Not Adjustable" Fix) */
-
-/* The Info Switch */
-.artwork-page__switch {
-    /* Push it to Layer 200 (Above the HUD) */
-    z-index: 200 !important; 
-    /* Move it up so it doesn't overlap the HUD area if you add it back */
-    bottom: 180px !important; 
-    right: 20px !important;
-}
-
-/* The Zoom Controls (Percent View) */
-.artwork-page__scrolly-navigation {
-    /* Push it to Layer 200 (Above the HUD) */
-    z-index: 200 !important;
-    /* Center it so it doesn't fight the left/right columns */
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    bottom: 30px !important;
-    position: fixed !important;
-}
-
-/* Ensure buttons are clickable */
-.artwork-page__image-navigation {
-    cursor: pointer;
-    pointer-events: auto;
-}
-</style>
-	<style>
-			   /* ORB CONTAINER */
+<style>
+/* --- 1. SMALLER ORB --- */
 .orb-container {
     display: inline-block;
     vertical-align: middle;
-    margin-right: 15px; /* Spacing between orb and title */
-    width: 50px;
-    height: 50px;
+    margin-right: 12px; /* Less spacing */
+    width: 35px;        /* WAS 50px */
+    height: 35px;       /* WAS 50px */
     position: relative;
 }
 
-/* THE SVG SHAPE */
-.glitch-orb {
-    width: 100%;
-    height: 100%;
-    fill: none;
-    stroke-width: 3;
-    overflow: visible;
+/* ... Keep your existing orb keyframes/animations here ... */
+.glitch-orb { width: 100%; height: 100%; fill: none; stroke-width: 3; overflow: visible; }
+.orb-circle { stroke: #ff0033; }
+.orb-triangle { stroke: #ffffff; }
+.orb-container svg { animation: slow-spin 10s linear infinite; filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4)); }
+.orb-container:hover svg { animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite; }
+
+/* --- 2. THE SLIDE-OUT DRAWER --- */
+.side-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 300px; /* Width of the panel */
+    height: 100vh; /* Full height */
+    z-index: 1000; /* On top of everything */
+    
+    /* GLASS EFFECT */
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-left: 1px solid rgba(255,255,255,0.1);
+    
+    /* ANIMATION */
+    transform: translateX(100%); /* Hidden off-screen by default */
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    
+    /* CONTENT LAYOUT */
+    padding: 80px 30px 30px 30px; /* Top padding clears the Close button */
+    color: #eee;
+    font-family: 'Courier New', monospace;
+    overflow-y: auto;
 }
 
-/* PARTS COLORS */
-.orb-circle { stroke: #ff0033; } /* Red Circle */
-.orb-triangle { stroke: #ffffff; } /* White Triangle */
-
-/* IDLE ANIMATION (Slow breathe/rotate) */
-.orb-container svg {
-    animation: slow-spin 10s linear infinite;
-    filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
-    transition: all 0.2s ease;
+/* The class we add with JS to open it */
+.side-drawer.is-open {
+    transform: translateX(0);
 }
 
-/* HOVER STATE (The Glitch) */
-.orb-container:hover svg {
-    animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
-    filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
-            drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
-}
+/* Drawer Content Styling */
+.drawer-section { margin-bottom: 40px; }
+.drawer-img { width: 100px; border-radius: 50%; border: 2px solid #ff0033; margin-bottom: 15px; }
+.drawer-title { font-size: 1.2rem; margin-bottom: 5px; color: #fff; }
+.drawer-subtitle { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 2px; }
+.drawer-video { width: 100%; border-radius: 4px; margin-top: 10px; opacity: 0.8; }
 
-.orb-container:hover .orb-triangle {
-    fill: rgba(255, 255, 255, 0.1);
+/* CLOSE BUTTON (Inside Drawer) */
+.drawer-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: color 0.2s;
 }
+.drawer-close:hover { color: #ff0033; }
 
-/* KEYFRAMES */
-@keyframes slow-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* --- 3. FIX THE OVERLAY BUTTON (The Lightning Bolt) --- */
+.navigation__overlay-button {
+    z-index: 1100; /* Ensure it stays clickable */
+    position: relative; 
 }
-
-@keyframes glitch-shake {
-    0% { transform: translate(0) rotate(0deg); }
-    20% { transform: translate(-2px, 2px) rotate(-5deg); }
-    40% { transform: translate(-2px, -2px) rotate(5deg); }
-    60% { transform: translate(2px, 2px) rotate(-5deg); }
-    80% { transform: translate(2px, -2px) rotate(5deg); }
-    100% { transform: translate(0) rotate(0deg); }
-}
-		</style>
+</style>
 	
 </head>
 <body class="no-js" id="artwork" data-domain-name="inkrealm" data-inkrealm="inkrealm">
@@ -295,37 +245,64 @@
 
 
 </div>
-       <!-- LEFT HUD: Identity & Bio -->
-<div class="glass-hud hud-left">
-    <!-- The GIF -->
-    <img class="hud-img" src="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif" alt="Inky">
+<!-- THE HIDDEN DRAWER -->
+<div class="side-drawer" id="infoDrawer">
+    <button class="drawer-close" id="closeDrawer">&times;</button>
     
-    <!-- The Text -->
-    <div>
-        <span style="color:#ff3333; font-weight:bold;">©26</span><br>
-        writer | musician<br>
-        visual artist
+    <!-- Identity Section -->
+    <div class="drawer-section" style="text-align:center;">
+        <img class="drawer-img" src="https://raw.githubusercontent.com/ghostm68/99/main/5379e792-a434-4666-8e51-bb8e41de678b_inky_gif.gif">
+        <div class="drawer-title">Wordstar.Nexus</div>
+        <div class="drawer-subtitle">©26 Inkrealm</div>
+        <p style="font-size: 0.8rem; color: #ccc; margin-top:10px;">
+            Writer | Musician | Visual Artist
+        </p>
     </div>
-</div>
 
-<!-- RIGHT HUD: Video Feed -->
-<div class="glass-hud hud-right">
-    <!-- The Video -->
-    <video class="hud-video" autoplay muted loop playsinline poster="images/video.jpg">
-        <!-- Add your video source here when you have it -->
-        <source type="video/mp4" src=""> 
-    </video>
-    
-    <!-- The Caption -->
-    <div style="text-align: center; margin-top:5px; font-size: 0.7rem; color: #888;">
-        <i>Triangulation Data</i>
+    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1);">
+
+    <!-- Media Section -->
+    <div class="drawer-section">
+        <div class="drawer-subtitle">Triangulation Feed</div>
+        <video class="drawer-video" autoplay muted loop playsinline>
+             <!-- Add your video source here -->
+             <!-- <source src="yourvideo.mp4" type="video/mp4"> -->
+        </video>
+        <p style="font-size: 0.7rem; color: #666; margin-top:5px;">
+            Incoming data stream...
+        </p>
     </div>
 </div>
 	 
     
 
 <script src="/scripts/main.cmp.js" content-type="text/javascript"></script>
+<script>
+    // 1. Get Elements
+    const drawer = document.getElementById('infoDrawer');
+    const toggleBtn = document.querySelector('.navigation__overlay-button'); // The Lightning Bolt
+    const closeBtn = document.getElementById('closeDrawer');
 
+    // 2. Open Function
+    toggleBtn.addEventListener('click', (e) => {
+        // Prevent default behavior if any
+        e.preventDefault();
+        // Toggle the class
+        drawer.classList.toggle('is-open');
+    });
+
+    // 3. Close Function
+    closeBtn.addEventListener('click', () => {
+        drawer.classList.remove('is-open');
+    });
+
+    // 4. Close if clicking outside (Optional but nice)
+    document.addEventListener('click', (e) => {
+        if (!drawer.contains(e.target) && !toggleBtn.contains(e.target) && drawer.classList.contains('is-open')) {
+            drawer.classList.remove('is-open');
+        }
+    });
+</script>
 </body>
 
 
