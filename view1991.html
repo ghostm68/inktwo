@@ -40,7 +40,7 @@
 
         .container {
             display: grid;
-            grid-template-columns: 200px 1fr;
+            grid-template-columns: 220px 1fr;
             gap: 20px;
             flex-grow: 1;
             overflow: hidden;
@@ -49,17 +49,28 @@
         .sidebar { border-right: 1px solid var(--dim-grey); padding-right: 10px; overflow-y: auto; }
         .sidebar h3 { color: var(--accent-red); margin-top: 0; border-bottom: 1px solid var(--dim-grey); padding-bottom: 5px;}
         .col-name { display: block; padding: 4px 0; font-size: 0.9rem; color: #888; }
+        .preset-btn { 
+            display: block; width: 100%; text-align: left; background: none; border: none; 
+            color: #aaa; cursor: pointer; padding: 5px 0; font-family: var(--font-main);
+        }
+        .preset-btn:hover { color: white; text-decoration: underline; }
 
         .main-area { display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 
         .controls { display: flex; gap: 10px; background: var(--dim-grey); padding: 10px; border: 1px solid var(--border-grey); }
         textarea { flex-grow: 1; background: black; color: white; border: 1px solid var(--border-grey); font-family: var(--font-main); padding: 10px; resize: none; height: 40px; }
         
-        button {
+        button.action-btn {
             background: black; color: var(--accent-red); border: 1px solid var(--accent-red);
             padding: 0 20px; font-family: var(--font-main); font-weight: bold; cursor: pointer; text-transform: uppercase;
         }
-        button:hover { background: var(--accent-red); color: black; }
+        button.action-btn:hover { background: var(--accent-red); color: black; }
+        
+        button.export-btn {
+            background: black; color: white; border: 1px solid white;
+            padding: 0 20px; font-family: var(--font-main); font-weight: bold; cursor: pointer; text-transform: uppercase;
+        }
+        button.export-btn:hover { background: white; color: black; }
 
         #status-bar { font-size: 0.8rem; color: #888; min-height: 1.2em; }
 
@@ -89,16 +100,19 @@
             <br>
             <h3>Presets</h3>
             <div style="display:flex; flex-direction:column; gap:5px;">
-                <button onclick="setQuery('SELECT * FROM items ORDER BY id_num DESC LIMIT 100')">Recent (High IDs)</button>
-                <button onclick="setQuery('SELECT * FROM items WHERE title LIKE \'%moon%\'')">Search "moon"</button>
-                <button onclick="setQuery('SELECT count(*) FROM items')">Count All</button>
+                <button class="preset-btn" onclick="setQuery('SELECT * FROM items ORDER BY id_num DESC LIMIT 100')">> Recent Entries</button>
+                <button class="preset-btn" onclick="setQuery('SELECT * FROM items WHERE title ILIKE \'%writer%\'')">> Films about Writers</button>
+                <button class="preset-btn" onclick="setQuery('SELECT * FROM items WHERE title ILIKE \'%love%\'')">> Search "Love"</button>
+                <button class="preset-btn" onclick="setQuery('SELECT * FROM items WHERE title ILIKE \'%death%\'')">> Search "Death"</button>
+                <button class="preset-btn" onclick="setQuery('SELECT count(*) FROM items')">> Count All</button>
             </div>
         </aside>
 
         <main class="main-area">
             <div class="controls">
                 <textarea id="sql-input" spellcheck="false">SELECT * FROM items ORDER BY id_num ASC</textarea>
-                <button id="run-btn">RUN QUERY</button>
+                <button id="run-btn" class="action-btn">RUN QUERY</button>
+                <button id="export-btn" class="export-btn">EXPORT CSV</button>
             </div>
             <div class="table-wrapper">
                 <div id="results-container"></div>
@@ -114,8 +128,9 @@
         const statusBar = document.getElementById('status-bar');
         const schemaList = document.getElementById('schema-list');
 
-        // We use 'p strong' to get the bold text inside paragraphs
+        // Scraper Configuration
         const HTML_SELECTOR = 'p strong'; 
+        const URL_TARGET = 'https://inkrealm.info/1991';
 
         async function init() {
             try {
@@ -128,7 +143,7 @@
                 await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
                 conn = await db.connect();
                 
-                statusBar.textContent = "Engine Ready. Scaping HTML...";
+                statusBar.textContent = "Engine Ready. Parsing InkRealm...";
                 await loadData();
             } catch (err) {
                 statusBar.style.color = 'red';
@@ -137,10 +152,8 @@
         }
 
         async function loadData() {
-            const url = 'https://inkrealm.info/1991'; 
-
             try {
-                const response = await fetch(url);
+                const response = await fetch(URL_TARGET);
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 const htmlText = await response.text();
 
@@ -150,27 +163,24 @@
 
                 if(elements.length === 0) throw new Error(`No data found.`);
 
-                // PARSING LOGIC SPECIFIC TO YOUR SITE
                 const dataArray = [];
                 
                 elements.forEach((el) => {
                     const rawText = el.innerText.trim();
-                    
-                    // Skip empty rows (like images inside strong tags)
+                    // Skip empty rows
                     if(rawText.length === 0) return;
 
-                    // Regex to split "820_the circle"
-                    // Matches: Start of string -> numbers -> underscore -> everything else
+                    // Regex: 820_title
                     const match = rawText.match(/^(\d+)_(.*)$/);
 
                     if (match) {
                         dataArray.push({
-                            id_num: parseInt(match[1]), // Capture 820 as a number
-                            title: match[2].trim(),     // Capture "the circle"
+                            id_num: parseInt(match[1]),
+                            title: match[2].trim(),
                             original_text: rawText
                         });
                     } else {
-                        // Fallback if formatting is weird (no underscore)
+                        // Keep weird rows, but mark id as null
                         dataArray.push({
                             id_num: null,
                             title: rawText,
@@ -223,6 +233,42 @@
             }
         }
 
+        // --- NEW EXPORT FUNCTION ---
+        async function exportCleanList() {
+            statusBar.textContent = "Generating Clean CSV...";
+            try {
+                const result = await conn.query(`
+                    SELECT id_num, title 
+                    FROM items 
+                    WHERE id_num IS NOT NULL 
+                    ORDER BY id_num ASC
+                `);
+
+                const rows = result.toArray();
+                let csvContent = "ID,TITLE\n"; 
+
+                rows.forEach(row => {
+                    // Escape quotes for CSV safety
+                    const cleanTitle = row.title.replace(/"/g, '""'); 
+                    csvContent += `${row.id_num},"${cleanTitle}"\n`;
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", "inkrealm_clean.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                statusBar.textContent = "Download complete.";
+            } catch (err) {
+                statusBar.style.color = 'red';
+                statusBar.textContent = "Export Error: " + err.message;
+            }
+        }
+
         function renderTable(arrowResult) {
             const container = document.getElementById('results-container');
             const rows = arrowResult.toArray();
@@ -246,6 +292,8 @@
         }
 
         document.getElementById('run-btn').addEventListener('click', runQuery);
+        document.getElementById('export-btn').addEventListener('click', exportCleanList);
+        
         window.setQuery = (sql) => { document.getElementById('sql-input').value = sql; runQuery(); };
 
         init();
