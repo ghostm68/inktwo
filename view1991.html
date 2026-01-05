@@ -49,6 +49,7 @@
         .sidebar { border-right: 1px solid var(--dim-grey); padding-right: 10px; overflow-y: auto; }
         .sidebar h3 { color: var(--accent-red); margin-top: 0; border-bottom: 1px solid var(--dim-grey); padding-bottom: 5px;}
         .col-name { display: block; padding: 4px 0; font-size: 0.9rem; color: #888; }
+        
         .preset-btn { 
             display: block; width: 100%; text-align: left; background: none; border: none; 
             color: #aaa; cursor: pointer; padding: 5px 0; font-family: var(--font-main);
@@ -128,7 +129,6 @@
         const statusBar = document.getElementById('status-bar');
         const schemaList = document.getElementById('schema-list');
 
-        // Scraper Configuration
         const HTML_SELECTOR = 'p strong'; 
         const URL_TARGET = 'https://inkrealm.info/1991';
 
@@ -142,6 +142,10 @@
                 db = new duckdb.AsyncDuckDB(logger, worker);
                 await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
                 conn = await db.connect();
+
+                // --- FIX: Force Load the JSON Extension ---
+                // This tells DuckDB to turn on the JSON features explicitly.
+                await conn.query("INSTALL json; LOAD json;");
                 
                 statusBar.textContent = "Engine Ready. Parsing InkRealm...";
                 await loadData();
@@ -167,10 +171,8 @@
                 
                 elements.forEach((el) => {
                     const rawText = el.innerText.trim();
-                    // Skip empty rows
                     if(rawText.length === 0) return;
 
-                    // Regex: 820_title
                     const match = rawText.match(/^(\d+)_(.*)$/);
 
                     if (match) {
@@ -180,7 +182,6 @@
                             original_text: rawText
                         });
                     } else {
-                        // Keep weird rows, but mark id as null
                         dataArray.push({
                             id_num: null,
                             title: rawText,
@@ -233,7 +234,6 @@
             }
         }
 
-        // --- NEW EXPORT FUNCTION ---
         async function exportCleanList() {
             statusBar.textContent = "Generating Clean CSV...";
             try {
@@ -248,7 +248,6 @@
                 let csvContent = "ID,TITLE\n"; 
 
                 rows.forEach(row => {
-                    // Escape quotes for CSV safety
                     const cleanTitle = row.title.replace(/"/g, '""'); 
                     csvContent += `${row.id_num},"${cleanTitle}"\n`;
                 });
