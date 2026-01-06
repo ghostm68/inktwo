@@ -1,355 +1,554 @@
 <!DOCTYPE html>
-<html lang="en" class="👗">
-<head>
-<meta name="viewport" content="width=1024">
-<!--ink city layout 010 - Created by www.inkrealm.info -->
-<meta charset=utf-8> 
-<title data-rh="true">www.inkrealm.cloud - literature, film, art and more...</title>
-<meta data-rh="true" name="description" content="A writer's website, featuring an extensive list of films about the craft with posters and original art as well as artifacts."/>
-<meta data-rh="true" property="og:title" content="INKREALM - writing, music, and the visual arts"/>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<html lang="en">
+	<head>
+		<title>three.js webgl - gpgpu - protoplanet</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
 
-<link rel="stylesheet" href="cld-style.css">
-<link rel="shortcut icon" href="./Images//favicon.ico" />
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - <span id="protoplanets"></span> webgl gpgpu debris
+		</div>
 
-<style>
-/* Keep your original scrollbar styles */
-::-webkit-scrollbar { width: 20px; }
-::-webkit-scrollbar-track { box-shadow: inset 0 0 5px tan; border-radius: 10px; }
-::-webkit-scrollbar-thumb { background: blue; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #efd0f5; }
+		<!-- Fragment shader for protoplanet's position -->
+		<script id="computeShaderPosition" type="x-shader/x-fragment">
 
-/* Cloud container as main background */
-#cloudBackground {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0; /* Behind everything */
-    pointer-events: none; /* Allows clicking through to your content */
-}
+			#define delta ( 1.0 / 60.0 )
 
-/* Ensure your content stays above clouds */
-.showcase {
-    position: relative;
-    z-index: 2;
-}
+			void main() {
 
-.menu {
-    position: relative;
-    z-index: 3;
-}
+				vec2 uv = gl_FragCoord.xy / resolution.xy;
 
-/* Ensure text is readable */
-.text h2, .text h3 {
-    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
-    position: relative;
-    z-index: 3;
-}
+				vec4 tmpPos = texture2D( texturePosition, uv );
+				vec3 pos = tmpPos.xyz;
 
-/* Keep your existing videos visible */
-.video {
-    position: relative;
-    z-index: 1;
-}
-</style>
-</head>
-<body>
-    <!-- Cloud Background Canvas -->
-    <canvas id="cloudBackground"></canvas>
-    
-    <section class="showcase">
-        <header>
-            <h2 class="logo">writer</h2><br>
-            <div class="alignleft">
-                <div class="toggle"></div>
-            </div>
-        </header>
-        
-        <!-- Keep your original videos -->
-        <video src="https://github.com/ghostm68/pantheon/raw/main/cloud.inkrealm.anne_20251015_204816361.mp4" 
-               muted loop playsinline autoplay class="video"></video>
-        
-        <div class="overlay"></div>
-        <div class="text">
-            <h2>musician</h2>
-            <h3>visual artist</h3>
-        </div>
-        <br>
-        
-        <ul class="social">
-            <li>></li>
-        </ul>
-    </section>
- 
-    <div class="menu">
-        <ul>
-            <li></li>
-            <font color="green">
-            <li>list @ inkrealm.info/1991</li>
-            <div style="height:444px;width:288px;border:1px solid #ccc;font:16px/26px Georgia, Garamond, Serif;overflow:auto;">
-                <br>
-                <font color="purple">
-                
-                <!-- Removed cloud container from here -->
-                
-                <p>
-                    <a href="https://www.cloudcookie.com/" target="_blank" rel="noopener noreferrer">
-                        <font color="brown">perfections</font>
-                    </a>
-                </p>
-                <br>
-                <iframe width="360" height="288" src="https://www.youtube.com/embed/IdwfjUcTK7Q?si=g7WwTsmXL-TuiBGT&amp;start=4" 
-                        title="YouTube video player" frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-                <br>
-                3809 N Clark St, Chicago, IL 60613<br>
-                Latitude: 41.951338<br>
-                Longitude: 87.659602<br>
-                Tel.3123801885<br>
-                
-                <p></p>
-                <font color="green">
-                <li>www.wordstar.nexus, for more</li>
-                </font>
-                </font>
-            </div>
-        </ul>
-    </div>
+				vec4 tmpVel = texture2D( textureVelocity, uv );
+				vec3 vel = tmpVel.xyz;
+				float mass = tmpVel.w;
 
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-    <script>
-        // Enhanced Cloud Background Effect
-        let camera, scene, renderer;
-        let clouds = [];
-        let mouseX = 0, mouseY = 0;
-        let windowHalfX = window.innerWidth / 2;
-        let windowHalfY = window.innerHeight / 2;
-        
-        // Fix menu toggle first
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuToggle = document.querySelector('.toggle');
-            const showcase = document.querySelector('.showcase');
-            
-            if (menuToggle && showcase) {
-                menuToggle.addEventListener('click', () => {
-                    menuToggle.classList.toggle('active');
-                    showcase.classList.toggle('active');
-                    console.log('Menu toggled'); // Debug log
-                });
-            }
-            
-            // Initialize clouds
-            initClouds();
-            animate();
-            
-            // Mouse move for interactive clouds
-            document.addEventListener('mousemove', onDocumentMouseMove);
-        });
-        
-        function initClouds() {
-            const canvas = document.getElementById('cloudBackground');
-            
-            // Renderer with better quality
-            renderer = new THREE.WebGLRenderer({ 
-                canvas: canvas, 
-                antialias: true, 
-                alpha: true 
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x0a0a1a, 0.3); // Deep blue background
-            
-            // Scene
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x0a0a1a, 0.001);
-            
-            // Camera
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 3000);
-            camera.position.z = 500;
-            
-            // Enhanced lighting
-            const ambientLight = new THREE.AmbientLight(0xccccff, 0.4);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
-            directionalLight.position.set(1, 1, 1).normalize();
-            scene.add(directionalLight);
-            
-            // Create multiple cloud layers with different properties
-            const cloudCount = 12;
-            
-            for (let i = 0; i < cloudCount; i++) {
-                // Create cloud material with enhanced shader
-                const cloudMaterial = new THREE.ShaderMaterial({
-                    uniforms: {
-                        time: { value: 0.0 },
-                        color: { value: new THREE.Color(0xffffff) },
-                        brightness: { value: 0.8 + Math.random() * 0.4 }
-                    },
-                    vertexShader: `
-                        varying vec2 vUv;
-                        uniform float time;
-                        void main() {
-                            vUv = uv;
-                            vec3 pos = position;
-                            // Gentle wave motion
-                            pos.y += sin(pos.x * 0.01 + time * 0.5) * 5.0;
-                            pos.x += cos(pos.z * 0.01 + time * 0.3) * 5.0;
-                            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-                        }
-                    `,
-                    fragmentShader: `
-                        uniform float time;
-                        uniform vec3 color;
-                        uniform float brightness;
-                        varying vec2 vUv;
-                        
-                        float noise(vec2 p) {
-                            return sin(p.x * 10.0) * sin(p.y * 6.0) * 0.5 + 0.5;
-                        }
-                        
-                        float fbm(vec2 p) {
-                            float value = 0.0;
-                            float amplitude = 0.5;
-                            for (int i = 0; i < 4; i++) {
-                                value += amplitude * noise(p);
-                                p *= 2.0;
-                                amplitude *= 0.5;
-                            }
-                            return value;
-                        }
-                        
-                        void main() {
-                            vec2 uv = vUv;
-                            uv.x += time * 0.05;
-                            uv.y += time * 0.03;
-                            
-                            float n = fbm(uv * 2.0);
-                            float n2 = fbm(uv * 4.0 - time * 0.1);
-                            
-                            float cloud = smoothstep(0.3, 0.8, n) * smoothstep(0.7, 0.4, n2);
-                            cloud *= brightness;
-                            
-                            vec3 cloudColor = color * cloud;
-                            float alpha = cloud * 0.7;
-                            
-                            // Add subtle edge glow
-                            float edge = smoothstep(0.0, 0.1, vUv.x) * smoothstep(1.0, 0.9, vUv.x) *
-                                         smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.9, vUv.y);
-                            alpha *= edge;
-                            
-                            gl_FragColor = vec4(cloudColor, alpha);
-                        }
-                    `,
-                    transparent: true,
-                    depthWrite: false,
-                    side: THREE.DoubleSide
-                });
-                
-                // Create cloud geometry
-                const width = 200 + Math.random() * 100;
-                const height = 80 + Math.random() * 60;
-                const depth = 1;
-                const geometry = new THREE.PlaneGeometry(width, height, 32, 32);
-                
-                const cloud = new THREE.Mesh(geometry, cloudMaterial);
-                
-                // Position clouds at different depths
-                cloud.position.x = (Math.random() - 0.5) * 1200;
-                cloud.position.y = (Math.random() - 0.5) * 600;
-                cloud.position.z = -Math.random() * 800 - 100;
-                
-                // Random rotation
-                cloud.rotation.z = Math.random() * Math.PI * 2;
-                cloud.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
-                
-                // Store cloud reference
-                cloud.userData = {
-                    speedX: (Math.random() - 0.5) * 0.2,
-                    speedY: (Math.random() - 0.5) * 0.1,
-                    speedZ: Math.random() * 0.05,
-                    rotationSpeed: (Math.random() - 0.5) * 0.01
-                };
-                
-                scene.add(cloud);
-                clouds.push(cloud);
-            }
-            
-            // Add some distant faint clouds
-            for (let i = 0; i < 6; i++) {
-                const geometry = new THREE.SphereGeometry(40 + Math.random() * 30, 8, 8);
-                const material = new THREE.MeshBasicMaterial({
-                    color: 0xffffff,
-                    transparent: true,
-                    opacity: 0.1 + Math.random() * 0.1
-                });
-                
-                const distantCloud = new THREE.Mesh(geometry, material);
-                distantCloud.position.x = (Math.random() - 0.5) * 1500;
-                distantCloud.position.y = 100 + Math.random() * 200;
-                distantCloud.position.z = -Math.random() * 1000 - 500;
-                
-                scene.add(distantCloud);
-                clouds.push(distantCloud);
-            }
-            
-            // Handle window resize
-            window.addEventListener('resize', onWindowResize);
-        }
-        
-        function onDocumentMouseMove(event) {
-            mouseX = (event.clientX - windowHalfX) * 0.0005;
-            mouseY = (event.clientY - windowHalfY) * 0.0005;
-        }
-        
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            windowHalfX = window.innerWidth / 2;
-            windowHalfY = window.innerHeight / 2;
-        }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            const time = performance.now() * 0.001;
-            
-            // Update camera based on mouse
-            camera.position.x += (mouseX * 50 - camera.position.x) * 0.05;
-            camera.position.y += (-mouseY * 30 - camera.position.y) * 0.05;
-            camera.lookAt(scene.position);
-            
-            // Update clouds
-            clouds.forEach((cloud, i) => {
-                if (cloud.material.uniforms && cloud.material.uniforms.time) {
-                    cloud.material.uniforms.time.value = time;
-                }
-                
-                // Move clouds
-                if (cloud.userData) {
-                    cloud.position.x += cloud.userData.speedX;
-                    cloud.position.y += cloud.userData.speedY;
-                    cloud.rotation.z += cloud.userData.rotationSpeed;
-                    
-                    // Wrap around edges
-                    if (cloud.position.x > 800) cloud.position.x = -800;
-                    if (cloud.position.x < -800) cloud.position.x = 800;
-                    if (cloud.position.y > 400) cloud.position.y = -400;
-                    if (cloud.position.y < -400) cloud.position.y = 400;
-                }
-            });
-            
-            renderer.render(scene, camera);
-        }
-    </script>
-    
-    <!-- Your existing script -->
-    <script src="cld-index.js"></script>
-</body>
+				if ( mass == 0.0 ) {
+					vel = vec3( 0.0 );
+				}
+
+				// Dynamics
+				pos += vel * delta;
+
+				gl_FragColor = vec4( pos, 1.0 );
+
+			}
+
+		</script>
+
+		<!-- Fragment shader for protoplanet's velocity -->
+		<script id="computeShaderVelocity" type="x-shader/x-fragment">
+
+			// For PI declaration:
+			#include <common>
+
+			#define delta ( 1.0 / 60.0 )
+
+			uniform float gravityConstant;
+			uniform float density;
+
+			const float width = resolution.x;
+			const float height = resolution.y;
+
+			float radiusFromMass( float mass ) {
+				// Calculate radius of a sphere from mass and density
+				return pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
+			}
+
+			void main()	{
+
+				vec2 uv = gl_FragCoord.xy / resolution.xy;
+				float idParticle = uv.y * resolution.x + uv.x;
+
+				vec4 tmpPos = texture2D( texturePosition, uv );
+				vec3 pos = tmpPos.xyz;
+
+				vec4 tmpVel = texture2D( textureVelocity, uv );
+				vec3 vel = tmpVel.xyz;
+				float mass = tmpVel.w;
+
+				if ( mass > 0.0 ) {
+
+					float radius = radiusFromMass( mass );
+
+					vec3 acceleration = vec3( 0.0 );
+
+					// Gravity interaction
+					for ( float y = 0.0; y < height; y++ ) {
+
+						for ( float x = 0.0; x < width; x++ ) {
+
+							vec2 secondParticleCoords = vec2( x + 0.5, y + 0.5 ) / resolution.xy;
+							vec3 pos2 = texture2D( texturePosition, secondParticleCoords ).xyz;
+							vec4 velTemp2 = texture2D( textureVelocity, secondParticleCoords );
+							vec3 vel2 = velTemp2.xyz;
+							float mass2 = velTemp2.w;
+
+							float idParticle2 = secondParticleCoords.y * resolution.x + secondParticleCoords.x;
+
+							if ( idParticle == idParticle2 ) {
+								continue;
+							}
+
+							if ( mass2 == 0.0 ) {
+								continue;
+							}
+
+							vec3 dPos = pos2 - pos;
+							float distance = length( dPos );
+							float radius2 = radiusFromMass( mass2 );
+
+							if ( distance == 0.0 ) {
+								continue;
+							}
+
+							// Checks collision
+
+							if ( distance < radius + radius2 ) {
+
+								if ( idParticle < idParticle2 ) {
+
+									// This particle is aggregated by the other
+									vel = ( vel * mass + vel2 * mass2 ) / ( mass + mass2 );
+									mass += mass2;
+									radius = radiusFromMass( mass );
+
+								}
+								else {
+
+									// This particle dies
+									mass = 0.0;
+									radius = 0.0;
+									vel = vec3( 0.0 );
+									break;
+
+								}
+
+							}
+
+							float distanceSq = distance * distance;
+
+							float gravityField = gravityConstant * mass2 / distanceSq;
+
+							gravityField = min( gravityField, 1000.0 );
+
+							acceleration += gravityField * normalize( dPos );
+
+						}
+
+						if ( mass == 0.0 ) {
+							break;
+						}
+					}
+
+					// Dynamics
+					vel += delta * acceleration;
+
+				}
+
+				gl_FragColor = vec4( vel, mass );
+
+			}
+
+		</script>
+
+		<!-- Particles vertex shader -->
+		<script type="x-shader/x-vertex" id="particleVertexShader">
+
+			// For PI declaration:
+			#include <common>
+
+			uniform sampler2D texturePosition;
+			uniform sampler2D textureVelocity;
+
+			uniform float cameraConstant;
+			uniform float density;
+
+			varying vec4 vColor;
+
+			float radiusFromMass( float mass ) {
+				// Calculate radius of a sphere from mass and density
+				return pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
+			}
+
+
+			void main() {
+
+
+				vec4 posTemp = texture2D( texturePosition, uv );
+				vec3 pos = posTemp.xyz;
+
+				vec4 velTemp = texture2D( textureVelocity, uv );
+				vec3 vel = velTemp.xyz;
+				float mass = velTemp.w;
+
+				vColor = vec4( 1.0, mass / 250.0, 0.0, 1.0 );
+
+				vec4 mvPosition = modelViewMatrix * vec4( pos, 1.0 );
+
+				// Calculate radius of a sphere from mass and density
+				//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
+				float radius = radiusFromMass( mass );
+
+				// Apparent size in pixels
+				if ( mass == 0.0 ) {
+					gl_PointSize = 0.0;
+				}
+				else {
+					gl_PointSize = radius * cameraConstant / ( - mvPosition.z );
+				}
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<!-- Particles fragment shader -->
+		<script type="x-shader/x-fragment" id="particleFragmentShader">
+
+			varying vec4 vColor;
+
+			void main() {
+
+				if ( vColor.y == 0.0 ) discard;
+
+				float f = length( gl_PointCoord - vec2( 0.5, 0.5 ) );
+				if ( f > 0.5 ) {
+					discard;
+				}
+				gl_FragColor = vColor;
+
+			}
+
+		</script>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
+
+			// Texture width for simulation (each texel is a debris particle)
+			const WIDTH = 64;
+
+			let container, stats;
+			let camera, scene, renderer, geometry;
+
+			const PARTICLES = WIDTH * WIDTH;
+
+			let gpuCompute;
+			let velocityVariable;
+			let positionVariable;
+			let velocityUniforms;
+			let particleUniforms;
+			let effectController;
+
+			init();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
+				camera.position.y = 120;
+				camera.position.z = 400;
+
+				scene = new THREE.Scene();
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setAnimationLoop( animate );
+				container.appendChild( renderer.domElement );
+
+				const controls = new OrbitControls( camera, renderer.domElement );
+				controls.minDistance = 100;
+				controls.maxDistance = 1000;
+
+				effectController = {
+					// Can be changed dynamically
+					gravityConstant: 100.0,
+					density: 0.45,
+
+					// Must restart simulation
+					radius: 300,
+					height: 8,
+					exponent: 0.4,
+					maxMass: 15.0,
+					velocity: 70,
+					velocityExponent: 0.2,
+					randVelocity: 0.001
+				};
+
+				initComputeRenderer();
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+				initGUI();
+
+				initProtoplanets();
+
+				dynamicValuesChanger();
+
+			}
+
+			function initComputeRenderer() {
+
+				gpuCompute = new GPUComputationRenderer( WIDTH, WIDTH, renderer );
+
+				const dtPosition = gpuCompute.createTexture();
+				const dtVelocity = gpuCompute.createTexture();
+
+				fillTextures( dtPosition, dtVelocity );
+
+				velocityVariable = gpuCompute.addVariable( 'textureVelocity', document.getElementById( 'computeShaderVelocity' ).textContent, dtVelocity );
+				positionVariable = gpuCompute.addVariable( 'texturePosition', document.getElementById( 'computeShaderPosition' ).textContent, dtPosition );
+
+				gpuCompute.setVariableDependencies( velocityVariable, [ positionVariable, velocityVariable ] );
+				gpuCompute.setVariableDependencies( positionVariable, [ positionVariable, velocityVariable ] );
+
+				velocityUniforms = velocityVariable.material.uniforms;
+
+				velocityUniforms[ 'gravityConstant' ] = { value: 0.0 };
+				velocityUniforms[ 'density' ] = { value: 0.0 };
+
+				const error = gpuCompute.init();
+
+				if ( error !== null ) {
+
+					console.error( error );
+
+				}
+
+			}
+
+			function restartSimulation() {
+
+				const dtPosition = gpuCompute.createTexture();
+				const dtVelocity = gpuCompute.createTexture();
+
+				fillTextures( dtPosition, dtVelocity );
+
+				gpuCompute.renderTexture( dtPosition, positionVariable.renderTargets[ 0 ] );
+				gpuCompute.renderTexture( dtPosition, positionVariable.renderTargets[ 1 ] );
+				gpuCompute.renderTexture( dtVelocity, velocityVariable.renderTargets[ 0 ] );
+				gpuCompute.renderTexture( dtVelocity, velocityVariable.renderTargets[ 1 ] );
+
+			}
+
+			function initProtoplanets() {
+
+				geometry = new THREE.BufferGeometry();
+
+				const positions = new Float32Array( PARTICLES * 3 );
+				let p = 0;
+
+				for ( let i = 0; i < PARTICLES; i ++ ) {
+
+					positions[ p ++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
+					positions[ p ++ ] = 0; //( Math.random() * 2 - 1 ) * effectController.radius;
+					positions[ p ++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
+
+				}
+
+				const uvs = new Float32Array( PARTICLES * 2 );
+				p = 0;
+
+				for ( let j = 0; j < WIDTH; j ++ ) {
+
+					for ( let i = 0; i < WIDTH; i ++ ) {
+
+						uvs[ p ++ ] = i / ( WIDTH - 1 );
+						uvs[ p ++ ] = j / ( WIDTH - 1 );
+
+					}
+
+				}
+
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+
+				particleUniforms = {
+					'texturePosition': { value: null },
+					'textureVelocity': { value: null },
+					'cameraConstant': { value: getCameraConstant( camera ) },
+					'density': { value: 0.0 }
+				};
+
+				// THREE.ShaderMaterial
+				const material = new THREE.ShaderMaterial( {
+					uniforms: particleUniforms,
+					vertexShader: document.getElementById( 'particleVertexShader' ).textContent,
+					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+				} );
+
+				const particles = new THREE.Points( geometry, material );
+				particles.matrixAutoUpdate = false;
+				particles.updateMatrix();
+
+				scene.add( particles );
+
+			}
+
+			function fillTextures( texturePosition, textureVelocity ) {
+
+				const posArray = texturePosition.image.data;
+				const velArray = textureVelocity.image.data;
+
+				const radius = effectController.radius;
+				const height = effectController.height;
+				const exponent = effectController.exponent;
+				const maxMass = effectController.maxMass * 1024 / PARTICLES;
+				const maxVel = effectController.velocity;
+				const velExponent = effectController.velocityExponent;
+				const randVel = effectController.randVelocity;
+
+				for ( let k = 0, kl = posArray.length; k < kl; k += 4 ) {
+
+					// Position
+					let x, z, rr;
+
+					do {
+
+						x = ( Math.random() * 2 - 1 );
+						z = ( Math.random() * 2 - 1 );
+						rr = x * x + z * z;
+
+					} while ( rr > 1 );
+
+					rr = Math.sqrt( rr );
+
+					const rExp = radius * Math.pow( rr, exponent );
+
+					// Velocity
+					const vel = maxVel * Math.pow( rr, velExponent );
+
+					const vx = vel * z + ( Math.random() * 2 - 1 ) * randVel;
+					const vy = ( Math.random() * 2 - 1 ) * randVel * 0.05;
+					const vz = - vel * x + ( Math.random() * 2 - 1 ) * randVel;
+
+					x *= rExp;
+					z *= rExp;
+					const y = ( Math.random() * 2 - 1 ) * height;
+
+					const mass = Math.random() * maxMass + 1;
+
+					// Fill in texture values
+					posArray[ k + 0 ] = x;
+					posArray[ k + 1 ] = y;
+					posArray[ k + 2 ] = z;
+					posArray[ k + 3 ] = 1;
+
+					velArray[ k + 0 ] = vx;
+					velArray[ k + 1 ] = vy;
+					velArray[ k + 2 ] = vz;
+					velArray[ k + 3 ] = mass;
+
+				}
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				particleUniforms[ 'cameraConstant' ].value = getCameraConstant( camera );
+
+			}
+
+			function dynamicValuesChanger() {
+
+				velocityUniforms[ 'gravityConstant' ].value = effectController.gravityConstant;
+				velocityUniforms[ 'density' ].value = effectController.density;
+				particleUniforms[ 'density' ].value = effectController.density;
+
+			}
+
+			function initGUI() {
+
+				const gui = new GUI( { width: 280 } );
+
+				const folder1 = gui.addFolder( 'Dynamic parameters' );
+
+				folder1.add( effectController, 'gravityConstant', 0.0, 1000.0, 0.05 ).onChange( dynamicValuesChanger );
+				folder1.add( effectController, 'density', 0.0, 10.0, 0.001 ).onChange( dynamicValuesChanger );
+
+				const folder2 = gui.addFolder( 'Static parameters' );
+
+				folder2.add( effectController, 'radius', 10.0, 1000.0, 1.0 );
+				folder2.add( effectController, 'height', 0.0, 50.0, 0.01 );
+				folder2.add( effectController, 'exponent', 0.0, 2.0, 0.001 );
+				folder2.add( effectController, 'maxMass', 1.0, 50.0, 0.1 );
+				folder2.add( effectController, 'velocity', 0.0, 150.0, 0.1 );
+				folder2.add( effectController, 'velocityExponent', 0.0, 1.0, 0.01 );
+				folder2.add( effectController, 'randVelocity', 0.0, 50.0, 0.1 );
+
+				const buttonRestart = {
+					restartSimulation: function () {
+
+						restartSimulation();
+
+					}
+				};
+
+				folder2.add( buttonRestart, 'restartSimulation' );
+
+				folder1.open();
+				folder2.open();
+
+			}
+
+			function getCameraConstant( camera ) {
+
+				return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
+
+			}
+
+
+			function animate() {
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				gpuCompute.compute();
+
+				particleUniforms[ 'texturePosition' ].value = gpuCompute.getCurrentRenderTarget( positionVariable ).texture;
+				particleUniforms[ 'textureVelocity' ].value = gpuCompute.getCurrentRenderTarget( velocityVariable ).texture;
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
 </html>
