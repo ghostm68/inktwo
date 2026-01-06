@@ -427,6 +427,127 @@
             <!-- filled in by javascript -->
         </svg>
     </div>
+<script>
+     // ==== AUDIO VISUALIZER ====
+const canvas = document.getElementById('sigil-canvas');
+const ctx = canvas.getContext('2d');
+const audio = document.getElementById('viz-audio');
+let audioContext, analyser, source, dataArray;
 
+// Initialize audio context on first interaction
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        source = audioContext.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        
+        // Start visualization
+        visualize();
+        
+        // Update status
+        document.getElementById('witch-status').textContent = "Audio Active";
+        document.getElementById('witch-status').style.color = "#ff0000";
+    }
+}
+
+// Visualization function
+function visualize() {
+    if (!analyser) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    requestAnimationFrame(visualize);
+    
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Clear with fade effect
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+    
+    const barWidth = (width / dataArray.length) * 2.5;
+    let barHeight;
+    let x = 0;
+    
+    // Draw frequency bars
+    for(let i = 0; i < dataArray.length; i++) {
+        barHeight = dataArray[i] / 2;
+        
+        // Red gradient based on frequency
+        const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+        gradient.addColorStop(0, '#ff0000');
+        gradient.addColorStop(0.7, '#ff4444');
+        gradient.addColorStop(1, '#ff8888');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Draw center waveform
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    const sliceWidth = width * 1.0 / dataArray.length;
+    x = 0;
+    
+    for(let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * height / 2;
+        
+        if(i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        
+        x += sliceWidth;
+    }
+    
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+    
+    // Draw pulsing circle in center
+    const centerSize = 10 + (dataArray[10] / 10);
+    ctx.beginPath();
+    ctx.arc(width / 2, height / 2, centerSize, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 0, 0, ${0.3 + dataArray[5] / 400})`;
+    ctx.fill();
+}
+
+// Event listeners
+audio.addEventListener('play', function() {
+    initAudio();
+    document.getElementById('witch-status').textContent = "Playing...";
+    document.getElementById('witch-status').classList.add('animate-pulse');
+});
+
+audio.addEventListener('pause', function() {
+    document.getElementById('witch-status').textContent = "Paused";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+audio.addEventListener('ended', function() {
+    document.getElementById('witch-status').textContent = "Audio Ended";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+// Click canvas to play/pause
+canvas.addEventListener('click', function() {
+    if (audio.paused) {
+        audio.play();
+    } else {
+        audio.pause();
+    }
+});
+</script>
 </body>
 </html>
