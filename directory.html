@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>inkrealm</title>
+
+    <!-- SCRIPTS -->
+    <script src='js/bundle2.js'></script>
+
+    <!-- FONTS -->
+    <link href="https://fonts.googleapis.com/css?family=Bree+Serif" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css?family=Pacifico" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css?family=Text+Me+One" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css?family=Quattrocento+Sans" rel="stylesheet">
+    
+    <!-- ORIGINAL CSS -->
+    <link rel="stylesheet" type="text/css" href="main.css/dist.css">
+
+    <style>
+        /* =========================================
+           1. LAYOUT & SCALING LOGIC
+           ========================================= */
+        body {
+            margin: 0; padding: 0;
+            overflow-x: hidden;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background-color: #000; 
+        }
+
+        .content-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            position: relative;
+            z-index: 10; /* Content sits on top */
+        }
+
+        .main {
+            margin: 0 auto;
+            transform-origin: top center;
+            transition: transform 0.3s ease;
+        }
+
+        /* MOBILE SCALER */
+        @media (max-width: 768px) {
+            .main {
+                transform: scale(0.55); 
+                margin-bottom: -50%; 
+                width: 120%; 
+                margin-left: -10%; 
+            }
+            .hexagon-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                width: 100%;
+            }
+            .sep-container { display: none !important; }
+            .secondary {
+                position: fixed; bottom: 10px; right: 10px;
+                transform: scale(0.8); transform-origin: bottom right;
+                z-index: 10000;
+            }
+        }
+
+        /* =========================================
+           2. VIDEO POSITIONING (Fixed Background)
+           ========================================= */
+     /* TRIANGLE VIDEO FRAME (Replaces bg-video-top-left) */
+/* TRIANGLE VIDEO FRAME */
+.triangle-video-frame {
+    position: fixed;
+    
+    /* CHANGED: Increased from 140px to 230px to clear the band box */
+    bottom: 336px; 
+    left: 20px;
+    
+    width: 666px; 
+    height: 385px; 
+    
+    background-color: #ffffff; 
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    z-index: 6; 
+    pointer-events: none;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+}
+
+/* THE VIDEO INSIDE */
+.triangle-inner-video {
+    width: 100%;
+    height: 100%;
+    transform: scale(0.99); 
+    transform-origin: center bottom;
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    background: #000; 
+}
+
+.triangle-inner-video video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    opacity: 0.9; 
+}
+
+/* MOBILE ADJUSTMENT */
+@media (max-width: 768px) {
+    .triangle-video-frame {
+        width: 300px; 
+        height: 173px; 
+        left: 15px;
+        
+        /* CHANGED: Increased from 110px to 190px for mobile */
+        bottom: 190px; 
+    }
+}
+        /* =========================================
+           3. BAND INFO BOX (Bottom Left)
+           ========================================= */
+        .band-info-box {
+            position: fixed;
+            bottom: 20px; left: 20px;
+            width: 666px;
+            background: rgba(10, 10, 15, 0.75);
+            backdrop-filter: blur(5px);
+            border-left: 3px solid #610609;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            z-index: 500; 
+            font-family: 'Quattrocento Sans', sans-serif;
+            color: #eee;
+            font-size: 14px;
+            line-height: 1.4;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .band-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #fff;
+            font-family: 'Text Me One', sans-serif;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .band-link {
+            display: block; margin-top: 10px;
+            color: #610609; text-decoration: none;
+            font-size: 0.9em; font-style: italic;
+            transition: color 0.3s ease;
+        }
+        .band-link:hover { color: #fff; }
+
+        @media (max-width: 768px) {
+            .band-info-box { bottom: 15px; left: 15px; width: 300px; font-size: 12px; padding: 12px; }
+            @media (max-height: 500px) { .band-info-box { display: none; } }
+        }
+
+        /* =========================================
+           4. GLITCH ORB CSS (New Addition)
+           ========================================= */
+        .orb-container {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 15px; 
+            width: 40px; /* Adjusted slightly to fit header */
+            height: 40px;
+            position: relative;
+        }
+
+        .glitch-orb {
+            width: 100%; height: 100%;
+            fill: none; stroke-width: 3;
+            overflow: visible;
+        }
+
+        .orb-circle { stroke: #ff0033; } 
+        .orb-triangle { stroke: #ffffff; } 
+
+        /* IDLE ANIMATION */
+        .orb-container svg {
+            animation: slow-spin 10s linear infinite;
+            filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
+            transition: all 0.2s ease;
+        }
+
+        /* HOVER STATE */
+        .orb-container:hover svg {
+            animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
+                    drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
+        }
+
+        .orb-container:hover .orb-triangle { fill: rgba(255, 255, 255, 0.1); }
+
+        @keyframes slow-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes glitch-shake {
+            0% { transform: translate(0) rotate(0deg); }
+            20% { transform: translate(-2px, 2px) rotate(-5deg); }
+            40% { transform: translate(-2px, -2px) rotate(5deg); }
+            60% { transform: translate(2px, 2px) rotate(-5deg); }
+            80% { transform: translate(2px, -2px) rotate(5deg); }
+            100% { transform: translate(0) rotate(0deg); }
+        }
+
+        /* =========================================
+           5. SECTION 2 LINKS & LOGO
+           ========================================= */
+        a.s2-entry {
+            display: flex !important; text-decoration: none !important; 
+            color: inherit !important; cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        a.s2-entry:hover { filter: brightness(1.2); transform: translateX(5px); }
+
+        .logo-section-wrapper { width: 300px; display: block; cursor: pointer; }
+        svg.inkrealm-logo { width: 100%; height: auto; overflow: visible; }
+        .logo-text-pink { fill: #ff0033 !important; transition: all 0.2s ease; }
+        .logo-text-grey { fill: #777777 !important; transition: all 0.2s ease; }
+        .visual-dot { fill: #ff0033 !important; pointer-events: none; }
+        
+        .logo-section-wrapper:hover .visual-dot { animation: dot-overload 0.6s infinite linear; }
+        .logo-section-wrapper:hover .logo-text-grey { animation: text-shock 0.15s infinite alternate; }
+        .logo-section-wrapper:hover .logo-text-pink { animation: text-shock 0.15s infinite alternate-reverse; }
+
+        @keyframes dot-overload {
+            0% { transform: scale(1.0) rotate(0deg); filter: drop-shadow(0 0 5px #FFD700); }
+            50% { transform: scale(0.8) rotate(180deg); filter: drop-shadow(0 0 25px #FFFFFF); }
+            100% { transform: scale(1.0) rotate(360deg); filter: drop-shadow(0 0 5px #FFD700); }
+        }
+        @keyframes text-shock {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, 1px); }
+            50% { transform: translate(2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }  
+    </style>
+</head>
+<body>
+
+    <!-- VIDEO (Reverted to standard position) -->
+ <!-- THE WHITE TRIANGLE VIDEO -->
+<div class="triangle-video-frame">
+    <div class="triangle-inner-video">
+        <video src="https://github.com/ghostm68/99/raw/main/lyinkrealmthm_20230121_185520920.mp4" 
+               autoplay muted loop playsinline></video>
+    </div>
+</div>
+
+<!-- YOUR EXISTING BAND BOX (for reference) -->
+<div class="band-info-box">...</div>
+
+    <div class="main-canvas-container"></div>
+
+    <div class="content-container">
+        <div class="main">
+
+            <div class="main-dark-overlay"></div>
+            <canvas id="music-canvas"></canvas>
+
+            <nav class="top-menu">
+                <a>writer</a><span>/</span><a>musician</a><span>/</span><a>visual</a><span>/</span><a>artist</a>
+            </nav>
+            
+            <div class="hexagon-container">
+                <!-- HEX 1 -->
+                <div class="hexagon active">
+                    <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/runetime.gif" />
+                    <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/liroe.inkrealm.info.runway.promotional.gif" />
+                    <img class="hex-image" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/atari.inkrealm.ad.gif" />
+                    <span class="hex-number">0</span><span class="hex-number">1</span>
+                </div>
+                <div class="sep-container active">
+                    <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
+                </div>
+                <!-- HEX 2 -->
+                <div class="hexagon">
+                    <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_syracuse.minaro.240103_024757.gif" />
+                    <img class="hex-curtain" src="https://freight.cargo.site/w/451/q/94/i/be0e2d897a4dbbcef4c7bb0b904e8ce870d6c12f767f6275e47c5d2f08880ca1/Prana.jpeg" />
+                    <img class="hex-image" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/minaro_240106_1wordstar70321.gif" />
+                    <span class="hex-number">0</span><span class="hex-number">2</span>
+                </div>
+                <div class="sep-container">
+                    <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
+                </div>
+                <!-- HEX 3 -->
+                <div class="hexagon">
+                    <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/wetstichler3.gif" />
+                    <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_230212_132842.gif" />
+                    <img class="hex-image" src="https://github.com/ghostm68/pantheon/raw/main/laracosima.wordstar.gif" />
+                    <span class="hex-number">0</span><span class="hex-number">3</span>
+                </div>
+                <div class="sep-container">
+                    <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
+                </div>
+                <!-- HEX 4 -->
+                <div class="hexagon">
+                     <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_minaro.hilton.240105_143846.gif" />
+                    <img class="hex-curtain" src="https://c02.purpledshub.com/uploads/sites/41/2020/08/GettyImages-154932300-crop-ab054fe.jpg?w=1029&webp=1" />
+                    <img class="hex-image" src="https://github.com/ghostm68/pantheon/raw/main/inkrealmliquidhermes934.gif" />
+                    <span class="hex-number">0</span><span class="hex-number">4</span>
+                </div>
+                <div class="sep-container">
+                    <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
+                </div>
+                <!-- HEX 5 -->
+                <div class="hexagon">
+                    <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/guitartownindia.gif" />
+                    <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/minaro_20240110_11wordstar2211.jpg" />
+                    <img class="hex-image" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/nova312.gif" />
+                    <span class="hex-number">0</span><span class="hex-number">5</span>
+                </div>
+            </div>
+
+            <div class="main-section-container">
+
+                <div class="section1">
+                    <span class="s1-title"> inky </span>
+                    <hr>
+                    <span class="s1-title2"> at <em>your </em> service</span>
+                    <svg class="s1-text-divider"> <use xlink:href="#icon-text-divider-1" /> </svg>
+                    <span class="s1-text">
+                        writer at work on several projects...
+                    </span>
+
+                    <div class="s1-btns">
+                        <div class="s1-btn"> <svg> <use xlink:href="#icon-calendar" /> </svg> </div> 
+                        <div class="s1-btn"> <svg> <use xlink:href="#icon-autograph" /> </svg> </div> 
+                        <div class="s1-btn"> <svg> <use xlink:href="#icon-save" /> </svg> </div> 
+                    </div>
+
+                    <div class="s1-line1"></div>
+                    <div class="s1-line2"></div>
+                </div>
+
+                <div class="section2">
+                    <div class="s2-header">new<br> novels<br> ,screenplays<br><span>and stories</span></div>
+                    <div class="s2-header-image">
+                        <svg class="s2-header-svg"><use xlink:href="https://wordstar.nexus/"/></svg>
+                        <span>latest release is at the inkrealm.info index</span>
+                    </div>
+                    <svg class="s2-text-divider"> <use xlink:href="#icon-text-divider-1" /> </svg>
+
+                    <!-- LINKS -->
+                    <a href="https://wordstar.nexus/38" class="s2-entry"> <span>38 </span> <svg><use xlink:href="https://wordstar.nexus/38" /></svg> </a>
+                    <a href="https://wordstar.nexus/bakedalaska" class="s2-entry"> <span>owner </span> <svg><use xlink:href="https://wordstar.nexus/bakedalaska" /></svg> </a>
+                    <a href="https://wordstar.nexus/dejavuglitches" class="s2-entry"> <span>dejavu </span> <svg><use xlink:href="https://wordstar.nexus/dejavuglitches" /></svg> </a>
+                    <a href="https://wordstar.nexus/ten" class="s2-entry"> <span>noir </span> <svg><use xlink:href="https://wordstar.nexus/ten" /></svg> </a>
+                    <a href="https://wordstar.nexus/dreamweaver" class="s2-entry"> <span>dream </span> <svg><use xlink:href="https://wordstar.nexus/dreamweaver" /></svg> </a>
+                    <a href="https://wordstar.nexus/displaywriter" class="s2-entry"> <span>horse</span> <svg><use xlink:href="https://wordstar.nexus/displaywriter" /></svg> </a>
+                    <a href="https://wordstar.nexus/wip" class="s2-entry"> <span>wip</span> <svg><use xlink:href="https://wordstar.nexus/wip" /></svg> </a>
+                    <a href="https://wordstar.nexus/displaywriter" class="s2-entry"> <span>natives </span> <svg><use xlink:href="https://wordstar.nexus/displaywriter" /></svg> </a>
+
+                    <span class="s2-footer-text-1">enjoy</span>
+                    <span class="s2-footer-text-2">more coming soon!</span>
+                </div>
+
+                <div class="section3">
+                    <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/hermes46663.gif" class="s3-pastel-img" />
+                    <div class="s3_letters_flex_row">
+                        <p>text editors </p><span>features<br> ai</span>
+                    </div>
+                    <div class="s3_letters_flex_row">
+                        <p>...</p><span>and<br> dictionaries</span>
+                    </div>
+                    <hr class="s3-divider">
+                    <p class="s3-sec-header-text">nous</p>
+                    <span class="s3-footer-list-element">minraud</span>
+                    <span class="s3-footer-list-element">2741</span>
+                    <span class="s3-footer-list-element">satellite</span>
+                    <span class="s3-footer-list-element">app</span>
+                    <span class="s3-footer-list-element">birch</span>
+                    <img class="s3-fake-logos" src="https://github.com/ghostm68/pantheon/raw/main/wordstarnc17.gif"/>
+                </div>
+
+                <div class="section4">
+                    <canvas class="s4-chart"></canvas>
+                    <hr class="s4-hr1">
+                    <div class="s4-pending-title">
+                         <span>W</span><span>o</span><span>r</span><span>d</span><span>s</span><span></span><span>T</span><span>a</span><span>R</span><span>_</span>
+                    </div>
+                    <div class="s4-paragraphs">
+                        <p>no trackers or spyware</p>
+                        <p>ad-free zone</p>
+                    </div>
+                    <div class="s4-rotated-quads"><div></div><div></div><div></div></div>
+                </div>
+
+                <div class="section5">
+                    <h2>pound...</h2>
+                    <div class="s5-clock-text"></div>
+                    <p>Time is not! <br> Time is the evil!</p>
+                    <a href="https://wordstar.nexus/dejavuglitches">Beloved the hours!</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="secondary">
+            <div class="expander-menu">
+                <div class="expander-plus-icon-1"></div>
+                <div class="expander-plus-icon-2"></div>
+                <div class="expander-expand-btn"></div>
+                <div class="expander-menu-items-container">
+                    <a href="https://inkrealm.info/home" class="expander-menu-link"> <svg><use xlink:href="#icon-envmap-day" /></svg> home</a>
+                    <a href="https://inkrealm.info/sitemap" class="expander-menu-link"> <svg><use xlink:href="#icon-envmap-sunset" /></svg> map</a>
+                    <a href="https://inkrealm.info/1991" class="expander-menu-link"> <svg><use xlink:href="#icon-envmap-night" /></svg> list</a>
+                    <a href="https://inkrealm.info/view1991" class="expander-menu-link"> <svg><use xlink:href="#icon-env" /></svg> view</a>
+                    <a href="https://inkrealm.info/tvc15" class="expander-menu-link"> <svg><use xlink:href="#icon-light" /></svg> tvc15</a>
+                    <a href="https://inkrealm.info/runway" class="expander-menu-link"> <svg><use xlink:href="#icon-browse" /></svg>app</a>
+                </div>
+            </div>
+        </div>   
+
+        <!-- FIXED BAND INFO BOX + ORB + AUDIO -->
+        <div class="band-info-box">
+            
+            <!-- THE ORB (Replacing the old icon, rotating next to date) -->
+            <div class="band-header">
+                <a href="https://inkrealm.info" target="_blank" rel="noopener">
+                    <div class="orb-container">
+                        <svg class="glitch-orb" viewBox="0 0 100 100">
+                            <circle class="orb-circle" cx="50" cy="50" r="45" />
+                            <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+                        </svg>
+                    </div>
+                </a>
+                <span>6jan2026 </span>
+            </div>
+
+            <!-- Future Audio Elements (Hidden/Placeholder for now) -->
+            <canvas id="sigil-canvas" width="188" height="30" style="background:#000; border:1px solid #333; margin-bottom:10px; display:block; width: 100%;"></canvas>
+            <audio id="viz-audio" style="display: none;">
+                <source src="itm406.mp3" type="audio/mpeg">
+            </audio>
+
+            <p class="band-text">
+                all rights reserved... 
+                <br> <a href="https://inkrealm.info/minraud" class="logo-section-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666 88" class="inkrealm-logo">
+                            <g class="logo-text-grey">
+                                <path d="M 25 25 L 32 25 L 32 68 L 25 68 Z"/>
+                                <circle cx="28.5" cy="18" r="3.5"/>
+                                <path d="M 47 25 L 54 25 L 54 31 Q 58 25 67 25 Q 79 25 79 37 L 79 68 L 72 68 L 72 38 Q 72 30 65 30 Q 54 30 54 42 L 54 68 L 47 68 Z"/>
+                                <path d="M 94 18 L 101 18 L 101 42 L 115 25 L 124 25 L 109 43 L 125 68 L 116 68 L 101 45 L 101 68 L 94 68 Z"/>
+                                <path d="M 140 25 L 147 25 L 147 33 Q 150 25 158 25 L 160 25 L 160 31 L 156 31 Q 147 31 147 40 L 147 68 L 140 68 Z"/>
+                                <path d="M 175 25 Q 190 25 190 42 L 176 42 Q 176 50 176 52 Q 176 63 184 63 Q 189 63 190 58 L 197 58 Q 196 68 184 68 Q 169 68 169 46.5 Q 169 25 184 25 Z M 176 37 L 183 37 Q 183 30 184 30 Q 190 30 190 37 Z"/>
+                                <path d="M 212 25 Q 226 25 226 42 L 226 68 L 219 68 L 219 63 Q 215 68 207 68 Q 195 68 195 58 Q 195 48 207 48 L 219 48 L 219 42 Q 219 30 211 30 Q 204 30 203 36 L 196 36 Q 197 25 212 25 Z M 219 53 L 208 53 Q 202 53 202 58 Q 202 63 208 63 Q 219 63 219 53 Z"/>
+                                <path d="M 241 18 L 248 18 L 248 68 L 241 68 Z"/>
+                                <path d="M 263 25 L 270 25 L 270 31 Q 274 25 283 25 Q 292 25 293 34 Q 297 25 307 25 Q 319 25 319 37 L 319 68 L 312 68 L 312 38 Q 312 30 305 30 Q 296 30 296 42 L 296 68 L 289 68 L 289 38 Q 289 30 282 30 Q 270 30 270 42 L 270 68 L 263 68 Z"/>
+                            </g>
+                            <circle class="visual-dot" cx="334" cy="63" r="3.5"/>
+                            <g class="logo-text-pink">
+                                <path d="M 354 25 L 361 25 L 361 68 L 354 68 Z"/>
+                                <path d="M 376 25 L 383 25 L 383 55 L 401 25 L 408 25 L 408 68 L 401 68 L 401 38 L 383 68 L 376 68 Z"/>
+                                <path d="M 423 25 L 458 25 L 458 32 L 430 32 L 430 42 L 453 42 L 453 49 L 430 49 L 430 68 L 423 68 Z"/>
+                                <path d="M 468 23 Q 483 23 483 46.5 Q 483 70 468 70 Q 453 70 453 46.5 Q 453 23 468 23 Z M 468 30 Q 460 30 460 46.5 Q 460 63 468 63 Q 476 63 476 46.5 Q 476 30 468 30 Z"/>
+                                <circle class="visual-dot" cx="334" cy="63" r="3.5"/>
+                            </g>
+                        </svg>
+                    </a>
+            </p>
+            <a href="https://inkrealm.info/altstadt" class="band-link">Read full bio &rarr;</a>
+        </div>
+        
+        <svg class="symbols-container">
+            <!-- filled in by javascript -->
+        </svg>
+    </div>
+<script>
+     // ==== AUDIO VISUALIZER ====
+const canvas = document.getElementById('sigil-canvas');
+const ctx = canvas.getContext('2d');
+const audio = document.getElementById('viz-audio');
+let audioContext, analyser, source, dataArray;
+
+// Initialize audio context on first interaction
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        source = audioContext.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        
+        // Start visualization
+        visualize();
+        
+        // Update status
+        document.getElementById('witch-status').textContent = "Audio Active";
+        document.getElementById('witch-status').style.color = "#ff0000";
+    }
+}
+
+// Visualization function
+function visualize() {
+    if (!analyser) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    requestAnimationFrame(visualize);
+    
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Clear with fade effect
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+    
+    const barWidth = (width / dataArray.length) * 2.5;
+    let barHeight;
+    let x = 0;
+    
+    // Draw frequency bars
+    for(let i = 0; i < dataArray.length; i++) {
+        barHeight = dataArray[i] / 2;
+        
+        // Red gradient based on frequency
+        const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+        gradient.addColorStop(0, '#ff0000');
+        gradient.addColorStop(0.7, '#ff4444');
+        gradient.addColorStop(1, '#ff8888');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Draw center waveform
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    const sliceWidth = width * 1.0 / dataArray.length;
+    x = 0;
+    
+    for(let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * height / 2;
+        
+        if(i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        
+        x += sliceWidth;
+    }
+    
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+    
+    // Draw pulsing circle in center
+    const centerSize = 10 + (dataArray[10] / 10);
+    ctx.beginPath();
+    ctx.arc(width / 2, height / 2, centerSize, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 0, 0, ${0.3 + dataArray[5] / 400})`;
+    ctx.fill();
+}
+
+// Event listeners
+audio.addEventListener('play', function() {
+    initAudio();
+    document.getElementById('witch-status').textContent = "Playing...";
+    document.getElementById('witch-status').classList.add('animate-pulse');
+});
+
+audio.addEventListener('pause', function() {
+    document.getElementById('witch-status').textContent = "Paused";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+audio.addEventListener('ended', function() {
+    document.getElementById('witch-status').textContent = "Audio Ended";
+    document.getElementById('witch-status').classList.remove('animate-pulse');
+});
+
+// Click canvas to play/pause
+canvas.addEventListener('click', function() {
+    if (audio.paused) {
+        audio.play();
+    } else {
+        audio.pause();
+    }
+});
+</script>
+</body>
+</html>
