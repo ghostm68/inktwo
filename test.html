@@ -1,237 +1,98 @@
-<!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgl - gpgpu - protoplanet</title>
+		<title>three.js webgpu - audio processing</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link type="text/css" rel="stylesheet" href="main.css">
+		<link type="text/css" rel="stylesheet" href="example.css">
+		<style>
+/* canvas container becomes the positioning root */
+#renderContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* example overlays */
+.topLeftHUD {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    color: #00ffcc;
+    font-family: monospace;
+    font-size: 0.9rem;
+    background: rgba(0,0,0,.35);
+    padding: .4rem .6rem;
+    border-radius: 4px;
+    pointer-events: none;   /* lets clicks fall through to the canvas */
+    z-index: 10;
+}
+
+.bottomBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: rgba(0,0,0,.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    z-index: 10;
+}
+
+.bottomBar button {
+    pointer-events: auto;   /* keep buttons clickable */
+}
+</style>
+
+<!-- rename the container so we can style it -->
+<script>
+// change
+container.id = 'renderContainer';
+document.body.appendChild(container);
+</script>
+
+<!-- overlay elements -->
+<div class="topLeftHUD">pitch: <span id="pitchDisplay">1.5</span></div>
+
+<div class="bottomBar">
+    <button id="btnPlay">Play</button>
+    <button id="btnStop">Stop</button>
+</div>
+
+<!-- wire the new buttons (optional) -->
+<script>
+document.getElementById('btnPlay').addEventListener('click', playAudioBuffer);
+document.getElementById('btnStop').addEventListener('click', () => {
+    if (currentAudio) currentAudio.stop();
+});
+// keep the HUD label in sync
+gui.controllers[0].onChange(v => document.getElementById('pitchDisplay').textContent = v.toFixed(2));
+</script>
 	</head>
 	<body>
 
-		<div id="info">
-			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - <span id="protoplanets"></span> webgl gpgpu debris
+		<div id="overlay">
+			<button id="startButton">Play</button>
 		</div>
 
-		<!-- Fragment shader for protoplanet's position -->
-		<script id="computeShaderPosition" type="x-shader/x-fragment">
-
-			#define delta ( 1.0 / 60.0 )
-
-			void main() {
-
-				vec2 uv = gl_FragCoord.xy / resolution.xy;
-
-				vec4 tmpPos = texture2D( texturePosition, uv );
-				vec3 pos = tmpPos.xyz;
-
-				vec4 tmpVel = texture2D( textureVelocity, uv );
-				vec3 vel = tmpVel.xyz;
-				float mass = tmpVel.w;
-
-				if ( mass == 0.0 ) {
-					vel = vec3( 0.0 );
-				}
-
-				// Dynamics
-				pos += vel * delta;
-
-				gl_FragColor = vec4( pos, 1.0 );
-
-			}
-
-		</script>
-
-		<!-- Fragment shader for protoplanet's velocity -->
-		<script id="computeShaderVelocity" type="x-shader/x-fragment">
-
-			// For PI declaration:
-			#include <common>
-
-			#define delta ( 1.0 / 60.0 )
-
-			uniform float gravityConstant;
-			uniform float density;
-
-			const float width = resolution.x;
-			const float height = resolution.y;
-
-			float radiusFromMass( float mass ) {
-				// Calculate radius of a sphere from mass and density
-				return pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
-			}
-
-			void main()	{
-
-				vec2 uv = gl_FragCoord.xy / resolution.xy;
-				float idParticle = uv.y * resolution.x + uv.x;
-
-				vec4 tmpPos = texture2D( texturePosition, uv );
-				vec3 pos = tmpPos.xyz;
-
-				vec4 tmpVel = texture2D( textureVelocity, uv );
-				vec3 vel = tmpVel.xyz;
-				float mass = tmpVel.w;
-
-				if ( mass > 0.0 ) {
-
-					float radius = radiusFromMass( mass );
-
-					vec3 acceleration = vec3( 0.0 );
-
-					// Gravity interaction
-					for ( float y = 0.0; y < height; y++ ) {
-
-						for ( float x = 0.0; x < width; x++ ) {
-
-							vec2 secondParticleCoords = vec2( x + 0.5, y + 0.5 ) / resolution.xy;
-							vec3 pos2 = texture2D( texturePosition, secondParticleCoords ).xyz;
-							vec4 velTemp2 = texture2D( textureVelocity, secondParticleCoords );
-							vec3 vel2 = velTemp2.xyz;
-							float mass2 = velTemp2.w;
-
-							float idParticle2 = secondParticleCoords.y * resolution.x + secondParticleCoords.x;
-
-							if ( idParticle == idParticle2 ) {
-								continue;
-							}
-
-							if ( mass2 == 0.0 ) {
-								continue;
-							}
-
-							vec3 dPos = pos2 - pos;
-							float distance = length( dPos );
-							float radius2 = radiusFromMass( mass2 );
-
-							if ( distance == 0.0 ) {
-								continue;
-							}
-
-							// Checks collision
-
-							if ( distance < radius + radius2 ) {
-
-								if ( idParticle < idParticle2 ) {
-
-									// This particle is aggregated by the other
-									vel = ( vel * mass + vel2 * mass2 ) / ( mass + mass2 );
-									mass += mass2;
-									radius = radiusFromMass( mass );
-
-								}
-								else {
-
-									// This particle dies
-									mass = 0.0;
-									radius = 0.0;
-									vel = vec3( 0.0 );
-									break;
-
-								}
-
-							}
-
-							float distanceSq = distance * distance;
-
-							float gravityField = gravityConstant * mass2 / distanceSq;
-
-							gravityField = min( gravityField, 1000.0 );
-
-							acceleration += gravityField * normalize( dPos );
-
-						}
-
-						if ( mass == 0.0 ) {
-							break;
-						}
-					}
-
-					// Dynamics
-					vel += delta * acceleration;
-
-				}
-
-				gl_FragColor = vec4( vel, mass );
-
-			}
-
-		</script>
-
-		<!-- Particles vertex shader -->
-		<script type="x-shader/x-vertex" id="particleVertexShader">
-
-			// For PI declaration:
-			#include <common>
-
-			uniform sampler2D texturePosition;
-			uniform sampler2D textureVelocity;
-
-			uniform float cameraConstant;
-			uniform float density;
-
-			varying vec4 vColor;
-
-			float radiusFromMass( float mass ) {
-				// Calculate radius of a sphere from mass and density
-				return pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
-			}
-
-
-			void main() {
-
-
-				vec4 posTemp = texture2D( texturePosition, uv );
-				vec3 pos = posTemp.xyz;
-
-				vec4 velTemp = texture2D( textureVelocity, uv );
-				vec3 vel = velTemp.xyz;
-				float mass = velTemp.w;
-
-				vColor = vec4( 1.0, mass / 250.0, 0.0, 1.0 );
-
-				vec4 mvPosition = modelViewMatrix * vec4( pos, 1.0 );
-
-				// Calculate radius of a sphere from mass and density
-				//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
-				float radius = radiusFromMass( mass );
-
-				// Apparent size in pixels
-				if ( mass == 0.0 ) {
-					gl_PointSize = 0.0;
-				}
-				else {
-					gl_PointSize = radius * cameraConstant / ( - mvPosition.z );
-				}
-
-				gl_Position = projectionMatrix * mvPosition;
-
-			}
-
-		</script>
-
-		<!-- Particles fragment shader -->
-		<script type="x-shader/x-fragment" id="particleFragmentShader">
-
-			varying vec4 vColor;
-
-			void main() {
-
-				if ( vColor.y == 0.0 ) discard;
-
-				float f = length( gl_PointCoord - vec2( 0.5, 0.5 ) );
-				if ( f > 0.5 ) {
-					discard;
-				}
-				gl_FragColor = vColor;
-
-			}
-
-		</script>
+		<div id="info">
+			<a href="https://threejs.org/" target="_blank" rel="noopener" class="logo-link"></a>
+
+			<div class="title-wrapper">
+				<a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a><span>Audio Processing</span>
+			</div>
+
+			<small>Click on screen to process the audio using WebGPU.</small>
+		</div>
 
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "../build/three.module.js",
+					"three": "../build/three.webgpu.js",
+					"three/webgpu": "../build/three.webgpu.js",
+					"three/tsl": "../build/three.tsl.js",
 					"three/addons/": "./jsm/"
 				}
 			}
@@ -239,235 +100,179 @@
 
 		<script type="module">
 
-			import * as THREE from 'three';
+			import * as THREE from 'three/webgpu';
+			import { Fn, uniform, instanceIndex, instancedArray, float, texture, screenUV, color } from 'three/tsl';
 
-			import Stats from 'three/addons/libs/stats.module.js';
-			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { Inspector } from 'three/addons/inspector/Inspector.js';
 
-			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-			import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
+			let camera, scene, renderer;
+			let computeNode;
+			let waveBuffer, sampleRate;
+			let waveArray;
+			let currentAudio, currentAnalyser;
+			const analyserBuffer = new Uint8Array( 1024 );
+			let analyserTexture;
 
-			// Texture width for simulation (each texel is a debris particle)
-			const WIDTH = 64;
+			const startButton = document.getElementById( 'startButton' );
+			startButton.addEventListener( 'click', init );
 
-			let container, stats;
-			let camera, scene, renderer, geometry;
+			async function playAudioBuffer() {
 
-			const PARTICLES = WIDTH * WIDTH;
+				if ( currentAudio ) currentAudio.stop();
 
-			let gpuCompute;
-			let velocityVariable;
-			let positionVariable;
-			let velocityUniforms;
-			let particleUniforms;
-			let effectController;
+				// compute audio
 
-			init();
+				renderer.compute( computeNode );
 
-			function init() {
+				const wave = new Float32Array( await renderer.getArrayBufferAsync( waveArray.value ) );
 
-				container = document.createElement( 'div' );
-				document.body.appendChild( container );
+				// play result
 
-				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 5, 15000 );
-				camera.position.y = 120;
-				camera.position.z = 400;
+				const audioOutputContext = new AudioContext( { sampleRate } );
+				const audioOutputBuffer = audioOutputContext.createBuffer( 1, wave.length, sampleRate );
 
-				scene = new THREE.Scene();
+				audioOutputBuffer.copyToChannel( wave, 0 );
 
-				renderer = new THREE.WebGLRenderer();
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setAnimationLoop( animate );
-				container.appendChild( renderer.domElement );
+				const source = audioOutputContext.createBufferSource();
+				source.connect( audioOutputContext.destination );
+				source.buffer = audioOutputBuffer;
+				source.start();
 
-				const controls = new OrbitControls( camera, renderer.domElement );
-				controls.minDistance = 100;
-				controls.maxDistance = 1000;
+				currentAudio = source;
 
-				effectController = {
-					// Can be changed dynamically
-					gravityConstant: 100.0,
-					density: 0.45,
+				// visual feedback
 
-					// Must restart simulation
-					radius: 300,
-					height: 8,
-					exponent: 0.4,
-					maxMass: 15.0,
-					velocity: 70,
-					velocityExponent: 0.2,
-					randVelocity: 0.001
-				};
+				currentAnalyser = audioOutputContext.createAnalyser();
+				currentAnalyser.fftSize = 2048;
 
-				initComputeRenderer();
-
-				stats = new Stats();
-				container.appendChild( stats.dom );
-
-				window.addEventListener( 'resize', onWindowResize );
-
-				initGUI();
-
-				initProtoplanets();
-
-				dynamicValuesChanger();
+				source.connect( currentAnalyser );
 
 			}
 
-			function initComputeRenderer() {
+			async function init() {
 
-				gpuCompute = new GPUComputationRenderer( WIDTH, WIDTH, renderer );
+				const overlay = document.getElementById( 'overlay' );
+				overlay.remove();
 
-				const dtPosition = gpuCompute.createTexture();
-				const dtVelocity = gpuCompute.createTexture();
+				// audio buffer
 
-				fillTextures( dtPosition, dtVelocity );
+				const soundBuffer = await fetch( 'sounds/webgpu-audio-processing.mp3' ).then( res => res.arrayBuffer() );
+				const audioContext = new AudioContext();
 
-				velocityVariable = gpuCompute.addVariable( 'textureVelocity', document.getElementById( 'computeShaderVelocity' ).textContent, dtVelocity );
-				positionVariable = gpuCompute.addVariable( 'texturePosition', document.getElementById( 'computeShaderPosition' ).textContent, dtPosition );
+				const audioBuffer = await audioContext.decodeAudioData( soundBuffer );
 
-				gpuCompute.setVariableDependencies( velocityVariable, [ positionVariable, velocityVariable ] );
-				gpuCompute.setVariableDependencies( positionVariable, [ positionVariable, velocityVariable ] );
+				waveBuffer = audioBuffer.getChannelData( 0 );
 
-				velocityUniforms = velocityVariable.material.uniforms;
+				// adding extra silence to delay and pitch
+				waveBuffer = new Float32Array( [ ...waveBuffer, ...new Float32Array( 200000 ) ] );
 
-				velocityUniforms[ 'gravityConstant' ] = { value: 0.0 };
-				velocityUniforms[ 'density' ] = { value: 0.0 };
+				sampleRate = audioBuffer.sampleRate / audioBuffer.numberOfChannels;
 
-				const error = gpuCompute.init();
+				// create webgpu buffers
 
-				if ( error !== null ) {
+				waveArray = instancedArray( waveBuffer );
 
-					console.error( error );
+				// read-only buffer
 
-				}
+				const originalWave = instancedArray( waveBuffer ).toReadOnly();
 
-			}
+				// The Pixel Buffer Object (PBO) is required to get the GPU computed data to the CPU in the WebGL2 fallback.
+				// As used in `renderer.getArrayBufferAsync( waveArray.value )`.
 
-			function restartSimulation() {
+				originalWave.setPBO( true );
+				waveArray.setPBO( true );
 
-				const dtPosition = gpuCompute.createTexture();
-				const dtVelocity = gpuCompute.createTexture();
+				// params
 
-				fillTextures( dtPosition, dtVelocity );
+				const pitch = uniform( 1.5 );
+				const delayVolume = uniform( .2 );
+				const delayOffset = uniform( .55 );
 
-				gpuCompute.renderTexture( dtPosition, positionVariable.renderTargets[ 0 ] );
-				gpuCompute.renderTexture( dtPosition, positionVariable.renderTargets[ 1 ] );
-				gpuCompute.renderTexture( dtVelocity, velocityVariable.renderTargets[ 0 ] );
-				gpuCompute.renderTexture( dtVelocity, velocityVariable.renderTargets[ 1 ] );
 
-			}
+				// compute (shader-node)
 
-			function initProtoplanets() {
+				const computeShaderFn = Fn( () => {
 
-				geometry = new THREE.BufferGeometry();
+					const index = float( instanceIndex );
 
-				const positions = new Float32Array( PARTICLES * 3 );
-				let p = 0;
+					// pitch
 
-				for ( let i = 0; i < PARTICLES; i ++ ) {
+					const time = index.mul( pitch );
 
-					positions[ p ++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
-					positions[ p ++ ] = 0; //( Math.random() * 2 - 1 ) * effectController.radius;
-					positions[ p ++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
+					let wave = originalWave.element( time );
 
-				}
 
-				const uvs = new Float32Array( PARTICLES * 2 );
-				p = 0;
+					// delay
 
-				for ( let j = 0; j < WIDTH; j ++ ) {
+					for ( let i = 1; i < 7; i ++ ) {
 
-					for ( let i = 0; i < WIDTH; i ++ ) {
+						const waveOffset = originalWave.element( index.sub( delayOffset.mul( sampleRate ).mul( i ) ).mul( pitch ) );
+						const waveOffsetVolume = waveOffset.mul( delayVolume.div( i * i ) );
 
-						uvs[ p ++ ] = i / ( WIDTH - 1 );
-						uvs[ p ++ ] = j / ( WIDTH - 1 );
+						wave = wave.add( waveOffsetVolume );
 
 					}
 
-				}
 
-				geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-				geometry.setAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+					// store
 
-				particleUniforms = {
-					'texturePosition': { value: null },
-					'textureVelocity': { value: null },
-					'cameraConstant': { value: getCameraConstant( camera ) },
-					'density': { value: 0.0 }
-				};
+					const waveStorageElementNode = waveArray.element( instanceIndex );
 
-				// THREE.ShaderMaterial
-				const material = new THREE.ShaderMaterial( {
-					uniforms: particleUniforms,
-					vertexShader: document.getElementById( 'particleVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+					waveStorageElementNode.assign( wave );
+
 				} );
 
-				const particles = new THREE.Points( geometry, material );
-				particles.matrixAutoUpdate = false;
-				particles.updateMatrix();
 
-				scene.add( particles );
+				// compute
 
-			}
+				computeNode = computeShaderFn().compute( waveBuffer.length );
 
-			function fillTextures( texturePosition, textureVelocity ) {
+				// renderer
 
-				const posArray = texturePosition.image.data;
-				const velArray = textureVelocity.image.data;
+				const container = document.createElement( 'div' );
+				document.body.appendChild( container );
 
-				const radius = effectController.radius;
-				const height = effectController.height;
-				const exponent = effectController.exponent;
-				const maxMass = effectController.maxMass * 1024 / PARTICLES;
-				const maxVel = effectController.velocity;
-				const velExponent = effectController.velocityExponent;
-				const randVel = effectController.randVelocity;
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.01, 30 );
 
-				for ( let k = 0, kl = posArray.length; k < kl; k += 4 ) {
 
-					// Position
-					let x, z, rr;
+				// nodes
 
-					do {
+				analyserTexture = new THREE.DataTexture( analyserBuffer, analyserBuffer.length, 1, THREE.RedFormat );
 
-						x = ( Math.random() * 2 - 1 );
-						z = ( Math.random() * 2 - 1 );
-						rr = x * x + z * z;
+				const spectrum = texture( analyserTexture, screenUV.x ).x.mul( screenUV.y );
+				const backgroundNode = color( 0x0000FF ).mul( spectrum );
 
-					} while ( rr > 1 );
 
-					rr = Math.sqrt( rr );
+				// scene
 
-					const rExp = radius * Math.pow( rr, exponent );
+				scene = new THREE.Scene();
+				scene.backgroundNode = backgroundNode;
 
-					// Velocity
-					const vel = maxVel * Math.pow( rr, velExponent );
+				// renderer
 
-					const vx = vel * z + ( Math.random() * 2 - 1 ) * randVel;
-					const vy = ( Math.random() * 2 - 1 ) * randVel * 0.05;
-					const vz = - vel * x + ( Math.random() * 2 - 1 ) * randVel;
+				renderer = new THREE.WebGPURenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setAnimationLoop( render );
+				renderer.inspector = new Inspector();
+				container.appendChild( renderer.domElement );
 
-					x *= rExp;
-					z *= rExp;
-					const y = ( Math.random() * 2 - 1 ) * height;
+				await renderer.init();
 
-					const mass = Math.random() * maxMass + 1;
+				window.addEventListener( 'resize', onWindowResize );
+				document.addEventListener( 'click', playAudioBuffer );
 
-					// Fill in texture values
-					posArray[ k + 0 ] = x;
-					posArray[ k + 1 ] = y;
-					posArray[ k + 2 ] = z;
-					posArray[ k + 3 ] = 1;
+				// gui
 
-					velArray[ k + 0 ] = vx;
-					velArray[ k + 1 ] = vy;
-					velArray[ k + 2 ] = vz;
-					velArray[ k + 3 ] = mass;
+				const gui = renderer.inspector.createParameters( 'Audio' );
 
-				}
+				gui.add( pitch, 'value', .5, 2, 0.01 ).name( 'pitch' );
+				gui.add( delayVolume, 'value', 0, 1, .01 ).name( 'delayVolume' );
+				gui.add( delayOffset, 'value', .1, 1, .01 ).name( 'delayOffset' );
+
+				//
+
+				playAudioBuffer();
 
 			}
 
@@ -478,72 +283,17 @@
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
-				particleUniforms[ 'cameraConstant' ].value = getCameraConstant( camera );
-
-			}
-
-			function dynamicValuesChanger() {
-
-				velocityUniforms[ 'gravityConstant' ].value = effectController.gravityConstant;
-				velocityUniforms[ 'density' ].value = effectController.density;
-				particleUniforms[ 'density' ].value = effectController.density;
-
-			}
-
-			function initGUI() {
-
-				const gui = new GUI( { width: 280 } );
-
-				const folder1 = gui.addFolder( 'Dynamic parameters' );
-
-				folder1.add( effectController, 'gravityConstant', 0.0, 1000.0, 0.05 ).onChange( dynamicValuesChanger );
-				folder1.add( effectController, 'density', 0.0, 10.0, 0.001 ).onChange( dynamicValuesChanger );
-
-				const folder2 = gui.addFolder( 'Static parameters' );
-
-				folder2.add( effectController, 'radius', 10.0, 1000.0, 1.0 );
-				folder2.add( effectController, 'height', 0.0, 50.0, 0.01 );
-				folder2.add( effectController, 'exponent', 0.0, 2.0, 0.001 );
-				folder2.add( effectController, 'maxMass', 1.0, 50.0, 0.1 );
-				folder2.add( effectController, 'velocity', 0.0, 150.0, 0.1 );
-				folder2.add( effectController, 'velocityExponent', 0.0, 1.0, 0.01 );
-				folder2.add( effectController, 'randVelocity', 0.0, 50.0, 0.1 );
-
-				const buttonRestart = {
-					restartSimulation: function () {
-
-						restartSimulation();
-
-					}
-				};
-
-				folder2.add( buttonRestart, 'restartSimulation' );
-
-				folder1.open();
-				folder2.open();
-
-			}
-
-			function getCameraConstant( camera ) {
-
-				return window.innerHeight / ( Math.tan( THREE.MathUtils.DEG2RAD * 0.5 * camera.fov ) / camera.zoom );
-
-			}
-
-
-			function animate() {
-
-				render();
-				stats.update();
-
 			}
 
 			function render() {
 
-				gpuCompute.compute();
+				if ( currentAnalyser ) {
 
-				particleUniforms[ 'texturePosition' ].value = gpuCompute.getCurrentRenderTarget( positionVariable ).texture;
-				particleUniforms[ 'textureVelocity' ].value = gpuCompute.getCurrentRenderTarget( velocityVariable ).texture;
+					currentAnalyser.getByteFrequencyData( analyserBuffer );
+
+					analyserTexture.needsUpdate = true;
+
+				}
 
 				renderer.render( scene, camera );
 
