@@ -17,18 +17,6 @@
     <!-- ORIGINAL CSS -->
     <link rel="stylesheet" type="text/css" href="main.css/dist.css">
 
-    <!-- THREE.JS IMPORT MAP (Required for the WebGPU magic) -->
-    <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/build/three.webgpu.js",
-        "three/webgpu": "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/build/three.webgpu.js",
-        "three/tsl": "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/build/three.tsl.js",
-        "three/addons/": "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/jsm/"
-      }
-    }
-    </script>
-
     <style>
         /* =========================================
            1. LAYOUT & SCALING LOGIC
@@ -48,12 +36,6 @@
             justify-content: center;
             position: relative;
             z-index: 10; /* Content sits on top */
-            pointer-events: none; /* Let clicks pass through empty spaces */
-        }
-        
-        /* Re-enable clicks for actual content */
-        .main, .band-info-box, .secondary, .top-menu, .s2-entry {
-            pointer-events: auto;
         }
 
         .main {
@@ -76,97 +58,33 @@
                 justify-content: center;
                 width: 100%;
             }
-            .sep-container {
-                display: none !important;
-            }
+            .sep-container { display: none !important; }
             .secondary {
-                position: fixed;
-                bottom: 10px;
-                right: 10px;
-                transform: scale(0.8);
-                transform-origin: bottom right;
+                position: fixed; bottom: 10px; right: 10px;
+                transform: scale(0.8); transform-origin: bottom right;
                 z-index: 10000;
             }
         }
 
         /* =========================================
-           2. LAYERING THE SANDWICH
+           2. VIDEO POSITIONING (Fixed Background)
            ========================================= */
-        
-        /* LAYER 1: VIDEO (Bottom) */
         .bg-video-top-left {
             position: fixed;
             top: 0; left: 0;
             width: 666px;
             max-width: 100vw; 
-            z-index: 5; 
+            z-index: 5; /* Behind content, above body */
             opacity: 0.8;
             pointer-events: none; 
         }
 
-        /* LAYER 2: WEBGPU VISUALIZER (Middle) */
-        #webgpu-layer {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 6; /* Higher than video, lower than content */
-            pointer-events: none; /* Let user click text/links behind it */
-            mix-blend-mode: screen; /* Cool blending with the video */
-        }
-
         /* =========================================
-           3. UI ELEMENTS
+           3. BAND INFO BOX (Bottom Left)
            ========================================= */
-        
-        /* The Play Button for WebGPU Audio */
-        #overlay {
-            position: fixed;
-            z-index: 2000; /* Must be top to be clicked */
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #startButton {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid #ff0033;
-            color: #ff0033;
-            padding: 15px 30px;
-            text-transform: uppercase;
-            font-family: 'Text Me One', sans-serif;
-            font-size: 1.2em;
-            cursor: pointer;
-            letter-spacing: 2px;
-            backdrop-filter: blur(4px);
-            transition: all 0.3s;
-        }
-        #startButton:hover {
-            background: #ff0033;
-            color: #000;
-            box-shadow: 0 0 20px #ff0033;
-        }
-
-        /* Section 2 Links */
-        a.s2-entry {
-            display: flex !important; 
-            text-decoration: none !important; 
-            color: inherit !important; 
-            cursor: pointer;
-            transition: transform 0.2s ease, filter 0.2s ease;
-        }
-        a.s2-entry:hover {
-            filter: brightness(1.2);
-            transform: translateX(5px);
-        }
-
-        /* Band Info Box */
         .band-info-box {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
+            bottom: 20px; left: 20px;
             width: 666px;
             background: rgba(10, 10, 15, 0.75);
             backdrop-filter: blur(5px);
@@ -181,10 +99,23 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        /* Responsive Fixes */
-        .band-header { display: flex; align-items: center; margin-bottom: 8px; color: #fff; font-family: 'Text Me One', sans-serif; font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px; }
-        .band-header svg { width: 18px; height: 18px; fill: #610609; margin-right: 8px; }
-        .band-link { display: block; margin-top: 10px; color: #610609; text-decoration: none; font-size: 0.9em; font-style: italic; transition: color 0.3s ease; }
+        .band-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #fff;
+            font-family: 'Text Me One', sans-serif;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .band-link {
+            display: block; margin-top: 10px;
+            color: #610609; text-decoration: none;
+            font-size: 0.9em; font-style: italic;
+            transition: color 0.3s ease;
+        }
         .band-link:hover { color: #fff; }
 
         @media (max-width: 768px) {
@@ -192,15 +123,73 @@
             @media (max-height: 500px) { .band-info-box { display: none; } }
         }
 
-        /* Logo Animation */
+        /* =========================================
+           4. GLITCH ORB CSS (New Addition)
+           ========================================= */
+        .orb-container {
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 15px; 
+            width: 40px; /* Adjusted slightly to fit header */
+            height: 40px;
+            position: relative;
+        }
+
+        .glitch-orb {
+            width: 100%; height: 100%;
+            fill: none; stroke-width: 3;
+            overflow: visible;
+        }
+
+        .orb-circle { stroke: #ff0033; } 
+        .orb-triangle { stroke: #ffffff; } 
+
+        /* IDLE ANIMATION */
+        .orb-container svg {
+            animation: slow-spin 10s linear infinite;
+            filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4));
+            transition: all 0.2s ease;
+        }
+
+        /* HOVER STATE */
+        .orb-container:hover svg {
+            animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) 
+                    drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8));
+        }
+
+        .orb-container:hover .orb-triangle { fill: rgba(255, 255, 255, 0.1); }
+
+        @keyframes slow-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes glitch-shake {
+            0% { transform: translate(0) rotate(0deg); }
+            20% { transform: translate(-2px, 2px) rotate(-5deg); }
+            40% { transform: translate(-2px, -2px) rotate(5deg); }
+            60% { transform: translate(2px, 2px) rotate(-5deg); }
+            80% { transform: translate(2px, -2px) rotate(5deg); }
+            100% { transform: translate(0) rotate(0deg); }
+        }
+
+        /* =========================================
+           5. SECTION 2 LINKS & LOGO
+           ========================================= */
+        a.s2-entry {
+            display: flex !important; text-decoration: none !important; 
+            color: inherit !important; cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        a.s2-entry:hover { filter: brightness(1.2); transform: translateX(5px); }
+
         .logo-section-wrapper { width: 300px; display: block; cursor: pointer; }
         svg.inkrealm-logo { width: 100%; height: auto; overflow: visible; }
         .logo-text-pink { fill: #ff0033 !important; transition: all 0.2s ease; }
         .logo-text-grey { fill: #777777 !important; transition: all 0.2s ease; }
         .visual-dot { fill: #ff0033 !important; pointer-events: none; }
+        
         .logo-section-wrapper:hover .visual-dot { animation: dot-overload 0.6s infinite linear; }
         .logo-section-wrapper:hover .logo-text-grey { animation: text-shock 0.15s infinite alternate; }
         .logo-section-wrapper:hover .logo-text-pink { animation: text-shock 0.15s infinite alternate-reverse; }
+
         @keyframes dot-overload {
             0% { transform: scale(1.0) rotate(0deg); filter: drop-shadow(0 0 5px #FFD700); }
             50% { transform: scale(0.8) rotate(180deg); filter: drop-shadow(0 0 25px #FFFFFF); }
@@ -216,21 +205,12 @@
 </head>
 <body>
 
-    <!-- 1. VIDEO (Bottom Layer) -->
+    <!-- VIDEO (Reverted to standard position) -->
     <video class="bg-video-top-left" 
            src="https://github.com/ghostm68/99/raw/main/lyinkrealmthm_20230121_185520920.mp4" 
            muted loop playsinline autoplay>
     </video>
 
-    <!-- 2. WEBGPU VISUALIZER CONTAINER (Middle Layer) -->
-    <div id="webgpu-layer"></div>
-
-    <!-- 3. WEBGPU START BUTTON (Overlay) -->
-    <div id="overlay">
-        <button id="startButton">Initialize Audio Core</button>
-    </div>
-
-    <!-- 4. EXISTING CONTENT (Top Layer) -->
     <div class="main-canvas-container"></div>
 
     <div class="content-container">
@@ -244,8 +224,8 @@
             </nav>
             
             <div class="hexagon-container">
-                <!-- Hexagons Content (Truncated for brevity, insert your existing hex divs here) -->
-                 <div class="hexagon active">
+                <!-- HEX 1 -->
+                <div class="hexagon active">
                     <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/runetime.gif" />
                     <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/liroe.inkrealm.info.runway.promotional.gif" />
                     <img class="hex-image" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/atari.inkrealm.ad.gif" />
@@ -254,7 +234,7 @@
                 <div class="sep-container active">
                     <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
                 </div>
-                 <!-- HEX 2 -->
+                <!-- HEX 2 -->
                 <div class="hexagon">
                     <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_syracuse.minaro.240103_024757.gif" />
                     <img class="hex-curtain" src="https://freight.cargo.site/w/451/q/94/i/be0e2d897a4dbbcef4c7bb0b904e8ce870d6c12f767f6275e47c5d2f08880ca1/Prana.jpeg" />
@@ -264,7 +244,7 @@
                 <div class="sep-container">
                     <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
                 </div>
-                 <!-- HEX 3 -->
+                <!-- HEX 3 -->
                 <div class="hexagon">
                     <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/wetstichler3.gif" />
                     <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_230212_132842.gif" />
@@ -274,7 +254,7 @@
                 <div class="sep-container">
                     <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
                 </div>
-                 <!-- HEX 4 -->
+                <!-- HEX 4 -->
                 <div class="hexagon">
                      <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/Media_minaro.hilton.240105_143846.gif" />
                     <img class="hex-curtain" src="https://c02.purpledshub.com/uploads/sites/41/2020/08/GettyImages-154932300-crop-ab054fe.jpg?w=1029&webp=1" />
@@ -284,7 +264,7 @@
                 <div class="sep-container">
                     <span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span><span class="sep-circle"></span>
                 </div>
-                 <!-- HEX 5 -->
+                <!-- HEX 5 -->
                 <div class="hexagon">
                     <img class="hex-bg" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/guitartownindia.gif" />
                     <img class="hex-curtain" src="https://raw.githubusercontent.com/ghostm68/pantheon/main/minaro_20240110_11wordstar2211.jpg" />
@@ -294,17 +274,24 @@
             </div>
 
             <div class="main-section-container">
+
                 <div class="section1">
-                    <span class="s1-title"> inky </span><hr>
+                    <span class="s1-title"> inky </span>
+                    <hr>
                     <span class="s1-title2"> at <em>your </em> service</span>
                     <svg class="s1-text-divider"> <use xlink:href="#icon-text-divider-1" /> </svg>
-                    <span class="s1-text">writer at work on several projects...</span>
+                    <span class="s1-text">
+                        writer at work on several projects...
+                    </span>
+
                     <div class="s1-btns">
                         <div class="s1-btn"> <svg> <use xlink:href="#icon-calendar" /> </svg> </div> 
                         <div class="s1-btn"> <svg> <use xlink:href="#icon-autograph" /> </svg> </div> 
                         <div class="s1-btn"> <svg> <use xlink:href="#icon-save" /> </svg> </div> 
                     </div>
-                    <div class="s1-line1"></div><div class="s1-line2"></div>
+
+                    <div class="s1-line1"></div>
+                    <div class="s1-line2"></div>
                 </div>
 
                 <div class="section2">
@@ -328,17 +315,14 @@
                     <span class="s2-footer-text-1">enjoy</span>
                     <span class="s2-footer-text-2">more coming soon!</span>
                 </div>
-                
-                <!-- (Section 3, 4, 5 content goes here, unchanged) -->
-                 <div class="section3">
+
+                <div class="section3">
                     <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/hermes46663.gif" class="s3-pastel-img" />
                     <div class="s3_letters_flex_row">
-                        <p>text editors </p>  
-                        <span>features<br> ai</span>
+                        <p>text editors </p><span>features<br> ai</span>
                     </div>
                     <div class="s3_letters_flex_row">
-                        <p>...</p>  
-                        <span>and<br> dictionaries</span>
+                        <p>...</p><span>and<br> dictionaries</span>
                     </div>
                     <hr class="s3-divider">
                     <p class="s3-sec-header-text">nous</p>
@@ -354,16 +338,13 @@
                     <canvas class="s4-chart"></canvas>
                     <hr class="s4-hr1">
                     <div class="s4-pending-title">
-                         <span>W</span><span>o</span><span>r</span><span>d</span><span>s</span><span></span>
-                        <span>T</span><span>a</span><span>R</span><span>_</span>
+                         <span>W</span><span>o</span><span>r</span><span>d</span><span>s</span><span></span><span>T</span><span>a</span><span>R</span><span>_</span>
                     </div>
                     <div class="s4-paragraphs">
                         <p>no trackers or spyware</p>
                         <p>ad-free zone</p>
                     </div>
-                    <div class="s4-rotated-quads">
-                        <div></div><div></div><div></div>
-                    </div>
+                    <div class="s4-rotated-quads"><div></div><div></div><div></div></div>
                 </div>
 
                 <div class="section5">
@@ -376,12 +357,10 @@
         </div>
 
         <div class="secondary">
-            <!-- (Secondary Menu Content) -->
-               <div class="expander-menu">
+            <div class="expander-menu">
                 <div class="expander-plus-icon-1"></div>
                 <div class="expander-plus-icon-2"></div>
                 <div class="expander-expand-btn"></div>
-                
                 <div class="expander-menu-items-container">
                     <a href="https://inkrealm.info/home" class="expander-menu-link"> <svg><use xlink:href="#icon-envmap-day" /></svg> home</a>
                     <a href="https://inkrealm.info/sitemap" class="expander-menu-link"> <svg><use xlink:href="#icon-envmap-sunset" /></svg> map</a>
@@ -393,17 +372,32 @@
             </div>
         </div>   
 
-        <!-- BAND INFO BOX -->
+        <!-- FIXED BAND INFO BOX + ORB + AUDIO -->
         <div class="band-info-box">
+            
+            <!-- THE ORB (Replacing the old icon, rotating next to date) -->
             <div class="band-header">
-                <svg><use xlink:href="#icon-autograph" /></svg> 
+                <a href="https://inkrealm.info" target="_blank" rel="noopener">
+                    <div class="orb-container">
+                        <svg class="glitch-orb" viewBox="0 0 100 100">
+                            <circle class="orb-circle" cx="50" cy="50" r="45" />
+                            <polygon class="orb-triangle" points="50,25 78,75 22,75" />
+                        </svg>
+                    </div>
+                </a>
                 <span>6jan2026 </span>
             </div>
+
+            <!-- Future Audio Elements (Hidden/Placeholder for now) -->
+            <canvas id="sigil-canvas" width="188" height="30" style="background:#000; border:1px solid #333; margin-bottom:10px; display:block; width: 100%;"></canvas>
+            <audio id="viz-audio" style="display: none;">
+                <source src="itm406.mp3" type="audio/mpeg">
+            </audio>
+
             <p class="band-text">
                 all rights reserved... 
                 <br> <a href="https://inkrealm.info/minraud" class="logo-section-wrapper">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666 88" class="inkrealm-logo">
-                            <!-- Grey Text -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666 88" class="inkrealm-logo">
                             <g class="logo-text-grey">
                                 <path d="M 25 25 L 32 25 L 32 68 L 25 68 Z"/>
                                 <circle cx="28.5" cy="18" r="3.5"/>
@@ -415,9 +409,7 @@
                                 <path d="M 241 18 L 248 18 L 248 68 L 241 68 Z"/>
                                 <path d="M 263 25 L 270 25 L 270 31 Q 274 25 283 25 Q 292 25 293 34 Q 297 25 307 25 Q 319 25 319 37 L 319 68 L 312 68 L 312 38 Q 312 30 305 30 Q 296 30 296 42 L 296 68 L 289 68 L 289 38 Q 289 30 282 30 Q 270 30 270 42 L 270 68 L 263 68 Z"/>
                             </g>
-                            <!-- Visual Dot -->
                             <circle class="visual-dot" cx="334" cy="63" r="3.5"/>
-                            <!-- Info Group (RED) -->
                             <g class="logo-text-pink">
                                 <path d="M 354 25 L 361 25 L 361 68 L 354 68 Z"/>
                                 <path d="M 376 25 L 383 25 L 383 55 L 401 25 L 408 25 L 408 68 L 401 68 L 401 38 L 383 68 L 376 68 Z"/>
@@ -435,151 +427,6 @@
             <!-- filled in by javascript -->
         </svg>
     </div>
-
-    <!-- WEBGPU SCRIPT LOGIC -->
-    <script type="module">
-        import * as THREE from 'three/webgpu';
-        import { Fn, uniform, instanceIndex, instancedArray, float, texture, screenUV, color, vec4 } from 'three/tsl';
-        import { Inspector } from 'three/addons/inspector/Inspector.js';
-
-        let camera, scene, renderer;
-        let computeNode;
-        let waveBuffer, sampleRate;
-        let waveArray;
-        let currentAudio, currentAnalyser;
-        const analyserBuffer = new Uint8Array( 1024 );
-        let analyserTexture;
-
-        const startButton = document.getElementById( 'startButton' );
-        startButton.addEventListener( 'click', init );
-
-        async function playAudioBuffer() {
-            if ( currentAudio ) currentAudio.stop();
-
-            // compute audio
-            renderer.compute( computeNode );
-            const wave = new Float32Array( await renderer.getArrayBufferAsync( waveArray.value ) );
-
-            // play result
-            const audioOutputContext = new AudioContext( { sampleRate } );
-            const audioOutputBuffer = audioOutputContext.createBuffer( 1, wave.length, sampleRate );
-
-            audioOutputBuffer.copyToChannel( wave, 0 );
-
-            const source = audioOutputContext.createBufferSource();
-            source.connect( audioOutputContext.destination );
-            source.buffer = audioOutputBuffer;
-            source.start();
-
-            currentAudio = source;
-
-            // visual feedback
-            currentAnalyser = audioOutputContext.createAnalyser();
-            currentAnalyser.fftSize = 2048;
-            source.connect( currentAnalyser );
-        }
-
-        async function init() {
-            const overlay = document.getElementById( 'overlay' );
-            overlay.remove();
-
-            // 1. Audio Setup
-            const soundBuffer = await fetch( 'https://threejs.org/examples/sounds/webgpu-audio-processing.mp3' ).then( res => res.arrayBuffer() );
-            const audioContext = new AudioContext();
-            const audioBuffer = await audioContext.decodeAudioData( soundBuffer );
-            waveBuffer = audioBuffer.getChannelData( 0 );
-            waveBuffer = new Float32Array( [ ...waveBuffer, ...new Float32Array( 200000 ) ] );
-            sampleRate = audioBuffer.sampleRate / audioBuffer.numberOfChannels;
-
-            // 2. WebGPU Buffers
-            waveArray = instancedArray( waveBuffer );
-            const originalWave = instancedArray( waveBuffer ).toReadOnly();
-            originalWave.setPBO( true );
-            waveArray.setPBO( true );
-
-            // 3. Params
-            const pitch = uniform( 1.5 );
-            const delayVolume = uniform( .2 );
-            const delayOffset = uniform( .55 );
-
-            // 4. Compute Shader
-            const computeShaderFn = Fn( () => {
-                const index = float( instanceIndex );
-                const time = index.mul( pitch );
-                let wave = originalWave.element( time );
-                for ( let i = 1; i < 7; i ++ ) {
-                    const waveOffset = originalWave.element( index.sub( delayOffset.mul( sampleRate ).mul( i ) ).mul( pitch ) );
-                    const waveOffsetVolume = waveOffset.mul( delayVolume.div( i * i ) );
-                    wave = wave.add( waveOffsetVolume );
-                }
-                const waveStorageElementNode = waveArray.element( instanceIndex );
-                waveStorageElementNode.assign( wave );
-            } );
-            computeNode = computeShaderFn().compute( waveBuffer.length );
-
-            // 5. Renderer Setup
-            // IMPORTANT: Targeting the specific div I made for you
-            const container = document.getElementById( 'webgpu-layer' );
-            
-            camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.01, 30 );
-
-            // 6. Nodes (The Visualizer Logic)
-            analyserTexture = new THREE.DataTexture( analyserBuffer, analyserBuffer.length, 1, THREE.RedFormat );
-            const spectrum = texture( analyserTexture, screenUV.x ).x.mul( screenUV.y );
-            
-            // COLOR LOGIC: 
-            // 0xFF0033 is your pink. 
-            // We want transparency where spectrum is low.
-            const pinkColor = color( 0xff0033 );
-            // This is a simplified blend. The backgroundNode expects color.
-            // If the WebGPU renderer has alpha:true, black *should* appear transparent depending on blend mode.
-            const backgroundNode = pinkColor.mul( spectrum ); 
-
-            // 7. Scene
-            scene = new THREE.Scene();
-            scene.backgroundNode = backgroundNode;
-
-            // 8. Renderer Construction (Alpha = True)
-            renderer = new THREE.WebGPURenderer( { antialias: true, alpha: true } );
-            renderer.setPixelRatio( window.devicePixelRatio );
-            renderer.setSize( window.innerWidth, window.innerHeight );
-            renderer.setAnimationLoop( render );
-            
-            // Add Inspector? (Optional, might be intrusive visually, but kept per your request)
-            renderer.inspector = new Inspector();
-            
-            container.appendChild( renderer.domElement );
-
-            await renderer.init();
-
-            window.addEventListener( 'resize', onWindowResize );
-            document.addEventListener( 'click', playAudioBuffer );
-
-            // GUI Setup (Warning: This puts a control box on top right)
-            const gui = renderer.inspector.createParameters( 'Audio' );
-            gui.add( pitch, 'value', .5, 2, 0.01 ).name( 'pitch' );
-            gui.add( delayVolume, 'value', 0, 1, .01 ).name( 'delayVolume' );
-            gui.add( delayOffset, 'value', .1, 1, .01 ).name( 'delayOffset' );
-
-            playAudioBuffer();
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize( window.innerWidth, window.innerHeight );
-        }
-
-        function render() {
-            if ( currentAnalyser ) {
-                currentAnalyser.getByteFrequencyData( analyserBuffer );
-                analyserTexture.needsUpdate = true;
-            }
-            // Clear needed if we want transparency? 
-            // WebGPU backgroundNode handles the fill usually, so relying on mix-blend-mode in CSS
-            renderer.render( scene, camera );
-        }
-    </script>
 
 </body>
 </html>
