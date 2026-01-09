@@ -55,6 +55,8 @@
 </script>
 
 <head>
+	
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <meta charset="utf-8"/>  
 	
 	<meta name="viewport" content="width=1024">
@@ -63,6 +65,7 @@
 <link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+	<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -84,7 +87,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #fc2b39 0%, #ff5c6c 100%);
+    background: #fc2b39;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -163,6 +166,22 @@ body.loaded > * {
       padding: 0 2px;
       border-radius: 2px;
     }
+	::-webkit-scrollbar-thumb {
+    background-color: #fc2b39 !important;
+    border-radius: 4px;
+}
+
+select:focus, input:focus, textarea:focus, button:focus {
+    outline: none !important;
+    border-color: #fc2b39 !important;
+    box-shadow: 0 0 0 1px #fc2b39 !important;
+}
+
+/* Fix specific AI dropdown background */
+#wordstar-model-select option {
+    background-color: #1C1820;
+    color: white;
+}
 </style>
 
 <style type="text/tailwindcss" w-tid="43">
@@ -831,59 +850,83 @@ function updateVideoUrl(url) {
 // ===============================
 // PDF functionality
 // ===============================
+// FIXED PDF FUNCTION
+// FIXED PDF BUTTON + DICTIONARY LOGIC
+// ===============================
+// PDF functionality (FIXED)
+// ===============================
 document.getElementById('save-pdf').addEventListener('click', function() {
+  
+  // 1. Safety Check: Make sure library is loaded
+  if (!window.jspdf) {
+      alert("PDF Library is loading... please click again in 2 seconds.");
+      return;
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   
-  // Get content
-  const title = document.querySelector('h1').textContent;
-  const content = getEditor().value;
-  const wordCount = content.trim() === '' ? 0 : content.trim().split(/\s+/).length;
+  // 2. Get content
+  const title = document.querySelector('h1').textContent || "Runway Text";
+  const editor = document.getElementById('main-editor');
+  const content = editor.value;
   
-  // Add title
+  // 3. Add Title to PDF
   doc.setFontSize(20);
   doc.text(title, 20, 30);
   
-  // Add metadata
-  doc.setFontSize(10);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 45);
-  doc.text(`Word Count: ${wordCount}`, 20, 52);
-  
-  // Add content
+  // 4. Add Main Text
   doc.setFontSize(12);
   const splitContent = doc.splitTextToSize(content, 170);
-  doc.text(splitContent, 20, 70);
+  doc.text(splitContent, 20, 50);
   
-  // Add dictionary terms used
+  // 5. Dictionary Logic
   const usedTerms = [];
-  Object.keys(fashionDictionary).forEach(term => {
-    if (content.toLowerCase().includes(term.toLowerCase()) || content.toLowerCase().includes(term.replace('-', ' ').toLowerCase())) {
-      usedTerms.push(term);
-    }
-  });
-  
-  if (usedTerms.length > 0) {
-    const contentHeight = 70 + (splitContent.length * 5);
-    doc.text('Fashion Terms Used:', 20, contentHeight + 20);
-    doc.setFontSize(10);
-    usedTerms.forEach((term, index) => {
-      const definition = fashionDictionary[term];
-      const termText = `${term.charAt(0).toUpperCase() + term.slice(1).replace('-', ' ')}: ${definition}`;
-      const splitTerm = doc.splitTextToSize(termText, 170);
-      doc.text(splitTerm, 20, contentHeight + 30 + (index * 15));
+  if (typeof fashionDictionary !== 'undefined') {
+    Object.keys(fashionDictionary).forEach(term => {
+      if (content.toLowerCase().includes(term.toLowerCase()) || 
+          content.toLowerCase().includes(term.replace('-', ' ').toLowerCase())) {
+        usedTerms.push(term);
+      }
     });
+    
+    if (usedTerms.length > 0) {
+      let currentY = 50 + (splitContent.length * 7);
+      
+      // Add Header
+      doc.setFont("helvetica", "bold");
+      doc.text('Fashion Terms Used:', 20, currentY + 10);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      
+      // Add Terms
+      usedTerms.forEach((term, index) => {
+        const definition = fashionDictionary[term];
+        const termText = `${term.charAt(0).toUpperCase() + term.slice(1).replace('-', ' ')}: ${definition}`;
+        const splitTerm = doc.splitTextToSize(termText, 170);
+        doc.text(splitTerm, 20, currentY + 20);
+        currentY += (splitTerm.length * 5) + 5; 
+      });
+    }
   }
-  
-  // Save the PDF
+
+  // 6. Save the PDF
   doc.save('runway-project.pdf');
   
-  // Update button feedback
-  const button = this;
-  const originalText = button.innerHTML;
-  button.innerHTML = '<span class="material-symbols-outlined">check</span><span>Saved!</span>';
-  setTimeout(() => { button.innerHTML = originalText; }, 2000);
+  // 7. Button Feedback
+  const btn = this;
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = '<span class="material-symbols-outlined">check</span><span>Saved!</span>';
+  btn.style.backgroundColor = '#10B981';
+  setTimeout(() => { 
+      btn.innerHTML = originalHTML; 
+      btn.style.backgroundColor = ''; 
+  }, 2000);
 });
 
+// ===============================
+// Load PDF functionality
+// ===============================
 document.getElementById('load-pdf').addEventListener('click', function() {
   document.getElementById('pdf-file-input').click();
 });
@@ -893,20 +936,15 @@ document.getElementById('pdf-file-input').addEventListener('change', function(e)
   if (file && file.type === 'application/pdf') {
     const reader = new FileReader();
     reader.onload = function(event) {
-      // For now, just show a message that PDF was loaded
-      // Full PDF text extraction would require additional libraries
       const button = document.getElementById('load-pdf');
       const originalText = button.innerHTML;
       button.innerHTML = '<span class="material-symbols-outlined">check</span><span>PDF Loaded</span>';
       setTimeout(() => { button.innerHTML = originalText; }, 2000);
-      
-      // You could integrate PDF.js here for full text extraction
       alert('PDF loaded! Note: Full text extraction requires additional setup.');
     };
     reader.readAsArrayBuffer(file);
   }
 });
-
 // ===============================
 // Keyboard shortcuts
 // ===============================
