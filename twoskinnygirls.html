@@ -985,12 +985,9 @@ class MusicPlayer {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 }
-// NO EVENT LISTENER HERE - REMOVE THIS:
-// document.addEventListener('load', () => {
-//     new MusicPlayer();
-// });
+// Add this inside your MusicPlayer class, at the end of the constructor
+this.setupEventListeners();
 </script>
-    </script>
 <script>
 // Clean Swag Gallery - No Filters
 class CleanSwagGallery {
@@ -1189,15 +1186,15 @@ document.addEventListener('DOMContentLoaded', () => {
 	</script>
 <script>
 // Russian Language Manager with Debug
-class RussianLanguageManager {
+// Simple Translation System
+class TranslationManager {
     constructor() {
         this.currentLang = 'en';
         this.translations = {
             en: {
                 "nav-music": "MUSIC",
-                "nav-lyrics": "LYRICS",
-                "nav-swag": "SWAG", 
-                "nav-contact": "CONTACT",
+                "nav-lyrics": "LYRICS", 
+                "nav-swag": "SWAG",
                 "hero-title": "TWO SKINNY GIRLS",
                 "hero-tagline": "ECLECTIC ROCK AND ROLL",
                 "hero-explore": "EXPLORE MUSIC",
@@ -1209,9 +1206,8 @@ class RussianLanguageManager {
             ru: {
                 "nav-music": "МУЗЫКА",
                 "nav-lyrics": "ТЕКСТЫ",
-                "nav-swag": "МЕРЧ", 
-                "nav-contact": "КОНТАКТЫ",
-                "hero-title": "TWO SKINNY GIRLS",
+                "nav-swag": "МЕРЧ",
+                "hero-title": "TWO SKINNY GIRLS", 
                 "hero-tagline": "ЭКЛЕКТИЧЕСКИЙ РОК-Н-РОЛЛ",
                 "hero-explore": "СЛУШАТЬ МУЗЫКУ",
                 "hero-releases": "НОВЫЕ РЕЛИЗЫ",
@@ -1221,92 +1217,73 @@ class RussianLanguageManager {
             }
         };
         
-        console.log('Language Manager: Constructor called');
-        this.initialize();
+        this.init();
     }
     
-    initialize() {
-        console.log('Language Manager: Initializing...');
-        
-        // Check if switcher exists
-        const existingSwitcher = document.querySelector('.language-switcher');
-        console.log('Language Manager: Found switcher?', !!existingSwitcher);
-        
-        // Check for i18n elements
-        const i18nElements = document.querySelectorAll('[data-i18n]');
-        console.log('Language Manager: Found i18n elements:', i18nElements.length);
-        
-        this.setupExistingSwitcher();
+    init() {
+        this.setupLanguageButtons();
         this.loadSavedLanguage();
-        this.applyLanguage(this.currentLang);
+        this.applyTranslations();
     }
     
-    setupExistingSwitcher() {
-        const existingSwitcher = document.querySelector('.language-switcher');
-        if (existingSwitcher) {
-            console.log('Language Manager: Setting up switcher events');
-            existingSwitcher.addEventListener('click', (e) => {
-                if (e.target.classList.contains('lang-btn')) {
-                    const lang = e.target.dataset.lang;
-                    console.log('Language Manager: Switching to', lang);
-                    this.switchLanguage(lang);
-                }
+    setupLanguageButtons() {
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const lang = e.target.dataset.lang;
+                this.switchLanguage(lang);
             });
-        } else {
-            console.error('Language Manager: No switcher found!');
-        }
+        });
     }
     
     switchLanguage(lang) {
-        console.log('Language Manager: Switching language to', lang);
-        if (this.translations[lang]) {
-            this.currentLang = lang;
-            this.applyLanguage(lang);
-            this.updateActiveButton(lang);
-            this.saveLanguagePreference(lang);
-        }
+        this.currentLang = lang;
+        this.applyTranslations();
+        this.updateActiveButton();
+        localStorage.setItem('preferred-language', lang);
     }
     
-    applyLanguage(lang) {
-        console.log('Language Manager: Applying language', lang);
-        const translation = this.translations[lang];
-        
+    applyTranslations() {
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
-            console.log('Language Manager: Found element with key:', key);
-            if (translation[key]) {
-                element.textContent = translation[key];
-                console.log('Language Manager: Updated', key, 'to', translation[key]);
+            if (this.translations[this.currentLang][key]) {
+                element.textContent = this.translations[this.currentLang][key];
             }
         });
         
+        // Update glitch titles
         document.querySelectorAll('.glitch-title').forEach(title => {
             const key = title.getAttribute('data-i18n');
-            if (key && translation[key]) {
-                title.setAttribute('data-text', translation[key]);
-                console.log('Language Manager: Updated glitch-title', key);
+            if (key && this.translations[this.currentLang][key]) {
+                title.setAttribute('data-text', this.translations[this.currentLang][key]);
             }
         });
     }
     
-    updateActiveButton(lang) {
+    updateActiveButton() {
         document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.lang === lang);
+            btn.classList.toggle('active', btn.dataset.lang === this.currentLang);
         });
-    }
-    
-    saveLanguagePreference(lang) {
-        localStorage.setItem('preferred-language', lang);
     }
     
     loadSavedLanguage() {
         const saved = localStorage.getItem('preferred-language');
-        console.log('Language Manager: Loaded saved language:', saved);
         if (saved && this.translations[saved]) {
-            this.switchLanguage(saved);
+            this.currentLang = saved;
         }
     }
 }
+
+// Initialize everything properly
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize music player
+    const player = new MusicPlayer();
+    
+    // Initialize gallery
+    window.cleanGallery = new CleanSwagGallery();
+    
+    // Initialize translations
+    new TranslationManager();
+});
 
 // Clean Swag Gallery - No Filters (SINGLE VERSION - UPDATED COLORS)
 class CleanSwagGallery {
@@ -1492,50 +1469,21 @@ class CleanSwagGallery {
     }
 }
 
-// FINAL INITIALIZATION - RUNS EVERYTHING
-function initializeAllComponents() {
-    console.log('=== Initializing All Components ===');
+// Final initialization - runs when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing website components...');
     
-    // 1. Initialize Music Player
-    try {
-        if (typeof MusicPlayer !== 'undefined') {
-            new MusicPlayer();
-            console.log('✓ MusicPlayer initialized');
-        }
-    } catch (e) {
-        console.error('MusicPlayer error:', e);
-    }
+    // Start music player
+    new MusicPlayer();
     
-    // 2. Initialize Language Manager
-    try {
-        if (typeof RussianLanguageManager !== 'undefined') {
-            new RussianLanguageManager();
-            console.log('✓ LanguageManager initialized');
-        }
-    } catch (e) {
-        console.error('LanguageManager error:', e);
-    }
+    // Start gallery 
+    window.cleanGallery = new CleanSwagGallery();
     
-    // 3. Initialize Gallery
-    try {
-        if (typeof CleanSwagGallery !== 'undefined') {
-            window.cleanGallery = new CleanSwagGallery();
-            console.log('✓ Gallery initialized');
-        }
-    } catch (e) {
-        console.error('Gallery error:', e);
-    }
+    // Start translations
+    new TranslationManager();
     
-    console.log('=== All Components Initialized ===');
-}
-
-// Run initialization when everything is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAllComponents);
-} else {
-    // DOM already loaded, run immediately
-    initializeAllComponents();
-}
+    console.log('All components initialized successfully!');
+});
 </script>
 </body>
 </html>
