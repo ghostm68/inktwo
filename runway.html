@@ -805,47 +805,6 @@ function closeDefinition() {
   if (popup) popup.style.display = 'none';
 }
 
-// ===============================
-// Video background controls
-// ===============================
-document.getElementById('video-bg').addEventListener('change', function(e) {
-  savedState.preferences.videoBackground = e.target.checked;
-  toggleVideoBackground(e.target.checked);
-  savePreferences();
-});
-
-document.getElementById('video-url').addEventListener('change', function(e) {
-  savedState.preferences.customVideoUrl = e.target.value;
-  if (e.target.value && savedState.preferences.videoBackground) {
-    updateVideoUrl(e.target.value);
-  }
-  savePreferences();
-});
-
-function toggleVideoBackground(show) {
-  const videoBackground = document.getElementById('video-background');
-  videoBackground.style.display = show ? 'block' : 'none';
-}
-
-function updateVideoUrl(url) {
-  const iframe = document.getElementById('video-iframe');
-  let embedUrl = url;
-
-  if (url.includes('youtube.com/watch')) {
-    const videoId = url.split('v=')[1].split('&')[0];
-    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&playlist=${videoId}`;
-  } else if (url.includes('youtu.be/')) {
-    const videoId = url.split('youtu.be/')[1].split('?')[0];
-    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&playlist=${videoId}`;
-  } else if (url.includes('youtube.com/playlist') || url.includes('list=')) {
-    const playlistId = url.split('list=')[1].split('&')[0];
-    embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1&mute=1&loop=1&controls=0`;
-  }
-
-  iframe.src = embedUrl;
-}
-
-
 
 // ===============================
 // Keyboard shortcuts
@@ -1619,5 +1578,54 @@ document.addEventListener('click', function(e) {
     setTimeout(() => { btn.innerHTML = origText; }, 2000);
 });
 </script>
+	<script>
+		// ==========================================
+// FINAL FIX: VIDEO BACKGROUND LOGIC
+// ==========================================
+
+// 1. Handle the URL Input
+const videoInput = document.getElementById('video-url');
+if (videoInput) {
+    videoInput.addEventListener('change', function(e) {
+        // Get the value
+        const url = e.target.value.trim();
+        if (!url) return;
+
+        console.log("Attempting to load video:", url);
+        let videoId = '';
+        
+        // Extract ID based on URL type
+        if (url.includes('v=')) {
+            // Standard YouTube link
+            videoId = url.split('v=')[1].split('&')[0];
+        } else if (url.includes('youtu.be/')) {
+            // Short link
+            videoId = url.split('youtu.be/')[1].split('?')[0];
+        } else if (url.includes('embed/')) {
+            // Embed link
+            videoId = url.split('embed/')[1].split('?')[0];
+        }
+
+        if (videoId) {
+            const iframe = document.getElementById('video-iframe');
+            // Update source
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0&playlist=${videoId}`;
+        } else {
+            alert("Could not recognize YouTube URL format.");
+        }
+    });
+}
+
+// 2. Handle the On/Off Toggle
+const videoToggle = document.getElementById('video-bg');
+if (videoToggle) {
+    videoToggle.addEventListener('change', function(e) {
+        const videoBg = document.getElementById('video-background');
+        if (videoBg) {
+            videoBg.style.display = e.target.checked ? 'block' : 'none';
+        }
+    });
+}
+	</script>
 					
       </body></html>
