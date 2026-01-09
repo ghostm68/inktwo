@@ -866,16 +866,18 @@ class MusicPlayer {
         this.isPlaying = false;
         
         this.initializePlayer();
+        this.setupEventListeners(); // MOVED INSIDE CONSTRUCTOR
     }
     
     initializePlayer() {
         this.renderPlaylist();
-        this.setupEventListeners();
         this.loadTrack(0);
     }
     
     renderPlaylist() {
         const playlist = document.getElementById('playlist');
+        if (!playlist) return;
+        
         playlist.innerHTML = this.tracks.map((track, index) => `
             <div class="track ${index === 0 ? 'active' : ''}" data-index="${index}">
                 <div class="flex justify-between items-center">
@@ -888,40 +890,49 @@ class MusicPlayer {
     
     setupEventListeners() {
         // Play/Pause
-        document.getElementById('playBtn').addEventListener('click', () => {
-            this.togglePlay();
-        });
+        const playBtn = document.getElementById('playBtn');
+        if (playBtn) {
+            playBtn.addEventListener('click', () => this.togglePlay());
+        }
         
         // Previous/Next
-        document.getElementById('prevBtn').addEventListener('click', () => {
-            this.previousTrack();
-        });
-        
-        document.getElementById('nextBtn').addEventListener('click', () => {
-            this.nextTrack();
-        });
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        if (prevBtn) prevBtn.addEventListener('click', () => this.previousTrack());
+        if (nextBtn) nextBtn.addEventListener('click', () => this.nextTrack());
         
         // Progress bar
-        document.getElementById('progressBar').addEventListener('click', (e) => {
-            const rect = e.target.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            this.audio.currentTime = percent * this.audio.duration;
-        });
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.addEventListener('click', (e) => {
+                const rect = e.target.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                if (this.audio.duration) {
+                    this.audio.currentTime = percent * this.audio.duration;
+                }
+            });
+        }
         
         // Volume
-        document.getElementById('volume').addEventListener('input', (e) => {
-            this.audio.volume = e.target.value / 100;
-        });
+        const volume = document.getElementById('volume');
+        if (volume) {
+            volume.addEventListener('input', (e) => {
+                this.audio.volume = e.target.value / 100;
+            });
+        }
         
         // Track clicks
-        document.getElementById('playlist').addEventListener('click', (e) => {
-            const trackElement = e.target.closest('.track');
-            if (trackElement) {
-                const index = parseInt(trackElement.dataset.index);
-                this.loadTrack(index);
-                this.play();
-            }
-        });
+        const playlist = document.getElementById('playlist');
+        if (playlist) {
+            playlist.addEventListener('click', (e) => {
+                const trackElement = e.target.closest('.track');
+                if (trackElement) {
+                    const index = parseInt(trackElement.dataset.index);
+                    this.loadTrack(index);
+                    this.play();
+                }
+            });
+        }
         
         // Audio events
         this.audio.addEventListener('timeupdate', () => this.updateProgress());
@@ -947,15 +958,17 @@ class MusicPlayer {
     }
     
     play() {
-        this.audio.play();
+        this.audio.play().catch(e => console.log('Audio play failed:', e));
         this.isPlaying = true;
-        document.getElementById('playBtn').textContent = '⏸';
+        const playBtn = document.getElementById('playBtn');
+        if (playBtn) playBtn.textContent = '⏸';
     }
     
     pause() {
         this.audio.pause();
         this.isPlaying = false;
-        document.getElementById('playBtn').textContent = '▶';
+        const playBtn = document.getElementById('playBtn');
+        if (playBtn) playBtn.textContent = '▶';
     }
     
     nextTrack() {
@@ -969,13 +982,16 @@ class MusicPlayer {
     }
     
     updateProgress() {
-        const progress = (this.audio.currentTime / this.audio.duration) * 100;
-        document.getElementById('progress').style.width = `${progress}%`;
+        if (!this.audio.duration) return;
         
-        document.getElementById('currentTime').textContent = 
-            this.formatTime(this.audio.currentTime);
-        document.getElementById('duration').textContent = 
-            this.formatTime(this.audio.duration);
+        const progress = (this.audio.currentTime / this.audio.duration) * 100;
+        const progressEl = document.getElementById('progress');
+        if (progressEl) progressEl.style.width = `${progress}%`;
+        
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+        if (currentTimeEl) currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
+        if (durationEl) durationEl.textContent = this.formatTime(this.audio.duration);
     }
     
     formatTime(seconds) {
@@ -985,208 +1001,8 @@ class MusicPlayer {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 }
-// Add this inside your MusicPlayer class, at the end of the constructor
-this.setupEventListeners();
-</script>
-<script>
-// Clean Swag Gallery - No Filters
-class CleanSwagGallery {
-    constructor() {
-        this.images = [
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_085621279.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_085025965.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_084559581.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.46790642.097532222.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.7777_3874335.09865.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo6666.7437+660..png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.08636863256.97645775670.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.9843578754211122.4211.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_090606131.png",
-            "https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogoM1726319090015.png"
-        ];
-        
-        this.currentImageIndex = 0;
-        this.initializeGallery();
-    }
-    
-    initializeGallery() {
-        this.renderGallery();
-        this.setupModal();
-        this.setupKeyboardNavigation();
-    }
-    
-    renderGallery() {
-        const grid = document.querySelector('.gallery-grid .grid');
-        if (!grid) {
-            console.error('Gallery grid not found!');
-            return;
-        }
-        
-        grid.innerHTML = this.images.map((image, index) => `
-            <div class="gallery-item" data-index="${index}">
-                <img src="${image}" alt="TSG Swag ${index + 1}" loading="lazy">
-                <div class="download-overlay" onclick="event.stopPropagation(); window.cleanGallery.downloadImage('${image}')">
-                    <span class="download-icon">⬇️</span>
-                </div>
-            </div>
-        `).join('');
-        
-        this.attachGalleryEvents();
-    }
-    
-    attachGalleryEvents() {
-        document.querySelectorAll('.gallery-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (!e.target.closest('.download-overlay')) {
-                    const index = parseInt(item.dataset.index);
-                    this.showModal(index);
-                }
-            });
-        });
-    }
-    
-    setupModal() {
-        const modal = document.createElement('div');
-        modal.className = 'gallery-modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <button class="modal-close">×</button>
-                <button class="modal-nav modal-prev">‹</button>
-                <img src="" alt="">
-                <button class="modal-nav modal-next">›</button>
-                <button class="modal-download">DOWNLOAD IMAGE</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        this.modal = modal;
-        
-        modal.querySelector('.modal-close').addEventListener('click', () => {
-            this.hideModal();
-        });
-        
-        modal.querySelector('.modal-prev').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.previousImage();
-        });
-        
-        modal.querySelector('.modal-next').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.nextImage();
-        });
-        
-        modal.querySelector('.modal-download').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.downloadImage(this.images[this.currentImageIndex]);
-        });
-        
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hideModal();
-            }
-        });
-    }
-    
-    setupKeyboardNavigation() {
-        document.addEventListener('keydown', (e) => {
-            if (this.modal && this.modal.classList.contains('active')) {
-                switch(e.key) {
-                    case 'ArrowLeft': this.previousImage(); break;
-                    case 'ArrowRight': this.nextImage(); break;
-                    case 'Escape': this.hideModal(); break;
-                }
-            }
-        });
-    }
-    
-    showModal(index) {
-        this.currentImageIndex = index;
-        const img = this.modal.querySelector('img');
-        img.src = this.images[index];
-        this.modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-    
-    hideModal() {
-        this.modal.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    
-    nextImage() {
-        this.showModal((this.currentImageIndex + 1) % this.images.length);
-    }
-    
-    previousImage() {
-        this.showModal((this.currentImageIndex - 1 + this.images.length) % this.images.length);
-    }
-    
-    downloadImage(url) {
-        const messages = {
-            en: {
-                downloading: 'Downloading...',
-                success: 'Download started!', 
-                error: 'Download failed!'
-            },
-            ru: {
-                downloading: 'Загружаем...',
-                success: 'Загрузка началась!',
-                error: 'Ошибка загрузки!'
-            }
-        };
-        
-        const lang = localStorage.getItem('preferred-language') || 'en';
-        this.showDownloadToast(messages[lang].downloading, 'var(--bright-red)');
-        
-        fetch(url)
-            .then(response => response.blob())
-            .then(blob => {
-                const blobUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = blobUrl;
-                a.download = url.split('/').pop() || 'tsg-swag.png';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-                
-                this.showDownloadToast(messages[lang].success, 'var(--accent-green)');
-            })
-            .catch(error => {
-                console.error('Error downloading image:', error);
-                this.showDownloadToast(messages[lang].error, 'var(--primary-red)');
-                setTimeout(() => window.open(url, '_blank'), 500);
-            });
-    }
-    
-    showDownloadToast(message, color) {
-        const existingToast = document.querySelector('.download-toast');
-        if (existingToast) existingToast.remove();
-        
-        const toast = document.createElement('div');
-        toast.className = 'download-toast';
-        toast.textContent = message;
-        toast.style.background = color;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 2000);
-    }
-}
 
-// Initialize everything when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize language manager
-    if (typeof RussianLanguageManager !== 'undefined') {
-        new RussianLanguageManager();
-    }
-    
-    // Initialize gallery
-    window.cleanGallery = new CleanSwagGallery();
-});
-	</script>
-<script>
-// Russian Language Manager with Debug
-// Simple Translation System
+// Translation Manager
 class TranslationManager {
     constructor() {
         this.currentLang = 'en';
@@ -1273,19 +1089,7 @@ class TranslationManager {
     }
 }
 
-// Initialize everything properly
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize music player
-    const player = new MusicPlayer();
-    
-    // Initialize gallery
-    window.cleanGallery = new CleanSwagGallery();
-    
-    // Initialize translations
-    new TranslationManager();
-});
-
-// Clean Swag Gallery - No Filters (SINGLE VERSION - UPDATED COLORS)
+// Clean Swag Gallery
 class CleanSwagGallery {
     constructor() {
         this.images = [
@@ -1357,29 +1161,21 @@ class CleanSwagGallery {
         
         this.modal = modal;
         
-        modal.querySelector('.modal-close').addEventListener('click', () => {
-            this.hideModal();
-        });
-        
+        modal.querySelector('.modal-close').addEventListener('click', () => this.hideModal());
         modal.querySelector('.modal-prev').addEventListener('click', (e) => {
             e.stopPropagation();
             this.previousImage();
         });
-        
         modal.querySelector('.modal-next').addEventListener('click', (e) => {
             e.stopPropagation();
             this.nextImage();
         });
-        
         modal.querySelector('.modal-download').addEventListener('click', (e) => {
             e.stopPropagation();
             this.downloadImage(this.images[this.currentImageIndex]);
         });
-        
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hideModal();
-            }
+            if (e.target === modal) this.hideModal();
         });
     }
     
@@ -1431,7 +1227,7 @@ class CleanSwagGallery {
         };
         
         const lang = localStorage.getItem('preferred-language') || 'en';
-        this.showDownloadToast(messages[lang].downloading, '#fc2b39'); // primary red
+        this.showDownloadToast(messages[lang].downloading, '#fc2b39');
         
         fetch(url)
             .then(response => response.blob())
@@ -1445,12 +1241,11 @@ class CleanSwagGallery {
                 a.click();
                 window.URL.revokeObjectURL(blobUrl);
                 document.body.removeChild(a);
-                
-                this.showDownloadToast(messages[lang].success, '#10B981'); // keep green for success
+                this.showDownloadToast(messages[lang].success, '#10B981');
             })
             .catch(error => {
-                console.error('Error downloading image:', error);
-                this.showDownloadToast(messages[lang].error, '#b91c1c'); // dark red for error
+                console.error('Download error:', error);
+                this.showDownloadToast(messages[lang].error, '#b91c1c');
                 setTimeout(() => window.open(url, '_blank'), 500);
             });
     }
@@ -1469,20 +1264,32 @@ class CleanSwagGallery {
     }
 }
 
-// Final initialization - runs when DOM is ready
+// Single initialization when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing website components...');
+    console.log('Initializing Two Skinny Girls website...');
     
-    // Start music player
-    new MusicPlayer();
+    try {
+        new MusicPlayer();
+        console.log('✓ Music player initialized');
+    } catch (e) {
+        console.error('Music player failed:', e);
+    }
     
-    // Start gallery 
-    window.cleanGallery = new CleanSwagGallery();
+    try {
+        window.cleanGallery = new CleanSwagGallery();
+        console.log('✓ Gallery initialized');
+    } catch (e) {
+        console.error('Gallery failed:', e);
+    }
     
-    // Start translations
-    new TranslationManager();
+    try {
+        new TranslationManager();
+        console.log('✓ Translation system initialized');
+    } catch (e) {
+        console.error('Translation system failed:', e);
+    }
     
-    console.log('All components initialized successfully!');
+    console.log('Website initialization complete!');
 });
 </script>
 </body>
