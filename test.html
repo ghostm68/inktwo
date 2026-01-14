@@ -262,8 +262,6 @@ input[type=range] { width: 100%; accent-color: #d32f2f; }
     </div>
 
 
-</body>
-
     <script>
         // 1. ERROR CATCHER: This will tell you if your list is broken
         window.onerror = function(msg, url, lineNo, columnNo, error) {
@@ -4248,142 +4246,125 @@ ID,TITLE
 2902,"kim novak's vertigo"
 `;
 
-        // ======================================================
-        // LOGIC: MERGE THE TWO LISTS
-        // ======================================================
-        let allMovies = [];
+      // ======================================================
+    // 3. HYBRID MERGE & DISPLAY LOGIC
+    // ======================================================
+    let allMovies = [];
+    let currentIndex = 0;
+    const batchSize = 50;
 
-        function mergeLists() {
-            // 1. Add all finished entries first
-            allMovies = [...finishedEntries];
-            
-            // Create a set of IDs we already have so we don't duplicate
-            const existingIds = new Set(finishedEntries.map(m => m.id));
+    function mergeLists() {
+        // 1. Add all finished entries
+        allMovies = [...finishedEntries];
+        const completedIds = new Set(finishedEntries.map(m => m.id));
 
-            // 2. Parse the Raw CSV
-            const lines = rawCSV.trim().split('\n');
-            
-            lines.forEach(line => {
-                // Regex to find ID and Title from CSV format: 123,"_Title"
-                const match = line.match(/^(\d+),"?(.+?)"?$/);
-                
-                if (match) {
-                    const id = parseInt(match[1]);
+        // 2. Parse the CSV
+        const lines = rawCSV.trim().split('\n');
+        
+        lines.forEach(line => {
+            const match = line.match(/^(\d+),"?(.+?)"?$/);
+            if (match) {
+                const id = parseInt(match[1]);
+                if (!completedIds.has(id)) {
+                    let rawText = match[2];
+                    if (rawText.startsWith('_')) rawText = rawText.substring(1).trim();
                     
-                    // ONLY add if we don't already have this ID in the finished list
-                    if (!existingIds.has(id)) {
-                        let rawTitle = match[2];
-                        
-                        // Basic cleanup of the raw title (remove underscore)
-                        if (rawTitle.startsWith('_')) rawTitle = rawTitle.substring(1).trim();
-
-                        // Try to extract year from title if present: "Movie (1999)"
-                        let year = "";
-                        let cleanTitle = rawTitle;
-                        const yearMatch = rawTitle.match(/[(,]?\s*(\d{4})\s*[)]?/);
-                        
-                        if (yearMatch) {
-                            year = yearMatch[1];
-                            cleanTitle = rawTitle.replace(yearMatch[0], "").trim(); // Remove year from title
-                        }
-
-                        // Add to master list
-                        allMovies.push({
-                            id: id,
-                            title: cleanTitle,
-                            year: year,       // Will be empty if not found
-                            director: "",     // Will be empty
-                            verified: false
-                        });
+                    let year = "";
+                    let title = rawText;
+                    const yearMatch = rawText.match(/[(,]?\s*(\d{4})\s*[)]?/);
+                    if (yearMatch) {
+                        year = yearMatch[1];
+                        title = rawText.replace(yearMatch[0], "").trim();
                     }
+
+                    allMovies.push({
+                        id: id,
+                        title: title,
+                        year: year,
+                        director: "",
+                        verified: false
+                    });
                 }
-            });
-
-            // 3. Sort by ID to keep it in order
-            allMovies.sort((a, b) => a.id - b.id);
-        }
-
-        // ======================================================
-        // DISPLAY LOGIC
-        // ======================================================
-        let currentIndex = 0;
-        const batchSize = 50;
-
-        function displayMovies(startIndex = 0) {
-            const tableBody = document.getElementById('movieList');
-            tableBody.innerHTML = '';
-            
-            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
-            let dataToShow = allMovies;
-
-            if(searchTerm) {
-                 dataToShow = allMovies.filter(m => 
-                    m.title.toLowerCase().includes(searchTerm) ||
-                    (m.director && m.director.toLowerCase().includes(searchTerm)) ||
-                    (m.id.toString() === searchTerm)
-                );
-            } else {
-                const endIndex = Math.min(startIndex + batchSize, allMovies.length);
-                dataToShow = allMovies.slice(startIndex, endIndex);
             }
-            
-            dataToShow.forEach(movie => {
-                const row = document.createElement('tr');
-                
-                // If verified, show normally. If not, show "---" or placeholders
-                const yearText = movie.year ? movie.year : '<span class="missing-data">---</span>';
-                const dirText = movie.director ? movie.director : '<span class="missing-data">---</span>';
+        });
 
-                row.innerHTML = `
-                    <td class="id-cell">${movie.id}</td>
-                    <td style="color: ${movie.verified ? '#fff' : '#aaa'}">${movie.title}</td>
-                    <td class="year-cell">${yearText}</td>
-                    <td class="director-cell">${dirText}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-            updateStats();
+        // 3. Sort by ID
+        allMovies.sort((a, b) => a.id - b.id);
+    }
+
+    function displayMovies(startIndex = 0) {
+        const tableBody = document.getElementById('movieList');
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+        
+        const searchTerm = document.getElementById('searchBox') ? document.getElementById('searchBox').value.toLowerCase() : "";
+        let dataToShow = allMovies;
+
+        if(searchTerm) {
+             dataToShow = allMovies.filter(m => 
+                m.title.toLowerCase().includes(searchTerm) ||
+                (m.director && m.director.toLowerCase().includes(searchTerm)) ||
+                m.id.toString() === searchTerm
+            );
+        } else {
+            const endIndex = Math.min(startIndex + batchSize, allMovies.length);
+            dataToShow = allMovies.slice(startIndex, endIndex);
         }
         
-       function updateStats() {
+        dataToShow.forEach(movie => {
+            const row = document.createElement('tr');
+            const yearDisplay = movie.year ? movie.year : '<span style="color:#555">---</span>';
+            const dirDisplay = movie.director ? movie.director : '<span style="color:#555">---</span>';
+            const rowColor = movie.verified ? '#e0e0e0' : '#999';
+
+            row.innerHTML = `
+                <td class="id-cell">${movie.id}</td>
+                <td class="title-cell" style="color:${rowColor}">${movie.title}</td>
+                <td class="year-cell">${yearDisplay}</td>
+                <td class="director-cell">${dirDisplay}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+        updateStats();
+    }
+    
+    function updateStats() {
         const total = allMovies.length;
         const verified = allMovies.filter(m => m.verified).length;
         const pending = total - verified;
         
-        // 1. Update Total (Checks if element exists first)
-        const totalEl = document.getElementById('totalCount');
-        if (totalEl) totalEl.textContent = total;
-
-        // 2. Update Verified
-        const verifiedEl = document.getElementById('verifiedCount');
-        if (verifiedEl) verifiedEl.textContent = verified;
-
-        // 3. Update Pending (Tries all common names to be safe)
-        const pendingEl = document.getElementById('pendingCount') || 
-                          document.getElementById('missingCount') || 
-                          document.getElementById('remainingCount');
+        if(document.getElementById('totalCount')) document.getElementById('totalCount').textContent = total;
+        if(document.getElementById('verifiedCount')) document.getElementById('verifiedCount').textContent = verified;
         
-        if (pendingEl) pendingEl.textContent = pending;
+        const pendingEl = document.getElementById('pendingCount') || document.getElementById('missingCount');
+        if(pendingEl) pendingEl.textContent = pending;
     }
 
-        function showNextBatch() {
-            if(document.getElementById('searchBox').value !== "") return;
-            currentIndex += batchSize;
-            if (currentIndex >= allMovies.length) currentIndex = 0;
-            displayMovies(currentIndex);
-            window.scrollTo(0, 0);
-        }
-
-// ==========================================
-    // EXPORT & NAVIGATION FUNCTIONS
     // ==========================================
+    // NAVIGATION & EXPORT
+    // ==========================================
+    function showNextBatch() {
+        if(document.getElementById('searchBox').value !== "") return;
+        currentIndex += batchSize;
+        if (currentIndex >= allMovies.length) currentIndex = 0;
+        displayMovies(currentIndex);
+        window.scrollTo(0, 0);
+    }
+
+    function showPrevBatch() {
+        if(document.getElementById('searchBox').value !== "") return;
+        currentIndex -= batchSize;
+        if (currentIndex < 0) currentIndex = 0; 
+        displayMovies(currentIndex);
+        window.scrollTo(0, 0);
+    }
 
     function exportCSV() {
         let csv = 'ID,Title,Year,Director\n';
         allMovies.forEach(m => {
-            const safeTitle = m.title.replace(/"/g, '""'); 
-            const safeDir = m.director ? m.director.replace(/"/g, '""') : "";
-            csv += `${m.id},"${safeTitle}",${m.year || ''},"${safeDir}"\n`;
+            let t = m.title.replace(/"/g, '""');
+            let d = m.director ? m.director.replace(/"/g, '""') : "";
+            csv += `${m.id},"${t}",${m.year || ''},"${d}"\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a');
@@ -4404,18 +4385,11 @@ ID,TITLE
         a.click();
     }
 
-    function showPrevBatch() {
-        if(document.getElementById('searchBox').value !== "") return;
-        currentIndex -= batchSize;
-        if (currentIndex < 0) currentIndex = 0; 
-        displayMovies(currentIndex);
-        window.scrollTo(0, 0);
-    }
+    function searchMovies() { displayMovies(0); }
 
     // ==========================================
-    // AI / NVIDIA INTEGRATION LOGIC
+    // AI / NVIDIA LOGIC (These were missing!)
     // ==========================================
-
     function openAIModal() {
         document.getElementById('ai-modal').style.display = 'block';
         document.getElementById('ai-overlay').style.display = 'block';
@@ -4444,7 +4418,6 @@ ID,TITLE
         genBtn.textContent = "THINKING...";
         outputBox.textContent = "⏳ Accessing Nvidia Nemotron via Proxy...";
 
-        // Context: Grab only the visible movies to send to AI
         const visibleData = allMovies.slice(currentIndex, currentIndex + batchSize);
         const contextList = visibleData.map(m => 
             `- ${m.title} (${m.year || '?'}) Dir: ${m.director || '?'}`
@@ -4487,20 +4460,13 @@ ID,TITLE
         }
     }
 
-    function searchMovies() { displayMovies(0); }
-
     // ==========================================
-    // SYSTEM STARTUP
+    // STARTUP
     // ==========================================
     window.onload = function() {
-        // Ensure mergeLists exists before calling it
-        if (typeof mergeLists === "function") {
-            mergeLists();
-            displayMovies(0);
-        } else {
-            console.error("Critical Error: mergeLists function is missing.");
-        }
+        mergeLists();
+        displayMovies(0);
     };
-</body>
+    </body>
 </html>
 
