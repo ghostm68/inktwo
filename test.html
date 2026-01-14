@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Movie List: Writers on Film</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .stats {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .movie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .movie-table th {
+            background: #4CAF50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        .movie-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .movie-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .movie-table tr:hover {
+            background: #e8f5e9;
+        }
+        .id-cell {
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+        }
+        .director-cell {
+            color: #2196F3;
+        }
+        .year-cell {
+            color: #FF5722;
+            font-weight: bold;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .highlight-new {
+            animation: highlight 2s;
+        }
+        @keyframes highlight {
+            0% { background: #ffffcc; }
+            100% { background: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Writers on Film Database</h1>
+        
+        <div class="stats">
+            📊 <strong>Total Movies:</strong> <span id="totalCount">0</span> | 
+            ✅ <strong>Verified:</strong> <span id="verifiedCount">0</span> |
+            ⏳ <strong>Remaining:</strong> <span id="remainingCount">0</span>
+        </div>
+        
+        <div class="controls">
+            <button onclick="showNextBatch()">Show Next 50</button>
+            <button onclick="exportCSV()">Export to CSV</button>
+            <button onclick="markAsVerified()">Mark as Verified</button>
+            <input type="text" id="searchBox" placeholder="Search movies..." onkeyup="searchMovies()">
+        </div>
+        
+        <table class="movie-table" id="movieTable">
+            <thead>
+                <tr>
+                    <th width="5%">ID</th>
+                    <th width="45%">Title</th>
+                    <th width="15%">Year</th>
+                    <th width="35%">Director</th>
+                </tr>
+            </thead>
+            <tbody id="movieList">
+                <!-- Data will be inserted here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Your movie data (we'll start with what you have)
+        const movies = [
+            {id: 0, title: "This Is Joan Collins", year: 2023, director: "Dominic Barlow", verified: true},
+            {id: 1, title: "The Diary of Anne Frank", year: 1959, director: "George Stevens", verified: true},
+            {id: 2, title: "Mrs. Parker and the Vicious Circle", year: 1994, director: "Alan Rudolph", verified: true},
+            {id: 4, title: "The Ghost Writer", year: 2010, director: "Roman Polanski", verified: true},
+            {id: 5, title: "Swimming Pool", year: 2003, director: "François Ozon", verified: true},
+            {id: 6, title: "Naked Lunch", year: 1991, director: "David Cronenberg", verified: true},
+            {id: 7, title: "Total Eclipse", year: 1995, director: "Agnieszka Holland", verified: true},
+            {id: 8, title: "Reds", year: 1981, director: "Warren Beatty", verified: true},
+            {id: 9, title: "Prozac Nation", year: 2001, director: "Erik Skjoldbjærg", verified: true},
+            {id: 10, title: "Adaptation", year: 2002, director: "Spike Jonze", verified: true},
+            {id: 11, title: "Paura e delirio", year: 1975, director: "Stuart Hagmann", verified: true},
+            {id: 12, title: "Wonder Boys", year: 2000, director: "Curtis Hanson", verified: true},
+            {id: 13, title: "Lolita", year: 1962, director: "Stanley Kubrick", verified: true},
+            {id: 14, title: "Lolita", year: 1998, director: "Adrian Lyne", verified: true},
+            {id: 15, title: "The Low Life", year: 1995, director: "George Hickenlooper", verified: true},
+            {id: 16, title: "The Hours", year: 2002, director: "Stephen Daldry", verified: true},
+            {id: 17, title: "La Dolce Vita", year: 1960, director: "Federico Fellini", verified: true},
+            {id: 18, title: "Shakespeare in Love", year: 1998, director: "John Madden", verified: true},
+            {id: 19, title: "Quills", year: 2000, director: "Philip Kaufman", verified: true},
+            {id: 20, title: "Before Night Falls", year: 2000, director: "Julian Schnabel", verified: true},
+            {id: 21, title: "Il Postino: The Postman", year: 1994, director: "Michael Radford", verified: true},
+{id: 22, title: "Piñero", year: 2001, director: "Leon Ichaso", verified: true},
+{id: 23, title: "Heart Beat", year: 1980, director: "John Byrum", verified: true},
+{id: 24, title: "Veronica Guerin", year: 2003, director: "Joel Schumacher", verified: true},
+{id: 25, title: "Tom & Viv", year: 1994, director: "Brian Gilbert", verified: true},
+{id: 26, title: "Skipped Parts", year: 2000, director: "Tamra Davis", verified: true},
+{id: 27, title: "Barton Fink", year: 1991, director: "Joel Coen", verified: true},
+{id: 28, title: "Last Call", year: 2002, director: "Henry Bromell", verified: true},
+{id: 29, title: "The Bell Jar", year: 1979, director: "Larry Peerce", verified: true},
+{id: 30, title: "Sylvia", year: 2003, director: "Christine Jeffs", verified: true},
+{id: 31, title: "The Shipping News", year: 2001, director: "Lasse Hallström", verified: true},
+{id: 32, title: "Suffering Man's Charity", year: 2007, director: "Alexei Kaleina", verified: true},
+{id: 33, title: "Wilde", year: 1997, director: "Brian Gilbert", verified: true},
+{id: 34, title: "The Disappearance of Garcia Lorca", year: 1997, director: "Marcos Zurinaga", verified: true},
+{id: 35, title: "Sunset Boulevard", year: 1950, director: "Billy Wilder", verified: true},
+{id: 36, title: "The Anniversary Party", year: 2001, director: "Jennifer Jason Leigh, Alan Cumming", verified: true},
+{id: 37, title: "Everyone Says I Love You", year: 1996, director: "Woody Allen", verified: true},
+{id: 38, title: "The Shining", year: 1980, director: "Stanley Kubrick", verified: true},
+{id: 39, title: "Nora", year: 2000, director: "Pat Murphy", verified: true},
+{id: 40, title: "Mother Night", year: 1996, director: "Keith Gordon", verified: true},
+{id: 41, title: "Letter from an Unknown Woman", year: 1948, director: "Max Ophüls", verified: true},
+{id: 42, title: "Finding Forrester", year: 2000, director: "Gus Van Sant", verified: true},
+{id: 43, title: "Roman Holiday", year: 1953, director: "William Wyler", verified: true},
+{id: 44, title: "Blue Car", year: 2002, director: "Karen Moncrieff", verified: true},
+{id: 45, title: "Don't Look Back", year: 1967, director: "D.A. Pennebaker", verified: true},
+{id: 46, title: "Don't Look Back", year: 2009, director: "Marina de Van", verified: true},
+{id: 47, title: "American Splendor", year: 2003, director: "Shari Springer Berman, Robert Pulcini", verified: true},
+{id: 48, title: "Shadowlands", year: 1993, director: "Richard Attenborough", verified: true},
+{id: 49, title: "Annie Hall", year: 1977, director: "Woody Allen", verified: true},
+{id: 50, title: "Secret Window", year: 2004, director: "David Koepp", verified: true},
+{id: 51, title: "Arsenic and Old Lace", year: 1944, director: "Frank Capra", verified: true},
+{id: 52, title: "The Man from Elysian Fields", year: 2001, director: "George Hickenlooper", verified: true},
+{id: 53, title: "Born Into This", year: 2007, director: "Sally Aitken", verified: true},
+{id: 54, title: "Little Women", year: 1994, director: "Gillian Armstrong", verified: true},
+{id: 55, title: "8 Mile", year: 2002, director: "Curtis Hanson", verified: true},
+{id: 56, title: "The Front", year: 1976, director: "Martin Ritt", verified: true},
+{id: 57, title: "As Good as It Gets", year: 1997, director: "James L. Brooks", verified: true},
+{id: 58, title: "Spymaker: The Secret Life of Ian Fleming", year: 1990, director: "Ferdinand Fairfax", verified: true},
+{id: 59, title: "The Muse", year: 1999, director: "Albert Brooks", verified: true},
+{id: 60, title: "Unforgiven", year: 1992, director: "Clint Eastwood", verified: true},
+{id: 61, title: "Bullets Over Broadway", year: 1994, director: "Woody Allen", verified: true},
+{id: 62, title: "The Producers", year: 1967, director: "Mel Brooks", verified: true},
+{id: 63, title: "Author! Author!", year: 1982, director: "Arthur Hiller", verified: true},
+{id: 64, title: "Chapter Two", year: 1979, director: "Robert Moore", verified: true},
+{id: 65, title: "Autumn Memories", year: 1993, director: "Marja Pyykkö", verified: true},
+{id: 66, title: "The Loves of Edgar Allan Poe", year: 1942, director: "Harry Lachman", verified: true},
+{id: 67, title: "The Man with a Cloak", year: 1951, director: "Fletcher Markle", verified: true},
+{id: 68, title: "Torture Garden", year: 1967, director: "Freddie Francis", verified: true},
+{id: 70, title: "Something's Gotta Give", year: 2003, director: "Nancy Meyers", verified: true},
+{id: 71, title: "Alex & Emma", year: 2003, director: "Rob Reiner", verified: true},
+{id: 72, title: "Every Word Is True", year: 2006, director: "John Krokidas", verified: true},
+{id: 73, title: "Kinsey", year: 2004, director: "Bill Condon", verified: true},
+{id: 74, title: "In My Country", year: 2004, director: "John Boorman", verified: true},
+{id: 75, title: "Taxi", year: 1998, director: "Juliusz Machulski", verified: true},
+{id: 76, title: "Moulin Rouge!", year: 2001, director: "Baz Luhrmann", verified: true},
+{id: 77, title: "Finding Neverland", year: 2004, director: "Marc Forster", verified: true},
+{id: 78, title: "The Motorcycle Diaries", year: 2004, director: "Walter Salles", verified: true},
+{id: 79, title: "The Kiss", year: 1998, director: "Mimi Leder", verified: true},
+{id: 80, title: "This World, Then the Fireworks", year: 1997, director: "Michael Oblowitz", verified: true},
+{id: 81, title: "Divine Secrets of the Ya-Ya Sisterhood", year: 2002, director: "Callie Khouri", verified: true},
+{id: 82, title: "The Philadelphia Story", year: 1940, director: "George Cukor", verified: true},
+{id: 83, title: "Hemingway", year: 2021, director: "Ken Burns, Lynn Novick", verified: true},
+{id: 84, title: "The Rum Diary", year: 2011, director: "Bruce Robinson", verified: true},
+{id: 85, title: "The Crush", year: 1993, director: "Alan Shapiro", verified: true},
+{id: 86, title: "Where the Truth Lies", year: 2005, director: "Atom Egoyan", verified: true},
+{id: 87, title: "All the President's Men", year: 1976, director: "Alan J. Pakula", verified: true},
+{id: 88, title: "Ask the Dust", year: 2006, director: "Robert Towne", verified: true},
+{id: 89, title: "Kalifornia", year: 1993, director: "Dominic Sena", verified: true},
+{id: 90, title: "The Door in the Floor", year: 2004, director: "Tod Williams", verified: true},
+{id: 91, title: "Sideways", year: 2004, director: "Alexander Payne", verified: true},
+{id: 92, title: "Dogville", year: 2003, director: "Lars von Trier", verified: true},
+{id: 93, title: "Little Man Tate", year: 1991, director: "Jodie Foster", verified: true},
+{id: 94, title: "Neverwas", year: 2005, director: "Joshua Michael Stern", verified: true},
+{id: 95, title: "King Lear", year: 1987, director: "Jean-Luc Godard", verified: true},
+{id: 96, title: "The Vanishing", year: 1988, director: "George Sluizer", verified: true},
+{id: 97, title: "How to Lose a Guy in 10 Days", year: 2003, director: "Donald Petrie", verified: true},
+{id: 98, title: "Everyone Says I Love You", year: 1996, director: "Woody Allen", verified: true},
+{id: 99, title: "Field of Dreams", year: 1989, director: "Phil Alden Robinson", verified: true},
+{id: 100, title: "The Last Shot", year: 2004, director: "Jeff Nathanson", verified: true},
+        ];
+
+        // Initialize
+        let currentIndex = 0;
+        const batchSize = 50;
+        
+        function displayMovies(startIndex = 0) {
+            const tableBody = document.getElementById('movieList');
+            tableBody.innerHTML = '';
+            
+            const endIndex = Math.min(startIndex + batchSize, movies.length);
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                const movie = movies[i];
+                const row = document.createElement('tr');
+                if (movie.verified) {
+                    row.classList.add('highlight-new');
+                }
+                
+                row.innerHTML = `
+                    <td class="id-cell">${movie.id}</td>
+                    <td>${movie.title}</td>
+                    <td class="year-cell">${movie.year || '?'}</td>
+                    <td class="director-cell">${movie.director || '?'}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            }
+            
+            updateStats();
+        }
+        
+        function updateStats() {
+            const total = movies.length;
+            const verified = movies.filter(m => m.verified).length;
+            
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('verifiedCount').textContent = verified;
+            document.getElementById('remainingCount').textContent = total - verified;
+        }
+        
+        function showNextBatch() {
+            currentIndex += batchSize;
+            if (currentIndex >= movies.length) {
+                currentIndex = 0;
+            }
+            displayMovies(currentIndex);
+        }
+        
+        function exportCSV() {
+            let csv = 'ID,Title,Year,Director\n';
+            movies.forEach(movie => {
+                csv += `${movie.id},"${movie.title}",${movie.year},"${movie.director}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'movies_verified.csv';
+            a.click();
+        }
+        
+        function markAsVerified() {
+            // This would mark the currently selected movies as verified
+            alert('You can add logic here to mark movies as verified');
+        }
+        
+        function searchMovies() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const filtered = movies.filter(movie => 
+                movie.title.toLowerCase().includes(searchTerm) ||
+                movie.director.toLowerCase().includes(searchTerm)
+            );
+            
+            const tableBody = document.getElementById('movieList');
+            tableBody.innerHTML = '';
+            
+            filtered.forEach(movie => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="id-cell">${movie.id}</td>
+                    <td>${movie.title}</td>
+                    <td class="year-cell">${movie.year || '?'}</td>
+                    <td class="director-cell">${movie.director || '?'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Initial display
+        displayMovies();
+    </script>
+</body>
+</html>
