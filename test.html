@@ -145,6 +145,30 @@
         /* Error Box */
         #error-box { display: none; background: #d32f2f; color: white; padding: 15px; margin-bottom: 20px; font-weight: bold; border: 2px solid white; }
     </style>
+    <style>
+        /* AI TERMINAL STYLING */
+#ai-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99; backdrop-filter: blur(2px); }
+#ai-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid #d32f2f; z-index: 100; width: 90%; max-width: 700px; box-shadow: 0 0 30px rgba(211, 47, 47, 0.3); border-radius: 8px; overflow: hidden; }
+
+.ai-header { background: #d32f2f; color: white; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+.ai-body { padding: 20px; }
+
+.ai-input-group { margin-bottom: 15px; }
+.ai-input-group label { display: block; color: #999; margin-bottom: 5px; font-size: 0.9em; }
+.ai-input-group input, .ai-input-group textarea, .ai-input-group select { 
+    width: 100%; background: #222; border: 1px solid #444; color: white; padding: 10px; font-family: monospace; border-radius: 4px; box-sizing: border-box;
+}
+.ai-input-group input:focus, .ai-input-group textarea:focus { border-color: #d32f2f; outline: none; }
+
+.ai-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+.ai-output-box { 
+    background: #000; border: 1px solid #333; color: #0f0; padding: 15px; 
+    font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px;
+}
+
+/* Range Slider Styling */
+input[type=range] { width: 100%; accent-color: #d32f2f; }
+    </style>
 </head>
 <body>
 
@@ -153,23 +177,37 @@
         <div id="error-box"></div>
 
         <h1>
-            <span class="mono-icon">🎞</span> Writers on Film Database
+            <span class="mono-icon">🎞</span> Codex 1991
         </h1>
         
         <!-- INVERTED STATS BAR -->
         <div class="stats">
             <div><span class="mono-icon">☰</span> Total: <span id="totalCount">0</span></div>
             <div><span class="mono-icon">✓</span> Verified: <span id="verifiedCount">0</span></div>
+            <div><span class="mono-icon">⚠️</span> Pending: <span id="pendingCount">0</span></div>
         </div>
         
+        <!-- CONTROLS -->
         <div class="controls">
-            <div>
-                <button onclick="showNextBatch()">Show Next 50</button>
-                <button onclick="exportCSV()">Export CSV</button>
+            <div style="display:flex; gap: 10px; flex-wrap:wrap; align-items: center;">
+                <!-- NAVIGATION -->
+                <button onclick="showPrevBatch()">◄ Prev</button>
+                <button onclick="showNextBatch()">Next ►</button>
+                
+                <!-- EXPORTS -->
+                <button onclick="window.print()">🖨️ PDF</button>
+                <button onclick="exportTXT()">📄 Text</button>
+                <button onclick="exportCSV()">📊 CSV</button>
+                
+                <!-- AI TRIGGER BUTTON (This was missing!) -->
+                <button onclick="openAIModal()" style="border: 1px solid #d32f2f; background: #222; color: #d32f2f;">👁️ Insight</button>
             </div>
-            <input type="text" id="searchBox" placeholder="Search database..." onkeyup="searchMovies()">
+
+            <!-- SEARCH BOX (Keeps layout clean) -->
+            <input type="text" id="searchBox" placeholder="Search title, year, director..." onkeyup="searchMovies()">
         </div>
         
+        <!-- TABLE -->
         <table class="movie-table">
             <thead>
                 <tr>
@@ -182,6 +220,49 @@
             <tbody id="movieList"></tbody>
         </table>
     </div>
+
+    <!-- AI MODAL (Moved outside container for better layering) -->
+    <div id="ai-overlay" onclick="closeAIModal()"></div>
+
+    <div id="ai-modal">
+        <div class="ai-header">
+            <span>🤖 NVIDIA NEMOTRON INTELLIGENCE</span>
+            <button onclick="closeAIModal()" style="background:transparent; border:none; color:white; font-size:1.2em; cursor:pointer;">&times;</button>
+        </div>
+        
+        <div class="ai-body">
+            <!-- API KEY -->
+            <div class="ai-input-group">
+                <label>NVIDIA API Key (saved automatically):</label>
+                <input type="password" id="nvidiaKey" placeholder="nvapi-...">
+            </div>
+
+            <!-- CONTEXT & PROMPT -->
+            <div class="ai-input-group">
+                <label>Context (Current Movie List):</label>
+                <div style="color: #666; font-size: 0.8em; margin-bottom: 5px;">
+                    The AI will analyze the 50 movies currently visible on your screen.
+                </div>
+                <textarea id="aiPrompt" rows="2" placeholder="Ask a question about these movies... (e.g., 'What is the common theme?' or 'Pick a random one and give me a trivia fact.')"></textarea>
+            </div>
+
+            <!-- CONTROLS -->
+            <div class="ai-controls">
+                <div style="flex-grow: 1;">
+                    <label style="color:#999; font-size:0.8em;">Creativity: <span id="tempValue">0.7</span></label>
+                    <input type="range" id="aiTemp" min="0.1" max="1.0" step="0.1" value="0.7" oninput="document.getElementById('tempValue').textContent = this.value">
+                </div>
+                <button onclick="generateInsight()" id="genBtn" style="background:#d32f2f; color:white; padding:10px 20px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🚀 ANALYZE</button>
+            </div>
+
+            <!-- OUTPUT -->
+            <label style="color:#999; font-size:0.9em;">System Output:</label>
+            <div id="aiOutput" class="ai-output-box">Ready. Enter Key and ask a question.</div>
+        </div>
+    </div>
+
+
+</body>
 
     <script>
         // 1. ERROR CATCHER: This will tell you if your list is broken
@@ -4293,27 +4374,133 @@ ID,TITLE
             window.scrollTo(0, 0);
         }
 
-        function exportCSV() {
-            let csv = 'ID,Title,Year,Director\n';
-            allMovies.forEach(m => {
-                const safeTitle = m.title.replace(/"/g, '""'); 
-                const safeDir = m.director ? m.director.replace(/"/g, '""') : "";
-                csv += `${m.id},"${safeTitle}",${m.year || ''},"${safeDir}"\n`;
+// ==========================================
+    // EXPORT & NAVIGATION FUNCTIONS
+    // ==========================================
+
+    function exportCSV() {
+        let csv = 'ID,Title,Year,Director\n';
+        allMovies.forEach(m => {
+            const safeTitle = m.title.replace(/"/g, '""'); 
+            const safeDir = m.director ? m.director.replace(/"/g, '""') : "";
+            csv += `${m.id},"${safeTitle}",${m.year || ''},"${safeDir}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = 'codex1991_full.csv';
+        a.click();
+    }
+
+    function exportTXT() {
+        let txt = 'INKREALM CODEX EXPORT\n=====================\n\n';
+        allMovies.forEach(m => {
+            txt += `[${m.id}] ${m.title} (${m.year || '----'}) - Dir. ${m.director || 'Unknown'}\n`;
+        });
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = 'codex_export.txt';
+        a.click();
+    }
+
+    function showPrevBatch() {
+        if(document.getElementById('searchBox').value !== "") return;
+        currentIndex -= batchSize;
+        if (currentIndex < 0) currentIndex = 0; 
+        displayMovies(currentIndex);
+        window.scrollTo(0, 0);
+    }
+
+    // ==========================================
+    // AI / NVIDIA INTEGRATION LOGIC
+    // ==========================================
+
+    function openAIModal() {
+        document.getElementById('ai-modal').style.display = 'block';
+        document.getElementById('ai-overlay').style.display = 'block';
+        const savedKey = localStorage.getItem('inkrealm_nvidia_key');
+        if(savedKey) document.getElementById('nvidiaKey').value = savedKey;
+    }
+
+    function closeAIModal() {
+        document.getElementById('ai-modal').style.display = 'none';
+        document.getElementById('ai-overlay').style.display = 'none';
+    }
+
+    async function generateInsight() {
+        const key = document.getElementById('nvidiaKey').value.trim();
+        const userPrompt = document.getElementById('aiPrompt').value.trim();
+        const temp = parseFloat(document.getElementById('aiTemp').value);
+        const outputBox = document.getElementById('aiOutput');
+        const genBtn = document.getElementById('genBtn');
+
+        if (!key) { outputBox.textContent = "❌ Error: Missing API Key."; return; }
+        if (!userPrompt) { outputBox.textContent = "❌ Error: Please enter a prompt."; return; }
+
+        localStorage.setItem('inkrealm_nvidia_key', key);
+
+        genBtn.disabled = true;
+        genBtn.textContent = "THINKING...";
+        outputBox.textContent = "⏳ Accessing Nvidia Nemotron via Proxy...";
+
+        // Context: Grab only the visible movies to send to AI
+        const visibleData = allMovies.slice(currentIndex, currentIndex + batchSize);
+        const contextList = visibleData.map(m => 
+            `- ${m.title} (${m.year || '?'}) Dir: ${m.director || '?'}`
+        ).join("\n");
+
+        try {
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+            const requestBody = {
+                model: "nvidia/nvidia-nemotron-nano-9b-v2", 
+                messages: [
+                    { "role": "system", "content": "You are the InkRealm Codex AI, an expert film historian. Analyze the provided list of movies." },
+                    { "role": "user", "content": `Here is the current list of movies:\n${contextList}\n\nMY QUESTION: ${userPrompt}` }
+                ],
+                temperature: temp,
+                top_p: 0.9,
+                max_tokens: 1024,
+                stream: false
+            };
+
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
             });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob);
-            a.download = 'writers_on_film_full.csv';
-            a.click();
+
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            const data = await response.json();
+            
+            if (data.choices && data.choices[0]) {
+                outputBox.textContent = data.choices[0].message.content;
+            } else {
+                throw new Error("No response text in data.");
+            }
+        } catch (error) {
+            outputBox.textContent = "❌ Error: " + error.message;
+            console.error(error);
+        } finally {
+            genBtn.disabled = false;
+            genBtn.textContent = "🚀 ANALYZE";
         }
+    }
 
-        function searchMovies() { displayMovies(0); }
+    function searchMovies() { displayMovies(0); }
 
-        // RUN ON LOAD
-        mergeLists();
-        displayMovies();
-
-    </script>
+    // ==========================================
+    // SYSTEM STARTUP
+    // ==========================================
+    window.onload = function() {
+        // Ensure mergeLists exists before calling it
+        if (typeof mergeLists === "function") {
+            mergeLists();
+            displayMovies(0);
+        } else {
+            console.error("Critical Error: mergeLists function is missing.");
+        }
+    };
 </body>
 </html>
 
