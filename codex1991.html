@@ -1,0 +1,4318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codex1991: Writers on Film</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #000000; 
+            color: #e0e0e0;      /* Light Grey Text */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #111111; /* Very Dark Grey Container */
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.1); /* Subtle Red Glow */
+        }
+        
+        /* HEADER */
+        h1 {
+            color: #ffffff;
+            border-bottom: 3px solid #d32f2f; /* Red Accent */
+            padding-bottom: 15px;
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* MONOCHROME ICONS */
+        .mono-icon {
+            filter: grayscale(100%) contrast(150%); /* Removes color, boosts contrast */
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* INVERTED STATS BAR (White on Black Page) */
+        .stats {
+            background: #ffffff; /* WHITE BACKGROUND */
+            color: #000000;      /* BLACK TEXT */
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-left: 8px solid #d32f2f; /* Red accent */
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+        .stats span {
+            font-family: monospace;
+            font-size: 1.2em;
+            color: #d32f2f; /* Red Numbers */
+        }
+
+        /* CONTROLS */
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #1a1a1a; /* Dark Grey */
+            border: 1px solid #333;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* BUTTONS */
+        button {
+            background: #d32f2f; /* Red Button */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #ffffff;
+            color: #d32f2f;
+        }
+
+        /* SEARCH INPUT */
+        input[type="text"] {
+            padding: 10px;
+            background: #222;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 2px;
+            width: 250px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #d32f2f;
+            background: #000;
+        }
+
+        /* DARK TABLE STYLING */
+        .movie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .movie-table th {
+            background: #000; /* Black Header */
+            color: #ffffff;
+            padding: 15px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid #d32f2f; /* Red underline */
+            text-transform: uppercase;
+            font-size: 0.9em;
+            z-index: 10;
+        }
+        .movie-table td {
+            padding: 12px;
+            border-bottom: 1px solid #333; /* Dark borders */
+            vertical-align: middle;
+        }
+        
+        /* Zebra Striping for Dark Mode */
+        .movie-table tr:nth-child(even) { background: #161616; }
+        .movie-table tr:nth-child(odd) { background: #111111; }
+        
+        .movie-table tr:hover {
+            background: #222; /* Highlight on hover */
+            color: #fff;
+        }
+
+        /* COLUMNS */
+        .id-cell { text-align: center; color: #666; font-family: monospace; }
+        .title-cell { color: #e0e0e0; font-weight: 500; }
+        .year-cell { color: #d32f2f; font-weight: bold; } /* Red Year */
+        .director-cell { color: #999; font-style: italic; }
+        
+        /* Error Box */
+        #error-box { display: none; background: #d32f2f; color: white; padding: 15px; margin-bottom: 20px; font-weight: bold; border: 2px solid white; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Error Catcher -->
+        <div id="error-box"></div>
+
+        <h1>
+            <span class="mono-icon">🎞</span> Writers on Film Database
+        </h1>
+        
+        <!-- INVERTED STATS BAR -->
+        <div class="stats">
+            <div><span class="mono-icon">☰</span> Total: <span id="totalCount">0</span></div>
+            <div><span class="mono-icon">✓</span> Verified: <span id="verifiedCount">0</span></div>
+        </div>
+        
+        <div class="controls">
+            <div>
+                <button onclick="showNextBatch()">Show Next 50</button>
+                <button onclick="exportCSV()">Export CSV</button>
+            </div>
+            <input type="text" id="searchBox" placeholder="Search database..." onkeyup="searchMovies()">
+        </div>
+        
+        <table class="movie-table">
+            <thead>
+                <tr>
+                    <th width="5%">ID</th>
+                    <th width="45%">Title</th>
+                    <th width="10%">Year</th>
+                    <th width="40%">Director</th>
+                </tr>
+            </thead>
+            <tbody id="movieList"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // 1. ERROR CATCHER: This will tell you if your list is broken
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            const errorBox = document.getElementById('error-box');
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = `⚠️ ERROR DETECTED!<br>Message: ${msg}<br>Line Number: ${lineNo}<br><br>Check your movie list around line ${lineNo}. You are likely missing a comma or a quote.`;
+            return false;
+        };
+    </script>
+
+
+    <script>
+        // Your movie data (we'll start with what you have)
+          const finishedEntries = [ 
+            {id: 0, title: "This Is Joan Collins", year: 2023, director: "Dominic Barlow", verified: true},
+            {id: 1, title: "The Diary of Anne Frank", year: 1959, director: "George Stevens", verified: true},
+            {id: 2, title: "Mrs. Parker and the Vicious Circle", year: 1994, director: "Alan Rudolph", verified: true},
+            {id: 4, title: "The Ghost Writer", year: 2010, director: "Roman Polanski", verified: true},
+            {id: 5, title: "Swimming Pool", year: 2003, director: "François Ozon", verified: true},
+            {id: 6, title: "Naked Lunch", year: 1991, director: "David Cronenberg", verified: true},
+            {id: 7, title: "Total Eclipse", year: 1995, director: "Agnieszka Holland", verified: true},
+            {id: 8, title: "Reds", year: 1981, director: "Warren Beatty", verified: true},
+            {id: 9, title: "Prozac Nation", year: 2001, director: "Erik Skjoldbjærg", verified: true},
+            {id: 10, title: "Adaptation", year: 2002, director: "Spike Jonze", verified: true},
+            {id: 11, title: "Paura e delirio", year: 1975, director: "Stuart Hagmann", verified: true},
+            {id: 12, title: "Wonder Boys", year: 2000, director: "Curtis Hanson", verified: true},
+            {id: 13, title: "Lolita", year: 1962, director: "Stanley Kubrick", verified: true},
+            {id: 14, title: "Lolita", year: 1998, director: "Adrian Lyne", verified: true},
+            {id: 15, title: "The Low Life", year: 1995, director: "George Hickenlooper", verified: true},
+            {id: 16, title: "The Hours", year: 2002, director: "Stephen Daldry", verified: true},
+            {id: 17, title: "La Dolce Vita", year: 1960, director: "Federico Fellini", verified: true},
+            {id: 18, title: "Shakespeare in Love", year: 1998, director: "John Madden", verified: true},
+            {id: 19, title: "Quills", year: 2000, director: "Philip Kaufman", verified: true},
+            {id: 20, title: "Before Night Falls", year: 2000, director: "Julian Schnabel", verified: true},
+            {id: 21, title: "Il Postino: The Postman", year: 1994, director: "Michael Radford", verified: true},
+{id: 22, title: "Piñero", year: 2001, director: "Leon Ichaso", verified: true},
+{id: 23, title: "Heart Beat", year: 1980, director: "John Byrum", verified: true},
+{id: 24, title: "Veronica Guerin", year: 2003, director: "Joel Schumacher", verified: true},
+{id: 25, title: "Tom & Viv", year: 1994, director: "Brian Gilbert", verified: true},
+{id: 26, title: "Skipped Parts", year: 2000, director: "Tamra Davis", verified: true},
+{id: 27, title: "Barton Fink", year: 1991, director: "Joel Coen", verified: true},
+{id: 28, title: "Last Call", year: 2002, director: "Henry Bromell", verified: true},
+{id: 29, title: "The Bell Jar", year: 1979, director: "Larry Peerce", verified: true},
+{id: 30, title: "Sylvia", year: 2003, director: "Christine Jeffs", verified: true},
+{id: 31, title: "The Shipping News", year: 2001, director: "Lasse Hallström", verified: true},
+{id: 32, title: "Suffering Man's Charity", year: 2007, director: "Alexei Kaleina", verified: true},
+{id: 33, title: "Wilde", year: 1997, director: "Brian Gilbert", verified: true},
+{id: 34, title: "The Disappearance of Garcia Lorca", year: 1997, director: "Marcos Zurinaga", verified: true},
+{id: 35, title: "Sunset Boulevard", year: 1950, director: "Billy Wilder", verified: true},
+{id: 36, title: "The Anniversary Party", year: 2001, director: "Jennifer Jason Leigh, Alan Cumming", verified: true},
+{id: 37, title: "Everyone Says I Love You", year: 1996, director: "Woody Allen", verified: true},
+{id: 38, title: "The Shining", year: 1980, director: "Stanley Kubrick", verified: true},
+{id: 39, title: "Nora", year: 2000, director: "Pat Murphy", verified: true},
+{id: 40, title: "Mother Night", year: 1996, director: "Keith Gordon", verified: true},
+{id: 41, title: "Letter from an Unknown Woman", year: 1948, director: "Max Ophüls", verified: true},
+{id: 42, title: "Finding Forrester", year: 2000, director: "Gus Van Sant", verified: true},
+{id: 43, title: "Roman Holiday", year: 1953, director: "William Wyler", verified: true},
+{id: 44, title: "Blue Car", year: 2002, director: "Karen Moncrieff", verified: true},
+{id: 45, title: "Don't Look Back", year: 1967, director: "D.A. Pennebaker", verified: true},
+{id: 46, title: "Don't Look Back", year: 2009, director: "Marina de Van", verified: true},
+{id: 47, title: "American Splendor", year: 2003, director: "Shari Springer Berman, Robert Pulcini", verified: true},
+{id: 48, title: "Shadowlands", year: 1993, director: "Richard Attenborough", verified: true},
+{id: 49, title: "Annie Hall", year: 1977, director: "Woody Allen", verified: true},
+{id: 50, title: "Secret Window", year: 2004, director: "David Koepp", verified: true},
+{id: 51, title: "Arsenic and Old Lace", year: 1944, director: "Frank Capra", verified: true},
+{id: 52, title: "The Man from Elysian Fields", year: 2001, director: "George Hickenlooper", verified: true},
+{id: 53, title: "Born Into This", year: 2007, director: "Sally Aitken", verified: true},
+{id: 54, title: "Little Women", year: 1994, director: "Gillian Armstrong", verified: true},
+{id: 55, title: "8 Mile", year: 2002, director: "Curtis Hanson", verified: true},
+{id: 56, title: "The Front", year: 1976, director: "Martin Ritt", verified: true},
+{id: 57, title: "As Good as It Gets", year: 1997, director: "James L. Brooks", verified: true},
+{id: 58, title: "Spymaker: The Secret Life of Ian Fleming", year: 1990, director: "Ferdinand Fairfax", verified: true},
+{id: 59, title: "The Muse", year: 1999, director: "Albert Brooks", verified: true},
+{id: 60, title: "Unforgiven", year: 1992, director: "Clint Eastwood", verified: true},
+{id: 61, title: "Bullets Over Broadway", year: 1994, director: "Woody Allen", verified: true},
+{id: 62, title: "The Producers", year: 1967, director: "Mel Brooks", verified: true},
+{id: 63, title: "Author! Author!", year: 1982, director: "Arthur Hiller", verified: true},
+{id: 64, title: "Chapter Two", year: 1979, director: "Robert Moore", verified: true},
+{id: 65, title: "Autumn Memories", year: 1993, director: "Marja Pyykkö", verified: true},
+{id: 66, title: "The Loves of Edgar Allan Poe", year: 1942, director: "Harry Lachman", verified: true},
+{id: 67, title: "The Man with a Cloak", year: 1951, director: "Fletcher Markle", verified: true},
+{id: 68, title: "Torture Garden", year: 1967, director: "Freddie Francis", verified: true},
+{id: 70, title: "Something's Gotta Give", year: 2003, director: "Nancy Meyers", verified: true},
+{id: 71, title: "Alex & Emma", year: 2003, director: "Rob Reiner", verified: true},
+{id: 72, title: "Every Word Is True", year: 2006, director: "John Krokidas", verified: true},
+{id: 73, title: "Kinsey", year: 2004, director: "Bill Condon", verified: true},
+{id: 74, title: "In My Country", year: 2004, director: "John Boorman", verified: true},
+{id: 75, title: "Taxi", year: 1998, director: "Juliusz Machulski", verified: true},
+{id: 76, title: "Moulin Rouge!", year: 2001, director: "Baz Luhrmann", verified: true},
+{id: 77, title: "Finding Neverland", year: 2004, director: "Marc Forster", verified: true},
+{id: 78, title: "The Motorcycle Diaries", year: 2004, director: "Walter Salles", verified: true},
+{id: 79, title: "The Kiss", year: 1998, director: "Mimi Leder", verified: true},
+{id: 80, title: "This World, Then the Fireworks", year: 1997, director: "Michael Oblowitz", verified: true},
+{id: 81, title: "Divine Secrets of the Ya-Ya Sisterhood", year: 2002, director: "Callie Khouri", verified: true},
+{id: 82, title: "The Philadelphia Story", year: 1940, director: "George Cukor", verified: true},
+{id: 83, title: "Hemingway", year: 2021, director: "Ken Burns, Lynn Novick", verified: true},
+{id: 84, title: "The Rum Diary", year: 2011, director: "Bruce Robinson", verified: true},
+{id: 85, title: "The Crush", year: 1993, director: "Alan Shapiro", verified: true},
+{id: 86, title: "Where the Truth Lies", year: 2005, director: "Atom Egoyan", verified: true},
+{id: 87, title: "All the President's Men", year: 1976, director: "Alan J. Pakula", verified: true},
+{id: 88, title: "Ask the Dust", year: 2006, director: "Robert Towne", verified: true},
+{id: 89, title: "Kalifornia", year: 1993, director: "Dominic Sena", verified: true},
+{id: 90, title: "The Door in the Floor", year: 2004, director: "Tod Williams", verified: true},
+{id: 91, title: "Sideways", year: 2004, director: "Alexander Payne", verified: true},
+{id: 92, title: "Dogville", year: 2003, director: "Lars von Trier", verified: true},
+{id: 93, title: "Little Man Tate", year: 1991, director: "Jodie Foster", verified: true},
+{id: 94, title: "Neverwas", year: 2005, director: "Joshua Michael Stern", verified: true},
+{id: 95, title: "King Lear", year: 1987, director: "Jean-Luc Godard", verified: true},
+{id: 96, title: "The Vanishing", year: 1988, director: "George Sluizer", verified: true},
+{id: 97, title: "How to Lose a Guy in 10 Days", year: 2003, director: "Donald Petrie", verified: true},
+{id: 98, title: "Everyone Says I Love You", year: 1996, director: "Woody Allen", verified: true},
+{id: 99, title: "Field of Dreams", year: 1989, director: "Phil Alden Robinson", verified: true},
+{id: 100, title: "The Last Shot", year: 2004, director: "Jeff Nathanson", verified: true},
+   // Movies about Writers: IDs 101-200
+{id: 101, title: "Never Been Kissed", year: 1999, director: "Raja Gosnell", verified: true},
+{id: 102, title: "All I Want", year: 2002, director: "Jeffrey Porter", verified: true},
+{id: 103, title: "State and Main", year: 2000, director: "David Mamet", verified: true},
+{id: 104, title: "Hermot pinnalla", year: 1970, director: "Veikko Kerttula", verified: true},
+{id: 105, title: "Housebound", year: 2014, director: "Gerard Johnstone", verified: true},
+{id: 106, title: "Flashback", year: 1990, director: "Franco Amurri", verified: true},
+{id: 107, title: "Sade", year: 2000, director: "Benoît Jacquot", verified: true},
+{id: 108, title: "Closer", year: 2004, director: "Mike Nichols", verified: true},
+{id: 109, title: "Zola", year: 2020, director: "Janicza Bravo", verified: true},
+{id: 110, title: "Black River", year: 2001, director: "Yasuo Inoue", verified: true},
+{id: 111, title: "Stone Reader", year: 2002, director: "Mark Moskowitz", verified: true},
+{id: 112, title: "Try Seventeen", year: 2002, director: "Jeffrey Porter", verified: true},
+{id: 113, title: "The Writer of O", year: 2004, director: "Polly Walker", verified: true},
+{id: 114, title: "Les Enfants du siècle", year: 1999, director: "Diane Kurys", verified: true},
+{id: 115, title: "La Petite Lili", year: 2003, director: "Claude Miller", verified: true},
+{id: 116, title: "Byron", year: 2003, director: "Julian Farino", verified: true},
+{id: 117, title: "The Lost Weekend", year: 1945, director: "Billy Wilder", verified: true},
+{id: 118, title: "Salem's Lot", year: 1979, director: "Tobe Hooper", verified: true},
+{id: 119, title: "Luck", year: 2022, director: "Peggy Holmes", verified: true},
+{id: 120, title: "Under the Tuscan Sun", year: 2003, director: "Audrey Wells", verified: true},
+{id: 121, title: "Celeste in the City", year: 2004, director: "Francis Damberger", verified: true},
+{id: 122, title: "Young Adam", year: 2003, director: "David Mackenzie", verified: true},
+{id: 123, title: "Home of the Giants", year: 2007, director: "Rusty Gorman", verified: true},
+{id: 124, title: "How to Kill Your Neighbor's Dog", year: 2000, director: "Michael Kalesniko", verified: true},
+{id: 126, title: "Rag Tale", year: 2005, director: "Mary McGuckian", verified: true},
+{id: 127, title: "Girl, Interrupted", year: 1999, director: "James Mangold", verified: true},
+{id: 128, title: "The Devil Wears Prada", year: 2006, director: "David Frankel", verified: true},
+{id: 129, title: "Postcards from the Edge", year: 1990, director: "Mike Nichols", verified: true},
+{id: 131, title: "Artists and Models", year: 1955, director: "Frank Tashlin", verified: true},
+{id: 132, title: "Rumor Has It...", year: 2005, director: "Rob Reiner", verified: true},
+{id: 133, title: "ivans xtc.", year: 2000, director: "Bernard Rose", verified: true},
+{id: 134, title: "Skin Deep", year: 1989, director: "Blake Edwards", verified: true},
+{id: 135, title: "2046", year: 2004, director: "Wong Kar-wai", verified: true},
+{id: 136, title: "Bordertown", year: 2006, director: "Gregory Nava", verified: true},
+{id: 137, title: "Wag the Dog", year: 1997, director: "Barry Levinson", verified: true},
+{id: 138, title: "Obsessed", year: 2002, director: "John Badham", verified: true},
+{id: 139, title: "Poetic Justice", year: 1993, director: "John Singleton", verified: true},
+{id: 140, title: "Half Light", year: 2006, director: "Craig Rosenberg", verified: true},
+{id: 141, title: "Capote", year: 2005, director: "Bennett Miller", verified: true},
+{id: 142, title: "The Edge of Madness", year: 2002, director: "Anne Wheeler", verified: true},
+{id: 143, title: "Cheaper by the Dozen", year: 2003, director: "Shawn Levy", verified: true},
+{id: 144, title: "Orlando", year: 1992, director: "Sally Potter", verified: true},
+{id: 145, title: "Before Sunset", year: 2004, director: "Richard Linklater", verified: true},
+{id: 146, title: "The Odd Couple", year: 1968, director: "Gene Saks", verified: true},
+{id: 147, title: "Impromptu", year: 1991, director: "James Lapine", verified: true},
+{id: 148, title: "Wings of Courage", year: 1995, director: "Jean-Jacques Annaud", verified: true},
+{id: 149, title: "The Naked Truth", year: 1957, director: "Mario Zampi", verified: true},
+{id: 150, title: "James Joyce's Women", year: 1985, director: "Michael Pearce", verified: true},
+{id: 151, title: "The Singing Detective", year: 2003, director: "Keith Gordon", verified: true},
+{id: 152, title: "Festival in Cannes", year: 2001, director: "Henry Jaglom", verified: true},
+{id: 153, title: "Le Divorce", year: 2003, director: "James Ivory", verified: true},
+{id: 154, title: "Freedom Writers", year: 2007, director: "Richard LaGravenese", verified: true},
+{id: 155, title: "No Direction Home", year: 2005, director: "Martin Scorsese", verified: true},
+ {id: 156, title: "Newsies", year: 1992, director: "Kevin Ortega", verified: true},           
+{id: 157, title: "My Dog Skip", year: 2000, director: "Jay Russell", verified: true},
+{id: 158, title: "Le Seuil", year: 2003, director: "Érick Zonca", verified: true},
+{id: 159, title: "Mean Girls", year: 2004, director: "Mark Waters", verified: true},
+{id: 160, title: "Duplex", year: 2003, director: "Danny DeVito", verified: true},
+{id: 161, title: "Breaking All the Rules", year: 2004, director: "Daniel Taplitz", verified: true},
+{id: 162, title: "Anime gemelle", year: 1999, director: "Ricky Tognazzi", verified: true},
+{id: 163, title: "He Said, She Said", year: 1991, director: "Ken Kwapis", verified: true},
+{id: 164, title: "Journey of a Lifetime", year: 1999, director: "John Putch", verified: true},
+{id: 165, title: "Turtle Diary", year: 1985, director: "John Irvin", verified: true},
+{id: 166, title: "Factotum", year: 2005, director: "Bent Hamer", verified: true},
+{id: 167, title: "Lunacy", year: 2006, director: "Jan Švankmajer", verified: true},
+{id: 168, title: "Love and Other Disasters", year: 2006, director: "Alek Keshishian", verified: true},
+{id: 169, title: "Lila Says", year: 2004, director: "Ziad Doueiri", verified: true},
+{id: 170, title: "A Love Song for Bobby Long", year: 2004, director: "Shainee Gabel", verified: true},
+{id: 171, title: "Scoop", year: 2006, director: "Woody Allen", verified: true},
+{id: 172, title: "The Nanny Diaries", year: 2007, director: "Shari Springer Berman", verified: true},
+{id: 173, title: "RKO 281", year: 1999, director: "Benjamin Ross", verified: true},
+{id: 174, title: "The Dreamers", year: 2003, director: "Bernardo Bertolucci", verified: true},
+{id: 175, title: "Meet the Press", year: 1937, director: "Unknown", verified: true},
+{id: 176, title: "Dedication", year: 2007, director: "Justin Theroux", verified: true},
+{id: 177, title: "Kiss Kiss Bang Bang", year: 2005, director: "Shane Black", verified: true},
+{id: 178, title: "The Unbearable Lightness of Being", year: 1988, director: "Philip Kaufman", verified: true},
+{id: 179, title: "Caitlin", year: 1971, director: "Jack O'Connell", verified: true},
+{id: 180, title: "Running with Scissors", year: 2006, director: "Ryan Murphy", verified: true},
+{id: 181, title: "Candy", year: 2006, director: "Neil Armfield", verified: true},
+{id: 182, title: "Becoming Jane", year: 2007, director: "Julian Jarrold", verified: true},
+{id: 183, title: "Alpha Numeric", year: 1996, director: "Michael Oblowitz", verified: true},
+{id: 184, title: "Songwriter", year: 1984, director: "Alan Rudolph", verified: true},
+{id: 185, title: "A Prairie Home Companion", year: 2006, director: "Robert Altman", verified: true},
+{id: 186, title: "Interview", year: 2007, director: "Steve Buscemi", verified: true},
+{id: 187, title: "Klang der Stille", year: 2007, director: "Sigi Rothemund", verified: true},
+{id: 188, title: "Kafka", year: 1991, director: "Steven Soderbergh", verified: true},
+{id: 189, title: "The Tiger and the Snow", year: 2005, director: "Roberto Benigni", verified: true},
+{id: 190, title: "Your Name Here", year: 2008, director: "Matthew Wilder", verified: true},
+{id: 191, title: "Novel Romance", year: 2006, director: "Emily Skopov", verified: true},
+{id: 192, title: "Land of the Blind", year: 2006, director: "Robert Edwards", verified: true},
+{id: 193, title: "I Am a Camera", year: 1955, director: "Henry Cornelius", verified: true},
+{id: 194, title: "Music and Lyrics", year: 2007, director: "Marc Lawrence", verified: true},
+{id: 195, title: "Rough Draft", year: 1998, director: "Michael A. Nickles", verified: true},
+{id: 196, title: "Kissing Jessica Stein", year: 2001, director: "Charles Herman-Wurmfeld", verified: true},
+{id: 197, title: "Art House", year: 1998, director: "Michael Bafaro", verified: true},
+{id: 198, title: "Wife vs. Secretary", year: 1936, director: "Clarence Brown", verified: true},
+{id: 199, title: "Генри дурак", year: 2014, director: "Иван Вырыпаев", verified: true},
+{id: 200, title: "Fay Grim", year: 2006, director: "Hal Hartley", verified: true},
+ // Movies about Writers: IDs 201-300
+{id: 201, title: "F. Scott Fitzgerald in Hollywood", year: 1976, director: "Anthony Page", verified: true},
+{id: 202, title: "The Shadow Dancer", year: 2005, director: "Stephen Beckner", verified: true},
+{id: 203, title: "The Front Page", year: 1974, director: "Billy Wilder", verified: true},
+{id: 204, title: "Immortel (ad vitam)", year: 2004, director: "Enki Bilal", verified: true},
+{id: 205, title: "Deadline - U.S.A.", year: 1952, director: "Richard Brooks", verified: true},
+{id: 206, title: "Stranger Than Fiction", year: 2006, director: "Marc Forster", verified: true},
+{id: 207, title: "Stranger Than Fiction", year: 2006, director: "Marc Forster", verified: true},
+{id: 208, title: "Everything Is Illuminated", year: 2005, director: "Liev Schreiber", verified: true},
+{id: 209, title: "Neal Cassady", year: 2007, director: "Noah Buschel", verified: true},
+{id: 210, title: "Molière", year: 2007, director: "Laurent Tirard", verified: true},
+{id: 212, title: "Bright Lights, Big City", year: 1988, director: "James Bridges", verified: true},
+{id: 213, title: "Gospel According to Janice", year: 1997, director: "Peter Keglevic", verified: true},
+{id: 214, title: "Trifling with Fate", year: 2000, director: "Gina Prince-Bythewood", verified: true},
+{id: 215, title: "Tour deluxe edition", year: 2010, director: "Flemming Klem", verified: true},
+{id: 216, title: "The Best Time of Our Lives", year: 1997, director: "Rolf Schübel", verified: true},
+{id: 217, title: "Tokyo Suckerpunch", year: 2000, director: "Katsuhide Motoki", verified: true},
+{id: 218, title: "Unge Andersen", year: 2005, director: "Rumle Hammerich", verified: true},
+{id: 219, title: "Cry Freedom", year: 1987, director: "Richard Attenborough", verified: true},
+{id: 220, title: "The Diary of Anne Frank", year: 1959, director: "George Stevens", verified: true},
+{id: 221, title: "Bridget Jones's Diary", year: 2001, director: "Sharon Maguire", verified: true},
+{id: 222, title: "Multiple Sarcasms", year: 2010, director: "Brooks Branch", verified: true},
+{id: 223, title: "Jake's Women", year: 1996, director: "Glenn Jordan", verified: true},
+{id: 224, title: "The Obit Writer", year: 2009, director: "Diane Bell", verified: true},
+{id: 225, title: "Paper Lion", year: 1968, director: "Alex March", verified: true},
+{id: 226, title: "Resurrecting the Champ", year: 2007, director: "Rod Lurie", verified: true},
+{id: 227, title: "Gothic", year: 1986, director: "Ken Russell", verified: true},
+{id: 228, title: "Fairytale: A True Story", year: 1997, director: "Charles Sturridge", verified: true},
+{id: 229, title: "Zelda", year: 1993, director: "Pat O'Connor", verified: true},
+{id: 230, title: "El sueño del mono loco", year: 1989, director: "Fernando Trueba", verified: true},
+{id: 231, title: "The Writer", year: 2004, director: "Mathew B. Mooney", verified: true},
+{id: 232, title: "The Hollywood Reporter", year: 1926, director: "Unknown", verified: true},
+{id: 233, title: "The Passenger", year: 1975, director: "Michelangelo Antonioni", verified: true},
+{id: 234, title: "Assassins: A Film Concerning Rimbaud", year: 1985, director: "Mickey Lemle", verified: true},
+{id: 235, title: "The Shrink Is In", year: 2001, director: "Richard Benjamin", verified: true},
+{id: 236, title: "Une saison dans la vie de Fedor Dostoïevski", year: 1995, director: "Dominique Delouche", verified: true},
+{id: 237, title: "The Pagan Book of Arthur Rimbaud", year: 1971, director: "Derek Jarman", verified: true},
+{id: 238, title: "Suburban Girl", year: 2007, director: "Marc Klein", verified: true},
+{id: 239, title: "Her Alibi", year: 1989, director: "Bruce Beresford", verified: true},
+{id: 240, title: "Roma", year: 2018, director: "Alfonso Cuarón", verified: true},
+{id: 241, title: "In Love and War", year: 1996, director: "Richard Attenborough", verified: true},
+{id: 242, title: "Hell Is Sold Out", year: 1951, director: "Michael Anderson", verified: true},
+{id: 243, title: "Les Soeurs Brontë", year: 1979, director: "André Téchiné", verified: true},
+{id: 244, title: "Bon Voyage", year: 2003, director: "Jean-Paul Rappeneau", verified: true},
+{id: 245, title: "St. Elmo's Fire", year: 1985, director: "Joel Schumacher", verified: true},
+{id: 246, title: "Jours tranquilles à Clichy", year: 1990, director: "Claude Chabrol", verified: true},
+{id: 247, title: "Nim's Island", year: 2008, director: "Jennifer Flackett", verified: true},
+{id: 248, title: "The Jane Austen Book Club", year: 2007, director: "Robin Swicord", verified: true},
+{id: 249, title: "Miss Potter", year: 2006, director: "Chris Noonan", verified: true},
+{id: 250, title: "Broken Flowers", year: 2005, director: "Jim Jarmusch", verified: true},
+{id: 251, title: "Tip Toes", year: 2003, director: "Matthew Bright", verified: true},
+{id: 252, title: "Walk the Line", year: 2005, director: "James Mangold", verified: true},
+{id: 253, title: "Teaching Mrs. Tingle", year: 1999, director: "Kevin Williamson", verified: true},
+{id: 254, title: "Stupeur et tremblements", year: 2003, director: "Alain Corneau", verified: true},
+{id: 255, title: "The Big Chill", year: 1983, director: "Lawrence Kasdan", verified: true},
+{id: 256, title: "Jerry Maguire", year: 1996, director: "Cameron Crowe", verified: true},
+{id: 257, title: "Pandaemonium", year: 2000, director: "Julien Temple", verified: true},
+{id: 258, title: "The Social Network", year: 2010, director: "David Fincher", verified: true},
+{id: 259, title: "The Night of the Iguana", year: 1964, director: "John Huston", verified: true},
+{id: 260, title: "Election", year: 1999, director: "Alexander Payne", verified: true},
+{id: 261, title: "Dolce's Inferno", year: 2004, director: "Walter Licastro", verified: true},
+{id: 262, title: "Munich", year: 2005, director: "Steven Spielberg", verified: true},
+{id: 263, title: "The Dying Gaul", year: 2005, director: "Craig Lucas", verified: true},
+{id: 264, title: "On the Hook", year: 1988, director: "Arne Mattsson", verified: true},
+{id: 265, title: "Festival", year: 2005, director: "Annie Griffin", verified: true},
+{id: 266, title: "A Mighty Heart", year: 2007, director: "Michael Winterbottom", verified: true},
+{id: 267, title: "Hating Alison Ashley", year: 2005, director: "Geoff Bennett", verified: true},
+{id: 268, title: "The Last Word", year: 2008, director: "Geoffrey Haley", verified: true},
+{id: 269, title: "Shanghai Baby", year: 2007, director: "Xavier Yu", verified: true},
+{id: 270, title: "The Whore and the Whale", year: 2004, director: "Luis Puenzo", verified: true},
+{id: 271, title: "The Typewriter, the Rifle & the Movie Camera", year: 1996, director: "Adam Simon", verified: true},
+{id: 272, title: "Dante's Inferno", year: 1935, director: "Harry Lachman", verified: true},
+{id: 273, title: "Campus Confidential", year: 2005, director: "Will Geiger", verified: true},
+{id: 274, title: "Casanova", year: 2005, director: "Lasse Hallström", verified: true},
+{id: 275, title: "Il Casanova di Federico Fellini", year: 1976, director: "Federico Fellini", verified: true},
+{id: 276, title: "Dick", year: 1999, director: "Andrew Fleming", verified: true},
+{id: 277, title: "Caffeine", year: 2006, director: "John Cosgrove", verified: true},
+{id: 278, title: "The Garden of Eden", year: 2008, director: "John Irvin", verified: true},
+{id: 279, title: "What Women Want", year: 2000, director: "Nancy Meyers", verified: true},
+{id: 280, title: "Biloxi Blues", year: 1988, director: "Mike Nichols", verified: true},
+{id: 281, title: "Fulltime Killer", year: 2001, director: "Johnnie To", verified: true},
+{id: 282, title: "The End of the Affair", year: 1999, director: "Neil Jordan", verified: true},
+{id: 283, title: "Mr. Deeds", year: 2002, director: "Steven Brill", verified: true},
+{id: 284, title: "What Just Happened?", year: 2008, director: "Barry Levinson", verified: true},
+{id: 285, title: "I Know Who Killed Me", year: 2007, director: "Chris Sivertson", verified: true},
+{id: 286, title: "The Holiday", year: 2006, director: "Nancy Meyers", verified: true},
+{id: 287, title: "Dali & I: The Surreal Story", year: 2007, director: "Andrew Niccol", verified: true},
+{id: 288, title: "Get Shorty", year: 1995, director: "Barry Sonnenfeld", verified: true},
+{id: 289, title: "Rapid Eye Movement", year: 2008, director: "Peter Hall", verified: true},
+{id: 290, title: "How to Lose Friends & Alienate People", year: 2008, director: "Robert B. Weide", verified: true},
+{id: 291, title: "Bonnie and Clyde", year: 1967, director: "Arthur Penn", verified: true},
+{id: 292, title: "The Witches of Eastwick", year: 1987, director: "George Miller", verified: true},
+{id: 293, title: "Scenes from a Mall", year: 1991, director: "Paul Mazursky", verified: true},
+{id: 294, title: "Synecdoche, New York", year: 2008, director: "Charlie Kaufman", verified: true},
+{id: 295, title: "Coyote Ugly", year: 2000, director: "David McNally", verified: true},
+{id: 296, title: "The Squid and the Whale", year: 2005, director: "Noah Baumbach", verified: true},
+{id: 297, title: "Inkheart", year: 2008, director: "Iain Softley", verified: true},
+{id: 298, title: "Phantasmagoria: The Visions of Lewis Carroll", year: 2009, director: "Mick Garris", verified: true},
+{id: 299, title: "Brontë", year: 2011, director: "David Maloney", verified: true},
+{id: 300, title: "The Nines", year: 2007, director: "John August", verified: true},
+// Movies about Writers: IDs 301-400
+{id: 301, title: "The Number 23", year: 2007, director: "Joel Schumacher", verified: true},
+{id: 302, title: "Control", year: 2007, director: "Anton Corbijn", verified: true},
+{id: 303, title: "What's New, Pussycat?", year: 1965, director: "Clive Donner", verified: true},
+{id: 304, title: "How Is Your Fish Today?", year: 2006, director: "Guo Xiaolu", verified: true},
+{id: 305, title: "Il matrimonio di mia sorella", year: 2013, director: "Carlo Mazzacurati", verified: true},
+{id: 306, title: "I'm Not There", year: 2007, director: "Todd Haynes", verified: true},
+{id: 307, title: "The Diving Bell and the Butterfly", year: 2007, director: "Julian Schnabel", verified: true},
+{id: 308, title: "Mr. Nobody", year: 2009, director: "Jaco Van Dormael", verified: true},
+{id: 309, title: "A Tale of Love and Darkness", year: 2015, director: "Natalie Portman", verified: true},
+{id: 310, title: "The Last Word", year: 2017, director: "Mark Pellington", verified: true},
+{id: 311, title: "Le Mépris", year: 1963, director: "Jean-Luc Godard", verified: true},
+{id: 312, title: "The Secret Diary of Sigmund Freud", year: 1984, director: "Danford B. Greene", verified: true},
+{id: 313, title: "Agatha", year: 1979, director: "Michael Apted", verified: true},
+{id: 314, title: "Corso: The Last Beat", year: 2008, director: "Gustave Reininger", verified: true},
+{id: 315, title: "Kerouac: The Movie", year: 1985, director: "John Antonelli", verified: true},
+{id: 316, title: "Trumbo", year: 2015, director: "Jay Roach", verified: true},
+{id: 317, title: "The Age of Love", year: 2014, director: "Steven Loring", verified: true},
+{id: 318, title: "Kit Kittredge: An American Girl", year: 2008, director: "Patricia Rozema", verified: true},
+{id: 319, title: "Roman Polanski: Wanted and Desired", year: 2008, director: "Marina Zenovich", verified: true},
+{id: 320, title: "The Girl Cut in Two", year: 2007, director: "Claude Chabrol", verified: true},
+{id: 321, title: "Eastern Promises", year: 2007, director: "David Cronenberg", verified: true},
+{id: 322, title: "Vicky Cristina Barcelona", year: 2008, director: "Woody Allen", verified: true},
+{id: 323, title: "Stay Cool", year: 2009, director: "Michael Polish", verified: true},
+{id: 324, title: "The White Hotel", year: 2022, director: "Mike Figgis", verified: true},
+{id: 325, title: "Deadline", year: 2012, director: "Kurtis David Harder", verified: true},
+{id: 326, title: "The Beautiful and the Damned", year: 2010, director: "Christopher N. Rowley", verified: true},
+{id: 327, title: "Master i Margarita", year: 1972, director: "Aleksandar Petrović", verified: true},
+{id: 328, title: "Master i Margarita", year: 1990, director: "Vladimir Bortko", verified: true},
+{id: 329, title: "The Master and Margarita", year: 2005, director: "Vladimir Bortko", verified: true},
+{id: 330, title: "Nine", year: 2009, director: "Rob Marshall", verified: true},
+{id: 331, title: "He's Just Not That Into You", year: 2009, director: "Ken Kwapis", verified: true},
+{id: 332, title: "Fay Wray: A Life", year: 2007, director: "Loretta Todd", verified: true},
+{id: 333, title: "Valkyrie", year: 2008, director: "Bryan Singer", verified: true},
+{id: 334, title: "Men", year: 2022, director: "Alex Garland", verified: true},
+{id: 335, title: "Schweitzer", year: 2009, director: "Gavin Hood", verified: true},
+{id: 336, title: "Amelia", year: 2009, director: "Mira Nair", verified: true},
+{id: 337, title: "Nothing but the Truth", year: 2008, director: "Rod Lurie", verified: true},
+{id: 338, title: "The Last Station", year: 2009, director: "Michael Hoffman", verified: true},
+{id: 339, title: "Che: Part One - The Argentine", year: 2008, director: "Steven Soderbergh", verified: true},
+{id: 340, title: "Che: Part Two - Guerrilla", year: 2008, director: "Steven Soderbergh", verified: true},
+{id: 341, title: "The Last Time I Saw Paris", year: 1954, director: "Richard Brooks", verified: true},
+{id: 342, title: "Frost/Nixon", year: 2008, director: "Ron Howard", verified: true},
+{id: 343, title: "Me and Orson Welles", year: 2008, director: "Richard Linklater", verified: true},
+{id: 344, title: "Howl", year: 2010, director: "Rob Epstein", verified: true},
+{id: 345, title: "Les Passages", year: 2004, director: "Élizabeth Tchoungui", verified: true},
+{id: 346, title: "Zodiac", year: 2007, director: "David Fincher", verified: true},
+{id: 347, title: "Burn After Reading", year: 2008, director: "Joel Coen", verified: true},
+{id: 348, title: "An Englishman in New York", year: 2009, director: "Richard Laxton", verified: true},
+{id: 349, title: "Brief Interviews with Hideous Men", year: 2009, director: "John Krasinski", verified: true},
+{id: 350, title: "Youth Without Youth", year: 2007, director: "Francis Ford Coppola", verified: true},
+{id: 351, title: "In the Meantime", year: 2010, director: "Mario Canonge", verified: true},
+{id: 352, title: "The Men Who Stare at Goats", year: 2009, director: "Grant Heslov", verified: true},
+{id: 353, title: "The Scribe", year: 1966, director: "John Llewellyn Moxey", verified: true},
+{id: 354, title: "Confessions of a Shopaholic", year: 2009, director: "P.J. Hogan", verified: true},
+{id: 355, title: "Untitled Leni Riefenstahl Egg Pictures Project", year: 0, director: "Unknown", verified: true},
+{id: 356, title: "Wild Cherry", year: 2009, director: "Dana Lustig", verified: true},
+{id: 357, title: "Hollywood Renegade", year: 2020, director: "Francesca de Fusco", verified: true},
+{id: 358, title: "Blessed Is the Match: The Life and Death of Hannah Senesh", year: 2008, director: "Roberta Grossman", verified: true},
+{id: 359, title: "Morning Glory", year: 2010, director: "Roger Michell", verified: true},
+{id: 360, title: "Eat Pray Love", year: 2010, director: "Ryan Murphy", verified: true},
+{id: 361, title: "Tetro", year: 2009, director: "Francis Ford Coppola", verified: true},
+{id: 362, title: "The Player", year: 1992, director: "Robert Altman", verified: true},
+{id: 363, title: "The Insider", year: 1999, director: "Michael Mann", verified: true},
+{id: 364, title: "Szenen eines wüsten Lebens", year: 1997, director: "Peter Kern", verified: true},
+{id: 365, title: "Be Cool", year: 2005, director: "F. Gary Gray", verified: true},
+{id: 366, title: "Empire of the Sun", year: 1987, director: "Steven Spielberg", verified: true},
+{id: 367, title: "Hemingway & Fuentes", year: 2021, director: "Ken Burns", verified: true},
+{id: 368, title: "Julie & Julia", year: 2009, director: "Nora Ephron", verified: true},
+{id: 369, title: "Atonement", year: 2007, director: "Joe Wright", verified: true},
+{id: 370, title: "Mighty Aphrodite", year: 1995, director: "Woody Allen", verified: true},
+{id: 371, title: "The Limits of Control", year: 2009, director: "Jim Jarmusch", verified: true},
+{id: 372, title: "Angels & Demons", year: 2009, director: "Ron Howard", verified: true},
+{id: 373, title: "Regarding Buñuel", year: 2000, director: "José Luis López-Linares", verified: true},
+{id: 374, title: "The Pillow Book", year: 1996, director: "Peter Greenaway", verified: true},
+{id: 375, title: "Bram Stoker's Dracula", year: 1992, director: "Francis Ford Coppola", verified: true},
+{id: 376, title: "Dracula", year: 1931, director: "Tod Browning", verified: true},
+{id: 377, title: "Nosferatu", year: 1922, director: "F.W. Murnau", verified: true},
+{id: 378, title: "Shadow of the Vampire", year: 2000, director: "E. Elias Merhige", verified: true},
+{id: 379, title: "She Wrote the Book", year: 1946, director: "Charles Lamont", verified: true},
+{id: 380, title: "He Wrote Poetry", year: 1916, director: "Unknown", verified: true},
+{id: 381, title: "Walks", year: 2008, director: "Andrew Wagner", verified: true},
+{id: 382, title: "She Wrote a Play and Played It", year: 1916, director: "Unknown", verified: true},
+{id: 383, title: "Creation", year: 2009, director: "Jon Amiel", verified: true},
+{id: 385, title: "The Girlfriend Experience", year: 2009, director: "Steven Soderbergh", verified: true},
+{id: 386, title: "Die Liebesfälscher", year: 2004, director: "Andreas Kleinert", verified: true},
+{id: 387, title: "Son of Morning", year: 2011, director: "Yan Cui", verified: true},
+{id: 388, title: "The Gossip Columnist", year: 1980, director: "James Fargo", verified: true},
+{id: 389, title: "Brüno", year: 2009, director: "Larry Charles", verified: true},
+{id: 390, title: "Hurlyburly", year: 1998, director: "Anthony Drazan", verified: true},
+{id: 391, title: "Patton", year: 1970, director: "Franklin J. Schaffner", verified: true},
+{id: 392, title: "It Runs in the Family", year: 2003, director: "Fred Schepisi", verified: true},
+{id: 393, title: "Somewhere", year: 2010, director: "Sofia Coppola", verified: true},
+{id: 394, title: "Nice", year: 2022, director: "Emma Dante", verified: true},
+{id: 395, title: "Goree Girls", year: 2009, director: "Karin Williams", verified: true},
+{id: 397, title: "The Last Sect", year: 2006, director: "Jonathan Dueck", verified: true},
+{id: 398, title: "Cold Souls", year: 2009, director: "Sophie Barthes", verified: true},
+{id: 399, title: "Crazy Heart", year: 2009, director: "Scott Cooper", verified: true},
+{id: 400, title: "The Green Hornet", year: 2011, director: "Michel Gondry", verified: true},
+// Movies about Writers: IDs 401-500
+{id: 401, title: "The Baader Meinhof Complex", year: 2008, director: "Uli Edel", verified: true},
+{id: 402, title: "Jud Süß", year: 1940, director: "Veit Harlan", verified: true},
+{id: 403, title: "20 Percent Fiction", year: 2004, director: "Emily Garrett", verified: true},
+{id: 404, title: "Der Poet", year: 2002, director: "Vadim Jendreyko", verified: true},
+{id: 405, title: "Der Bestseller - Mord auf italienisch", year: 2005, director: "Sigi Rothemund", verified: true},
+{id: 406, title: "Der Bestseller - Wiener Blut", year: 2005, director: "Sigi Rothemund", verified: true},
+{id: 407, title: "Access Code", year: 1984, director: "John Milius", verified: true},
+{id: 408, title: "Teenage Paparazzi", year: 2010, director: "Gregg Araki", verified: true},
+{id: 409, title: "Ed Wood", year: 1994, director: "Tim Burton", verified: true},
+{id: 410, title: "Husbands and Wives", year: 1992, director: "Woody Allen", verified: true},
+{id: 411, title: "Peep World", year: 2010, director: "Barry W. Blaustein", verified: true},
+{id: 412, title: "Deception", year: 1946, director: "Irving Rapper", verified: true},
+{id: 413, title: "Jealousy", year: 1929, director: "Jean de Limur", verified: true},
+{id: 414, title: "New York, I Love You", year: 2008, director: "Multiple", verified: true},
+{id: 415, title: "The Life and Death of Peter Sellers", year: 2004, director: "Stephen Hopkins", verified: true},
+{id: 416, title: "You, Me and Dupree", year: 2006, director: "Anthony Russo", verified: true},
+{id: 417, title: "The Basketball Diaries", year: 1995, director: "Scott Kalvert", verified: true},
+{id: 418, title: "The Blue Tooth Virgin", year: 2008, director: "Russell Brown", verified: true},
+{id: 419, title: "King of California", year: 2007, director: "Mike Cahill", verified: true},
+{id: 420, title: "The Amateurs", year: 2005, director: "Michael Traeger", verified: true},
+{id: 421, title: "The Business of Falling in Love", year: 2007, director: "Jason Bloom", verified: true},
+{id: 422, title: "Full Metal Jacket", year: 1987, director: "Stanley Kubrick", verified: true},
+{id: 423, title: "Nowhere Boy", year: 2009, director: "Sam Taylor-Johnson", verified: true},
+{id: 424, title: "California Suite", year: 1978, director: "Herbert Ross", verified: true},
+{id: 425, title: "Freaky Friday", year: 2003, director: "Mark Waters", verified: true},
+{id: 426, title: "Call Northside 777", year: 1948, director: "Henry Hathaway", verified: true},
+{id: 427, title: "Sherlock Holmes", year: 2009, director: "Guy Ritchie", verified: true},
+{id: 428, title: "State of Play", year: 2009, director: "Kevin Macdonald", verified: true},
+{id: 429, title: "Sex and the Single Girl", year: 1964, director: "Richard Quine", verified: true},
+{id: 430, title: "Sex and the City", year: 2008, director: "Michael Patrick King", verified: true},
+{id: 431, title: "Sex and the City 2", year: 2010, director: "Michael Patrick King", verified: true},
+{id: 432, title: "Starstruck", year: 1982, director: "Gillian Armstrong", verified: true},
+{id: 433, title: "The Funeral Party", year: 2018, director: "John Ivin", verified: true},
+{id: 434, title: "The Book of Eli", year: 2010, director: "Albert Hughes", verified: true},
+{id: 435, title: "Gentlemen Broncos", year: 2009, director: "Jared Hess", verified: true},
+{id: 436, title: "Jennifer's Body", year: 2009, director: "Karyn Kusama", verified: true},
+{id: 437, title: "Das Leuchten der Stille", year: 2007, director: "Sigi Rothemund", verified: true},
+{id: 438, title: "Letters to Juliet", year: 2010, director: "Gary Winick", verified: true},
+{id: 439, title: "Official Selection", year: 2006, director: "Diane Charles", verified: true},
+{id: 440, title: "Front Page Woman", year: 1935, director: "Michael Curtiz", verified: true},
+{id: 441, title: "Tough Guys Don't Dance", year: 1987, director: "Norman Mailer", verified: true},
+{id: 442, title: "Throw Momma from the Train", year: 1987, director: "Danny DeVito", verified: true},
+{id: 443, title: "The Beaches of Agnès", year: 2008, director: "Agnès Varda", verified: true},
+{id: 444, title: "The Runaways", year: 2010, director: "Floria Sigismondi", verified: true},
+{id: 445, title: "Twin Peaks: Fire Walk with Me", year: 1992, director: "David Lynch", verified: true},
+{id: 446, title: "Alice in Wonderland", year: 2010, director: "Tim Burton", verified: true},
+{id: 447, title: "Alice in Wonderland", year: 1951, director: "Clyde Geronimi", verified: true},
+{id: 448, title: "The Bitch Posse", year: 2024, director: "Aisling Bea", verified: true},
+{id: 449, title: "Father of Invention", year: 2010, director: "Trent Cooper", verified: true},
+{id: 450, title: "Paranoid Park", year: 2007, director: "Gus Van Sant", verified: true},
+{id: 451, title: "Delírios Eróticos", year: 1990, director: "Christine Rodé", verified: true},
+{id: 452, title: "Hereafter", year: 2010, director: "Clint Eastwood", verified: true},
+{id: 453, title: "The Poet", year: 2007, director: "Damian Lee", verified: true},
+{id: 454, title: "A Closed Book", year: 2010, director: "Raúl Ruiz", verified: true},
+{id: 455, title: "You Will Meet a Tall Dark Stranger", year: 2010, director: "Woody Allen", verified: true},
+{id: 456, title: "Diary of a Wimpy Kid", year: 2010, director: "Thor Freudenthal", verified: true},
+{id: 457, title: "Kick-Ass", year: 2010, director: "Matthew Vaughn", verified: true},
+{id: 458, title: "The Long Riders", year: 1980, director: "Walter Hill", verified: true},
+{id: 459, title: "The Lord of the Rings: The Fellowship of the Ring", year: 2001, director: "Peter Jackson", verified: true},
+{id: 460, title: "The Lord of the Rings: The Two Towers", year: 2002, director: "Peter Jackson", verified: true},
+{id: 461, title: "The Lord of the Rings: The Return of the King", year: 2003, director: "Peter Jackson", verified: true},
+{id: 462, title: "Lucky Ducks", year: 2023, director: "Jeff Rowland", verified: true},
+{id: 463, title: "Edith's Diary", year: 1983, director: "Hans W. Geißendörfer", verified: true},
+{id: 464, title: "The Image of Dorian Gray in the Yellow Press", year: 1984, director: "Urs Odermatt", verified: true},
+{id: 465, title: "The Bitter Tears of Petra von Kant", year: 1972, director: "Rainer Werner Fassbinder", verified: true},
+{id: 466, title: "Tristram Shandy: A Cock and Bull Story", year: 2005, director: "Michael Winterbottom", verified: true},
+{id: 467, title: "Son of Rambow", year: 2007, director: "Garth Jennings", verified: true},
+{id: 468, title: "Wall Street: Money Never Sleeps", year: 2010, director: "Oliver Stone", verified: true},
+{id: 469, title: "Stones in the Park", year: 1969, director: "Leslie Woodhead", verified: true},
+{id: 470, title: "Gimme Shelter", year: 1970, director: "Albert Maysles", verified: true},
+{id: 471, title: "Let's Spend the Night Together", year: 1983, director: "Hal Ashby", verified: true},
+{id: 472, title: "25x5", year: 1990, director: "Julien Temple", verified: true},
+{id: 473, title: "Voodoo Lounge Live", year: 1995, director: "David Mallet", verified: true},
+{id: 474, title: "One Plus One", year: 1968, director: "Jean-Luc Godard", verified: true},
+{id: 475, title: "Shine a Light", year: 2008, director: "Martin Scorsese", verified: true},
+{id: 476, title: "Bridges to Babylon", year: 1998, director: "Bruce Gowers", verified: true},
+{id: 477, title: "Stones at the Max", year: 1991, director: "Julien Temple", verified: true},
+{id: 478, title: "Ladies & Gentlemen: The Rolling Stones", year: 1974, director: "Rollin Binzer", verified: true},
+{id: 479, title: "Poetry", year: 2010, director: "Lee Chang-dong", verified: true},
+{id: 480, title: "Inferno", year: 1980, director: "Dario Argento", verified: true},
+{id: 481, title: "Luke and Brie Are on a First Date", year: 2014, director: "Kent Kirkpatrick", verified: true},
+{id: 482, title: "Raavan", year: 2010, director: "Mani Ratnam", verified: true},
+{id: 483, title: "Dash and Lilly", year: 1999, director: "Kathy Bates", verified: true},
+{id: 484, title: "Jack London", year: 1943, director: "Alfred Santell", verified: true},
+{id: 485, title: "The Life of Emile Zola", year: 1937, director: "William Dieterle", verified: true},
+{id: 486, title: "Out of Africa", year: 1985, director: "Sydney Pollack", verified: true},
+{id: 487, title: "Lady Caroline Lamb", year: 1972, director: "Robert Bolt", verified: true},
+{id: 488, title: "Devotion", year: 1946, director: "Curtis Bernhardt", verified: true},
+{id: 489, title: "A Song to Remember", year: 1945, director: "Charles Vidor", verified: true},
+{id: 490, title: "The Trials of Oscar", year: 2002, director: "Mary-Louise Angel", verified: true},
+{id: 491, title: "Inception", year: 2010, director: "Christopher Nolan", verified: true},
+{id: 492, title: "Let It Rain", year: 2008, director: "Agnès Jaoui", verified: true},
+{id: 493, title: "Wild Grass", year: 2009, director: "Alain Resnais", verified: true},
+{id: 494, title: "The Ninth Gate", year: 1999, director: "Roman Polanski", verified: true},
+{id: 495, title: "The Girl with the Dragon Tattoo", year: 2009, director: "Niels Arden Oplev", verified: true},
+{id: 496, title: "The Girl with the Dragon Tattoo", year: 2011, director: "David Fincher", verified: true},
+{id: 497, title: "Chatterbox", year: 1977, director: "Tom DeSimone", verified: true},
+{id: 498, title: "Leaving Havel", year: 2014, director: "Tomáš Bojar", verified: true},
+{id: 499, title: "Who Is Harry Kellerman and Why Is He Saying Those Terrible Things About Me?", year: 1971, director: "Ulu Grosbard", verified: true},
+{id: 500, title: "Little Big Man", year: 1970, director: "Arthur Penn", verified: true},
+// Movies about Writers: IDs 501-600
+{id: 501, title: "Untitled Maria Callas Project", year: 0, director: "Unknown", verified: true},
+{id: 502, title: "Maria Callas Biopic with the Divine Eva Green", year: 0, director: "Unknown", verified: true},
+{id: 503, title: "Callas Forever", year: 2002, director: "Franco Zeffirelli", verified: true},
+{id: 504, title: "The War Between Men and Women", year: 1972, director: "Melville Shavelson", verified: true},
+{id: 506, title: "The Boyfriend School", year: 1990, director: "Gus Trikonis", verified: true},
+{id: 507, title: "I'm Still Here", year: 2010, director: "Casey Affleck", verified: true},
+{id: 508, title: "When Nietzsche Wept", year: 2007, director: "Pinchas Perry", verified: true},
+{id: 509, title: "Mark Twain Tonight!", year: 1967, director: "Paul Bogart", verified: true},
+{id: 510, title: "In the Realms of the Unreal", year: 2004, director: "Jessica Yu", verified: true},
+{id: 511, title: "Wrong Is Right", year: 1982, director: "Richard Brooks", verified: true},
+{id: 512, title: "The Swinger", year: 1966, director: "George Sidney", verified: true},
+{id: 513, title: "Crossed Over", year: 2002, director: "Bobby Roth", verified: true},
+{id: 514, title: "The Man Within", year: 1947, director: "Bernard Knowles", verified: true},
+{id: 515, title: "In Search of Lovecraft", year: 2008, director: "Rene De Lague", verified: true},
+{id: 516, title: "La Chamade", year: 1969, director: "Alain Cavalier", verified: true},
+{id: 517, title: "A Dark Reflection", year: 2007, director: "Paul Raschid", verified: true},
+{id: 518, title: "The Hunger", year: 1983, director: "Tony Scott", verified: true},
+{id: 519, title: "Along Came Polly", year: 2004, director: "John Hamburg", verified: true},
+{id: 520, title: "A Knight's Tale", year: 2001, director: "Brian Helgeland", verified: true},
+{id: 521, title: "Vibrator", year: 2003, director: "Ryūichi Hiroki", verified: true},
+{id: 522, title: "The King's Speech", year: 2010, director: "Tom Hooper", verified: true},
+{id: 523, title: "Love Songs", year: 2007, director: "Christophe Honoré", verified: true},
+{id: 525, title: "Virgin Machine", year: 1988, director: "Monika Treut", verified: true},
+{id: 526, title: "Assassination of a High School President", year: 2008, director: "Brett Simon", verified: true},
+{id: 527, title: "Russian Dolls", year: 2005, director: "Cédric Klapisch", verified: true},
+{id: 528, title: "Ruby Sparks", year: 2012, director: "Jonathan Dayton and Valerie Faris", verified: true},
+{id: 531, title: "La rubia satánica", year: 1941, director: "Manuel R. Ojeda", verified: true},
+{id: 533, title: "Effie", year: 2011, director: "Richard Laxton", verified: true},
+{id: 534, title: "Poe", year: 2011, director: "M. David Melvin", verified: true},
+{id: 535, title: "Carnage", year: 2011, director: "Roman Polanski", verified: true},
+{id: 536, title: "A Vida Perigosa dos Rapazes do Altar", year: 2005, director: "Betse De Paula", verified: true},
+{id: 537, title: "The Words", year: 2012, director: "Brian Klugman", verified: true},
+{id: 538, title: "Her", year: 2013, director: "Spike Jonze", verified: true},
+{id: 540, title: "The Private Lives of Pippa Lee", year: 2009, director: "Rebecca Miller", verified: true},
+{id: 541, title: "Down by Law", year: 1986, director: "Jim Jarmusch", verified: true},
+{id: 542, title: "Missing", year: 1982, director: "Costa-Gavras", verified: true},
+{id: 544, title: "It Happened One Night", year: 1934, director: "Frank Capra", verified: true},
+{id: 545, title: "Death Wish IV: The Crackdown", year: 1987, director: "J. Lee Thompson", verified: true},
+{id: 546, title: "A Bucket of Blood", year: 1959, director: "Roger Corman", verified: true},
+{id: 547, title: "The Monkey's Mask", year: 2000, director: "Samantha Lang", verified: true},
+{id: 548, title: "Good Against Evil", year: 1977, director: "Paul Wendkos", verified: true},
+{id: 549, title: "Philip Roth Unmasked", year: 2013, director: "William Karel and Livia Manera", verified: true},
+{id: 550, title: "The World According to Dick Cheney", year: 2013, director: "R.J. Cutler and Greg Finton", verified: true},
+{id: 551, title: "Maidstone", year: 1970, director: "Norman Mailer", verified: true},
+{id: 552, title: "Salinger", year: 2013, director: "Shane Salerno", verified: true},
+{id: 553, title: "Writer's Block", year: 1991, director: "Jesse Vaughan", verified: true},
+{id: 554, title: "My Dear Secretary", year: 1948, director: "Charles Martin", verified: true},
+{id: 555, title: "Bees in Paradise", year: 1944, director: "Val Guest", verified: true},
+{id: 556, title: "Diary of a Nudist", year: 1961, director: "Doris Wishman", verified: true},
+{id: 557, title: "Love Letters of a Portuguese Nun", year: 1977, director: "Jesús Franco", verified: true},
+{id: 558, title: "Twinky", year: 1970, director: "Richard Donner", verified: true},
+{id: 559, title: "Girl with Green Eyes", year: 1964, director: "Desmond Davis", verified: true},
+{id: 560, title: "Everyday Objects", year: 2013, director: "Nicolas Provost", verified: true},
+{id: 561, title: "Labor Pains", year: 2009, director: "Lara Shapiro", verified: true},
+{id: 562, title: "The Lifeguard", year: 2013, director: "Liz W. Garcia", verified: true},
+{id: 563, title: "The New Daughter", year: 2009, director: "Luis Berdejo", verified: true},
+{id: 564, title: "Twixt", year: 2011, director: "Francis Ford Coppola", verified: true},
+{id: 565, title: "Hustling", year: 1975, director: "Joseph Sargent", verified: true},
+{id: 566, title: "Take This Waltz", year: 2011, director: "Sarah Polley", verified: true},
+{id: 567, title: "Stories We Tell", year: 2012, director: "Sarah Polley", verified: true},
+{id: 568, title: "An Ideal Wife", year: 1996, director: "Mary McMurray", verified: true},
+{id: 569, title: "Seven Psychopaths", year: 2012, director: "Martin McDonagh", verified: true},
+{id: 570, title: "Her", year: 2013, director: "Spike Jonze", verified: true},
+{id: 571, title: "The Invisible Woman", year: 2013, director: "Ralph Fiennes", verified: true},
+{id: 572, title: "Authors Anonymous", year: 2014, director: "Ellie Kanner", verified: true},
+{id: 573, title: "The Last Beat", year: 2013, director: "Bentley Brown", verified: true},
+{id: 574, title: "Loveship, Hateship", year: 2013, director: "Liza Johnson", verified: true},
+{id: 575, title: "Venus in Fur", year: 2013, director: "Roman Polanski", verified: true},
+{id: 576, title: "Fleming: The Man Who Would Be Bond", year: 2014, director: "Mat Whitecross", verified: true},
+{id: 577, title: "Anonymous", year: 2011, director: "Roland Emmerich", verified: true},
+{id: 578, title: "Love Is the Perfect Crime", year: 2013, director: "Arnaud Larrieu", verified: true},
+{id: 579, title: "Voodoo Man", year: 1944, director: "William Beaudine", verified: true},
+{id: 580, title: "The Letter", year: 1940, director: "William Wyler", verified: true},
+{id: 581, title: "28 Hotel Rooms", year: 2012, director: "Matt Ross", verified: true},
+{id: 582, title: "Crashing", year: 2007, director: "Gary Walkow", verified: true},
+{id: 583, title: "Set Fire to the Stars", year: 2014, director: "Andy Goddard", verified: true},
+{id: 584, title: "Infamous", year: 2006, director: "Douglas McGrath", verified: true},
+{id: 585, title: "Tempo de Crescer", year: 2010, director: "Bel Berlinck", verified: true},
+{id: 586, title: "God Help the Girl", year: 2014, director: "Stuart Murdoch", verified: true},
+{id: 587, title: "The English Teacher", year: 2013, director: "Craig Zisk", verified: true},
+{id: 588, title: "Showtime", year: 1946, director: "Jean Yarbrough", verified: true},
+{id: 589, title: "Twin Peaks: The Entire Mystery", year: 2014, director: "David Lynch", verified: true},
+{id: 590, title: "Predestination", year: 2014, director: "Michael and Peter Spierig", verified: true},
+{id: 591, title: "A Room with a View", year: 1985, director: "James Ivory", verified: true},
+{id: 592, title: "Syrup", year: 2013, director: "Aram Rappaport", verified: true},
+{id: 593, title: "The Adderall Diaries", year: 2015, director: "Pamela Romanowsky", verified: true},
+{id: 594, title: "Ask Me Anything", year: 2014, director: "Allison Burnett", verified: true},
+{id: 595, title: "Blind Revenge", year: 2009, director: "Richard Roy", verified: true},
+{id: 596, title: "The Poet", year: 2007, director: "Damian Lee", verified: true},
+{id: 598, title: "Meet Me in Montenegro", year: 2014, director: "Alex Holdridge", verified: true},
+{id: 599, title: "The Last Five Years", year: 2014, director: "Richard LaGravenese", verified: true},
+{id: 600, title: "Woodstock", year: 1970, director: "Michael Wadleigh", verified: true},
+// Movies about Writers: IDs 601-700
+{id: 601, title: "The Lives of Others", year: 2006, director: "Florian Henckel von Donnersmarck", verified: true},
+{id: 602, title: "Satan's Brew", year: 1976, director: "Rainer Werner Fassbinder", verified: true},
+{id: 603, title: "Beware of a Holy Whore", year: 1971, director: "Rainer Werner Fassbinder", verified: true},
+{id: 604, title: "Playing It Cool", year: 2014, director: "Justin Reardon", verified: true},
+{id: 605, title: "The Rewrite", year: 2014, director: "Marc Lawrence", verified: true},
+{id: 606, title: "The Gambler", year: 2014, director: "Rupert Wyatt", verified: true},
+{id: 607, title: "Inherent Vice", year: 2014, director: "Paul Thomas Anderson", verified: true},
+{id: 608, title: "The Team", year: 2010, director: "Michael Offer", verified: true},
+{id: 609, title: "Blackhat", year: 2015, director: "Michael Mann", verified: true},
+{id: 610, title: "How to Make Love Like an Englishman", year: 2014, director: "Tom Vaughan", verified: true},
+{id: 611, title: "We Need to Talk About Kevin", year: 2011, director: "Lynne Ramsay", verified: true},
+{id: 612, title: "Hit by Lightning", year: 2014, director: "Ricky Blitt", verified: true},
+{id: 613, title: "The Osterman Weekend", year: 1983, director: "Sam Peckinpah", verified: true},
+{id: 614, title: "In the Land of Women", year: 2007, director: "Jon Kasdan", verified: true},
+{id: 617, title: "Pulp", year: 1972, director: "Mike Hodges", verified: true},
+{id: 618, title: "Danny Collins", year: 2015, director: "Dan Fogelman", verified: true},
+{id: 619, title: "Strangerland", year: 2015, director: "Kim Farrant", verified: true},
+{id: 620, title: "True Story", year: 2015, director: "Rupert Goold", verified: true},
+{id: 621, title: "Please Stand By", year: 2017, director: "Ben Lewin", verified: true},
+{id: 622, title: "The Escort", year: 2016, director: "Will Slocombe", verified: true},
+{id: 623, title: "Some Kind of Beautiful", year: 2014, director: "Tom Vaughan", verified: true},
+{id: 624, title: "The Diary of a Teenage Girl", year: 2015, director: "Marielle Heller", verified: true},
+{id: 625, title: "The Thirteenth Tale", year: 2013, director: "James Kent", verified: true},
+{id: 626, title: "Love & Mercy", year: 2014, director: "Bill Pohlad", verified: true},
+{id: 627, title: "Everything Will Be Fine", year: 2015, director: "Wim Wenders", verified: true},
+{id: 628, title: "5 to 7", year: 2014, director: "Victor Levin", verified: true},
+{id: 629, title: "The End of the Tour", year: 2015, director: "James Ponsoldt", verified: true},
+{id: 630, title: "Truth", year: 2015, director: "James Vanderbilt", verified: true},
+{id: 631, title: "Manifesto", year: 2015, director: "Julian Rosefeldt", verified: true},
+{id: 632, title: "The Secret Scripture", year: 2016, director: "Jim Sheridan", verified: true},
+{id: 633, title: "Genius", year: 2016, director: "Michael Grandage", verified: true},
+{id: 634, title: "Youth", year: 2015, director: "Paolo Sorrentino", verified: true},
+{id: 635, title: "The Mad Miss Manton", year: 1938, director: "Leigh Jason", verified: true},
+{id: 636, title: "Comrade X", year: 1940, director: "King Vidor", verified: true},
+{id: 637, title: "Crimson Peak", year: 2015, director: "Guillermo del Toro", verified: true},
+{id: 638, title: "The Barretts of Wimpole Street", year: 1934, director: "Sidney Franklin", verified: true},
+{id: 639, title: "In the Good Old Summertime", year: 1949, director: "Robert Z. Leonard", verified: true},
+{id: 640, title: "When Ladies Meet", year: 1933, director: "Harry Beaumont", verified: true},
+{id: 641, title: "When Ladies Meet", year: 1941, director: "Robert Z. Leonard", verified: true},
+{id: 642, title: "Fathers and Daughters", year: 2015, director: "Gabriele Muccino", verified: true},
+{id: 643, title: "The Adventures of Jack London", year: 1943, director: "Alfred Santell", verified: true},
+{id: 644, title: "Exclusive Story", year: 1936, director: "George B. Seitz", verified: true},
+{id: 645, title: "The Famous Ferguson Case", year: 1932, director: "Lloyd Bacon", verified: true},
+{id: 646, title: "Never a Dull Moment", year: 1950, director: "George Marshall", verified: true},
+{id: 657, title: "Third Finger, Left Hand", year: 1940, director: "Robert Z. Leonard", verified: true},
+{id: 658, title: "Authors Anonymous", year: 2014, director: "Ellie Kanner", verified: true},
+{id: 659, title: "The Typewriter (In the 21st Century)", year: 2012, director: "Christopher Lockett", verified: true},
+{id: 660, title: "A Quiet Passion", year: 2016, director: "Terence Davies", verified: true},
+{id: 661, title: "Libeled Lady", year: 1936, director: "Jack Conway", verified: true},
+{id: 662, title: "My Favorite Year", year: 1982, director: "Richard Benjamin", verified: true},
+{id: 663, title: "The Constant Nymph", year: 1943, director: "Edmund Goulding", verified: true},
+{id: 664, title: "Rock the Kasbah", year: 2015, director: "Barry Levinson", verified: true},
+{id: 665, title: "Young Cassidy", year: 1965, director: "Jack Cardiff", verified: true},
+{id: 666, title: "Beloved Sisters", year: 2014, director: "Dominik Graf", verified: true},
+{id: 667, title: "White Bondage", year: 1937, director: "Nick Grinde", verified: true},
+{id: 668, title: "Alice in the Cities", year: 1974, director: "Wim Wenders", verified: true},
+{id: 669, title: "The Paperboy", year: 2012, director: "Lee Daniels", verified: true},
+{id: 670, title: "The Odessa File", year: 1974, director: "Ronald Neame", verified: true},
+{id: 671, title: "Hemingway's Adventures of a Young Man", year: 1962, director: "Martin Ritt", verified: true},
+{id: 672, title: "Tenebre", year: 1982, director: "Dario Argento", verified: true},
+{id: 673, title: "The Kremlin Letter", year: 1970, director: "John Huston", verified: true},
+{id: 674, title: "Herostratus", year: 1967, director: "Don Levy", verified: true},
+{id: 675, title: "Collateral Beauty", year: 2016, director: "David Frankel", verified: true},
+{id: 676, title: "Press for Time", year: 1966, director: "Robert Asher", verified: true},
+{id: 677, title: "Bannerline", year: 1951, director: "Don Weis", verified: true},
+{id: 678, title: "The Lost Weekend", year: 1945, director: "Billy Wilder", verified: true},
+{id: 679, title: "George White's 1935 Scandals", year: 1935, director: "George White", verified: true},
+{id: 680, title: "Gold Diggers of 1937", year: 1936, director: "Lloyd Bacon", verified: true},
+{id: 681, title: "Hollywood Canteen", year: 1944, director: "Delmer Daves", verified: true},
+{id: 682, title: "Smart Blonde", year: 1937, director: "Frank McDonald", verified: true},
+{id: 683, title: "Eve Knew Her Apples", year: 1945, director: "Will Jason", verified: true},
+{id: 684, title: "HHHH", year: 2017, director: "Cédric Jimenez", verified: true},
+{id: 685, title: "Anthropoid", year: 2016, director: "Sean Ellis", verified: true},
+{id: 686, title: "The Promise", year: 2016, director: "Terry George", verified: true},
+{id: 687, title: "The Secret Scripture", year: 2016, director: "Jim Sheridan", verified: true},
+{id: 689, title: "War Machine", year: 2017, director: "David Michôd", verified: true},
+{id: 690, title: "Christine", year: 2016, director: "Antonio Campos", verified: true},
+{id: 691, title: "Neruda", year: 2016, director: "Pablo Larraín", verified: true},
+{id: 692, title: "Billy Lynn's Long Halftime Walk", year: 2016, director: "Ang Lee", verified: true},
+{id: 693, title: "Allied", year: 2016, director: "Robert Zemeckis", verified: true},
+{id: 694, title: "Love & Friendship", year: 2016, director: "Whit Stillman", verified: true},
+{id: 695, title: "It's Only the End of the World", year: 2016, director: "Xavier Dolan", verified: true},
+{id: 696, title: "Elle", year: 2016, director: "Paul Verhoeven", verified: true},
+{id: 697, title: "Nocturnal Animals", year: 2016, director: "Tom Ford", verified: true},
+{id: 699, title: "Paterson", year: 2016, director: "Jim Jarmusch", verified: true},
+{id: 700, title: "Design for Living", year: 1933, director: "Ernst Lubitsch", verified: true},
+// Movies about Writers: IDs 701-800
+{id: 701, title: "Up Pops the Devil", year: 1931, director: "Albert S. Rogell", verified: true},
+{id: 702, title: "In the Mouth of Madness", year: 1994, director: "John Carpenter", verified: true},
+{id: 703, title: "Starting Out in the Evening", year: 2007, director: "Andrew Wagner", verified: true},
+{id: 704, title: "Ask the Dust", year: 2006, director: "Robert Towne", verified: true},
+{id: 705, title: "Good Night, and Good Luck", year: 2005, director: "George Clooney", verified: true},
+{id: 706, title: "The Quiet American", year: 2002, director: "Phillip Noyce", verified: true},
+{id: 707, title: "The Year of Living Dangerously", year: 1982, director: "Peter Weir", verified: true},
+{id: 708, title: "The Adventurous Blonde", year: 1937, director: "Frank McDonald", verified: true},
+{id: 709, title: "Blonde Inspiration", year: 1941, director: "Busby Berkeley", verified: true},
+{id: 710, title: "In the Good Old Summertime", year: 1949, director: "Robert Z. Leonard", verified: true},
+{id: 711, title: "The Shop Around the Corner", year: 1940, director: "Ernst Lubitsch", verified: true},
+{id: 712, title: "As Clouds Roll By", year: 1946, director: "Arthur Crabtree", verified: true},
+{id: 713, title: "Words and Music", year: 1948, director: "Norman Taurog", verified: true},
+{id: 714, title: "Theodora Goes Wild", year: 1936, director: "Richard Boleslawski", verified: true},
+{id: 715, title: "The Glass Bottom Boat", year: 1966, director: "Frank Tashlin", verified: true},
+{id: 716, title: "Men Are Such Fools", year: 1938, director: "Busby Berkeley", verified: true},
+{id: 717, title: "The Big Clock", year: 1948, director: "John Farrow", verified: true},
+{id: 718, title: "Foreign Correspondent", year: 1940, director: "Alfred Hitchcock", verified: true},
+{id: 719, title: "Freedom of the Press", year: 1948, director: "George S. Kaufman", verified: true},
+{id: 720, title: "Ever Since Eve", year: 1937, director: "Lloyd Bacon", verified: true},
+{id: 721, title: "Design for Scandal", year: 1941, director: "Norman Taurog", verified: true},
+{id: 722, title: "Night Without Sleep", year: 1952, director: "Roy Ward Baker", verified: true},
+{id: 723, title: "Another Man's Poison", year: 1951, director: "Irving Rapper", verified: true},
+{id: 724, title: "Mickey Seventeen", year: 2025, director: "Bong Joon-ho", verified: true},
+{id: 725, title: "The Thirteenth Letter", year: 1951, director: "Otto Preminger", verified: true},
+{id: 726, title: "Love Letters", year: 1945, director: "William Dieterle", verified: true},
+{id: 727, title: "The Ex-Mrs. Bradford", year: 1936, director: "Stephen Roberts", verified: true},
+{id: 728, title: "Sleuth", year: 1972, director: "Joseph L. Mankiewicz", verified: true},
+{id: 729, title: "Sleuth", year: 2007, director: "Kenneth Branagh", verified: true},
+{id: 730, title: "William S. Burroughs: A Man Within", year: 2010, director: "Yony Leyser", verified: true},
+{id: 731, title: "Charlie Chan in the Chinese Cat", year: 1944, director: "Phil Rosen", verified: true},
+{id: 732, title: "Dear Brigitte", year: 1965, director: "Henry Koster", verified: true},
+{id: 733, title: "The Youngest Profession", year: 1943, director: "Edward Buzzell", verified: true},
+{id: 734, title: "Citizen Kane", year: 1941, director: "Orson Welles", verified: true},
+{id: 735, title: "Jefferson in Paris", year: 1995, director: "James Ivory", verified: true},
+{id: 736, title: "Starcrossed", year: 1985, director: "Jeffrey Bloom", verified: true},
+{id: 737, title: "Woman of the Year", year: 1942, director: "George Stevens", verified: true},
+{id: 738, title: "The Libertine", year: 2004, director: "Laurence Dunmore", verified: true},
+{id: 739, title: "Quartet", year: 1981, director: "James Ivory", verified: true},
+{id: 740, title: "Twice Told Tales", year: 1963, director: "Sidney Salkow", verified: true},
+{id: 741, title: "Henry & June", year: 1990, director: "Philip Kaufman", verified: true},
+{id: 742, title: "Born Yesterday", year: 1950, director: "George Cukor", verified: true},
+{id: 743, title: "Bell Book and Candle", year: 1958, director: "Richard Quine", verified: true},
+{id: 744, title: "Manhattan Night", year: 2016, director: "Brian DeCubellis", verified: true},
+{id: 745, title: "Manhattan Romance", year: 2015, director: "Tom O'Brien", verified: true},
+{id: 746, title: "Manhattan", year: 1979, director: "Woody Allen", verified: true},
+{id: 747, title: "Jane Austen in Manhattan", year: 1980, director: "James Ivory", verified: true},
+{id: 748, title: "Adventure in Manhattan", year: 1936, director: "Edward Ludwig", verified: true},
+{id: 749, title: "Young Man of Manhattan", year: 1930, director: "Monta Bell", verified: true},
+{id: 750, title: "Manhattan by Numbers", year: 1993, director: "Amir Naderi", verified: true},
+{id: 751, title: "Sisters", year: 1914, director: "D.W. Griffith", verified: true},
+{id: 752, title: "Marry the Girl", year: 1937, director: "William C. McGann", verified: true},
+{id: 753, title: "Behind the Rising Sun", year: 1943, director: "Edward Dmytryk", verified: true},
+{id: 754, title: "June Bride", year: 1948, director: "Bretaigne Windust", verified: true},
+{id: 755, title: "This Marriage Business", year: 1938, director: "Christy Cabanne", verified: true},
+{id: 756, title: "The Doorway to Hell", year: 1930, director: "Archie Mayo", verified: true},
+{id: 757, title: "Winter Meeting", year: 1948, director: "Bretaigne Windust", verified: true},
+{id: 758, title: "Long Day's Journey Into Night", year: 1962, director: "Sidney Lumet", verified: true},
+{id: 759, title: "Love & Savagery", year: 2009, director: "John N. Smith", verified: true},
+{id: 760, title: "Jazz Heaven", year: 1929, director: "Melville W. Brown", verified: true},
+{id: 761, title: "Young Widow", year: 1946, director: "Edwin L. Marin", verified: true},
+{id: 762, title: "Critic's Choice", year: 1963, director: "Don Weis", verified: true},
+{id: 763, title: "Double Exposure", year: 1944, director: "William Berke", verified: true},
+{id: 764, title: "The Bride Goes Wild", year: 1948, director: "Norman Taurog", verified: true},
+{id: 765, title: "Born to Be Blue", year: 2015, director: "Robert Budreau", verified: true},
+{id: 766, title: "Kill the Trumpet Player (working title)", year: 2026, director: "Brett Haley", verified: true},
+{id: 767, title: "Unholy Partners", year: 1941, director: "Mervyn LeRoy", verified: true},
+{id: 768, title: "You Can't Escape Forever", year: 1942, director: "Jo Graham", verified: true},
+{id: 769, title: "Equals", year: 2015, director: "Drake Doremus", verified: true},
+{id: 770, title: "Certain Women", year: 2016, director: "Kelly Reichardt", verified: true},
+{id: 771, title: "Author: The JT LeRoy Story", year: 2016, director: "Jeff Feuerzeig", verified: true},
+{id: 772, title: "The Devil Bat", year: 1940, director: "Jean Yarbrough", verified: true},
+{id: 773, title: "Amanda Knox", year: 2016, director: "Rod Blackhurst", verified: true},
+{id: 774, title: "The Hoodlum Saint", year: 1946, director: "Norman Taurog", verified: true},
+{id: 775, title: "Iron Moon", year: 2016, director: "Jiu-liang Wang", verified: true},
+{id: 777, title: "Notes on Blindness", year: 2016, director: "Peter Middleton", verified: true},
+{id: 778, title: "Mifune", year: 1999, director: "Søren Kragh-Jacobsen", verified: true},
+{id: 779, title: "Abattoir", year: 2016, director: "Darren Lynn Bousman", verified: true},
+{id: 780, title: "Neruda", year: 2016, director: "Pablo Larraín", verified: true},
+{id: 781, title: "Brand New Testament", year: 2015, director: "Jaco Van Dormael", verified: true},
+{id: 782, title: "Nocturnal Animals", year: 2016, director: "Tom Ford", verified: true},
+{id: 783, title: "Burn Counter", year: 2025, director: "Unknown", verified: true},
+{id: 784, title: "The Black Book", year: 2006, director: "Jean-Pierre Limosin", verified: true},
+{id: 785, title: "Death Wish II", year: 1982, director: "Michael Winner", verified: true},
+{id: 786, title: "The Black Book", year: 1949, director: "Anthony Mann", verified: true},
+{id: 787, title: "The Deadly Dream", year: 1971, director: "Alf Kjellin", verified: true},
+{id: 788, title: "Kisses for My President", year: 1964, director: "Curtis Bernhardt", verified: true},
+{id: 789, title: "Naked Souls", year: 1995, director: "Lyndon Chubbuck", verified: true},
+{id: 790, title: "Die wahren Memoiren eines internationalen Killers", year: 2006, director: "Gregor Schnitzler", verified: true},
+{id: 791, title: "Headline Shooter", year: 1933, director: "Otto Brower", verified: true},
+{id: 792, title: "The Redistributors", year: 2011, director: "Patrick Alexander", verified: true},
+{id: 793, title: "Cobain: Montage of Heck", year: 2015, director: "Brett Morgen", verified: true},
+{id: 794, title: "Sid & Nancy", year: 1986, director: "Alex Cox", verified: true},
+{id: 795, title: "With Love from the Age of Reason", year: 2010, director: "Yaroslav Chevazhevskiy", verified: true},
+{id: 796, title: "My Nights Are More Beautiful Than Your Days", year: 1989, director: "Andrzej Żuławski", verified: true},
+{id: 797, title: "Snowed Under", year: 1936, director: "Ray Enright", verified: true},
+{id: 798, title: "The Leading Man", year: 1996, director: "John Duigan", verified: true},
+{id: 799, title: "Burden of Dreams", year: 1982, director: "Les Blank", verified: true},
+{id: 800, title: "The Bad and the Beautiful", year: 1952, director: "Vincente Minnelli", verified: true},
+// Movies about Writers: IDs 801-900
+{id: 801, title: "The Burden of Dreams", year: 1982, director: "Les Blank", verified: true},
+{id: 802, title: "Downfall", year: 2004, director: "Oliver Hirschbiegel", verified: true},
+{id: 803, title: "The Legendary Life of Ernest Hemingway", year: 2022, director: "Ken Burns, Lynn Novick", verified: true},
+{id: 804, title: "The Strange Case of Wilhelm Reich", year: 2012, director: "Antonin Svoboda", verified: true},
+{id: 805, title: "Poem: I Set My Foot Upon the Air and It Carried Me", year: 2000, director: "Alain Resnais", verified: true},
+{id: 806, title: "My Brilliant Career", year: 1979, director: "Gillian Armstrong", verified: true},
+{id: 807, title: "Deathwatch", year: 2002, director: "Michael J. Bassett", verified: true},
+{id: 808, title: "A Letter to Three Wives", year: 1949, director: "Joseph L. Mankiewicz", verified: true},
+{id: 809, title: "Vi trenger hverandre", year: 2022, director: "Lise I. Osvoll", verified: true},
+{id: 810, title: "The Man Who Came to Dinner", year: 1942, director: "William Keighley", verified: true},
+{id: 811, title: "Das Leben ist Lüge", year: 2010, director: "Robert Thalheim", verified: true},
+{id: 812, title: "King of the Newsboys", year: 1938, director: "Bernard Vorhaus", verified: true},
+{id: 813, title: "The Night of January 16th", year: 1941, director: "William Clemens", verified: true},
+{id: 814, title: "Newsbreak", year: 1993, director: "Phillip Spink", verified: true},
+{id: 815, title: "The Sorrows of Satan", year: 1926, director: "D.W. Griffith", verified: true},
+{id: 816, title: "Phantom", year: 1922, director: "F.W. Murnau", verified: true},
+{id: 817, title: "Anomalisa", year: 2015, director: "Charlie Kaufman, Duke Johnson", verified: true},
+{id: 818, title: "American Pastoral", year: 2016, director: "Ewan McGregor", verified: true},
+{id: 819, title: "Passengers", year: 2016, director: "Morten Tyldum", verified: true},
+{id: 820, title: "I Am Watching You", year: 2016, director: "Stephen Hall", verified: true},
+{id: 821, title: "The Bell Jar", year: 2018, director: "Rafael Fuentes", verified: true},
+{id: 822, title: "The Beguiled", year: 2017, director: "Sofia Coppola", verified: true},
+{id: 823, title: "Practically Yours", year: 1944, director: "Mitchell Leisen", verified: true},
+{id: 824, title: "The Circle", year: 2017, director: "James Ponsoldt", verified: true},
+{id: 825, title: "Jason Nash Is Married", year: 2017, director: "Chris Nelson", verified: true},
+{id: 826, title: "How to Talk to Girls at Parties", year: 2017, director: "John Cameron Mitchell", verified: true},
+{id: 827, title: "Sudden Fear", year: 1952, director: "David Miller", verified: true},
+{id: 828, title: "S", year: 2018, director: "Jae-kyu Lee", verified: true},
+{id: 829, title: "Touched by Fire", year: 2015, director: "Paul Dalio", verified: true},
+{id: 831, title: "American Made", year: 2017, director: "Doug Liman", verified: true},
+{id: 832, title: "The Greatest Showman", year: 2017, director: "Michael Gracey", verified: true},
+{id: 833, title: "Rock That Body", year: 2019, director: "Nick Stoller", verified: true},
+{id: 834, title: "Dostoevsky's Travels", year: 1998, director: "Larry Weinstein", verified: true},
+{id: 835, title: "Dostoevsky Behind Bars", year: 1997, director: "Andrzej Trzos-Rastawiecki", verified: true},
+{id: 836, title: "Dostoevskiy", year: 2011, director: "Vladimir Khotinenko", verified: true},
+{id: 837, title: "Beyond a Reasonable Doubt", year: 1956, director: "Fritz Lang", verified: true},
+{id: 838, title: "While the City Sleeps", year: 1956, director: "Fritz Lang", verified: true},
+{id: 839, title: "Dead Poets Society", year: 1989, director: "Peter Weir", verified: true},
+{id: 840, title: "Delta of Venus", year: 1995, director: "Zalman King", verified: true},
+{id: 841, title: "Endless Poetry", year: 2016, director: "Alejandro Jodorowsky", verified: true},
+{id: 842, title: "Possession", year: 1981, director: "Andrzej Żuławski", verified: true},
+{id: 843, title: "The Handmaiden", year: 2016, director: "Park Chan-wook", verified: true},
+{id: 844, title: "Seule sur la plage la nuit", year: 2017, director: "Mona Achache", verified: true},
+{id: 845, title: "Final Portrait", year: 2017, director: "Stanley Tucci", verified: true},
+{id: 846, title: "Shoot the Moon", year: 1982, director: "Alan Parker", verified: true},
+{id: 847, title: "Angel", year: 2007, director: "François Ozon", verified: true},
+{id: 848, title: "Crouching Tiger, Hidden Dragon", year: 2000, director: "Ang Lee", verified: true},
+{id: 849, title: "Dongju: The Portrait of a Poet", year: 2016, director: "Lee Joon-ik", verified: true},
+{id: 850, title: "Our Man Flint", year: 1966, director: "Daniel Mann", verified: true},
+{id: 851, title: "In Like Flint", year: 1967, director: "Gordon Douglas", verified: true},
+{id: 852, title: "Biography of a Bachelor Girl", year: 1935, director: "Edward Buzzell", verified: true},
+{id: 853, title: "The Help", year: 2011, director: "Tate Taylor", verified: true},
+{id: 854, title: "The Post", year: 2017, director: "Steven Spielberg", verified: true},
+{id: 855, title: "Last Days of Disco", year: 1998, director: "Whit Stillman", verified: true},
+{id: 856, title: "By the Sea", year: 2015, director: "Angelina Jolie", verified: true},
+{id: 857, title: "The Raven", year: 2012, director: "James McTeigue", verified: true},
+{id: 858, title: "Edgar A. Poe: Buried Alive", year: 2016, director: "Chris Hunt", verified: true},
+{id: 859, title: "Hangman", year: 2017, director: "Johnny Martin", verified: true},
+{id: 860, title: "The Girl in the Book", year: 2015, director: "Marya Cohn", verified: true},
+{id: 861, title: "Leave Her to Heaven", year: 1945, director: "John M. Stahl", verified: true},
+{id: 862, title: "Dear Dictator", year: 2018, director: "Lisa Addario, Joe Syracuse", verified: true},
+{id: 863, title: "Insidious: Chapter 3", year: 2015, director: "Leigh Whannell", verified: true},
+{id: 864, title: "All the Money in the World", year: 2017, director: "Ridley Scott", verified: true},
+{id: 865, title: "Molly's Game", year: 2017, director: "Aaron Sorkin", verified: true},
+{id: 866, title: "老娘叫譚雅", year: 2018, director: "Unknown", verified: true},
+{id: 867, title: "Welcome the Stranger", year: 2018, director: "Justin Kelly", verified: true},
+{id: 868, title: "Lucy", year: 2014, director: "Luc Besson", verified: true},
+{id: 869, title: "The Vanishing of Sydney Hall", year: 2017, director: "Shawn Christensen", verified: true},
+{id: 870, title: "Blame", year: 2017, director: "Quinn Shephard", verified: true},
+{id: 871, title: "The Theory of Everything", year: 2014, director: "James Marsh", verified: true},
+{id: 872, title: "Annihilation", year: 2018, director: "Alex Garland", verified: true},
+{id: 873, title: "Suspiria", year: 2018, director: "Luca Guadagnino", verified: true},
+{id: 874, title: "Tomb Raider", year: 2018, director: "Roar Uthaug", verified: true},
+{id: 875, title: "Down a Dark Hall", year: 2018, director: "Rodrigo Cortés", verified: true},
+{id: 876, title: "Book Club", year: 2018, director: "Bill Holderman", verified: true},
+{id: 877, title: "The Seagull", year: 2018, director: "Michael Mayer", verified: true},
+{id: 878, title: "Destination Wedding", year: 2018, director: "Victor Levin", verified: true},
+{id: 879, title: "The Sisters Brothers", year: 2018, director: "Jacques Audiard", verified: true},
+{id: 880, title: "A Private War", year: 2018, director: "Matthew Heineman", verified: true},
+{id: 881, title: "Vice", year: 2018, director: "Adam McKay", verified: true},
+{id: 882, title: "Based on a True Story", year: 2017, director: "Roman Polanski", verified: true},
+{id: 883, title: "The Guernsey Literary and Potato Peel Pie Society", year: 2018, director: "Mike Newell", verified: true},
+{id: 884, title: "The Rebel in the Rye", year: 2017, director: "Danny Strong", verified: true},
+{id: 885, title: "Mary Shelley", year: 2017, director: "Haifaa al-Mansour", verified: true},
+{id: 886, title: "The Imitation Game", year: 2014, director: "Morten Tyldum", verified: true},
+{id: 887, title: "Colette", year: 2018, director: "Wash Westmoreland", verified: true},
+{id: 888, title: "Official Secrets", year: 2019, director: "Gavin Hood", verified: true},
+{id: 889, title: "A House in the Sky", year: 2022, director: "Unknown", verified: true},
+{id: 890, title: "The Other Side of the Wind", year: 2018, director: "Orson Welles", verified: true},
+{id: 891, title: "They'll Love Me When I'm Dead", year: 2018, director: "Morgan Neville", verified: true},
+{id: 893, title: "F for Fake", year: 1973, director: "Orson Welles", verified: true},
+{id: 894, title: "The Eyes of Orson Welles", year: 2018, director: "Mark Cousins", verified: true},
+{id: 895, title: "Don't Worry, He Won't Get Far on Foot", year: 2018, director: "Gus Van Sant", verified: true},
+{id: 896, title: "Becoming Astrid", year: 2018, director: "Pernille Fischer Christensen", verified: true},
+{id: 897, title: "Velvet Buzzsaw", year: 2019, director: "Dan Gilroy", verified: true},
+{id: 898, title: "At Eternity's Gate", year: 2018, director: "Julian Schnabel", verified: true},
+{id: 899, title: "Bohemian Rhapsody", year: 2018, director: "Bryan Singer", verified: true},
+{id: 900, title: "The Realm", year: 2018, director: "Rodrigo Sorogoyen", verified: true},
+// Movies about Writers: IDs 901-1000
+{id: 901, title: "Boy Erased", year: 2018, director: "Joel Edgerton", verified: true},
+{id: 902, title: "The House That Jack Built", year: 2018, director: "Lars von Trier", verified: true},
+{id: 903, title: "Rumble Fish", year: 1983, director: "Francis Ford Coppola", verified: true},
+{id: 904, title: "Drugstore Cowboy", year: 1989, director: "Gus Van Sant", verified: true},
+{id: 905, title: "The Dirt", year: 2019, director: "Jeff Tremaine", verified: true},
+{id: 906, title: "Extremely Wicked, Shockingly Evil and Vile", year: 2019, director: "Joe Berlinger", verified: true},
+{id: 907, title: "Tolkien", year: 2019, director: "Dome Karukoski", verified: true},
+{id: 908, title: "The Professor and the Madman", year: 2019, director: "Farhad Safinia", verified: true},
+{id: 909, title: "The Professor", year: 2018, director: "Wayne Roberts", verified: true},
+{id: 910, title: "Rocketman", year: 2019, director: "Dexter Fletcher", verified: true},
+{id: 912, title: "Blinded by the Light", year: 2019, director: "Gurinder Chadha", verified: true},
+{id: 913, title: "Satanic Panic", year: 2019, director: "Chelsea Stardust", verified: true},
+{id: 914, title: "All Is True", year: 2018, director: "Kenneth Branagh", verified: true},
+{id: 915, title: "Text", year: 2019, director: "Ivan I. Tverdovsky", verified: true},
+{id: 916, title: "Reiz Holivudā", year: 2020, director: "Renārs Vimba", verified: true},
+{id: 917, title: "An Accidental Studio", year: 2019, director: "Amir Amirani", verified: true},
+{id: 918, title: "Chinese Coffee", year: 2000, director: "Al Pacino", verified: true},
+{id: 919, title: "Cast a Deadly Spell", year: 1991, director: "Martin Campbell", verified: true},
+{id: 920, title: "Mank", year: 2020, director: "David Fincher", verified: true},
+{id: 921, title: "The Rich Are Always with Us", year: 1932, director: "Alfred E. Green", verified: true},
+{id: 922, title: "Vita and Virginia", year: 2018, director: "Chanya Button", verified: true},
+{id: 924, title: "The Joker", year: 2019, director: "Todd Phillips", verified: true},
+{id: 925, title: "Official Secrets", year: 2019, director: "Gavin Hood", verified: true},
+{id: 926, title: "Nelly", year: 2016, director: "Anne Émond", verified: true},
+{id: 927, title: "The Report", year: 2019, director: "Scott Z. Burns", verified: true},
+{id: 928, title: "The Aspern Papers", year: 2018, director: "Julien Landais", verified: true},
+{id: 929, title: "Who Will Write Our History", year: 2018, director: "Roberta Grossman", verified: true},
+{id: 930, title: "Joseph Pulitzer: Voice of the People", year: 2019, director: "Oren Rudavsky", verified: true},
+{id: 931, title: "Midsommar", year: 2019, director: "Ari Aster", verified: true},
+{id: 932, title: "The Bookshop", year: 2017, director: "Isabel Coixet", verified: true},
+{id: 933, title: "London Fields", year: 2018, director: "Mathew Cullen", verified: true},
+{id: 934, title: "The Corpse Vanishes", year: 1942, director: "Wallace Fox", verified: true},
+{id: 935, title: "Elizabeth Is Missing", year: 2019, director: "Aisling Walsh", verified: true},
+{id: 936, title: "Vivarium", year: 2019, director: "Lorcan Finnegan", verified: true},
+{id: 939, title: "Coven of Evil", year: 2019, director: "Joe Lynch", verified: true},
+{id: 940, title: "Bitter Honey", year: 2016, director: "Robert Lemelson", verified: true},
+{id: 941, title: "The Roads Not Taken", year: 2020, director: "Sally Potter", verified: true},
+{id: 942, title: "News of the World", year: 2020, director: "Paul Greengrass", verified: true},
+{id: 943, title: "A Mouthful of Air", year: 2021, director: "Amy Koppelman", verified: true},
+{id: 944, title: "Radioactive", year: 2019, director: "Marjane Satrapi", verified: true},
+{id: 945, title: "Bombshell", year: 2019, director: "Jay Roach", verified: true},
+{id: 946, title: "Kann und muss man jetzt Filme machen?", year: 2020, director: "David Klammer", verified: true},
+{id: 947, title: "Letter of Introduction", year: 1938, director: "John M. Stahl", verified: true},
+{id: 948, title: "The Sisters", year: 2020, director: "Michele Civetta", verified: true},
+{id: 949, title: "Anaïs Nin Observed", year: 2016, director: "Bridget Murnane", verified: true},
+{id: 950, title: "The Aspern Papers", year: 2019, director: "Julien Landais", verified: true},
+{id: 951, title: "The Dinner Party", year: 2020, director: "Miles Doleac", verified: true},
+{id: 952, title: "Kate Can't Swim", year: 2017, director: "Josh Helman", verified: true},
+{id: 953, title: "Misbehaviour", year: 2020, director: "Philippa Lowthorpe", verified: true},
+{id: 954, title: "Hannah Arendt", year: 2012, director: "Margarethe von Trotta", verified: true},
+{id: 955, title: "MS Slavic 7", year: 2019, director: "Sofia Bohdanowicz, Deragh Campbell", verified: true},
+{id: 956, title: "The Fox Hunter", year: 2020, director: "Chadi Zeneddine", verified: true},
+{id: 957, title: "Night Train to Venice", year: 1993, director: "Carlo U. Quinterio", verified: true},
+{id: 958, title: "Silk", year: 1986, director: "Yoshimitsu Morita", verified: true},
+{id: 959, title: "Young Adult", year: 2011, director: "Jason Reitman", verified: true},
+{id: 960, title: "Misty Button", year: 2021, director: "Unknown", verified: true},
+{id: 961, title: "Dark Places", year: 2015, director: "Gilles Paquet-Brenner", verified: true},
+{id: 962, title: "The Feeling of Being Watched", year: 2018, director: "Assia Boundaoui", verified: true},
+{id: 963, title: "Summerland", year: 2020, director: "Jessica Swale", verified: true},
+{id: 964, title: "Waiting for the Barbarians", year: 2019, director: "Ciro Guerra", verified: true},
+{id: 965, title: "Flannery", year: 2020, director: "Elizabeth Coffman", verified: true},
+{id: 966, title: "The Burnt Orange Heresy", year: 2019, director: "Giuseppe Capotondi", verified: true},
+{id: 967, title: "Antebellum", year: 2020, director: "Gerard Bush, Christopher Renz", verified: true},
+{id: 968, title: "Fatman", year: 2020, director: "Eshom Nelms, Ian Nelms", verified: true},
+{id: 969, title: "Book of Blood", year: 2009, director: "John Harrison", verified: true},
+{id: 970, title: "Books of Blood", year: 2020, director: "Brannon Braga", verified: true},
+{id: 971, title: "House by the River", year: 1950, director: "Fritz Lang", verified: true},
+{id: 972, title: "Crime Wave", year: 1954, director: "André de Toth", verified: true},
+{id: 973, title: "The Dry", year: 2020, director: "Robert Connolly", verified: true},
+{id: 974, title: "Grimm Love", year: 2006, director: "Martin Weisz", verified: true},
+{id: 975, title: "JFK", year: 1991, director: "Oliver Stone", verified: true},
+{id: 976, title: "Main Street to Broadway", year: 1953, director: "Tay Garnett", verified: true},
+{id: 977, title: "Thoroughbreds", year: 2017, director: "Cory Finley", verified: true},
+{id: 978, title: "Blithe Spirit", year: 2020, director: "Edward Hall", verified: true},
+{id: 979, title: "The Last Sentence", year: 2012, director: "Jan Troell", verified: true},
+{id: 980, title: "Russian Ark", year: 2002, director: "Alexander Sokurov", verified: true},
+{id: 981, title: "Gogol: The Beginning", year: 2017, director: "Egor Baranov", verified: true},
+{id: 982, title: "Gogol: Viy", year: 2018, director: "Egor Baranov", verified: true},
+{id: 983, title: "Gogol: A Terrible Vengeance", year: 2018, director: "Egor Baranov", verified: true},
+{id: 984, title: "To Olivia", year: 2021, director: "John Hay", verified: true},
+{id: 985, title: "Brimstone Incorporated", year: 2020, director: "Ricki Stern", verified: true},
+{id: 986, title: "The World to Come", year: 2020, director: "Mona Fastvold", verified: true},
+{id: 987, title: "Rifkin's Festival", year: 2020, director: "Woody Allen", verified: true},
+{id: 988, title: "The Odyssey of Henry Miller", year: 2020, director: "Unknown", verified: true},
+{id: 989, title: "The Hating Game", year: 2021, director: "Peter Hutchings", verified: true},
+{id: 990, title: "Macbeth", year: 1908, director: "J. Stuart Blackton", verified: true},
+{id: 991, title: "Macbeth", year: 1916, director: "John Emerson", verified: true},
+{id: 992, title: "Macbeth", year: 1948, director: "Orson Welles", verified: true},
+{id: 993, title: "Throne of Blood", year: 1957, director: "Akira Kurosawa", verified: true},
+{id: 994, title: "Macbeth", year: 1971, director: "Roman Polanski", verified: true},
+{id: 995, title: "Macbeth", year: 1978, director: "Philip Casson", verified: true},
+{id: 996, title: "Men of Respect", year: 1990, director: "William Reilly", verified: true},
+{id: 997, title: "The Tragedy of Macbeth", year: 2021, director: "Joel Coen", verified: true},
+{id: 998, title: "Scotland, PA", year: 2001, director: "Billy Morrissette", verified: true},
+{id: 999, title: "Maqbool", year: 2003, director: "Vishal Bhardwaj", verified: true},
+{id: 1000, title: "Teenage Gang Debs", year: 1974, director: "Edwin S. Brown", verified: true},
+// Movies about Writers: IDs 1001-1100
+{id: 1001, title: "Joe Macbeth", year: 1955, director: "Ken Hughes", verified: true},
+{id: 1002, title: "Magnesium", year: 2018, director: "Mauro Mueller", verified: true},
+{id: 1003, title: "Nightbooks", year: 2021, director: "David Yarovesky", verified: true},
+{id: 1004, title: "Bergman Island", year: 2021, director: "Mia Hansen-Løve", verified: true},
+{id: 1005, title: "The Year of Fury", year: 2022, director: "Paola Cortellesi", verified: true},
+{id: 1006, title: "Secret Rites", year: 2024, director: "Roly Sussex", verified: true},
+{id: 1007, title: "Chinese Box", year: 1997, director: "Wayne Wang", verified: true},
+{id: 1008, title: "C'mon C'mon", year: 2021, director: "Mike Mills", verified: true},
+{id: 1009, title: "Licorice Pizza", year: 2021, director: "Paul Thomas Anderson", verified: true},
+{id: 1010, title: "Herbert Butler: Witness to the Future", year: 2023, director: "Unknown", verified: true},
+{id: 1011, title: "Nocturne", year: 2020, director: "Zu Quirke", verified: true},
+{id: 1012, title: "The Great Sinner", year: 1949, director: "Robert Siodmak", verified: true},
+{id: 1013, title: "Twenty Six Days from the Life of Dostoevsky", year: 1981, director: "Aleksandr Zarkhi", verified: true},
+{id: 1014, title: "The Gambler", year: 1997, director: "Károly Makk", verified: true},
+{id: 1015, title: "The Eyes of Tammy Faye", year: 2021, director: "Michael Showalter", verified: true},
+{id: 1016, title: "The Most Reluctant Convert: The Untold Story of C.S. Lewis", year: 2021, director: "Norman Stone", verified: true},
+{id: 1017, title: "The Book of Vision", year: 2020, director: "Carlo S. Hintermann", verified: true},
+{id: 1018, title: "The Grateful Dead Movie", year: 1977, director: "Jerry Garcia, Leon Gast", verified: true},
+{id: 1019, title: "The Other One: The Long Strange Trip of Bob Weir", year: 2015, director: "Mike Fleiss", verified: true},
+{id: 1020, title: "Long Strange Trip", year: 2017, director: "Amir Bar-Lev", verified: true},
+{id: 1021, title: "Breakfast at Tiffany's", year: 1961, director: "Blake Edwards", verified: true},
+{id: 1022, title: "Eminent Domain", year: 1990, director: "John Irvin", verified: true},
+{id: 1023, title: "Fear and Loathing in Las Vegas", year: 1998, director: "Terry Gilliam", verified: true},
+{id: 1024, title: "A Scanner Darkly", year: 2006, director: "Richard Linklater", verified: true},
+{id: 1025, title: "The French Dispatch of the Liberty, Kansas Evening Sun", year: 2021, director: "Wes Anderson", verified: true},
+{id: 1026, title: "France", year: 2021, director: "Bruno Dumont", verified: true},
+{id: 1027, title: "The Laureate", year: 2021, director: "William Nunez", verified: true},
+{id: 1028, title: "Warhunt", year: 2022, director: "Mauro Borrelli", verified: true},
+{id: 1029, title: "The Three FiftyFive", year: 2024, director: "Unknown", verified: true},
+{id: 1030, title: "The Assistant", year: 2019, director: "Kitty Green", verified: true},
+{id: 1031, title: "The Russia House", year: 1990, director: "Fred Schepisi", verified: true},
+{id: 1032, title: "The Seed", year: 2021, director: "Sam Walker", verified: true},
+{id: 1033, title: "Deborah", year: 2021, director: "Guy Ferland", verified: true},
+{id: 1034, title: "Track The Man Down", year: 1955, director: "R. G. Springsteen", verified: true},
+{id: 1035, title: "York Witches Society", year: 2024, director: "Unknown", verified: true},
+{id: 1036, title: "The Clash: Rude Boy", year: 1980, director: "Jack Hazan, David Mingay", verified: true},
+{id: 1037, title: "Not Okay", year: 2022, director: "Quinn Shephard", verified: true},
+{id: 1038, title: "The World After Us", year: 2023, director: "Ileana Mavrici", verified: true},
+{id: 1039, title: "Wife Like", year: 2025, director: "J.J. Englert", verified: true},
+{id: 1040, title: "Luckiest Girl Alive", year: 2022, director: "Mike Barker", verified: true},
+{id: 1041, title: "Art of Love", year: 2022, director: "Lucía Alemany", verified: true},
+{id: 1042, title: "Operation Mincemeat", year: 2021, director: "John Madden", verified: true},
+{id: 1043, title: "The Gray Man", year: 2022, director: "Anthony Russo, Joe Russo", verified: true},
+{id: 1044, title: "Write & Wrong", year: 2020, director: "Randall Einhorn", verified: true},
+{id: 1045, title: "Benediction", year: 2021, director: "Terence Davies", verified: true},
+{id: 1046, title: "The House of Snails", year: 2021, director: "Macarena Astorga", verified: true},
+{id: 1047, title: "Gone in the Night", year: 2022, director: "Eli Horowitz", verified: true},
+{id: 1048, title: "The Idiot", year: 1951, director: "Akira Kurosawa", verified: true},
+{id: 1049, title: "Section 8", year: 2022, director: "Christian Sesma", verified: true},
+{id: 1050, title: "Norman Mailer in Provincetown", year: 2024, director: "Vivien Lesnik Weisman", verified: true},
+{id: 1051, title: "On the Line", year: 2022, director: "Romuald Boulanger", verified: true},
+{id: 1052, title: "Philip Roth Unmasked", year: 2013, director: "William Karel, Livia Manera", verified: true},
+{id: 1053, title: "Frank & Penelope", year: 2022, director: "Sean O'Reilly", verified: true},
+{id: 1054, title: "WASP22", year: 2024, director: "Unknown", verified: true},
+{id: 1055, title: "JFK Revisited Through the Looking Glass", year: 2021, director: "Oliver Stone", verified: true},
+{id: 1056, title: "Red Book Ritual", year: 2024, director: "David Keating", verified: true},
+{id: 1057, title: "The School of Good and Evil", year: 2022, director: "Paul Feig", verified: true},
+{id: 1058, title: "Devil's Workshop", year: 2022, director: "Chris von Hoffmann", verified: true},
+{id: 1059, title: "Patti Smith: Electric Poet", year: 2024, director: "Mona Nicoară", verified: true},
+{id: 1060, title: "The Magus", year: 1968, director: "Guy Green", verified: true},
+{id: 1061, title: "The Infernal Machine", year: 2022, director: "Andrew Hunt", verified: true},
+{id: 1062, title: "The Spy Who Dumped Me", year: 2018, director: "Susanna Fogel", verified: true},
+{id: 1063, title: "The Wonder", year: 2022, director: "Sebastián Lelio", verified: true},
+{id: 1064, title: "Writing with Fire", year: 2021, director: "Rintu Thomas, Sushmit Ghosh", verified: true},
+{id: 1065, title: "Platinum Blonde", year: 1931, director: "Frank Capra", verified: true},
+{id: 1066, title: "Next Time We Love", year: 1936, director: "Edward H. Griffith", verified: true},
+{id: 1067, title: "Unsilenced", year: 2022, director: "James Redford", verified: true},
+{id: 1068, title: "Vengeance", year: 2022, director: "B.J. Novak", verified: true},
+{id: 1069, title: "The Anchor", year: 2022, director: "Brady Corbet", verified: true},
+{id: 1070, title: "The Letter", year: 1929, director: "Jean de Limur", verified: true},
+{id: 1071, title: "The Black Phone", year: 2021, director: "Scott Derrickson", verified: true},
+{id: 1072, title: "Earwig", year: 2021, director: "Lucile Hadžihalilović", verified: true},
+{id: 1073, title: "Out of the Shadows", year: 2022, director: "Vishal Rana", verified: true},
+{id: 1074, title: "Romance in Style", year: 2022, director: "Ruba Nadda", verified: true},
+{id: 1075, title: "Diary of a Mad Housewife", year: 1970, director: "Frank Perry", verified: true},
+{id: 1076, title: "Lethal Love Letter", year: 2024, director: "Michael Robison", verified: true},
+{id: 1077, title: "Bandit", year: 2022, director: "Allan Ungar", verified: true},
+{id: 1078, title: "Diary of a Spy", year: 2024, director: "Katherine Dieckmann", verified: true},
+{id: 1079, title: "Bad Reputation", year: 2018, director: "Kevin Kerslake", verified: true},
+{id: 1080, title: "De Sade", year: 1969, director: "Cy Endfield", verified: true},
+{id: 1081, title: "The Saragossa Manuscript", year: 1965, director: "Wojciech Has", verified: true},
+{id: 1082, title: "The Long Night", year: 1947, director: "Anatole Litvak", verified: true},
+{id: 1083, title: "His Girl Friday", year: 1940, director: "Howard Hawks", verified: true},
+{id: 1084, title: "Moonage Daydream", year: 2022, director: "Brett Morgen", verified: true},
+{id: 1085, title: "Blonde", year: 2022, director: "Andrew Dominik", verified: true},
+{id: 1086, title: "The Wonder", year: 2022, director: "Sebastián Lelio", verified: true},
+{id: 1087, title: "Biography of a Bachelor Girl", year: 1935, director: "Edward Buzzell", verified: true},
+{id: 1088, title: "The Noel Diary", year: 2022, director: "Charles Shyer", verified: true},
+{id: 1089, title: "Charade", year: 1963, director: "Stanley Donen", verified: true},
+{id: 1090, title: "The Menu", year: 2022, director: "Mark Mylod", verified: true},
+{id: 1091, title: "Tangier, 1946", year: 1946, director: "George Waggner", verified: true},
+{id: 1092, title: "Decoder", year: 1984, director: "Muscha", verified: true},
+{id: 1093, title: "Burroughs: The Movie", year: 1983, director: "Howard Brookner", verified: true},
+// Filling the gap: IDs 1093-1107
+{id: 1093, title: "Defence of the Realm", year: 1985, director: "David Drury", verified: true},
+{id: 1094, title: "2012", year: 2009, director: "Roland Emmerich", verified: true},
+{id: 1095, title: "Deception", year: 2008, director: "Marcel Langenegger", verified: true},
+{id: 1096, title: "The Mask of Dimitrios", year: 1944, director: "Jean Negulesco", verified: true},
+{id: 1097, title: "Winter in Mallorca", year: 1969, director: "Maurice Cloche, Jaime Camino", verified: true},
+{id: 1098, title: "Field of Lamb", year: 0, director: "Unknown", verified: true},
+{id: 1099, title: "Deadly Revisions", year: 2013, director: "Gregory Blair", verified: true},
+{id: 1100, title: "The Bird with the Crystal Plumage", year: 1970, director: "Dario Argento", verified: true},
+{id: 1101, title: "She Said", year: 2022, director: "Maria Schrader", verified: true},
+{id: 1102, title: "Forever and Ever", year: 2017, director: "Vladimir Tumaev", verified: true},
+{id: 1103, title: "Incident in a Ghost Town", year: 2015, director: "Allen O'Reilly", verified: true},
+{id: 1104, title: "What the Peeper Saw", year: 1972, director: "Andrea Bianchi", verified: true},
+{id: 1105, title: "Third Person", year: 2013, director: "Paul Haggis", verified: true},
+{id: 1106, title: "The Fourth Man", year: 1983, director: "Paul Verhoeven", verified: true},
+{id: 1107, title: "The Woman in the Fifth", year: 2011, director: "Paweł Pawlikowski", verified: true},
+{id: 1112, title: "1408", year: 2007, director: "Mikael Håfström", verified: true},
+{id: 1113, title: "Savages", year: 2012, director: "Oliver Stone", verified: true},
+{id: 1115, title: "Peter Ibbetson", year: 1935, director: "Henry Hathaway", verified: true},
+{id: 1116, title: "Absence of Malice", year: 1981, director: "Sydney Pollack", verified: true},
+{id: 1117, title: "Final Assignment", year: 1980, director: "Paul Almond", verified: true},
+{id: 1118, title: "Babylon", year: 2022, director: "Damien Chazelle", verified: true},
+{id: 1119, title: "The Last Thing Mary Saw", year: 2021, director: "Edoardo Vitaletti", verified: true},
+{id: 1120, title: "The Medicinen", year: 2021, director: "Lena Landström", verified: true},
+{id: 1121, title: "The Long Rider", year: 2022, director: "Sean Cisterna", verified: true},
+{id: 1122, title: "Brodsky Is Not a Poet", year: 2015, director: "Ilya Belov", verified: true},
+{id: 1123, title: "Gentlemen Don't Eat Poets", year: 1995, director: "John-Paul Davidson", verified: true},
+{id: 1124, title: "The Poet", year: 2025, director: "Felix Umarov", verified: true},
+{id: 1125, title: "They Who Walked Among Us", year: 2023, director: "Marc Smerling", verified: true},
+{id: 1126, title: "The Dig", year: 2021, director: "Simon Stone", verified: true},
+{id: 1127, title: "The Distinguished Citizen", year: 2016, director: "Gastón Duprat and Mariano Cohn", verified: true}
+
+        ];
+
+      // ======================================================
+        // PART 2: THE RAW LIST (The remaining unverified ones)
+        // Paste that huge CSV text here between the backticks.
+        // The script will ignore IDs that are already in Part 1.
+        // ======================================================
+        const rawCSV = `
+ID,TITLE
+0,"_this is joan collins"
+1,"_Дневник Анны Франк"
+2,"_ mrs parker and the vicious circle"
+4,"_ the ghost writer"
+5,"_swimming pool"
+6,"_naked lunch"
+7,"_total eclipse"
+8,"_reds"
+9,"_ prozac nation"
+10,"_adaptation"
+11,"_Paura e delirio"
+12,"_wonder boys"
+13,"_lolita (1962)"
+14,"_lolita (1998)"
+15,"_the low life"
+16,"_the hours"
+17,"_la dolce vita"
+18,"_shakespeare in love"
+19,"_quills"
+20,"_before night falls"
+21,"_il postino"
+22,"_pinero"
+23,"_heart beat -1980-"
+24,"_veronica guerin"
+25,"_tom and viv"
+26,"_skipped parts"
+27,"_barton fink"
+28,"_last call"
+29,"_the bell jar  1979"
+30,"_sylvia"
+31,"_shipping news"
+32,"_suffering man&rsquop;s charity"
+33,"_wilde"
+34,"_the disappearance of garcia lorca"
+35,"_sunset boulevard"
+36,"_the anniversary party"
+37,"_Woody Allen Fall Project 1996 (working title)"
+38,"_the shining"
+39,"_nora"
+40,"_mother night"
+41,"_letter from an unknown woman"
+42,"_finding forrester"
+43,"_roman holiday"
+44,"_blue car"
+45,"_don’t look back"
+46,"_Ne te retourne pas"
+47,"_american splendor"
+48,"_shadowlands"
+49,"_annie hall"
+50,"_secret window"
+51,"_arsenic and old lace"
+52,"_the man from elysian fields"
+53,"_born into this"
+54,"_little women"
+55,"_8 mile"
+56,"_the front"
+57,"_as good as it gets"
+58,"_the secret life of ian fleming"
+59,"_the muse"
+60,"_unforgiven"
+61,"_bullets over broadway"
+62,"_the producers"
+63,"_authur! Author!"
+64,"_chapter two"
+65,"_Syysmuistoja"
+66,"_the loves of edgar allan poe"
+67,"_the man with a cloak"
+68,"_torture garden"
+70,"_something’s gotta give"
+71,"_alex and emma"
+72,"_every word is true"
+73,"_kinsey"
+74,"_in my country"
+75,"_Taksówkarz"
+76,"_moulin rouge!"
+77,"_finding neverland"
+78,"_Die Reise des jungen Che"
+79,"_the kiss"
+80,"_this world, then the fireworks"
+81,"_divine secrets of the ya ya sisterhood"
+82,"_the philadelphia story"
+83,"_hemingway"
+84,"_the rum diary"
+85,"_the crush"
+86,"_where the truth lies"
+87,"_all the president’s men"
+88,"_ask the dust"
+89,"_kalifornia"
+90,"the door in the floor"
+91,"_sideways"
+92,"_dogville"
+93,"_little man tate"
+94,"_neverwas"
+95,"_king lear (1987)"
+96,"_the vanishing"
+97,"_how to lose a guy in ten days"
+98,"_everyone says i love you"
+99,"_field of dreams"
+100,"_the last shot"
+101,"_never been kissed"
+102,"_all i want"
+103,"_state and main"
+104,"_ Hermot pinnalla"
+105,"_housebound"
+106,"flashback(1990)"
+107,"_sade"
+108,"_closer"
+109,"_zola"
+110,"_black river"
+111,"_stone reader"
+112,"_try seventeen"
+113,"_writer of O"
+114,"_les enfants du sicle"
+115,"_la petite lili"
+116,"_byron"
+117,"_the lost weekend (1945)"
+118,"_salem’s lot"
+119,"_luck"
+120,"_under the tuscan sun"
+121,"_celeste in the city"
+122,"_young adam"
+123,"_home of the giants"
+124,"_how to kill your neighbor’s dog"
+126,"_rag tale"
+127,"_girl interrupted"
+128,"_the devil wears prada"
+129,"_postcards from the edge"
+131,"_artists and models (1955)"
+132,"_rumor has it"
+133,"_ivans xtc"
+134,"_skin deep"
+135,"_2046"
+136,"_bordertown"
+137,"_wag the dog"
+138,"_obsessed (2002)"
+139,"_poetic justice"
+140,"_half light"
+141,"_Капоте 2005 - bennet miller"
+142,"_the edge of madness"
+143,"_cheaper by the dozen"
+144,"_orlando"
+145,"_before sunset"
+146,"_the odd couple"
+147,"_impromptu"
+148,"_wings of courage (1995)"
+149,"_the naked truth (1957)"
+150,"_james joyce’s women"
+151,"_the singing detective (2003)"
+152,"_festival in cannes"
+153,"_le divorce"
+154,"_freedom writers"
+155,"_no direction home"
+157,"_my dog skip"
+158,"le seuil"
+159,"_mean girls"
+160,"_duplex"
+161,"_breaking all the rules"
+162,"_Anime gemelle"
+163,"_he said/she said"
+164,"_journey of a lifetime"
+165,"_turtle diary"
+166,"_factotum"
+167,"_lunacy"
+168,"_love and other disasters"
+169,"_lila says"
+170,"_a love song for bobby long"
+171,"_scoop"
+172,"_the nanny diaries"
+173,"_rko 281"
+174,"_the dreamers “a poem is a petition”"
+175,"_meet the press (1937)"
+176,"_dedication"
+177,"kiss kiss bang bang"
+178,"_the unbearable lightness of being"
+179,"_caitlin"
+180,"_running with scissors"
+181,"candy"
+182,"_becoming jane"
+183,"alpha numeric"
+184,"_songwriter"
+185,"_a prairie home companion"
+186,"_interview (2007)"
+187,"_Klang der Stille"
+188,"_kafka"
+189,"_the tiger and the snow"
+190,"_your name here"
+191,"_novel romance"
+192,"_land of the blind"
+193,"_i am a camera (1955)"
+194,"_music and Lyrics"
+195,"_rough draft"
+196,"_kissing jessica stein"
+197,"_art house"
+198,"_wife vs secretary"
+199,"_Генри дурак"
+200,"_fay grim"
+201,"_f scott fitzgerald in hollywood"
+202,"_the shadow dancer"
+203,"_the front page"
+204,"_Immortel (ad vitam)"
+205,"deadline - U.S.A."
+206,"_stranger than fiction (2005)"
+207,"_stranger than fiction (2006)"
+208,"_everything is illuminated"
+209,"_neal cassady"
+210,"_moliere"
+212,"_bright lights, big city"
+213,"_gospel according to janice"
+214,"_trifling with fate"
+215,"_tour deluxe edition"
+216,"_the best time of our lives"
+217,"_tokyo suckerpunch"
+218,"_unge andersen"
+219,"_cry freedom"
+220,"_дневник анны франк"
+221,"_bridget jones’s diary"
+222,"_multiple sarcasms"
+223,"_jake’s women"
+224,"_the obit writer"
+225,"_paper lion"
+226,"_resurrecting the champ"
+227,"_gothic"
+228,"_fairytale: a true story"
+229,"_zelda"
+230,"_el sueño del mono loco"
+231,"_the writer (2004)"
+232,"_the hollywood reporter (1926)"
+233,"_the passenger 1975"
+234,"_assassins: a film concerning rimbaud"
+235,"_the shrink is in"
+236,"_une saison dans la vie de fedor dostoïevski"
+237,"_the pagan book of arthur rimbaud"
+238,"_suburban girl"
+239,"_her alibi"
+240,"_roma"
+241,"_in love and war"
+242,"_hell is sold out"
+243,"_les soeurs brontë"
+244,"_bon voyage"
+245,"_st elmo’s fire"
+246,"_jours tranquilles a clichy"
+247,"_nim’s island"
+248,"_the jane austen book club"
+249,"_miss potter"
+250,"_broken flowers"
+251,"_tip toes"
+252,"_walk the line"
+253,"_teaching mrs tingle"
+254,"_stupeur et tremblements"
+255,"_the big chill"
+256,"_jerry maguire"
+257,"_Pandaemonium"
+258,"_The Social Network"
+259,"_the night of the iguana"
+260,"_election"
+261,"_dolce’s inferno"
+262,"_munich"
+263,"_the dying gaul"
+264,"_on the hook"
+265,"_festival"
+266,"_a mighty heart"
+267,"hating alison ashley"
+268,"_the last word"
+269,"_shanghai baby"
+270,"_the whore and the whale"
+271,"_ The Typewriter, the Rifle & the Movie Camera"
+272,"_dante’s inferno"
+273,"_campus confidential"
+274,"_casanova"
+275,"_il casanova di Federico Fellini"
+276,"_dick"
+277,"_caffeine"
+278,"_the garden of eden"
+279,"_what women want"
+280,"_biloxi blues"
+281,"_full time killer"
+282,"_the end of the affair"
+283,"_mr deeds"
+284,"what just happened?"
+285,"_i know who killed me"
+286,"_the holiday"
+287,"_dali & i: the surreal story"
+288,"_get shorty"
+289,"_rapid eye movement"
+290,"_how to lose friends & alienate people"
+291,"_bonnie and clyde"
+292,"_witches of eastwick"
+293,"_scenes from a mall"
+294,"_synecdoche, new york"
+295,"_coyote ugly"
+296,"_the squid and the whale"
+297,"_inkheart"
+298,"_phantasmagoria:the visions of lewis carroll"
+299,"_bronte"
+300,"_the nines"
+301,"_the number 23"
+302,"_control"
+303,"_what’s new, pussycat?"
+304,"_how is your fish today?"
+305,"_Il matrimonio di mia sorella"
+306,"_I’m not there"
+307,"_the diving bell & the butterfly"
+308,"_Mr Nobody"
+309,"_A Tale Of Love & Darkness"
+310,"_The Last Word"
+310,"_Le mepris"
+311,"_the secret diary of sigmund freud"
+312,"_agatha"
+313,"_corso:the last beat"
+314,"_kerouac,the movie"
+315,"_trumbo"
+316,"_The Age Of Love"
+317,"_Kit Kittredge: An American Girl"
+318,"_Roman Polanski:Wanted And Desired"
+319,"_Girl Cut In Two"
+320,"_Eastern Promises"
+321,"_Vicky Christina Barcelona"
+322,"_stay cool"
+323,"_the white hotel"
+324,"_deadline"
+325,"_the beautiful and the damned"
+326,"_Maestro e Margherita 1972"
+327,"_Mistrz i Malgorzata 1990"
+328,"_Master i Margarita 1993"
+329,"_the master and margarita 2005"
+330,"_NINE"
+331,"_he’s just not that into you"
+332,"_fay wray:a life"
+333,"_VALKYRIE"
+334,"_men"
+335,"_schweitzer"
+336,"_amelia"
+337,"_NOTHINGbutTHEtruth"
+338,"_the last station"
+339,"_the argentine"
+340,"_guerilla"
+341,"_the last time i saw paris, 1954"
+342,"_frost/nixon"
+343,"_me and orson welles"
+344,"_howl"
+345,"_les passages"
+345,"_les passages"
+346,"_zodiac"
+347,"_burn after reading"
+348,"_an englishman in new york"
+349,"_brief interviews with hideous men"
+350,"_YOUTHwithoutYOUTH"
+351,"_INtheMEANTIME"
+352,"_Men Who Stare At Goats"
+353,"_the scribe, 1966"
+354,"_confessions of a shopaholic"
+355,"_untitled Leni Riefenstahl Egg Pictures Project"
+356,"_wild cherry"
+357,"_Hollywood Renegade"
+358,"_Blessed Is the Match: The Life and Death of Hannah Senesh"
+359,"_Morning Glory"
+360,"_eat PRAY love"
+361,"_tetro"
+362,"_the player"
+363,"_the insider"
+364,"_Szenen eines wüsten Lebens"
+365,"_be cool"
+366,"_empireOFtheSUN"
+367,"_Hemingway & Fuentes"
+368,"_Julie & Julia"
+369,"_Atonement"
+370,"_Mighty Mighty Aphrodite"
+371,"_the limits of control"
+372,"_Angels & Demons"
+373,"_regarding bunuel"
+374,"_the pillow book"
+375,"_bram stoker’s dracula"
+376,"_dracula (1931)"
+377,"_nosferatu (1922)"
+378,"_shadow of the vampire"
+379,"_she wrote the book (1946)"
+380,"_he wrote poetry (1916)"
+381,"_walks"
+382,"_she wrote a play and played it(1916)"
+383,"_creation"
+385,"_the GIRLFRIEND experience"
+386,"_Die Liebesfälscher"
+387,"_son of morning"
+388,"_The Gossip Columnist"
+389,"_Brüno"
+390,"_HurlyBurly"
+391,"_PATTON"
+392,"_IT RUNS IN THE FAMILY"
+393,"_SOMEWHERE"
+394,"_NICE"
+395,"_Goree Girls"
+397,"_The Last Sect"
+398,"_cold souls"
+399,"_crazy heart"
+400,"_the green hornet"
+401,"_Der Baader Meinhof Komplex"
+402,"_Jud Süß"
+403,"_2O Percent Fiction"
+404,"_Der Poet"
+405,"_Der Bestseller - Mord auf italienisch"
+406,"_Der Bestseller - Wiener Blut"
+407,"_Access Code"
+408,"_Teenage Paparazzi"
+409,"_Ed Wood"
+410,"husbands and wives"
+411,"_peep world"
+412,"_deception 1946"
+413,"_jealousy 1929"
+414,"_new york i love you"
+415,"_the life and death of peter sellers"
+416,"_you, me, and dupree"
+417,"_the basketball diaries"
+418,"_The Blue Tooth Virgin"
+419,"_King Of California"
+420,"_The Amateurs"
+421,"_THE BUSINESS OF FALLING IN LOVE"
+422,"_full METAL jacket"
+423,"_NOWHERE BOY"
+424,"california suite"
+425,"_FREAKY FRIDAY"
+426,"_call northside 777"
+427,"_SHERLOCK HOLMES"
+428,"_state of play"
+429,"_sex and the single girl"
+430,"_sex and the city"
+431,"_sex and the city 2"
+432,"_starstruck"
+433,"THE FUNERAL PARTY"
+434,"_the book of eli"
+435,"_gentlemen broncos"
+436,"_jennifer’s body"
+437,"_Das Leuchten der Stille"
+438,"_letters to juliet"
+439,"_official selection"
+440,"_front page woman"
+441,"_tough guys don’t dance"
+442,"_Throw Momma from the Train"
+443,"_The Beaches of Agnès"
+444,"_THErunAWAYS"
+445,"_twin peaks: fire walk with me"
+446,"أليس في بلاد العجائب"
+447,"ალისა საოცარ ქვეყანაში"
+448,"The Bitch Posse"
+449,"Father Of Invention"
+450,"Paranoid Park"
+451,"Delírios Eróticos 1990 -kaufman;"
+452,"HEREAFTER"
+453,"THE POET"
+454,"A CLOSED BOOK"
+455,"You Will Meet a Tall Dark Stranger"
+456,"diaryOFaWIMPYkid"
+457,"kickASS"
+458,"theLONGriders"
+459,"the fellowship of the ring"
+460,"the two towers"
+461,"the return of the king"
+462,"LUCKY DUCKS"
+463,"edith’s diary"
+464,"the image of dorian gray in the yellow press"
+465,"the bitter tears of petra von kant"
+466,"TRISTRAM SHANDY"
+467,"son of rambow"
+468,"WALL STREET:money NEVER sleeps"
+469,"STONESinTHEpark"
+470,"GIMME SHELTER"
+471,"LET’SspendTHEnightTOGETHER"
+472,"25x5"
+473,"VOODOO LOUNGE LIVE"
+474,"onePLUSone"
+475,"SHINE A LIGHT"
+476,"BRIDGEStoBABYLON"
+477,"STONESatTHEmax"
+478,"LADIES&GENTLEMEN..."
+479,"poetry"
+480,"inferno"
+481,"luke and brie are on a first date"
+482,"raavan"
+483,"dash and lilly"
+484,"Jack London"
+485,"THE LIFE OF EMILE ZOLA"
+486,"out of africa"
+487,"lady caroline lamb"
+488,"devotion 1946"
+489,"a song to remember"
+490,"the trials of oscar"
+491,"INCEPTION"
+492,"LET IT RAIN"
+493,"wild grass"
+494,"the9thgate"
+495,"Maumln Som Hatar Kvinnor"
+496,"theGIRLwithTHEdragonTATTOO"
+497,"chatterbox 1977"
+498,"LEAVING HAVEL"
+499,"Who Is Harry Kellerman and Why Is He Saying Those Terrible Things About Me?"
+500,"LITTLE BIG MAN"
+501,"UNTITLED MARIA CALLAS PROJECT"
+502,"maria callas biopic with the divine eva green"
+503,"CALLAS FOREVER"
+504,"The War Between Men and Women"
+506,"the boyfriend school"
+507,"i’m still here"
+508,"When Nietzsche Wept"
+509,"Mark Twain Tonight!"
+510,"In the Realms of the Unreal"
+511,"Wrong Is Right"
+512,"THE SWINGER - 1966"
+513,"CRossed Over"
+514,"THE man WITHIN"
+515,"IN SEARCH OF lovecraft"
+516,"La Chamade - released in America as “heartbeat” - 1969–"
+516,"A DARK REFLECTION"
+517,"the hunger"
+518,"А вот и Полли"
+519,"a KNIGHTS tale"
+520,"vibrator"
+521,"the KING’S speech"
+522,"love songs"
+523,"virgin machine"
+525,"assassination of a High School president"
+526,"russian dolls"
+527,"ruby sparks"
+528,"the ghost and mr chicken"
+531,"La rubia satánica"
+533,"EFFIE"
+534,"POE"
+535,"CARNAGE"
+536,"A Vida Perigosa dos Rapazes do Altar"
+537,"THE WORDS"
+538,"HER (2013)"
+540,"THE PRIVATE LIVES OF PIPPA LEE"
+541,"DOWN BY LAW “I have lost my book of English”"
+542,"MISSING"
+544,"IT HAPPENED ONE NIGHT"
+545,"DEATHWISH IV THE CRACKDOWN"
+546,"A BUCKET OF BLOOD"
+547,"THE MONKEY’S MASK"
+548,"GOOD AGAINST EVIL"
+549,"Philip Roth Unmasked"
+550,"THE WORLD ACCORDING TO DICK CHENEY"
+551,"MAIDSTONE"
+552,"SALINGER"
+553,"WRITER’S BLOCK 1991"
+554,"MY DEAR SECRETARY"
+555,"BEES IN PARADISE"
+556,"DIARY OF A NUDIST"
+557,"LOVE LETTERS OF A PORTUGUESE NUN"
+558,"TWINKY"
+559,"GIRL WITH GREEN EYES"
+560,"everyday objects"
+561,"labor pains"
+562,"the lifeguard"
+563,"the new daughter"
+564,"TWIXT"
+565,"hustling"
+566,"TAKE THIS WALTZ"
+567,"STORIES WE TELL"
+568,"An ideal wife"
+569,"SEVEN PSYCHOPATHS"
+570,"HER"
+571,"the invisible woman"
+572,"authors anonymous"
+573,"the last beat"
+574,"loveship hateship"
+575,"venus in fur"
+576,"FLEMING: THE MAN WHO WOULD BE BOND"
+577,"anonymous"
+578,"LOVE IS THE PERFECT CRIME"
+579,"voodoo man"
+580,"THE LETTER"
+581,"28 hotel rooms"
+582,"CRASHING"
+583,"set fire to the stars"
+584,"INFAMOUS"
+585,"Tempo de Crescer"
+586,"GOD HELP THE GIRL"
+587,"THE ENGLISH TEACHER"
+588,"SHOWTIME 1946"
+589,"TWIN PEAKS: THE ENTIRE MYSTERY"
+590,"PREDESTINATION"
+591,"a room with a view"
+592,"SYRUP"
+593,"THE ADDERALL DIARIES"
+594,"ASK ME ANYTHING"
+594,"BLIND REVENGE -2009-"
+595,"THE POET - 2007 -"
+596,"meet me in montenegro"
+598,"The Last Five Years"
+599,"Woodstock"
+600,"The Lives Of Others"
+601,"SATAN’S BREW"
+602,"BEWARE OF A HOLY WHORE"
+603,"PLAYING IT COOL"
+604,"the rewrite"
+605,"THE GAMBLER"
+606,"inherent vice"
+607,"THE TEAM"
+608,"blackhat"
+609,"how to make love like an English man"
+610,"we need to talk about kevin"
+611,"HIT BY LIGHTNING"
+612,"the osterman weekend"
+613,"in the land of women"
+614,"PULP"
+617,"danny collins"
+618,"strangerland"
+619,"true story"
+620,"PLEASE STAND BY"
+621,"the escort"
+622,"some kind of beautiful"
+623,"the diary of a teenage girl"
+624,"the thirteenth tale"
+625,"love & mercy"
+626,"everything will be fine"
+627,"5 to 7"
+628,"the end of the tour"
+629,"truth"
+630,"manifesto"
+631,"the secret scripture"
+632,"genius"
+633,"YOUTH"
+634,"the mad miss manton"
+635,"comrade x"
+636,"crimson peak"
+637,"THE BARRETTS OF WIMPOLE STREET"
+638,"in the good old summertime"
+639,"when ladies meet 1933"
+640,"when ladies meet 1941"
+641,"FATHERS AND DAUGHTERS"
+642,"the adventures of jack london"
+643,"exclusive story"
+644,"the famous ferguson case -1932-"
+645,"never a dull moment -1950-"
+646,"third finger left hand"
+657,"authors anonymous"
+658,"The typewriter (in the 21st century)"
+659,"A QUIET PASSION"
+660,"libeled lady"
+661,"my favorite year"
+662,"the constant nymph"
+663,"rock the kasbah"
+664,"young cassidy"
+665,"beloved sisters"
+666,"white bondage"
+667,"alice in the cities"
+668,"the paperboy"
+669,"the odessa file"
+670,"Hemingways Abenteuer eines jungen Mannes"
+671,"tenebre"
+672,"the kremlin letter"
+673,"herostratus"
+674,"collateral beauty"
+675,"press for time"
+676,"BANNERLINE"
+677,"the lost weekend"
+678,"george white’s 1935 scandals"
+679,"gold diggers of 1937"
+680,"hollywood canteen"
+681,"smart blonde"
+682,"EVE KNEW HER APPLES"
+683,"HHHH"
+684,"anthropoid"
+685,"the promise"
+686,"the secret scripture"
+687,"war machine"
+689,"christine"
+690,"neruda and jackie"
+691,"Billy Lynn’s Long Halftime Walk"
+692,"allied - 2016"
+693,"love & friendship"
+694,"it’s just the end of the world"
+695,"elle"
+696,"nocturnal animals"
+697,"paterson"
+699,"design for living"
+700,"up pops the devil"
+701,"in the mouth of madness"
+702,"starting out in the evening"
+703,"ask the dust"
+704,"good night and good luck"
+705,"the quiet american"
+706,"the year of living dangerously"
+707,"the adventurous blonde"
+708,"blonde inspiration"
+709,"in the good old summertime"
+710,"shop around the corner"
+711,"as clouds roll by"
+712,"words and music"
+713,"theodora goes wild"
+714,"the glass bottom boat"
+715,"men are such fools"
+716,"the big clock"
+717,"foreign correspondent"
+718,"freedom of the press"
+719,"ever since eve"
+720,"design for scandal"
+721,"night without sleep"
+722,"another man’s poison"
+723,"mickey seventeen"
+724,"the thirteenth letter"
+725,"love letters 1945"
+726,"the ex mrs bradford"
+727,"sleuth 1972"
+728,"sleuth 2007"
+729,"William S Burroughs :a man within"
+730,"charlie chan in the chinese cat"
+731,"dear brigitte"
+732,"the youngest profession"
+733,"citizen kane"
+734,"jefferson in paris"
+735,"STARCROSSED"
+736,"woman of the year"
+737,"THE LIBERTINE"
+738,"quartet"
+739,"TWICE TOLD TALES"
+740,"Χένρυ & Τζουν"
+741,"born yesterday"
+742,"BELL BOOK AND CANDLE"
+743,"manhattan night"
+744,"MANHATTAN ROMANCE"
+745,"MANHATTAN"
+746,"JANE AUSTEN IN MANHATTAN"
+747,"ADVENTURE IN MANHATTAN"
+748,"YOUNG MAN OF MANHATTAN"
+749,"MANHATTAN BY NUMBERS"
+750,"sisters"
+751,"marry the girl"
+752,"behind the rising sun"
+753,"june bride"
+754,"this marriage business"
+755,"the doorway to hell"
+756,"winter meeting"
+757,"long day’s journey into night"
+758,"_>LOVE & SAVAGERY"
+759,"jazz heaven"
+760,"young widow"
+761,"critics choice"
+762,"double exposure"
+763,"THE BRIDE GOES WILD"
+764,"BORN TO BE BLUE"
+765,"Kill the Trumpet Player (working title)"
+766,"UNHOLY PARTNERS"
+767,"YOU CAN’T ESCAPE FOREVER"
+768,"EQUALS"
+769,"CERTAIN WOMEN"
+770,"AUTHOR: JT LEROY STORY"
+771,"THE DEVIL BAT"
+772,"AMANDA KNOX"
+773,"THE HOODLUM SAINT"
+774,"iron moon"
+775,"notes on blindness"
+777,"MIFUNE"
+778,"abattoir"
+778,"neruda"
+779,"BRAND NEW TESTAMENT"
+779,"nocturnal animals"
+780,"burn counter"
+781,"the black book 2006"
+782,"DEATHWISH TWO"
+783,"the black book 1949"
+784,"the deadly dream"
+785,"kisses for my president"
+786,"NAKED SOULS"
+787,"die wahren memoiren eines internationalen killers"
+788,"headline shooter"
+789,"the redistributors"
+790,"cobain montage of heck"
+791,"sid & nancy"
+792,"with love from the age of reason"
+793,"my nights are more beautiful than your days"
+794,"snowed under"
+795,"the leading man"
+796,"BURDEN OF DREAMS"
+797,"the bad and the beautiful"
+798,"DOWNFALL"
+799,"the legendary life of ernest hemingway"
+800,"the strange case of wilhem reich"
+801,"poem: i set my foot upon the air and it carried me"
+802,"my brilliant career"
+803,"deathwatch"
+804,"a letter to three wives"
+805,"Vi trenger hverandre"
+806,"the man who came to dinner"
+807,"Das Leben ist Lüge"
+808,"king of the newsboys"
+809,"the night of january 16th"
+810,"newsbreak"
+811,"the sorrows of satan"
+812,"PHANTOM 1922"
+813,"anomalisa"
+814,"american pastoral"
+815,"pa$$engers"
+816,"i am watching you"
+817,"THE BELL  JAR 2018"
+818,"THE BEGUILED"
+819,"practically yours"
+820,"the circle"
+821,"jason nash is married"
+822,"how to talk to girls at parties"
+823,"sudden  fear"
+824,"s"
+825,"touched by fire"
+826,"american made"
+827,"the greatest showman"
+828,"rock that body"
+829,"dostoevsky’s travels"
+831,"dostoevsky behind bars"
+832,"dostoevskiy"
+833,"beyond a reasonable doubt"
+834,"while the city sleeps"
+835,"dead poets society"
+836,"delta of venus"
+837,"endless poetry"
+838,"possession"
+839,"the handmaiden"
+840,"Seule sur la plage la nuit"
+841,"final portrait"
+842,"shoot the moon"
+843,"angel"
+844,"crouching tiger hidden dragon"
+845,"Dongju: The Portrait of a Poet (Korea: 동주)"
+846,"OUR MAN FLINT"
+847,"in like flint"
+848,"biography of a bachelor girl"
+849,"the help"
+850,"the post"
+851,"last days of disco"
+852,"by the sea"
+853,"the raven"
+854,"edgar a poe buried alive"
+855,"hangman 2017"
+856,"the girl in the book"
+857,"leave her to heaven"
+858,"DEAR DICTATOR"
+859,"INSIDIOUS CHAPTER THREE"
+860,"all the money in the world"
+861,"MOLLY'S GAME"
+862,"老娘叫譚雅"
+863,"WELCOME THE STRANGER"
+864,"LUCY"
+865,"the vanishing of sydney hall"
+866,"BLAME"
+867,"the theory of everything"
+868,"ANNIHILATION"
+869,"SUSPIRA"
+870,"tomb raider"
+871,"down a dark hall"
+872,"book club"
+873,"the seagull"
+874,"destination wedding"
+875,"the sisters brothers"
+876,"a private war"
+877,"vice"
+878,"Based on a True Story"
+879,"The Guernsey Literary and Potato Peel Pie Society"
+880,"the rebel in the rye"
+881,"MARY SHELLLEY"
+882,"the imitation game"
+883,"colette"
+884,"official secrets"
+885,"a house in the sky"
+886,"the other side of the wind"
+887,"they'll love me when I'm dead"
+889,"f for fake"
+890,"the eyes of orson welles"
+891,"Don’t Worry, He Won’t Get Far on Foot"
+892,"becoming astrid"
+893,"velvet buzzsaw"
+894,"at eternity's gate"
+895,"bohemian rhapsody"
+896,"the realm"
+897,"boy erased"
+898,"THE HOUSE THAT JACK BUILT"
+899,"rumble fish"
+900,"drugstore cowboy"
+901,"the dirt"
+902,"Extremely Wicked, Shockingly Evil and Vile"
+903,"Tolkien"
+904,"The Professor and the Madman"
+905,"the professor"
+906,"rocketman"
+908,"blinded by the light"
+909,"satanic panic"
+910,"all is true"
+911,"text"
+912,"Reiz Holivudā"
+913,"an accidental studio"
+914,"chinese coffee"
+915,"cast a deadly spell"
+916,"MANK"
+917,"the rich are always with us"
+918,"vita and virginia"
+920,"the joker"
+921,"official secrets"
+922,"nelly"
+923,"the report"
+924,"the aspen papers"
+925,"who will write our history"
+926,"joseph pulitzer voice of the people"
+927,"midsommar"
+928,"the bookshop"
+929,"london fields"
+930,"the corpse vanishes"
+931,"elizabeth is missing"
+932,"vivarium"
+935,"coven of evil"
+936,"bitter honey"
+937,"the roads not taken"
+938,"news of the world"
+939,"A MOUTHFUL OF AIR"
+940,"radioactive"
+941,"bombshell"
+942,"Kann und muss man jetzt Filme machen?"
+943,"letter of introduction"
+944,"the sisters"
+945,"anais nin observed"
+946,"the aspern papers"
+947,"the dinner party"
+948,"kate can't swim"
+949,"misbehaviour"
+950,"hannah arendt"
+951,"MS slavic 7 ???"
+952,"the fox hunter"
+953,"night train to venice"
+954,"silk"
+954,"YOUNG ADULT"
+955,"misty button"
+956,"dark places"
+957,"the feeling of being watched"
+958,"summerland"
+959,"waiting for the barbarians"
+960,"flannery"
+961,"the burnt orange heresy"
+962,"antebellum"
+963,"fatman"
+964,"book of blood"
+965,"books of blood"
+966,"house by the river"
+967,"crime wave"
+968,"the dry"
+969,"grimm love"
+970,"jfk, oliver stone"
+971,"main street to broadway"
+972,"thoroughbreds"
+973,"BLITHE SPIRIT edward hall"
+974,"the last sentence"
+975,"RUSSIAN ARK"
+976,"gogol:the beginning"
+977,"gogol:viy"
+978,"gogol:a terrible vengeance"
+979,"to olivia"
+980,"brimstone incorporated"
+981,"the world to come"
+982,"rifkin's festival"
+983,"Одиссея Генри Миллера"
+984,"the hating game"
+985,"Macbeth  1908"
+986,"Macbeth  1916"
+987,"Macbeth 1948"
+988,"Throne of Blood"
+989,"Macbeth 1971"
+990,"Macbeth 1978"
+991,"Men of Respect"
+992,"The Tragedy of Macbeth"
+993,"Scotland, PA"
+994,"Maqbool"
+995,"Teenage Gang Debs"
+996,"joe macbeth"
+997,"magnesium"
+998,"nightbooks"
+999,"bergman island"
+1000,"the year of fury"
+1001,"secret rites"
+1002,"chinese box"
+1003,"c'mon c'mon"
+1004,"licorice pizza"
+1005,"herbert butler: witness to the future"
+1006,"nocturne"
+1007,"THE GREAT SINNER"
+1008,"twenty six days from the life of dostoevsky"
+1009,"the gambler, 1997"
+1010,"the eyes of tammy faye"
+1011,"the most reluctant convert; the untold story of cs lewis"
+1012,"the book of vision"
+1013,"the grateful dead movie, 1977"
+1014,"the other one, the long strange trip of bob weir"
+1015,"the grateful dead , LONG STRANGE TRIP 2017"
+1016,"BREAKFAST AT TIFFANY'S"
+1017,"EMINENT DOMAIN"
+1018,"fear and loathing in las vegas"
+1019,"a scanner darkly"
+1020,"The French Dispatch of the Liberty, Kansas Evening Sun"
+1021,"FRANCE (2021, Bruno Dumont)"
+1022,"THE LAUREATE"
+1023,"WARHUNT"
+1024,"THE THREE FIFTYFIVE"
+1025,"THE ASSISTANT"
+1026,"THE RUSSIA HOUSE"
+1027,"THE SEED"
+1028,"DEBORAH"
+1029,"Track The Man Down"
+1030,"York Witches Society"
+1031,"The CLash Rude Boy"
+1032,"NOT OKAY"
+1033,"the world after us"
+1034,"WIFE LIKE"
+1035,"Luckiest Girl Alive"
+1036,"art of love"
+1037,"operation mincemeat"
+1038,"the gray man"
+1039,"write & wrong"
+1040,"benediction"
+1041,"the house of snails"
+1042,"gone in the night"
+1043,"the idiot"
+1044,"section 8"
+1045,"norman mailer in provincetown"
+1046,"on the line"
+1047,"philip roth unmasked"
+1048,"frank & penelope"
+1049,"WASP22"
+1050,"jfk revisited through the looking glass"
+1051,"red book ritual"
+1052,"the school of good and evil"
+1053,"devil's workshop"
+1054,"patti smith electric poet"
+1055,"the magus"
+1056,"the infernal machine"
+1057,"the spy who dumped me"
+1058,"the wonder"
+1059,"writing with fire"
+1060,"platinum blonde"
+1061,"next time we love"
+1062,"unsilenced"
+1063,"vengeance"
+1064,"the anchor"
+1065,"the letter 1929"
+1065,"the black phone"
+1066,"earwig"
+1067,"out of the shadows"
+1068,"romance in style"
+1069,"diary of a mad housewife"
+1070,"lethal love letter"
+1071,"bandit"
+1072,"diary of a spy"
+1073,"bad reputation"
+1074,"de sade"
+1075,"the sargossa manuscript"
+1076,"the long night"
+1077,"his girl friday"
+1078,"moonage daydream"
+1079,"blonde"
+1080,"the wonder"
+1081,"biography of a bachelor girl"
+1082,"the noel diary"
+1083,"charade"
+1084,"the menu"
+1085,"tangier, 1946"
+1086,"DECODER, 1984"
+1087,"Burroughs The Movie, 1983"
+1107,"The woman in the fifth"
+1112,"1408"
+1113,"savages"
+1115,"peter ibbetson"
+1116,"absence of malice"
+1117,"final assignment"
+1118,"Babylon, 2022"
+1119,"the last thing Mary saw"
+1120,"medicinen"
+1121,"the long rider"
+1122,"brodsky is not a poet"
+1123,"gentlemen don't eat poets"
+1124,"the poet,Giedrius Tamosevicius & Vytautas V. Landsbergis"
+1125,"they who walked among us"
+1126,"the dig"
+1127,"the distinguished citizen"
+1128,"book club the next chapter"
+1129,"イニシェリン島の精霊"
+1130,"north Dallas forty"
+1131,"nine girls,1944"
+1132,"little women,1917"
+1133,"little women,1918"
+1134,"little women,1933"
+1135,"little women,1949"
+1136,"little women,1994"
+1137,"little women,2019"
+1138,"the brides, 2018"
+1139,"basic instinct two, michael caton-jones"
+1140,"basic instinct, paul verhoeven"
+1141,"rolling thunder review, a bob dylan story by martin scorsese, 2019"
+1142,"the monster project"
+1143,"i am (not) a monster, 2019"
+1144,"italian studies"
+1145,"brazen"
+1146,"townhouse confidential"
+1147,"the subtle art of not giving a fuck"
+1148,"MANK"
+1149,"cafe society, 2016"
+1150,"cafe society, 1939"
+1151,"confessions of a Nazi spy"
+1152,"Nazi agent"
+1153,"Hitler dead or alive"
+1154,"Dorothea Lange, a visual life, 1995"
+1155,"invasion of the body snatchers, 1978"
+1156,"newsies"
+1157,"wrestling ernest hemingway"
+1158,"Hemingway & geller"
+1159,"the paper"
+1160,"the pale blue eye, 2022"
+1161,"fame is the name of the game, 1966"
+1162,"network"
+1163,"gods and generals"
+1164,"brain on fire"
+1165,"queer"
+1166,"Oppenheimer"
+1167,"Le coeur à l'ouvrage"
+1168,"The Belle of Amherst"
+1169,"the wild party, 1929"
+1170,"the wild party, 1975"
+1171,"the mad writer"
+1172,"a Jew must die"
+1173,"blindspot"
+1174,"the exception"
+1175,"and everything is going fine"
+1175,"spalding gray: a personal history of the amercian theater"
+1176,"son of the gods"
+1177,"THE BRONTE SISTERS, 1979"
+1178,"The Secret Diaries of Charlotte Bronte"
+1179,"a little white lie, 2023"
+1180,"SCREAMING MIMI,gerd oswald,1958"
+1181,"the dam on the yellow river, 1960"
+1182,"bless you, prison"
+1183,"call me bwana"
+1184,"the alphabet murders, 1965"
+1185,"the girl in the fountain, 2021"
+1186,"the sex thief, 1973, martin campbell"
+1187,"the book thief"
+1188,"penthouse north"
+1189,"the price of admission"
+1190,"spinning gold"
+1191,"can't stop the music"
+1192,"An Alan Smithee Film: Burn Hollywood Burn"
+1193,"hacks"
+1194,"hollywood uncensored"
+1195,"being the ricardos"
+1196,"all that i am"
+1197,"all that i have"
+1198,"shockproof"
+1199,"a letter to three wives"
+1200,"The Legend of Lylah Clare, 1968, Robert Aldrich"
+1201,"me, me. and the others,1966"
+1202,"hotel paradiso, 1966"
+1203,"the young rebel,1967"
+1204,"one hundred and one nights,1995"
+1205,"solomon and sheba,1956"
+1206,"the hunchback of notre dame,1956"
+1207,"the hunchback of notre dame,1939"
+1208,"the star maker,1939"
+1209,"swanee river,1939"
+1210,"the return of doctor x,1939"
+1211,"the star maker,1939"
+1212,"it could happen to you,1939"
+1213,"nancy drew star reporter,1939"
+1214,"code of the secret service,1939"
+1215,"hitler beast of berlin,1939"
+1216,"the hitler home movies, 2023"
+1217,"munch, 2023 Henrik Martin Dahlsbakken"
+1218,"the devil in the flesh,1998"
+1219,"the devil in the flesh 2 (teacher's pet),2000"
+1220,"past life"
+1221,"Seneca - On the Creation of Earthquakes"
+1222,"gentleman's agreement,1947, Elia Kazan"
+1223,"slayers, 2022, K Asher Levin"
+1224,"Hemingway, The Hunter Of Death"
+1225,"wolfen,"
+1226,"charlie bubbles"
+1227,"alpha beta"
+1228,"don't look deeper"
+1229,"the teckman mystery, 1954, Wendy toye"
+1230,"the nautical chart"
+1231,"the happy prince"
+1232,"cat person"
+1233,"Junket Whore, Debbie Melnyk"
+1234,"Komikku zasshi nanka iranai!"
+1235,"being the ricardos"
+1236,"Journal inachevé"
+1237,"m3gan"
+1237,"wrong move"
+1238,"m3gan sequel"
+1238,"north face"
+1239,"Es ist nur eine Phase, Hase"
+1240,"when you finish saving the world"
+1241,"the winter witch"
+1242,"dances with wolves"
+1243,"my Salinger year"
+1244,"six minutes to midnight"
+1245,"it happened tomorrow"
+1246,"hollywood's hidden lives"
+1247,"the book of esther"
+1248,"the love club: nicole"
+1249,"the Spaniard's curse"
+1250,"dovlatov"
+1251,"the adventures of saul bellow"
+1252,"tchaikovsky-s-wife"
+1253,"the eagle, 1925"
+1254,"the chess player, 1927"
+1255,"tarakanova, 1930"
+1256,"the Scarlett empress, 1934"
+1257,"The rise of Catherine the great, 1934"
+1258,"betrayal 1938"
+1259,"Katharina I. von Russland 1940"
+1260,"general suvorov,1941"
+1261,"a royal scandal, 1945"
+1262,"the mysterious rider 1948"
+1263,"tempest, 1958"
+1264,"the night before Christmas, 1961"
+1265,"Catherine of Russia, 1963 -"
+1266,"great Catherine, 1968"
+1267,"Vechir na Ivana Kupala ,1968"
+1268,"The Adventures of Baron Munchausen,1988"
+1269,"Vivat, gardemariny! 1991"
+1270,"Forbidden Paradise 1924"
+1271,"gli ultimi fuochi"
+1272,"Samson and the Slave Queen"
+1273,"a man astray"
+1274,"Münchhausen"
+1275,"Friedrich Schiller – The Triumph of a Genius"
+1276,"bismark – Wolfgang Liebeneiner"
+1277,"slaves in bondage– elmer clifton"
+1278,"barry |v.gahndi"
+1279,"secreteriat"
+1280,"my bed zinc"
+1281,"bedwin hacker"
+1282,"in bed with an elephant"
+1283,"in bed with ulysses"
+1284,"the Bedford incident"
+1285,"three for bedroom c"
+1286,"truth or dare"
+1287,"The Murder of Gabby Petito: Truth, Lies and Social Media"
+1288,"chariots of fire, hugh hudson"
+1289,"infinity pool"
+1290,"the reader"
+1291,"the reading"
+1292,"a good wife's guide to murder"
+1293,"the white crow"
+1294,"a house is not a home"
+1295,"turn every page"
+1296,"miss marx"
+1297,"the never list"
+1298,"seberg"
+1299,"true crime"
+1300,"anything else"
+1301,"maps to the stars"
+1302,"young & beautiful"
+1303,"hellbender"
+1304,"ON THE EDGE OF THE INHABITABLE WORLD - THE LIFE OF THE POET ARTHUR RIMBAUD"
+1305,"Faust - A German Folktale, F. W. Murnau"
+1306,"beetlejuice"
+1307,"women talking"
+1308,"man trouble"
+1309,"monkeybone"
+1310,"fear street part one 1994"
+1311,"fear street part two 1978"
+1312,"fear street part three 1661"
+1313,"bruno reidal, confessions of a murderer"
+1314,"the testament of cornelius gulden"
+1315,"ich kenn' dich nicht und liebe dich"
+1316,"die lustigen weiber"
+1317,"springtime in vienna"
+1318,"the girl and the legend"
+1319,"Die Halbzarte"
+1320,"Die Deutschmeister, 1955"
+1321,"sissi"
+1322,"sissi - Die junge Kaiserin"
+1323,"sissi - Schicksalsjahre einer Kaiserin"
+1324,"Mordet på Trotskij"
+1325,"a poet in new york"
+1326,"a poet in new york"
+1327,"The Life After Death Project 3: Seance Encounters"
+1328,"Chappaquiddick"
+1329,"rogue"
+1330,"their finest"
+1331,"under fire"
+1332,"another woman"
+1333,"tropic of cancer by henry miller, joseph strick"
+1334,"Boston Strangler"
+1335,"The Magnificent Life of Marcel Pagnol"
+1336,"Madame Web"
+1337,"small town filmmaker"
+1338,"the subterraneans"
+1339,"Dream Scenario"
+1340,"black phone 2"
+1341,"I know exactly how you die"
+1342,"red headed woman"
+1343,"pepper"
+1344,"beat"
+1345,"the other fellow"
+1346,"consecration"
+1347,"the image"
+1348,"China Seas"
+1349,"tolkien"
+1350,"the moment -jane weinstock"
+1351,"William Faulkner's Mississippi"
+1352,"love is the news, 1937"
+1353,"what lies below"
+1354,"woodstock or bust"
+1355,"dear zoe"
+1356,"judy blume forever"
+1357,"rabbit proof fence"
+1358,"poet's pub"
+1359,"up pompeii"
+1360,"a town called love"
+1361,"wait with me"
+1362,"inside"
+1363,"the book of love"
+1364,"nothing sacred"
+1365,"seven years in tibet"
+1366,"kundun"
+1366,"The Iron Heel of Oligarchy"
+1367,"rhythm in the clouds"
+1368,"book of fire"
+1369,"El Exorcismo de Carmen Farías"
+1370,"hearts of the west"
+1371,"plush"
+1372,"mccarthy"
+1373,"lyra"
+1374,"UFO SWEDEN"
+1375,"the inner circle"
+1376,"linda be good"
+1377,"girl from avenue A"
+1378,"the fuzzy pink nightgown"
+1379,"life upside down"
+1380,"Il Padrino parte ii"
+1381,"Il Padrino parte iii"
+1382,"Фрэнсис и Крестный отец"
+1383,"the harrad experiment"
+1384,"word of honor"
+1385,"elvis and the beauty queen"
+1386,"all hail the popcorn king"
+1387,"frances"
+1388,"in & out"
+1389,"the notebook"
+1390,"exclusive"
+1391,"it pays to advertise"
+1392,"following harry"
+1393,"big news"
+1394,"death machine"
+1395,"the Bourne legacy"
+1396,"safety in numbers"
+1397,"the secret: dare to dream"
+1398,"assassins club"
+1399,"lost in panic"
+1400,"lost in panic cruise"
+1401,"seven keys to baldpate"
+1402,"dangerous women"
+1403,"dangerous blonde"
+1404,"The Hard Life of an Adventurer"
+1405,"woman on the run"
+1406,"footsteps in the dark"
+1407,"rich and famous"
+1408,"a talent for murder"
+1409,"big driver"
+1410,"mad holiday"
+1411,"newsboy's home"
+1412,"publicity madness"
+1413,"Bombay Mail"
+1414,"the great hotel murder"
+1415,"murder on campus"
+1416,"hold the press"
+1417,"circumstantial evidence"
+1418,"the public menace"
+1419,"the crime of Helen Stanley"
+1420,"the great flirtation"
+1421,"white lies"
+1422,"full river red"
+1423,"fear is the rider"
+1424,"oklahoma city"
+1425,"nazi america; a secret history"
+1426,"blood in the face"
+1427,"36 hours"
+1428,"breaking point, 1989"
+1429,"channel z; a magnificent obsession"
+1430,"the constant nymph"
+1431,"death at the love house"
+1432,"the corpse came c.o.d."
+1433,"will success spoil rock hudson"
+1434,"back in circulation"
+1435,"off the record"
+1436,"two girls on broadway"
+1437,"the office wife"
+1438,"voltaire"
+1439,"faye"
+1440,"our time machine"
+1441,"""11 october 1975"""
+1442,"some came running"
+1443,"the priests"
+1444,"the pope's exorcist"
+1445,"exiled to Shanghai"
+1446,"booksmart"
+1447,"it's Christmas, Carol!"
+1448,"The Magic Garden of Stanley Sweetheart"
+1449,"she will rise"
+1450,"listen up philip"
+1451,"mad to be normal"
+1452,"Brontë Country: The Life and Times of Three Famous Sisters, Emily, Anne & Charlotte Brontë"
+1453,"deadly love poetry"
+1454,"Ukraine is not a brothel"
+1455,"mission to moscow"
+1456,"razors, the return of jack the ripper"
+1457,"the last voyage of the demeter"
+1458,"who is cletis tout?"
+1459,"onlyLOVERSleftalive"
+1460,"rosencrantz and guidernstern are dead"
+1461,"the second coming of suzanne"
+1462,"kippendorf's tribe"
+1463,"rothko"
+1464,"reflections in the mud"
+1465,"stopmotion"
+1466,"moon over parador"
+1467,"inserts"
+1468,"stand by me"
+1469,"waltzing with brando"
+1470,"the young runaways"
+1471,"the old man who read love stories"
+1472,"funny you dont look two hundred, a constitutional vaudeville"
+1473,"let them all talk"
+1475,"byzantium"
+1476,"""clear all wires!"""
+1477,"""my best friend's exorcism"""
+1478,"alexander the last"
+1479,"eugenie...the story of her journey into perversion"
+1480,"life of chuck"
+1481,"the last thing he wanted"
+1482,"fletch"
+1483,"gunpowder milkshake"
+1484,"from straight A's to XXX"
+1485,"Judgement At Nuremberg"
+1486,"my diary of lies"
+1487,"safe in hell"
+1488,"strictly modern"
+1489,"non-fiction (doubles vies)"
+1490,"firebrand"
+1491,"nearly thirty (casi treinta)"
+1492,"love s p r e a d s"
+1493,"the mind reader"
+1494,"haunted honeymoon"
+1495,"finger of guilt"
+1496,"he knew women"
+1497,"root letter"
+1498,"pyramid"
+1499,"anatomy of a fall"
+1500,"six characters in search of an author"
+1501,"everything everywhere all at once"
+1502,"Asterix & Obelix: The Middle Kingdom"
+1503,"kiss of the damned"
+1504,"love again"
+1505,"the island"
+1506,"asteroid city"
+1507,"wittgenstein"
+1508,"the wisdom of crocodiles"
+1509,"wizard of kremlin"
+1510,"origin of the species"
+1511,"club zero"
+1512,"amour fou"
+1513,"the turning"
+1514,"Source: The Story of the Beats and the Beat Generation"
+1515,"the star"
+1516,"strange marriage"
+1517,"four daughters, 1938"
+1518,"four daughters, 2023"
+1519,"after the fall, 1914"
+1520,"after the fall, 1932"
+1521,"aftre the fall, 1957"
+1522,"after the fall, 2015"
+1523,"that good night"
+1524,"success is the best revenge"
+1525,"chicklit"
+1526,"the naked civil servant"
+1527,"an englishman in new york"
+1528,"tabloid"
+1529,"recount"
+1530,"windprints"
+1531,"the pity of war, the loves and lives of the war poets"
+1532,"paperback, 1977"
+1533,"i cover the waterfront"
+1534,"the commissioner"
+1535,"thumbelina"
+1536,"jake speed"
+1537,"you hurt my feelings"
+1538,"new york minute"
+1539,"the twins"
+1540,"dylan thomas,1991"
+1540,"reality"
+1541,"Fanatic Heart: Geldof On Yeats"
+1542,"take a chance"
+1543,"please baby please"
+1544,"beyond the bolex"
+1545,"an american satan"
+1546,"Mr & Mme Adelman"
+1547,"Les Amours d'Astrée et de Céladon"
+1548,"midsummer in newtown"
+1549,"rec"
+1551,"a dispatch from reuters"
+1552,"song of norway"
+1553,"opium"
+1554,"confessions of an opium eater"
+1555,"attacking the devil"
+1556,"tomorrow never dies"
+1557,"唐伯虎點秋香"
+1558,"saturday fiction"
+1559,"one thousand paper cranes"
+1560,"lesbian dracula submarine"
+1562,"leto"
+1563,"follow her"
+1564,"dracula reborn"
+1565,"inexorable"
+1566,"marooned awakening"
+1567,"hidden child"
+1568,"the right approach"
+1569,"the unwritten law"
+1570,"the gilded lily"
+1571,"without reservations"
+1572,"arise my love"
+1573,"three came home"
+1574,"suitable flesh"
+1575,"search for beauty"
+1576,"tove"
+1577,"billy knight"
+1578,"college republicans"
+1579,"daliland"
+1580,"soft self portrait of salvador dali"
+1581,"dali in new york"
+1582,"little ashes"
+1583,"daughters of satan"
+1584,"let's switch"
+1585,"slow dancing in the big city"
+1586,"the staircase murders"
+1587,"play it by ear"
+1588,"cannes man"
+1589,"hollywood ending"
+1590,"reaching for the moon"
+1591,"late shift"
+1592,"on sacred ground"
+1593,"the vampyre; blood & ink"
+1594,"the crime is mine"
+1595,"La danseuse"
+1596,"the cat man of paris"
+1597,"coma"
+1598,"zombi child"
+1599,"perfume"
+1600,"descent into hell"
+1601,"hitchcock"
+1602,"paris paramount"
+1603,"stars at noon"
+1604,"death note"
+1605,"poor things"
+1606,"The Latin from Manhattan: The Vanessa Del Rio Story"
+1607,"The Shuroo Process"
+1608,"the whisper network"
+1609,"romantic rewrite"
+1610,"rock'n roll"
+1611,"The Shanghai Gesture"
+1612,"Sanctuary"
+1613,"red rooms"
+1614,"the mating season"
+1615,"the house across the lake"
+1616,"back in circulation"
+1617,"the great sinner"
+1618,"Irresistible, Ann Turner"
+1619,"innocent thing"
+1620,"the snows of Kilimanjaro"
+1621,"woman on the run"
+1622,"the sun also rises"
+1623,"the naked maja"
+1624,"Fritz Lang Interviewed by William Friedkin"
+1625,"The Caine Mutiny Court-Martial"
+1626,"one more tomorrow"
+1627,"honeymoon for three"
+1628,"naughty but nice"
+1629,"letter of introduction"
+1630,"Le notti di Lucrezia Borgia"
+1631,"web of the spider"
+1632,"Fragments from Olympus: The Vision of Nikola Tesla"
+1633,"jane austen in manhattan"
+1634,"killer book club"
+1635,"the making of"
+1636,"il padrino"
+1637,"80 for brady"
+1638,"beach house"
+1639,"maestro"
+1640,"THE PALACE"
+1641,"five minutes to midnight"
+1642,"arabesque"
+1643,"Midnight In Paris"
+1644,"bocaccio '70"
+1645,"my house is full of mirrors"
+1646,"god is a bullet"
+1647,"Jackie: Die First Lady, 2016"
+1648,"Gut zu Vögeln"
+1649,"SMS für Dich"
+1650,"love again"
+1651,"Le temps retrouvé, d'après l'oeuvre de Marcel Proust"
+1652,"Emanuelle and the White Slave Trade"
+1653,"the love machine"
+1654,"the constant nymph"
+1654,"Dracula: Pages from a Virgin's Diary"
+1655,"scandal sheet, 1985"
+1656,"scandal sheet, 1952"
+1657,"scandal sheet, 1939"
+1658,"scandal sheet, 1931"
+1659,"music box"
+1660,"career"
+1661,"geraldine"
+1662,"stefan luchian"
+1663,"the ides of march"
+1663,"dead men don't wear plaid"
+1664,"day of the fight"
+1665,"blonde ice"
+1666,"what we do is secret"
+1667,"top secret affair"
+1668,"kentucky fried movie"
+1669,"my brother's wife"
+1670,"the November man"
+1671,"gonzo girl"
+1672,"lee"
+1673,"fist of fear, touch of death"
+1674,"inland empire"
+1675,"the ladies man, 1961"
+1676,"centerfold girls"
+1677,"i cover the war"
+1678,"GOTHIC"
+1679,"Vita Activa: The Spirit of Hannah Arendt"
+1680,"Liebe kann wie Gift sein (1958)"
+1681,"her alibi"
+1682,"catherine called birdy"
+1683,"don't worry darling"
+1684,"high society"
+1685,"jean dubarry"
+1686,"shock and awe"
+1687,"l'elegant criminel"
+1688,"next year if all goes well"
+1689,"pardonnez moi"
+1690,"all about actresses"
+1691,"tralala"
+1692,"polisse"
+1693,"dna"
+1694,"Torn from the Flag: A Film by Klaudia Kovacs"
+1695,"afire"
+1696,"stefan zweig"
+1697,"liebbe thomas"
+1698,"hamsun"
+1699,"monthy python's liar's autobigraphy"
+1700,"good posture"
+1701,"american fiction"
+1702,"lisa Frankenstein"
+1703,"Simon Boccanegra, 1991"
+1704,"Simon Boccanegra, 1998"
+1705,"Simon Boccanegra, 1995"
+1706,"Verdi Simon Boccanegra, 2021"
+1707,"Simon Boccanegra, 2010"
+1708,"Simon Boccanegra, 1985"
+1709,"VERDI, Simon Boccanegra, 2020"
+1710,"the curse of turandot,2021"
+1711,"tales of hoffman"
+1712,"la traviata, 1982"
+1713,"The Metropolitan Opera Presents le boheme"
+1714,"Turandot"
+1715,"Die Meistersinger von Nürnberg, 1984"
+1716,"Die Meistersinger von Nürnberg, 1988"
+1717,"R. Strauss: Capriccio"
+1718,"Capriccio, 1993"
+1719,"lohengrin, 1986"
+1720,"lohengrin, 1990"
+1721,"Andrea Chénier, 1955"
+1722,"Andrea Chénier, 1973"
+1723,"Andrea Chénier, 1911"
+1724,"turandot, 2022"
+1725,"Der Rosenkavalier, 1926"
+1726,"Der Rosenkavalier, 1961"
+1727,"seven veils"
+1728,"the seventh veil"
+1729,"the devil and the angel, 1946"
+1730,"greed, personally directed by erich von stroheim"
+1731,"my wife is an actress"
+1732,"an ocean apart"
+1733,"Joyce Carol Oates: A Body in the Service of Mind"
+1734,"neither confirm nor deny"
+1735,"notes of autumn"
+1736,"midsommar"
+1737,"the country girl"
+1738,"persona"
+1739,"another persona"
+1740,"the phantom broadcast"
+1741,"argylle"
+1742,"the fall of the roman empire"
+1743,"the man in the white suit, Alexander Mackendrick"
+1744,"beyond the light barrier"
+1745,"fair play, Chloe Domont"
+1746,"the post office girl, Terrence Davies"
+1747,"A PORTRAIT OF THE ARTIST AS A YOUNG MAN, 1977"
+1748,"frankie starlight"
+1749,"the disappearance of shere hite"
+1750,"satan wants you"
+1751,"merrily we go to hell"
+1752,"breaking the news"
+1753,"bernadette"
+1754,"wildcat"
+1755,"raven's hollow"
+1756,"the faculty"
+1757,"ballerina"
+1758,"totally killer"
+1759,"sky heist"
+1760,"keeping secrets"
+1761,"exclusive"
+1762,"Billy Jack goes to Washington"
+1763,"devil's food"
+1764,"Goodnight, Sweet Marilyn"
+1765,"the house across the street"
+1766,"she's back on Broadway"
+1767,"Nevada Badmen"
+1768,"Hollywood, the movie"
+1769,"die inner zone"
+1770,"Die Wannseekonferenz"
+1771,"single by contract"
+1772,"lieber thomas"
+1773,"Dutschke - shots from the right"
+1774,"berlin '39"
+1775,"the pigeon tunnel"
+1776,"advise & consent"
+1777,"if winter comes"
+1778,"the sell out"
+1779,"man proof"
+1780,"too hot to handle"
+1781,"big brown eyes"
+1782,"a girl with ideas"
+1783,"sextette"
+1784,"diary of a madman, Reginald Le Borg"
+1785,"untold scandal"
+1786,"actresses"
+1787,"five dolls for an august moon"
+1788,"storm warning"
+1789,"the shadows, a novel by stephen grimes"
+1790,"shadow vaults"
+1791,"she came to me"
+1792,"魔水晶"
+1793,"Aren't You Even Gonna Kiss Me Goodbye?"
+1794,"آخر مرة انتحرت"
+1795,"explorers"
+1796,"the thing called love"
+1797,"my own private idaho"
+1798,"Hush-a-Bye Baby"
+1799,"another time another place"
+1800,"they won't forget"
+1801,"upstaged, andrew  walkington"
+1802,"freud's last session, matt brown"
+1804,"the nanssen passport, valentine valera|philippe saada"
+1805,"THE BREAKING ICE"
+1806,"The Year of the Everlasting Storm"
+1807,"Trending Topic,Yukun Xin"
+1808,"goddesses in the flames of war"
+1809,"the lazarus syndrome, jerry thorpe"
+1810,"rumble through the dark"
+1811,"the dark girl, enrico saller"
+1812,"go west, young man"
+1813,"little sky"
+1814,"knight without armor"
+1815,"there's still tomorrow"
+1815,"nyad"
+1816,"Napoleon"
+1816,"film stars don't die in liverpool"
+1817,"bone in the throat"
+1817,"the book that wrote itself"
+1818,"the lady bird diaries"
+1818,"the girl most likely"
+1819,"rain without thunder"
+1820,"maggie black"
+1821,"illuminata"
+1822,"where the devil roams"
+1823,"friends of mr sweeney"
+1824,"housewife"
+1825,"lord byron of broadway,"
+1826,"secret society of lies,"
+1827,"tempest"
+1828,"six triple 🎱"
+1830,"the bikeriders"
+1831,"roustabout"
+1832,"stage fright"
+1833,"$10 RAISE"
+1834,"six days seven nights"
+1835,"six hundred and first phone call"
+1836,"morning glory"
+1837,"the teacher's lounge"
+1838,"guinevere"
+1839,"go"
+1840,"the lyricist wannabe"
+1841,"the rocking horse winner"
+1842,"Time Still Turns the Pages"
+1843,"a fine madness"
+1844,"the less-on"
+1845,"freelance"
+1846,"in the land of saints and sinners"
+1847,"starting over"
+1848,"the broadway of lerner and lowe"
+1849,"fedora"
+1850,"romantic comedy"
+1851,"the tiger makes out"
+1852,"the kid stays in the picture"
+1853,"chaplin"
+1854,"AMERICAN MASTERS FILM: Woody Allen: A Documentary"
+1855,"i hate kids"
+1856,"loitering with intent"
+1857,"the rich inner life of penelope cloud"
+1858,"perks of being a🧱🌷"
+1859,"may december"
+1860,"mary of the movies"
+1861,"Voy! Voy! Voy!"
+1862,"dance first"
+1862,"dance first"
+1863,"origin"
+1864,"saint exupery"
+1865,"novel love"
+1866,"under the yum yum tree"
+1867,"the list"
+1868,"the mistress"
+1869,"silent night, fatal night"
+1870,"438 days"
+1871,"the untouchables"
+1872,"untouchable"
+1873,"touched with fire"
+1874,"the medusa touch"
+1875,"the touch"
+1876,"silver and the book of dreams"
+1877,"lucky devils"
+1878,"winner"
+1879,"fairyland"
+1880,"light on broken glass"
+1881,"one day"
+1882,"high art"
+1883,"elegy"
+1884,"ace in the hole"
+1885,"ambrosia"
+1886,"horrors of the black museum"
+1887,"the deadly dream"
+1888,"the circle"
+1889,"blowing smoke"
+1890,"the zone of interest"
+1891,"wedding night"
+1892,"confirm or deny"
+1893,"uninvited"
+1894,"a mistake"
+1895,"radical wolfe"
+1896,"queen bee"
+1897,"lucky me"
+1898,"bring your smile along"
+1899,"head office"
+1900,"An American Dream: The Education of William Bowman"
+1901,"Far Eastern Golgotha"
+1902,"our town"
+1903,"oki's movie"
+1904,"petty romance"
+1905,"the king's case note"
+1906,"king maker"
+1907,"el conde"
+1908,"victoria and abdul"
+1909,"cattle call"
+1910,"the grand budapest hotel"
+1911,"recount"
+1912,"the attic, the hiding of anne frank"
+1913,"sakharov"
+1914,"william s burroughs birthday bash"
+1915,"dr bird's advice for sad poets"
+1916,"dead in a week or your money back"
+1917,"the big knife"
+1918,"denial"
+1919,"the beautiful fantastic"
+1920,"the debt"
+1921,"sharma and beyond"
+1922,"Taking Tiger Mountain"
+1923,"Taking Tiger Mountain: Revisited"
+1924,"the final academy documents"
+1925,"The Storied Life of A.J. Fikry"
+1926,"fuck marry kill"
+1927,"flight to tangier"
+1928,"the answer man"
+1929,"motherhood (aka, new york mom)"
+1930,"twilight of the gods"
+1931,"the fiction makers"
+1932,"chemical wedding"
+1933,"the mysteries of myra"
+1934,"the red lips of the octopuss"
+1935,"abbey of thelema"
+1936,"in search of the great beast 666"
+1937,"the magician"
+1938,"one step to eternity"
+1939,"sins of casanova"
+1940,"wet woman in the wind"
+1941,"kotoko"
+1942,"the time element (aka, Westinghouse Desilu Playhouse: The Time Element)"
+1943,"the down in the hole gang"
+1944,"vincent francois paul and the others"
+1945,"le camion"
+1946,"La nuit, tous les chats sont gris"
+1947,"i hate actors"
+1948,"uranus"
+1949,"deux"
+1949,"a pure formality"
+1950,"a loving father"
+1951,"bon voyage"
+1953,"dumas"
+1954,"glenn, the flying robot"
+1955,"thalasso"
+1956,"lost illusions"
+1957,"a hundred and one nights"
+1958,"welcome to new york"
+1959,"civil war"
+1960,"the idea of you"
+1961,"the prime minister"
+1961,"dear brigitte"
+1962,"the magic box"
+1963,"encore"
+1964,"another time, another place"
+1965,"the chapman report"
+1966,"the magic box"
+1967,"shake hands with the devil"
+1968,"don't just stand there"
+1969,"lock up your daughters"
+1970,"raise hell: the life & times of molly ivins"
+1971,"chapter zero"
+1972,"there's always hope"
+1973,"raise the red lantern"
+1974,"la ceremonie"
+1975,"little girl blue"
+1976,"La Tour de glace"
+1977,"the bricklayer"
+1978,"suspect zero"
+1979,"classified,roel reine"
+1980,"classified, alfred santell"
+1981,"that deadwood feeling"
+1982,"hamnet"
+1983,"964 Pinnochio"
+1984,"nekromantik"
+1985,"salmonberries"
+1986,"nekromantik 2"
+1987,"The Eternal Night"
+1988,"the man who doesn't return"
+1989,"Jacquot de Nantes (南特的雅克·德米)"
+1990,"malina"
+1991,"until the end of the world"
+1992,"tron"
+1993,"out there"
+1994,"To Walk Invisible: The Brontë Sisters"
+1995,"the woman he loved"
+1996,"thank your lucky stars"
+1997,"four's a crowd"
+1998,"the male animal"
+1999,"the first woman president"
+2000,"miller's girl"
+2001,"past lives"
+2002,"tron legacy"
+2003,"tron ares"
+2004,"stolen face"
+2005,"heat wave"
+2006,"three spare wives"
+2007,"the columnist"
+2008,"london road"
+2009,"wicked little letters"
+2010,"all that glitters, bret easton ellis"
+2011,"oh, canada"
+2012,"everyday's a holiday"
+2013,"a slightly pregnant man"
+2014,"rote sonne"
+2015,"born on the fourth of july"
+2016,"nine dead gay guys"
+2017,"all of us strangers"
+2018,"rosewater"
+2019,"the nightwatch"
+2020,"Polaris, Lynne Ramsay"
+2021,"a ghost story"
+2022,"Made in England: The Films of Powell and Pressburger"
+2023,"shikun"
+2024,"the box man"
+2025,"exergue – on documenta 14"
+2026,"personals 2:casualsex.com"
+2027,"hypnosen"
+2028,"the winter witch"
+2029,"Going to Mars: The Nikki Giovanni Project"
+2030,"I don't expect anyone to believe me"
+2031,"Cinema Has Been My True Love: The Work and Times of Lynda Myles"
+2032,"frida, carla gutierrez"
+2033,"frida, julie taymor"
+2034,"the novelist"
+2035,"deception of the novelist"
+2036,"the novelist's film"
+2037,"madame web"
+2038,"in country"
+2039,"malice in wonderland"
+2040,"there's one born every minute"
+2041,"the outrun, Nora Fingscheidt"
+2042,"ferrari"
+2043,"the man who had power over women"
+2044,"Daaaaaali!"
+2045,"st. ives"
+2046,"look both ways"
+2047,"the laundromat"
+2048,"antiviral"
+2049,"Ingeborg Bachmann - Journey Into the Desert"
+2050,"which brings me to you"
+2051,"Munch, Henrik Martin Dahlsbakken"
+2052,"Ivanovo schastye"
+2053,"paging mister darcy"
+2054,"Gilded Newport Mysteries: Murder at the Breakers"
+2055,"big gold brick"
+2056,"turn me on, dammit"
+2057,"a nice girl like you"
+2058,"The Mauritanian"
+2059,"pussycat pussycat i love you"
+2060,"one man's way"
+2061,"crossplot"
+2062,"the rectory"
+2063,"musica, rudy mancuso"
+2064,"me him her, max landis"
+2065,"Bardo, False Chronicle of a Handful of Truths"
+2066,"the road to wellville"
+2067,"no strings attached, josef rusnak"
+2068,"the epic that never was"
+2069,"¢hump ¢hange"
+2070,"the unforgiven, john huston"
+2071,"god's outlaw"
+2072,"Une famille, Christine Angot"
+2073,"don't leave me this way"
+2074,"suicide, the comedy"
+2075,"a necessary death"
+2076,"Les jeux sont faits"
+2077,"her bridal night"
+2078,"house of recordi"
+2079,"mistress of the world"
+2080,"the prize"
+2081,"(G)rève party"
+2082,"Le coeur à l'ouvrage"
+2083,"Hitler in Hollywood"
+2084,"the list of adrian messenger"
+2085,"the uncanny"
+2086,"Pourquoi (pas) le Brésil"
+2087,"the price of desire"
+2088,"tomorrow we move"
+2089,"the stone council"
+2090,"Simone: Woman of the Century"
+2091,"the great beauty"
+2092,"two neighbors"
+2093,"shadows in the sun"
+2094,"shirley"
+2095,"spotlight"
+2096,"the eternal memory"
+2097,"my ex and whys"
+2098,"laughter in the dark"
+2099,"she's funny that way"
+2100,"leaving las vegas"
+2101,"that's adequate"
+2102,"cruella"
+2103,"one trick pony"
+2104,"china the panda adventure"
+2105,"the chairman"
+2106,"mother mary"
+2107,"FÜHRER AND SEDUCER"
+2108,"the only game in town"
+2109,"all in one day"
+2110,"read it and weep"
+2111,"the zookeeper"
+2112,"the zookeeper's wife"
+2113,"turtle diary"
+2114,"the gentlemen"
+2115,"circle of danger"
+2116,"one night with you"
+2117,"the house in the woods"
+2118,"so well remembered"
+2119,"daddio"
+2120,"sinister"
+2121,"the kid"
+2122,"west of brooklyn"
+2123,"brooklyn brothers beat the best"
+2124,"brooklyn story"
+2125,"brooklyn sonnet"
+2126,"from baghdad to brooklyn"
+2127,"brooklyn boheme"
+2128,"my brooklyn"
+2129,"Rabble Rousers: Frances Goldin and the Fight for Cooper Square"
+2130,"the holdovers"
+2131,"fog over frisco"
+2132,"werner herzog, radical dreamer"
+2133,"blood on the sun"
+2134,"do not fold, spindle, or mutilate"
+2135,"confessions of a co-ed"
+2136,"le belve"
+2137,"return to peyton place"
+2138,"wild in the country"
+2139,"i walk the line, john frankenheimer"
+2140,"intimate affairs"
+2141,"drive away dolls"
+2142,"la la land"
+2143,"quintessentially irish"
+2144,"irish wish"
+2145,"the luck of the irish"
+2146,"irish eyes are smiling"
+2147,"magic fire"
+2148,"stopmotion"
+2149,"<3 is a =/̵/’̿̿ ̿ ̿ ̿ ̿"
+2150,"The Murderous Miss Highsmith"
+2151,"ball of fire, howard hawks"
+2152,"the day the earth caught fire"
+2153,"I'm Still Here: Real Diaries of Young People Who Lived During the Holocaust"
+2154,"fire in the sky"
+2155,"jonah"
+2156,"Winter on Fire (2015) Ukraine's Fight for Freedom"
+2157,"The Wedding, 1944 (Russian: Свадьба, romanized: Svadba)"
+2158,"nothing serious"
+2159,"shortcut to happiness"
+2160,"hollywood heist"
+2161,"they might be giants"
+2162,"green & gold"
+2163,"cold turkey"
+2164,"scandalous"
+2165,"bound for glory"
+2166,"nickolodeon"
+2167,"vanishing america"
+2168,"sunset"
+2169,"stormy"
+2170,"typist artist pirate king"
+2171,"perfect"
+2172,"zolza"
+2173,"late night with the devil"
+2174,"felines"
+2175,"the odd couple II"
+2176,"blumhouse's truth or dare"
+2177,"renner"
+2178,"guys reading poems"
+2179,"coming through the rye"
+2180,"scre4m"
+2181,"lousy carter"
+2182,"dude"
+2183,"lord of misrule"
+2184,"lucia"
+2185,"dateline san francisco"
+2186,"of men and women"
+2187,"the program"
+2188,"day and night, bernard henri levy"
+2189,"spirits of the dead"
+2190,"good"
+2191,"sorority wars"
+2192,"the scribbler"
+2193,"YA"
+2194,"the unlikely pilgrimage of harold fry"
+2195,"christmas love letter"
+2196,"a bestselling kind of love"
+2197,"Stalker,Andrei Tarkovsky"
+2198,"A 19-Year-Old's Map"
+2199,"the king of the two day wonder"
+2200,"ida makes a movie"
+2201,"ulysses coyote"
+2202,"a ticket to the circus"
+2203,"capricorn one"
+2204,"secret of the wings"
+2205,"supernatural"
+2206,"concrete beat"
+2207,"creative nonfiction"
+2208,"diaries, notes, and sketches"
+2209,"the premature burial"
+2210,"the intruder, 1962"
+2211,"day and night, tina gharavi"
+2212,"THE FILE ON THELMA JORDAN"
+2213,"& SONS"
+2214,"patterns, fielder cook"
+2215,"Questa libertà di avere...le ali bagnate"
+2216,"visions"
+2217,"The Lost Footage of Leah Sullivan"
+2218,"merrily we live, Norman Z. McLeod"
+2219,"the man who came to dinner"
+2220,"Eddie and the Cruisers II: Eddie Lives!"
+2220,"patty hearst"
+2221,"Eddie and the Cruisers"
+2222,"the incredible mr limpet"
+2223,"the reckless moment"
+2224,"valentino, ken russell"
+2225,"stolen moments, james vincent"
+2226,"for heaven's sake"
+2227,"pink string and sealing wax"
+2228,"POOLMAN"
+2229,"kissinger takes paris"
+2230,"her kind of man"
+2231,"bathing beauty"
+2232,"love and learn"
+2233,"winter meeting"
+2234,"please don't eat the daisies"
+2235,"the turning point of jim malloy"
+2236,"bachelor in paradise"
+2237,"american woman"
+2238,"the radical story of patty hearst"
+2239,"guerilla, the taking of patty hearst"
+2241,"captive"
+2242,"the ordeal of patty hearst"
+2243,"tanya"
+2244,"patty"
+2245,"bat*21"
+2256,"hacking hate"
+2257,"miss grant takes richmond"
+2258,"lucy calls the president"
+2259,"lured"
+2260,"easy to wed"
+2261,"that's right, you're wrong"
+2262,"twelve crowded hours"
+2263,"room service"
+2264,"there goes my girl"
+2265,"i dream too much"
+2266,"behind the evidence"
+2267,"the adventures of the three reporters"
+2268,"the wedding night"
+2269,"the white devil"
+2270,"the grand exit"
+2271,"the personals"
+2272,"the postman"
+2273,"lady in white"
+2274,"death notice, herman yau"
+2276,"vortex"
+2277,"behind green lights"
+2278,"The Ghost and Mrs. Muir"
+2279,"blithe spirit, david lean"
+2280,"men are not gods"
+2281,"rawhide, henry hathaway"
+2282,"behold my wife"
+2283,"ex-lady"
+2284,"power ballad"
+2285,"longlegs"
+2286,"dead reckoning"
+2287,"treasure"
+2288,"arriverdeci e grazie"
+2289,"live for life"
+2290,"one night...a train"
+2291,"Qu'est-ce qui fait courir David?"
+2292,"success is the best revenge"
+2293,"nina"
+2294,"L.A. Without A Map"
+2295,"paris connections"
+2296,"love letters"
+2297,"the best years of a life"
+2298,"La Bête"
+2299,"the secret diaries of miss anne lister"
+2300,"love on toast"
+2301,"interlude"
+2302,"mr harrigan's phone"
+2303,"klute"
+2304,"spoonful of sugar"
+2305,"BELOVED INFIDEL"
+2306,"the woman in cabin 10"
+2307,"the last letter from your lover"
+2308,"O. Henry's Full House"
+2309,"home town story"
+2310,"a family affair"
+2311,"Gabriele Muenter - In the shadow of Kandinsky"
+2312,"black box diaries - shiori ito"
+2313,"the suicide note - jake helgren"
+2314,"if it bleeds"
+2315,"bergman - a year in a life"
+2316,"fly me to the moon"
+2317,"the exorcism, joshua john miller"
+2318,"nashville"
+2319,"a virgin in hollywood"
+2320,"A Burning Passion: The Margaret Mitchell Story"
+2321,"bukowski, james franco"
+2322,"freeze frame"
+2323,"the other lover"
+2324,"the arrangement"
+2325,"the biographer"
+2326,"faye"
+2327,"the case for christ"
+2328,"a sacrifice"
+2329,"the sacrifice"
+2330,"the dead don't hurt"
+2331,"a farewell to harry"
+2332,"the carpetbaggers"
+2333,"too good to be true"
+2335,"swimming home"
+2336,"horizon an american saga chapter one"
+2337,"maid of orleans"
+2338,"lady chatterley's lover, Laure de Clermont-Tonnerre"
+2339,"snl 1975 (retitled 'saturday night')"
+2340,"Modernism Inc.: The Eliot Noyes Design Story"
+2341,"Federico, the imaginary life of Fellini"
+2342,"ALL OF YOU WILL DIE"
+2343,"the puppetman"
+2344,"puppet master"
+2345,"Molly Moon and the Incredible Book of Hypnotism"
+2346,"crimetime"
+2347,"fortune's smile"
+2348,"Absolutely Fabulous: The Movie"
+2349,"searching eva, pia hellenthal"
+2350,"a complete unkownn"
+2351,"men of crisis, the harvey wallinger story"
+2352,"marty supreme"
+2353,"scandal"
+2354,"the house of snails"
+2355,"crime of passion, gerd oswald"
+2356,"the jury's secret"
+2357,"the interpreter"
+2358,"mystery of the wax museum"
+2359,"colette, milan cieslar"
+2360,"affairs of a gentleman"
+2361,"the finger points"
+2362,"doctor x"
+2363,"the important witness"
+2364,"twenty four hours in woman's life"
+2365,"spring bears love"
+2366,"the possessed"
+2367,"love spreads"
+2368,"Revenge of the Radioactive Reporter"
+2369,"the executioner's song"
+2370,"Belly of the Beast"
+2371,"Мастер и Маргарита, 2023"
+2372,"vaktsina"
+2373,"las vegas shakedown"
+2374,"waltz for monica"
+2375,"diary of a deadbeat"
+2376,"che, richard fleischer"
+2377,"the fall guy, david leitch"
+2378,"opening night"
+2379,"ted and venus"
+2380,"Dear America: Letters Home from Vietnam"
+2381,"lost focus"
+2382,"confessions of a male prostitute"
+2383,"lost angeles"
+2384,"snapshot"
+2385,"after you"
+2386,"witch, Hinde/Zammit"
+2387,"courier x"
+2388,"the other zoey"
+2389,"the tijuana story"
+2390,"the lives of jenny dolan"
+2391,"she married her boss"
+2392,"auction"
+2393,"my first film?"
+2394,"Отражение тьмы!"
+2395,"enter the devil"
+2396,"the second civil war"
+2397,"primary colors"
+2398,"the river niger"
+2399,"Guyana Tragedy: The Story of Jim Jones"
+2400,"the clean up crew"
+2401,"venom"
+2402,"venom: the last dance"
+2403,"afrAId"
+2404,"five star final"
+2405,"daring daughters"
+2406,"the girl thief"
+2407,"house of errors"
+2408,"opus"
+2409,"storm center"
+2410,"griffin in summer"
+2411,"apartmen, Mohd Pierre Andre"
+2412,"apartment 7A, Natalie Erika James"
+2413,"a german life"
+2414,"lily in love"
+2415,"murder by death"
+2416,"the prime of miss jean brodie"
+2417,"quick, before it melts"
+2418,"rage"
+2419,"dedication"
+2420,"i'm dancing as fast as i can"
+2421,"the siegfried idyll"
+2422,"george eliot: a scandalous life"
+2423,"a merry war"
+2424,"the lost city,aaron & adam nee"
+2425,"metal heart"
+2426,"otto e mezzo"
+2427,"the dark half"
+2428,"the hidden half"
+2429,"paul bowles half moon"
+2430,"18½"
+2431,"A WOMAN AND A HALF: HILDEGARD KNEF"
+2432,"The Other Half of the Sky - Stories of Chinese Businesswomen"
+2433,"Salem's Lot"
+2434,"soy nevenka"
+2435,"september 5"
+2436,"september"
+2437,"killer's kiss"
+2438,"bobby"
+2439,"blue moon"
+2440,"La femme la plus riche du monde"
+2441,"Loro"
+2442,"catchfire"
+2443,"priest of love"
+2444,"the i don't care girl"
+2445,"fake!"
+2446,"friday afternoon in the universe"
+2447,"parer's war"
+2448,"tomorrow was the war"
+2449,"Buddha's Little Finger"
+2450,"janie jones"
+2451,"Extérieur, nuit"
+2452,"the passage"
+2453,"Jenatsch"
+2454,"niki"
+2455,"Monsieur Aznavour"
+2456,"when fall is coming"
+2457,"tootsie"
+2458,"liz, adam leon"
+2459,"deliver me from nowhere"
+2460,"2.0 Lucy"
+2461,"a different man"
+2462,"Women in Oversized Men's Shirts"
+2463,"the critic"
+2464,"blood & ink"
+2465,"what a woman"
+2466,"Mae Mest, lee philips"
+2467,"Labor of Love: The Arlette Schweitzer Story"
+2468,"my dream boat,shaw brothers"
+2469,"the walking dead, michael curtiz"
+2470,"the venetian affair"
+2471,"the yellow ticket"
+2472,"the little wild girl"
+2473,"omar the tent maker"
+2474,"mr wong in chinatown"
+2475,"beast beast"
+2476,"babysitter's black book, lee friedlander"
+2477,"men always lie"
+2478,"the killing game"
+2479,"testament of Orpheus"
+2480,"il penito"
+2481,"the happy hooker goes to Hollywood"
+2482,"never say never again"
+2483,"seizure"
+2484,"my husband is missing"
+2485,"delirium"
+2486,"revolting rhymes"
+2487,"news from nowhere"
+2488,"cuts"
+2489,"breaking the code"
+2490,"wolf"
+2491,"waltz of the toreadors"
+2492,"primary motive"
+2493,"face"
+2494,"satisfaction"
+2495,"love letters, amy holden jones"
+2496,"country gold, mickey reece"
+2497,"country gold, gilbert cates"
+2498,"the big knife"
+2499,"the devil's teeth"
+2500,"the last call"
+2501,"stuffed butterflies"
+2502,"secreto de confesion"
+2503,"twenty four hours of pleasure"
+2504,"el portero"
+2505,"pubis angelical"
+2506,"grand hotel"
+2507,"heretic"
+2508,"jessica darling's it list"
+2509,"atropia"
+2510,"transit, christian petzold"
+2511,"deadly leaks"
+2512,"the taste of apple seeds"
+2513,"deadly leaks 2"
+2514,"the poll diaries"
+2515,"unforgettable, j. c. falcon"
+2516,"mystery woman"
+2517,"grave misconduct"
+2518,"special effects"
+2519,"scenes from rotterdam"
+2520,"the letter, rodrigo h vila"
+2521,"spread"
+2522,"esau"
+2523,"Drôle de jeu"
+2524,"one husband too many"
+2525,"a season for love"
+2526,"the haunting, robert wise"
+2527,"the haunting, jan de bont"
+2528,"paranoia"
+2529,"roar"
+2530,"emilia perez"
+2531,"wilder & me"
+2532,"return to Montauk"
+2533,"the french minister"
+2534,"Lettres à un jeune poète"
+2535,"sarah's key"
+2536,"albert savarus"
+2537,"Je Tu Il Elle"
+2538,"world premier"
+2539,"kiss the boys goodnight"
+2540,"no time to marry"
+2541,"his secretary"
+2542,"pretty ladies"
+2543,"married flirts"
+2544,"their own desire"
+2545,"riptide"
+2546,"biography of a bachelor girl"
+2547,"fast and loose"
+2548,"haunted honeymoon"
+2549,"the saxton charm"
+2550,"lovers courageous"
+2551,"inspiration"
+2552,"Vitrinnyy ekzemplyar"
+2553,"Prorok. Istoriya Aleksandra Pushkina"
+2554,"storm over lisbon"
+2555,"opera prima"
+2556,"rock of ages"
+2557,"cold providence"
+2558,"enemies.a love story"
+2559,"i know why the caged bird sings"
+2560,"sisters"
+2561,"love language"
+2562,"the order"
+2563,"90 minutes in heaven"
+2564,"beyond the sea"
+2565,"sleep"
+2566,"sibyl"
+2567,"performer"
+2568,"within the whirlwind"
+2569,"dark, almost night"
+2570,"el grito"
+2571,"death on the nile"
+2572,"the athena syndrome"
+2573,"Agatha & Poirot: Partners in Crime"
+2574,"A Dream Is a Wish Your Heart Makes: The Annette Funicello Story"
+2575,"collected stories"
+2576,"perfect strangers"
+2577,"the room next door"
+2578,"fountain of youth"
+2579,"the ballad of a small player"
+2580,"a bunch of amateurs"
+2581,"if you could see what i hear"
+2582,"spies inc"
+2583,"dirty tricks"
+2584,"loose ends"
+2585,"john and yoko a love story"
+2586,"fooling hitler"
+2587,"will there really be morning?"
+2588,"the translator"
+2589,"Soundtrack to a Coup d'Etat"
+2590,"phantom"
+2591,"shanghai express"
+2592,"watchers"
+2593,"poison pen"
+2594,"Memories of My Melancholy Whores"
+2595,"the chosen"
+2597,"I Wonder Who's Kissing You Now"
+2598,"cheating blondes"
+2599,"TWO FOR TONIGHT"
+2600,"Sitting Pretty"
+2601,"The Housekeeper's Daughter"
+2602,"simple women"
+2603,"This is the end"
+2604,"let the corpses tan"
+2605,"able danger"
+2606,"pictures of baby jane doe"
+2607,"south of heaven"
+2608,"nothing else matters"
+2609,"you ain't seen nothing yet"
+2610,"swanee river"
+2611,"rhapsody in blue"
+2612,"spread"
+2613,"deathtrap"
+2614,"dead man's letters"
+2615,"lord of the ants"
+2616,"the ugly swans"
+2617,"death in venice"
+2618,"the short films of david lynch"
+2619,"somewhere in time"
+2620,"aldrich ames:traitor within"
+2621,"brimstone and treacle"
+2622,"the glorias"
+2623,"the kovax box"
+2624,"deliberate intent"
+2625,"zuma beach"
+2626,"turk 182"
+2627,"prospero's books"
+2628,"it never entered my mind"
+2629,"me and my brother"
+2630,"Tage die bleiben"
+2631,"heil"
+2631,"fuori"
+2632,"a bookshop in paris"
+2633,"Anna Fucking Molnar"
+2633,"I'll Never Forget What's'isname"
+2634,"C(r)ook"
+2634,"every breath you take"
+2635,"advice to the lovelorn"
+2635,"A Girl With Closed Eyes"
+2636,"warrior empress"
+2636,"the thin man"
+2637,"the hangman"
+2637,"after the thin man"
+2638,"the linguine incident"
+2638,"another thin man"
+2639,"a night full of rain"
+2639,"shadow of the thin man"
+2640,"across the river and into the trees"
+2640,"the thin man goes home"
+2641,"song of the thin man"
+2642,"star spangled girl"
+2643,"Dinner with Family with Brett Gelman and Brett Gelman's Family"
+2644,"ride the high iron"
+2645,"parthenope"
+2646,"the gorge"
+2646,"day for night"
+2647,"a season in hell"
+2648,"all is well"
+2649,"the great actor"
+2650,"the brutalist"
+2651,"saint judy"
+2652,"back of the book"
+2653,"the other side of the wind"
+2654,"from the head"
+2655,"with this ring"
+2656,"la ilegal"
+2657,"The Golden Moment: An Olympic Love Story"
+2658,"convicted"
+2659,"The Moelln Letters"
+2660,"believer"
+2661,"dreams (sex love)"
+2662,"wolf man"
+2663,"the Christmas gift"
+2664,"welcome to mooseport"
+2665,"deep cuts"
+2666,"hidden in the spotlight"
+2667,"adolescence, ashley avis"
+2668,"it's fine! everything is fine."
+2669,"suicide, the comedy"
+2670,"shakespeare's plan 12 from outer space"
+2671,"kiss me, kill me"
+2672,"Untitled Crispin Hellion Glover Project"
+2673,"F. Scott Fitzgerald and 'the Last of the Belles'"
+2674,"the music lovers"
+2675,"jane"
+2675,"Tears and Laughter: The Joan and Melissa Rivers Story"
+2676,"The Lindbergh Kidnapping Case"
+2677,"cinema twain"
+2678,"becoming Led Zeppelin"
+2679,"arrival"
+2680,"the barefoot contessa"
+2681,"the love lottery"
+2682,"martians go home"
+2683,"i love your work"
+2684,"hedda"
+2685,"Baltimore, Christine Molloy and Joe Lawlor"
+2686,"the chronology of water"
+2687,"love will tear us apart"
+2688,"redemption"
+2689,"darkest miriam"
+2690,"the friend"
+2691,"a simple favor"
+2692,"another simple favor"
+2693,"don't ask me, ask God"
+2694,"up your alley"
+2695,"wishful thinking"
+2696,"lucky ed's tabloid news"
+2697,"the preview murder mystery"
+2698,"rust"
+2699,"Twilight Zone: Rod Serling's Lost Classics"
+2700,"The Revisionist"
+2701,"weekend at the Waldorf"
+2702,"claudelle inglish"
+2703,"WHAT A WAY TO GO! -J LEE THOMPSON"
+2704,"first affair"
+2705,"S.O.B."
+2706,"it's a bird...it's a plane...it's superman"
+2707,"stand up and be counted"
+2708,"if i were you"
+2709,"no pay, nudity."
+2710,"Jane Austen Wrecked My Life"
+2711,"the forest is red"
+2712,"undersea girl"
+2713,"split fiction"
+2714,"end of the road"
+2715,"st ives"
+2716,"prime time"
+2717,"good to go"
+2718,"heart of justice"
+2719,"perfume"
+2720,"the sounding"
+2721,"boom"
+2722,"to Barcelona with love"
+2723,"shadows"
+2724,"the seven minutes"
+2725,"tunnel vision"
+2726,"the dukes of hazzard, hazzard in hollywood"
+2727,"hitler: the last ten days"
+2728,"mahler"
+2729,"lisztomania"
+2730,"the secret life of arnold bax"
+2731,"dan hawk, psychic detective"
+2732,"Conjuring The Book of the Dead"
+2733,"the bloody brood"
+2734,"Dracula: A Love Tale"
+2735,"Vuxna människor"
+2736,"the big fisherman"
+2737,"a day at the beach"
+2738,"king of the underground"
+2739,"Du bringst mich noch um"
+2739,"being maria"
+2740,"antichrist"
+2741,"the boys from brazil"
+2742,"Saiyaara"
+2743,"White Hot: The Mysterious Murder of Thelma Todd"
+2744,"Sorry, Baby (eva victor)"
+2745,"BROADCAST SIGNAL INTRUSION"
+2746,"it's never over, jeff buckley"
+2747,"in the hand of Dante"
+2748,"a piece of eden"
+2749,"four dimensions of greta"
+2750,"term of trial"
+2751,"two minutes to midnight"
+2752,"misery harbor"
+2753,"copy boy"
+2754,"atta boy"
+2755,"The Naked Gun, Akiva Schaffer"
+2756,"Unknown Number: The High School Catfish, Skye Borgman"
+2757,"Poetic License, Maude Apatow"
+2758,"the third lover"
+2758,"the creatures"
+2759,"sooner or later"
+2760,"W.W. and the Dixie Dancekings"
+2761,"macumba love"
+2762,"medium rare"
+2763,"edge of darkness"
+2763,"impact"
+2764,"lions for lambs"
+2765,"the company you keep"
+2766,"Relay,David Mackenzie"
+2767,"swiped"
+2768,"588, rue Paradis"
+2769,"diary of a telephone operator"
+2770,"auguste"
+2771,"claretta"
+2772,"Bello onesto emigrato Australia sposerebbe compaesana illibata"
+2773,"woman of wonders"
+2774,"a man in love"
+2775,"the wonderful urge"
+2775,"wisdom of happiness"
+2776,"barefoot boys"
+2777,"30 Is a Dangerous Age, Cynthia"
+2778,"Hildegard of Bingen"
+2779,"in search of the brontes"
+2780,"tilda"
+2781,"the correspondent, Kriv Stenders"
+2782,"broken voices, Ondrej Provaznik"
+2783,"little trouble girls, Urska Djukic"
+2785,"the Hemingway play"
+2786,"the seven percent solution"
+2787,"the uncanny"
+2788,"Inevitable Grace"
+2789,"losing faith"
+2790,"why shoot the teacher"
+2791,"SHELL"
+2792,"bone lake"
+2793,"the phoenician scheme"
+2794,"anemone"
+2795,"waltz of the toreadors"
+2796,"the merry wives of windsor"
+2797,"the index has gone fishing"
+2798,"natural causes"
+2799,"my friend walter"
+2800,"an awfully big adventure"
+2801,"breaking the code"
+2802,"reya, brozzi lunetta"
+2803,"gentlemen"
+2804,"Den evige ektemann"
+2805,"the eternal husband"
+2806,"deep water"
+2807,"flap"
+2808,"irish eyes are smiling"
+2809,"100 NIGHTS OF HERO"
+2810,"the november plot"
+2811,"forever"
+2812,"mother russia"
+2813,"INT.HALLWAY/NIGHT"
+2814,"the manchurian candidate, John Frankenheimer"
+2815,"the manchurian candidate, Jonathan Demme"
+2816,"byrd and the bees"
+2817,"Emperor, Lee Tamahori"
+2818,"Salve Maria, Mar Coll"
+2819,"CRY TO HEAVEN"
+2820,"Hikidashi no naka no rabu retâ"
+2821,"Yajû shisubeshi"
+2822,"Trinacria: Porsche 959"
+2823,"Dawn of a New Day: The Man Behind VHS"
+2824,"Orwell: 2+2=5"
+2825,"sallyland"
+2826,"the ice tower"
+2827,"the substance of fire"
+2828,"the hill of kites"
+2829,"one line of reality"
+2830,"Blue Moon"
+2831,"bvgoniA"
+2832,"death and the dervish"
+2833,"after the hunt"
+2834,"helvetica, gary hustwit"
+2835,"the harms case"
+2836,"Svetozar Markovic"
+2837,"early works"
+2839,"das kapital, Zelimir Zilnik"
+2839,"The Extraordinary Miss Flower"
+2840,"@"
+2841,"Pose"
+2842,"Winter in Sokcho"
+2843,"DIE MY LOVE"
+2844,"the Carpenter's son"
+2845,"wake up dead man : a knives out mystery"
+2846,"sentimental value, joachim trier"
+2847,"Nürnberg, james vanderbilt"
+2848,"intrigo: death of an author"
+2849,"the long teeth"
+2850,"cover up"
+2851,"fackham hall"
+2852,"victorian psycho"
+2853,"Fast and Loose"
+2854,"a girl's story"
+2855,"1949"
+2856,"love lessons"
+2857,"the beloved"
+2858,"misty green"
+2859,"yellow letters"
+2860,"la bola negra"
+2861,"the adventures of cliff booth"
+2862,"all of a sudden"
+2863,"ink"
+2864,"artificial"
+2865,"Sheep In The Box & Look Back"
+2866,"I play Rocky"
+2867,"last days, matt copson"
+2868,"moulin"
+2869,"perfect girl"
+2870,"verity"
+2871,"the salzburg connection"
+2872,"trauma"
+2873,"lili marleen"
+2874,"die einsteiger"
+2875,"Am nächsten Morgen kehrte der Minister nicht an seinen Arbeitsplatz zurück"
+2876,"epidemic"
+2877,"Die 120 Tage von Bottrop"
+2878,"a trick of light"
+2879,"the end of violence"
+2880,"100 Jahre Adolf Hitler - Die letzte Stunde im Führerbunker"
+2881,"betty"
+2882,"evil eyes"
+2883,"far cry"
+2884,"one more round"
+2885,"the girl behind the white picket fence"
+2886,"don't worry, he won't get far on foot"
+2887,"holy beasts"
+2888,"13 tracks to frighten agatha black"
+2889,"schindler space architect"
+2890,"red letters"
+2891,"the last minute"
+2892,"one point O"
+2893,"johnny walker"
+2894,"my soul is slashed"
+2895,"3 Days Rising, Craig Cukrowski"
+2896,"HOUSE OF USHER, ROGER CORMAN"
+2897,"endgame"
+2898,"exit 0"
+2899,"permanent midnight"
+2900,"jeanne eagles"
+2901,"imitation of life"
+2902,"kim novak's vertigo"
+`;
+
+        // ======================================================
+        // LOGIC: MERGE THE TWO LISTS
+        // ======================================================
+        let allMovies = [];
+
+        function mergeLists() {
+            // 1. Add all finished entries first
+            allMovies = [...finishedEntries];
+            
+            // Create a set of IDs we already have so we don't duplicate
+            const existingIds = new Set(finishedEntries.map(m => m.id));
+
+            // 2. Parse the Raw CSV
+            const lines = rawCSV.trim().split('\n');
+            
+            lines.forEach(line => {
+                // Regex to find ID and Title from CSV format: 123,"_Title"
+                const match = line.match(/^(\d+),"?(.+?)"?$/);
+                
+                if (match) {
+                    const id = parseInt(match[1]);
+                    
+                    // ONLY add if we don't already have this ID in the finished list
+                    if (!existingIds.has(id)) {
+                        let rawTitle = match[2];
+                        
+                        // Basic cleanup of the raw title (remove underscore)
+                        if (rawTitle.startsWith('_')) rawTitle = rawTitle.substring(1).trim();
+
+                        // Try to extract year from title if present: "Movie (1999)"
+                        let year = "";
+                        let cleanTitle = rawTitle;
+                        const yearMatch = rawTitle.match(/[(,]?\s*(\d{4})\s*[)]?/);
+                        
+                        if (yearMatch) {
+                            year = yearMatch[1];
+                            cleanTitle = rawTitle.replace(yearMatch[0], "").trim(); // Remove year from title
+                        }
+
+                        // Add to master list
+                        allMovies.push({
+                            id: id,
+                            title: cleanTitle,
+                            year: year,       // Will be empty if not found
+                            director: "",     // Will be empty
+                            verified: false
+                        });
+                    }
+                }
+            });
+
+            // 3. Sort by ID to keep it in order
+            allMovies.sort((a, b) => a.id - b.id);
+        }
+
+        // ======================================================
+        // DISPLAY LOGIC
+        // ======================================================
+        let currentIndex = 0;
+        const batchSize = 50;
+
+        function displayMovies(startIndex = 0) {
+            const tableBody = document.getElementById('movieList');
+            tableBody.innerHTML = '';
+            
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            let dataToShow = allMovies;
+
+            if(searchTerm) {
+                 dataToShow = allMovies.filter(m => 
+                    m.title.toLowerCase().includes(searchTerm) ||
+                    (m.director && m.director.toLowerCase().includes(searchTerm)) ||
+                    (m.id.toString() === searchTerm)
+                );
+            } else {
+                const endIndex = Math.min(startIndex + batchSize, allMovies.length);
+                dataToShow = allMovies.slice(startIndex, endIndex);
+            }
+            
+            dataToShow.forEach(movie => {
+                const row = document.createElement('tr');
+                
+                // If verified, show normally. If not, show "---" or placeholders
+                const yearText = movie.year ? movie.year : '<span class="missing-data">---</span>';
+                const dirText = movie.director ? movie.director : '<span class="missing-data">---</span>';
+
+                row.innerHTML = `
+                    <td class="id-cell">${movie.id}</td>
+                    <td style="color: ${movie.verified ? '#fff' : '#aaa'}">${movie.title}</td>
+                    <td class="year-cell">${yearText}</td>
+                    <td class="director-cell">${dirText}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            updateStats();
+        }
+        
+       function updateStats() {
+        const total = allMovies.length;
+        const verified = allMovies.filter(m => m.verified).length;
+        const pending = total - verified;
+        
+        // 1. Update Total (Checks if element exists first)
+        const totalEl = document.getElementById('totalCount');
+        if (totalEl) totalEl.textContent = total;
+
+        // 2. Update Verified
+        const verifiedEl = document.getElementById('verifiedCount');
+        if (verifiedEl) verifiedEl.textContent = verified;
+
+        // 3. Update Pending (Tries all common names to be safe)
+        const pendingEl = document.getElementById('pendingCount') || 
+                          document.getElementById('missingCount') || 
+                          document.getElementById('remainingCount');
+        
+        if (pendingEl) pendingEl.textContent = pending;
+    }
+
+        function showNextBatch() {
+            if(document.getElementById('searchBox').value !== "") return;
+            currentIndex += batchSize;
+            if (currentIndex >= allMovies.length) currentIndex = 0;
+            displayMovies(currentIndex);
+            window.scrollTo(0, 0);
+        }
+
+        function exportCSV() {
+            let csv = 'ID,Title,Year,Director\n';
+            allMovies.forEach(m => {
+                const safeTitle = m.title.replace(/"/g, '""'); 
+                const safeDir = m.director ? m.director.replace(/"/g, '""') : "";
+                csv += `${m.id},"${safeTitle}",${m.year || ''},"${safeDir}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = 'writers_on_film_full.csv';
+            a.click();
+        }
+
+        function searchMovies() { displayMovies(0); }
+
+        // RUN ON LOAD
+        mergeLists();
+        displayMovies();
+
+    </script>
+</body>
+</html>
