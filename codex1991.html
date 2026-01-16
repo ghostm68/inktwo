@@ -119,15 +119,18 @@
     </div>
 
   <!-- AI Modal HTML -->
+<!-- AI Modal HTML -->
 <div id="ai-overlay" onclick="closeAIModal()"></div>
+
 <div id="ai-modal">
     <div class="ai-header">
         <span>🤖 NVIDIA NEMOTRON INTELLIGENCE</span>
         <button onclick="closeAIModal()" style="background:transparent; border:none; color:white; font-size:1.2em; cursor:pointer;">&times;</button>
     </div>
+    
     <div class="ai-body">
+        <!-- 1. API KEY -->
         <div class="ai-input-group">
-            <!-- NEW: Flex container to put the link on the right -->
             <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                 <label style="margin-bottom:0;">NVIDIA API Key:</label>
                 <a href="https://build.nvidia.com" target="_blank" style="color: #FF1991; font-size: 0.8em; text-decoration: none; font-family: monospace; border-bottom: 1px dotted #FF1991;">
@@ -136,16 +139,27 @@
             </div>
             <input type="password" id="nvidiaKey" placeholder="nvapi-...">
         </div>
+
+        <!-- 2. MODEL SELECTION (NEW) -->
+        <div class="ai-input-group">
+            <label>Select Model:</label>
+            <select id="nvidiaModel" style="width:100%; padding:10px; background:#222; color:white; border:1px solid #444; border-radius:4px; font-family:monospace;">
+                <option value="nvidia/nvidia-nemotron-nano-9b-v2" selected>Nvidia Nemotron Nano 9B v2 (Fast)</option>
+                <option value="nvidia/llama-3.1-nemotron-70b-instruct">Nvidia Llama-3.1-Nemotron 70B (Smart)</option>
+            </select>
+        </div>
         
+        <!-- 3. QUESTION INPUT -->
         <div class="ai-input-group">
             <label>Question:</label>
             <textarea id="aiPrompt" rows="2" placeholder="Ask about these movies..."></textarea>
         </div>
         
+        <!-- 4. CONTROLS -->
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
             <label style="color:#999;">Creativity:</label>
             <input type="range" id="aiTemp" min="0.1" max="1.0" step="0.1" value="0.7">
-            <!-- UPDATED: Changed background to #FF1991 -->
+            
             <button onclick="generateInsight()" id="genBtn" style="background:#FF1991; color:white; padding:10px 20px; border:none; cursor:pointer; font-weight:bold;">
                 🚀 ANALYZE
             </button>
@@ -154,6 +168,7 @@
         <div id="aiOutput" class="ai-output-box">Ready.</div>
     </div>
 </div>
+
 
     <script>
         // 1. ERROR CATCHER: This will tell you if your list is broken
@@ -6049,134 +6064,132 @@ ID,TITLE
     // ==========================================
     // 4. NVIDIA MODAL (Nano 9B Smart Scan - Movie Edition)
     // ==========================================
+// 4. NVIDIA MODAL (Smart Scan - Movie Edition)
+    // ==========================================
 
- // 4. NVIDIA MODAL (Nano 9B Smart Scan - Movie Edition)
-// ==========================================
-
-// Renamed to match HTML ID (implied open button likely needs this)
-function openAIModal() {
-    document.getElementById('ai-overlay').style.display = 'block';
-    document.getElementById('ai-modal').style.display = 'block';
-    
-    // Check for saved key
-    const k = localStorage.getItem('inkrealm_nvidia_key');
-    if(k) document.getElementById('nvidiaKey').value = k;
-}
-
-// Renamed to match HTML onclick="closeAIModal()"
-function closeAIModal() {
-    document.getElementById('ai-overlay').style.display = 'none';
-    document.getElementById('ai-modal').style.display = 'none';
-}
-
-// The "Search Light" Scanner (Unchanged)
-function getRelevantContext(query, fullText) {
-    if (!fullText) return { text: "", method: "NO DATA" };
-    const keywords = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-
-    if (keywords.length === 0) {
-        return { text: fullText.substring(0, 5000), method: "DEFAULT (BEGINNING)" };
+    // 1. OPEN: Named 'openNvidiaModal' to match your main button
+    function openNvidiaModal() {
+        // Targets 'ai-modal' to match your HTML
+        document.getElementById('ai-overlay').style.display = 'block';
+        document.getElementById('ai-modal').style.display = 'block';
+        
+        const k = localStorage.getItem('inkrealm_nvidia_key');
+        if(k) document.getElementById('nvidiaKey').value = k;
     }
 
-    const chunkSize = 2000;
-    let bestChunkIndex = 0;
-    let maxScore = 0;
-    
-    for (let i = 0; i < fullText.length; i += 1000) {
-        let chunk = fullText.substring(i, i + chunkSize).toLowerCase();
-        let score = 0;
-        keywords.forEach(word => { if(chunk.includes(word)) score++; });
+    // 2. CLOSE: Named 'closeAIModal' to match your HTML Close button
+    function closeAIModal() {
+        document.getElementById('ai-overlay').style.display = 'none';
+        document.getElementById('ai-modal').style.display = 'none';
+    }
+
+    // 3. SCANNER LOGIC
+    function getRelevantContext(query, fullText) {
+        if (!fullText) return { text: "", method: "NO DATA" };
+        const keywords = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+
+        if (keywords.length === 0) {
+            return { text: fullText.substring(0, 5000), method: "DEFAULT (BEGINNING)" };
+        }
+
+        const chunkSize = 2000;
+        let bestChunkIndex = 0;
+        let maxScore = 0;
         
-        if (score > maxScore) {
-            maxScore = score;
-            bestChunkIndex = i;
+        for (let i = 0; i < fullText.length; i += 1000) {
+            let chunk = fullText.substring(i, i + chunkSize).toLowerCase();
+            let score = 0;
+            keywords.forEach(word => { if(chunk.includes(word)) score++; });
+            
+            if (score > maxScore) {
+                maxScore = score;
+                bestChunkIndex = i;
+            }
+        }
+
+        const start = Math.max(0, bestChunkIndex - 3000);
+        const end = Math.min(fullText.length, bestChunkIndex + 5000);
+        
+        return {
+            text: fullText.substring(start, end),
+            method: `SMART SCAN (Found "${keywords[0]}")`
+        };
+    }
+
+    // 4. GENERATE: Named 'generateInsight' to match your HTML "Analyze" button
+    async function generateInsight() {
+        const key = document.getElementById('nvidiaKey').value.trim();
+        const prompt = document.getElementById('aiPrompt').value.trim();
+        
+        // THIS LINE READS YOUR NEW DROPDOWN
+        const modelElement = document.getElementById('nvidiaModel');
+        // If dropdown exists, use it. If not, default to Nano 9B.
+        const model = modelElement ? modelElement.value : "nvidia/nvidia-nemotron-nano-9b-v2";
+        
+        const out = document.getElementById('aiOutput');
+        const btn = document.getElementById('genBtn');
+        
+        if(!key || !prompt) { out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; return; }
+        
+        localStorage.setItem('inkrealm_nvidia_key', key);
+        
+        btn.disabled = true; 
+        btn.textContent = "PROCESSING...";
+        out.textContent = ">> ACCESSING NEURAL NET...";
+
+        const fullMovieContext = allMovies.map(m => 
+            `[Movie] Title: ${m.title} (${m.year || '?'}) | Dir: ${m.director || '?'} | Info: ${m.genre || ''}`
+        ).join("\n");
+
+        const scanResult = getRelevantContext(prompt, fullMovieContext);
+        
+        out.textContent += `\n>> TARGET: ${scanResult.method}`;
+        out.textContent += `\n>> UPLOADING FRAGMENT (${scanResult.text.length} chars)...`;
+
+        try {
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+            
+            const requestBody = {
+                model: model, 
+                messages: [
+                    { 
+                        "role": "system", 
+                        "content": "You are the INKREALM CINEMA ENGINE. Analyze the movie list fragment provided below to answer the user question." 
+                    },
+                    { 
+                        "role": "user", 
+                        "content": `CONTEXT FRAGMENT:\n...${scanResult.text}...\n\n---\n\nQUESTION: ${prompt}` 
+                    }
+                ],
+                temperature: 0.5, 
+                top_p: 1, 
+                max_tokens: 1024
+            };
+
+            const res = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!res.ok) throw new Error(`API ERROR: ${res.status}`);
+            
+            const data = await res.json();
+            
+            if (data.choices && data.choices[0]) {
+                const result = data.choices[0].message.content;
+                out.innerHTML = `>> ANALYSIS COMPLETE:\n\n${result}`;
+            } else { throw new Error("EMPTY RESPONSE."); }
+
+        } catch(e) { 
+            out.innerHTML = `>> FAILURE: ${e.message}`; 
+            console.error(e);
+        } finally { 
+            btn.disabled = false; 
+            btn.textContent = "🚀 ANALYZE"; 
         }
     }
 
-    const start = Math.max(0, bestChunkIndex - 3000);
-    const end = Math.min(fullText.length, bestChunkIndex + 5000);
-    
-    return {
-        text: fullText.substring(start, end),
-        method: `SMART SCAN (Found "${keywords[0]}")`
-    };
-}
-
-// Renamed to match HTML onclick="generateInsight()"
-async function generateInsight() {
-    // 1. MATCH HTML IDs
-    const key = document.getElementById('nvidiaKey').value.trim(); // This ID matched in both
-    const prompt = document.getElementById('aiPrompt').value.trim(); // Changed from nvidiaPrompt
-    
-    // Optional model selection
-    const modelElement = document.getElementById('nvidiaModel');
-    const model = modelElement ? modelElement.value : "nvidia/nvidia-nemotron-nano-9b-v2";
-    
-    const out = document.getElementById('aiOutput'); // Changed from nvidiaOutput
-    const btn = document.getElementById('genBtn');   // Changed from nvidiaBtn
-    
-    if(!key || !prompt) { out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; return; }
-    
-    localStorage.setItem('inkrealm_nvidia_key', key);
-    
-    btn.disabled = true; 
-    btn.textContent = "PROCESSING...";
-    out.textContent = ">> ACCESSING NEURAL NET...";
-
-    // 2. PREPARE DATA
-    const fullMovieContext = allMovies.map(m => 
-        `[Movie] Title: ${m.title} (${m.year || '?'}) | Dir: ${m.director || '?'} | Info: ${m.genre || ''}`
-    ).join("\n");
-
-    // 3. SCAN
-    const scanResult = getRelevantContext(prompt, fullMovieContext);
-    
-    out.textContent += `\n>> TARGET: ${scanResult.method}`;
-    out.textContent += `\n>> UPLOADING FRAGMENT (${scanResult.text.length} chars)...`;
-
-    try {
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
-        
-        const requestBody = {
-            model: model, 
-            messages: [
-                { 
-                    "role": "system", 
-                    "content": "You are the INKREALM CINEMA ENGINE. Analyze the movie list fragment provided below to answer the user question." 
-                },
-                { 
-                    "role": "user", 
-                    "content": `CONTEXT FRAGMENT:\n...${scanResult.text}...\n\n---\n\nQUESTION: ${prompt}` 
-                }
-            ],
-            temperature: 0.5, 
-            top_p: 1, 
-            max_tokens: 1024
-        };
-
-        const res = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!res.ok) throw new Error(`API ERROR: ${res.status}`);
-        
-        const data = await res.json();
-        
-        if (data.choices && data.choices[0]) {
-            const result = data.choices[0].message.content;
-            out.innerHTML = `>> ANALYSIS COMPLETE:\n\n${result}`;
-        } else { throw new Error("EMPTY RESPONSE."); }
-
-    } catch(e) { 
-        out.innerHTML = `>> FAILURE: ${e.message}`; 
-        console.error(e);
-    } finally { 
-        btn.disabled = false; 
-        btn.textContent = "🚀 ANALYZE"; 
-    }
-}
     // ==========================================
     // SYSTEM STARTUP
     // ==========================================
