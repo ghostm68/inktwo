@@ -6050,131 +6050,133 @@ ID,TITLE
     // 4. NVIDIA MODAL (Nano 9B Smart Scan - Movie Edition)
     // ==========================================
 
-    function openNvidiaModal() {
-        document.getElementById('nvidia-overlay').style.display = 'block';
-        document.getElementById('nvidia-modal').style.display = 'block';
-        const k = localStorage.getItem('inkrealm_nvidia_key');
-        if(k) document.getElementById('nvidiaKey').value = k;
+ // 4. NVIDIA MODAL (Nano 9B Smart Scan - Movie Edition)
+// ==========================================
+
+// Renamed to match HTML ID (implied open button likely needs this)
+function openAIModal() {
+    document.getElementById('ai-overlay').style.display = 'block';
+    document.getElementById('ai-modal').style.display = 'block';
+    
+    // Check for saved key
+    const k = localStorage.getItem('inkrealm_nvidia_key');
+    if(k) document.getElementById('nvidiaKey').value = k;
+}
+
+// Renamed to match HTML onclick="closeAIModal()"
+function closeAIModal() {
+    document.getElementById('ai-overlay').style.display = 'none';
+    document.getElementById('ai-modal').style.display = 'none';
+}
+
+// The "Search Light" Scanner (Unchanged)
+function getRelevantContext(query, fullText) {
+    if (!fullText) return { text: "", method: "NO DATA" };
+    const keywords = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+
+    if (keywords.length === 0) {
+        return { text: fullText.substring(0, 5000), method: "DEFAULT (BEGINNING)" };
     }
 
-    function closeNvidiaModal() {
-        document.getElementById('nvidia-overlay').style.display = 'none';
-        document.getElementById('nvidia-modal').style.display = 'none';
+    const chunkSize = 2000;
+    let bestChunkIndex = 0;
+    let maxScore = 0;
+    
+    for (let i = 0; i < fullText.length; i += 1000) {
+        let chunk = fullText.substring(i, i + chunkSize).toLowerCase();
+        let score = 0;
+        keywords.forEach(word => { if(chunk.includes(word)) score++; });
+        
+        if (score > maxScore) {
+            maxScore = score;
+            bestChunkIndex = i;
+        }
     }
 
-    // The "Search Light" Scanner
-    // (Kept exactly as requested, but handles the Movie String passed to it)
-    function getRelevantContext(query, fullText) {
-        if (!fullText) return { text: "", method: "NO DATA" };
-        
-        // Filter for significant words > 3 chars
-        const keywords = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+    const start = Math.max(0, bestChunkIndex - 3000);
+    const end = Math.min(fullText.length, bestChunkIndex + 5000);
+    
+    return {
+        text: fullText.substring(start, end),
+        method: `SMART SCAN (Found "${keywords[0]}")`
+    };
+}
 
-        if (keywords.length === 0) {
-            // Default to start if query is vague
-            return { text: fullText.substring(0, 5000), method: "DEFAULT (BEGINNING)" };
-        }
+// Renamed to match HTML onclick="generateInsight()"
+async function generateInsight() {
+    // 1. MATCH HTML IDs
+    const key = document.getElementById('nvidiaKey').value.trim(); // This ID matched in both
+    const prompt = document.getElementById('aiPrompt').value.trim(); // Changed from nvidiaPrompt
+    
+    // Optional model selection
+    const modelElement = document.getElementById('nvidiaModel');
+    const model = modelElement ? modelElement.value : "nvidia/nvidia-nemotron-nano-9b-v2";
+    
+    const out = document.getElementById('aiOutput'); // Changed from nvidiaOutput
+    const btn = document.getElementById('genBtn');   // Changed from nvidiaBtn
+    
+    if(!key || !prompt) { out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; return; }
+    
+    localStorage.setItem('inkrealm_nvidia_key', key);
+    
+    btn.disabled = true; 
+    btn.textContent = "PROCESSING...";
+    out.textContent = ">> ACCESSING NEURAL NET...";
 
-        const chunkSize = 2000;
-        let bestChunkIndex = 0;
-        let maxScore = 0;
-        
-        // Scan the data
-        for (let i = 0; i < fullText.length; i += 1000) {
-            let chunk = fullText.substring(i, i + chunkSize).toLowerCase();
-            let score = 0;
-            keywords.forEach(word => { if(chunk.includes(word)) score++; });
-            
-            if (score > maxScore) {
-                maxScore = score;
-                bestChunkIndex = i;
-            }
-        }
+    // 2. PREPARE DATA
+    const fullMovieContext = allMovies.map(m => 
+        `[Movie] Title: ${m.title} (${m.year || '?'}) | Dir: ${m.director || '?'} | Info: ${m.genre || ''}`
+    ).join("\n");
 
-        // Grab Context (Nano 9B handles 32k context easily)
-        const start = Math.max(0, bestChunkIndex - 3000);
-        const end = Math.min(fullText.length, bestChunkIndex + 5000);
+    // 3. SCAN
+    const scanResult = getRelevantContext(prompt, fullMovieContext);
+    
+    out.textContent += `\n>> TARGET: ${scanResult.method}`;
+    out.textContent += `\n>> UPLOADING FRAGMENT (${scanResult.text.length} chars)...`;
+
+    try {
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
         
-        return {
-            text: fullText.substring(start, end),
-            method: `SMART SCAN (Found "${keywords[0]}")`
+        const requestBody = {
+            model: model, 
+            messages: [
+                { 
+                    "role": "system", 
+                    "content": "You are the INKREALM CINEMA ENGINE. Analyze the movie list fragment provided below to answer the user question." 
+                },
+                { 
+                    "role": "user", 
+                    "content": `CONTEXT FRAGMENT:\n...${scanResult.text}...\n\n---\n\nQUESTION: ${prompt}` 
+                }
+            ],
+            temperature: 0.5, 
+            top_p: 1, 
+            max_tokens: 1024
         };
+
+        const res = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!res.ok) throw new Error(`API ERROR: ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (data.choices && data.choices[0]) {
+            const result = data.choices[0].message.content;
+            out.innerHTML = `>> ANALYSIS COMPLETE:\n\n${result}`;
+        } else { throw new Error("EMPTY RESPONSE."); }
+
+    } catch(e) { 
+        out.innerHTML = `>> FAILURE: ${e.message}`; 
+        console.error(e);
+    } finally { 
+        btn.disabled = false; 
+        btn.textContent = "🚀 ANALYZE"; 
     }
-
-    async function runNvidiaAnalysis() {
-        const key = document.getElementById('nvidiaKey').value.trim();
-        const prompt = document.getElementById('nvidiaPrompt').value.trim();
-        // Assuming you have a dropdown for model, otherwise hardcode "nvidia/nvidia-nemotron-nano-9b-v2"
-        const modelElement = document.getElementById('nvidiaModel');
-        const model = modelElement ? modelElement.value : "nvidia/nvidia-nemotron-nano-9b-v2";
-        
-        const out = document.getElementById('nvidiaOutput');
-        const btn = document.getElementById('nvidiaBtn');
-        
-        if(!key || !prompt) { out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; return; }
-        
-        localStorage.setItem('inkrealm_nvidia_key', key);
-        
-        btn.disabled = true; 
-        btn.textContent = "PROCESSING...";
-        out.textContent = ">> ACCESSING NEURAL NET...";
-
-        // 1. PREPARE DATA: Convert Movie List to a searchable text block
-        // We map the array to a string so the Smart Scanner can read it.
-        const fullMovieContext = allMovies.map(m => 
-            `[Movie] Title: ${m.title} (${m.year || '?'}) | Dir: ${m.director || '?'} | Info: ${m.genre || ''}`
-        ).join("\n");
-
-        // 2. SCAN for relevant text
-        const scanResult = getRelevantContext(prompt, fullMovieContext);
-        
-        out.textContent += `\n>> TARGET: ${scanResult.method}`;
-        out.textContent += `\n>> UPLOADING FRAGMENT (${scanResult.text.length} chars)...`;
-
-        try {
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
-            
-            const requestBody = {
-                model: model, 
-                messages: [
-                    { 
-                        "role": "system", 
-                        "content": "You are the INKREALM CINEMA ENGINE. Analyze the movie list fragment provided below to answer the user question." 
-                    },
-                    { 
-                        "role": "user", 
-                        "content": `CONTEXT FRAGMENT:\n...${scanResult.text}...\n\n---\n\nQUESTION: ${prompt}` 
-                    }
-                ],
-                temperature: 0.5, 
-                top_p: 1, 
-                max_tokens: 1024
-            };
-
-            const res = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-            
-            if (!res.ok) throw new Error(`API ERROR: ${res.status}`);
-            
-            const data = await res.json();
-            
-            if (data.choices && data.choices[0]) {
-                const result = data.choices[0].message.content;
-                out.innerHTML = `>> ANALYSIS COMPLETE:\n\n${result}`;
-            } else { throw new Error("EMPTY RESPONSE."); }
-
-        } catch(e) { 
-            out.innerHTML = `>> FAILURE: ${e.message}`; 
-            console.error(e);
-        } finally { 
-            btn.disabled = false; 
-            btn.textContent = "INITIALIZE"; 
-        }
-    }
-
+}
     // ==========================================
     // SYSTEM STARTUP
     // ==========================================
