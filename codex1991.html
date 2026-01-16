@@ -6076,11 +6076,11 @@ ID,TITLE
     // ==========================================
 // 4. NVIDIA MODAL (Direct AI Access - No List Upload)
     // ==========================================
+// 4. NVIDIA MODAL (Direct AI - Robust Edition)
+    // ==========================================
 
-    // 1. OPEN FUNCTION
-    // This NAME matches your HTML Button (Fixes ReferenceError)
+    // 1. OPEN FUNCTION (Fixes the ReferenceError)
     function openNvidiaModal() {
-        // These IDs match your HTML Modal
         document.getElementById('ai-overlay').style.display = 'block';
         document.getElementById('ai-modal').style.display = 'block';
         
@@ -6089,41 +6089,52 @@ ID,TITLE
     }
 
     // 2. CLOSE FUNCTION
-    // This NAME matches your HTML Modal 'X' button
     function closeAIModal() {
         document.getElementById('ai-overlay').style.display = 'none';
         document.getElementById('ai-modal').style.display = 'none';
     }
 
-    // 3. GENERATE INSIGHT (The Logic)
+    // 3. GENERATE INSIGHT (Using "Creative Writing" robustness)
     async function generateInsight() {
-        const key = document.getElementById('nvidiaKey').value.trim();
-        const prompt = document.getElementById('aiPrompt').value.trim();
-        
-        // Check for Model Dropdown (Defaults to Nano 9B if missing)
-        const modelDropdown = document.getElementById('nvidiaModel');
-        const model = modelDropdown ? modelDropdown.value : "nvidia/nvidia-nemotron-nano-9b-v2";
-        
+        // --- GET ELEMENTS ---
+        const keyField = document.getElementById('nvidiaKey');
+        const promptField = document.getElementById('aiPrompt');
+        const modelField = document.getElementById('nvidiaModel');
         const out = document.getElementById('aiOutput');
         const btn = document.getElementById('genBtn');
-        
-        // Reset Styles
+
+        const apiKey = keyField.value.trim();
+        const prompt = promptField.value.trim();
+        // Default to Nano 9B if dropdown is missing
+        const model = modelField ? modelField.value : "nvidia/nvidia-nemotron-nano-9b-v2";
+
+        // --- 1. VALIDATION (Like your example) ---
+        // Reset styles first
         out.style.background = ""; 
         out.style.border = "";
-        
-        if(!key || !prompt) { 
+        out.style.color = "#ccc"; // Default text color
+
+        if (!apiKey) {
             out.style.background = "#FF1991"; 
             out.style.color = "white"; 
             out.style.fontWeight = "bold";
-            out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; 
-            return; 
+            out.innerHTML = '❌ ERROR: Please enter your NVIDIA API Key.';
+            return; // STOP HERE
         }
+
+        if (!prompt) {
+            out.style.background = "#FF1991"; 
+            out.style.color = "white"; 
+            out.innerHTML = '❌ ERROR: Please enter a question.';
+            return; // STOP HERE
+        }
+
+        // --- 2. PREPARE REQUEST ---
+        localStorage.setItem('inkrealm_nvidia_key', apiKey);
         
-        localStorage.setItem('inkrealm_nvidia_key', key);
-        
-        btn.disabled = true; 
-        btn.textContent = "TRANSMITTING...";
-        out.textContent = ">> CONTACTING NEURAL NET...";
+        btn.disabled = true;
+        btn.textContent = 'TRANSMITTING...';
+        out.textContent = '⏳ CONTACTING NEURAL NET...';
 
         try {
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
@@ -6133,7 +6144,7 @@ ID,TITLE
                 messages: [
                     { 
                         "role": "system", 
-                        "content": "You are the INKREALM INTELLIGENCE. You are an expert in cinema, art, and culture, but you are helpful with any request the user has." 
+                        "content": "You are the INKREALM INTELLIGENCE. You are a film expert. Answer the user's question accurately and concisely." 
                     },
                     { 
                         "role": "user", 
@@ -6142,31 +6153,61 @@ ID,TITLE
                 ],
                 temperature: 0.5, 
                 top_p: 1, 
-                max_tokens: 1024
+                max_tokens: 1024,
+                stream: false
             };
 
-            const res = await fetch(proxyUrl, {
+            console.log('Sending request:', requestBody); // DEBUG
+
+            // --- 3. EXECUTE FETCH ---
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': 'Bearer ' + apiKey,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(requestBody)
             });
-            
-            if (!res.ok) throw new Error(`API ERROR: ${res.status}`);
-            
-            const data = await res.json();
-            
-            if (data.choices && data.choices[0]) {
+
+            // --- 4. ROBUST ERROR HANDLING (The Key Fix) ---
+            // Get text first, BEFORE parsing JSON. This catches "Proxy Error" HTML pages.
+            const responseText = await response.text();
+            console.log('Raw response:', responseText); // DEBUG LOG IN CONSOLE
+
+            if (!response.ok) {
+                throw new Error(`API ERROR ${response.status}: ${responseText}`);
+            }
+
+            // Try to parse JSON safely
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error(`Invalid JSON received: ${responseText.substring(0, 100)}...`);
+            }
+
+            // Check for Nvidia specific errors
+            if (data.error) {
+                throw new Error(data.error.message || 'API returned an error');
+            }
+
+            // --- 5. SUCCESS ---
+            if (data.choices && data.choices[0] && data.choices[0].message) {
                 const result = data.choices[0].message.content;
                 out.innerHTML = `>> RESPONSE:\n\n${result}`;
-            } else { throw new Error("EMPTY RESPONSE."); }
+            } else {
+                throw new Error('Unexpected response format (No choices found).');
+            }
 
-        } catch(e) { 
+        } catch (error) {
+            // --- 6. FAILURE DISPLAY ---
             out.style.background = "#FF1991"; 
-            out.style.color = "white"; 
-            out.innerHTML = `>> FAILURE: ${e.message}`; 
-        } finally { 
-            btn.disabled = false; 
-            btn.textContent = "🚀 ANALYZE"; 
+            out.style.color = "white";
+            out.innerHTML = `❌ FAILURE: ${error.message}`;
+            console.error('Full Error Object:', error);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🚀 ANALYZE';
         }
     }
 
