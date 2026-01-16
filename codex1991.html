@@ -170,15 +170,23 @@
 </div>
 
 
-    <script>
-        // 1. ERROR CATCHER: This will tell you if your list is broken
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            const errorBox = document.getElementById('error-box');
-            errorBox.style.display = 'block';
-            errorBox.innerHTML = `⚠️ ERROR DETECTED!<br>Message: ${msg}<br>Line Number: ${lineNo}<br><br>Check your movie list around line ${lineNo}. You are likely missing a comma or a quote.`;
-            return false;
-        };
-    </script>
+   <script>
+    // 1. ERROR CATCHER: This will tell you if your list is broken
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+        const errorBox = document.getElementById('error-box');
+        
+        errorBox.style.display = 'block';
+        
+        // --- UPDATED COLORS ---
+        errorBox.style.backgroundColor = "#FF1991"; // Background is now Pink
+        errorBox.style.color = "#ffffff";           // Text is White
+        errorBox.style.fontWeight = "bold";         // Make text bold to read better
+        // ----------------------
+
+        errorBox.innerHTML = `⚠️ ERROR DETECTED!<br>Message: ${msg}<br>Line Number: ${lineNo}<br><br>Check your movie list around line ${lineNo}. You are likely missing a comma or a quote.`;
+        return false;
+    };
+</script>
 
 
     <script>
@@ -6067,84 +6075,35 @@ ID,TITLE
 // 4. NVIDIA MODAL (Smart Scan - Movie Edition)
     // ==========================================
 
-    // 1. OPEN: Named 'openNvidiaModal' to match your main button
-    function openNvidiaModal() {
-        // Targets 'ai-modal' to match your HTML
-        document.getElementById('ai-overlay').style.display = 'block';
-        document.getElementById('ai-modal').style.display = 'block';
-        
-        const k = localStorage.getItem('inkrealm_nvidia_key');
-        if(k) document.getElementById('nvidiaKey').value = k;
-    }
-
-    // 2. CLOSE: Named 'closeAIModal' to match your HTML Close button
-    function closeAIModal() {
-        document.getElementById('ai-overlay').style.display = 'none';
-        document.getElementById('ai-modal').style.display = 'none';
-    }
-
-    // 3. SCANNER LOGIC
-    function getRelevantContext(query, fullText) {
-        if (!fullText) return { text: "", method: "NO DATA" };
-        const keywords = query.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-
-        if (keywords.length === 0) {
-            return { text: fullText.substring(0, 5000), method: "DEFAULT (BEGINNING)" };
-        }
-
-        const chunkSize = 2000;
-        let bestChunkIndex = 0;
-        let maxScore = 0;
-        
-        for (let i = 0; i < fullText.length; i += 1000) {
-            let chunk = fullText.substring(i, i + chunkSize).toLowerCase();
-            let score = 0;
-            keywords.forEach(word => { if(chunk.includes(word)) score++; });
-            
-            if (score > maxScore) {
-                maxScore = score;
-                bestChunkIndex = i;
-            }
-        }
-
-        const start = Math.max(0, bestChunkIndex - 3000);
-        const end = Math.min(fullText.length, bestChunkIndex + 5000);
-        
-        return {
-            text: fullText.substring(start, end),
-            method: `SMART SCAN (Found "${keywords[0]}")`
-        };
-    }
-
-    // 4. GENERATE: Named 'generateInsight' to match your HTML "Analyze" button
+// 4. GENERATE: Direct AI Access (No Data Upload)
     async function generateInsight() {
         const key = document.getElementById('nvidiaKey').value.trim();
         const prompt = document.getElementById('aiPrompt').value.trim();
         
-        // THIS LINE READS YOUR NEW DROPDOWN
-        const modelElement = document.getElementById('nvidiaModel');
-        // If dropdown exists, use it. If not, default to Nano 9B.
-        const model = modelElement ? modelElement.value : "nvidia/nvidia-nemotron-nano-9b-v2";
+        // Use the dropdown model (defaults to 9B if missing)
+        const modelDropdown = document.getElementById('nvidiaModel');
+        const model = modelDropdown ? modelDropdown.value : "nvidia/nvidia-nemotron-nano-9b-v2";
         
         const out = document.getElementById('aiOutput');
         const btn = document.getElementById('genBtn');
         
-        if(!key || !prompt) { out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; return; }
+        // Reset Styles
+        out.style.background = ""; 
+        out.style.border = "";
+        
+        if(!key || !prompt) { 
+            out.style.background = "#FF1991"; 
+            out.style.color = "white"; 
+            out.style.fontWeight = "bold";
+            out.textContent = ">> ERROR: MISSING KEY OR PROMPT."; 
+            return; 
+        }
         
         localStorage.setItem('inkrealm_nvidia_key', key);
         
         btn.disabled = true; 
-        btn.textContent = "PROCESSING...";
-        out.textContent = ">> ACCESSING NEURAL NET...";
-
-        const fullMovieContext = allMovies.map(m => 
-            `[Movie] Title: ${m.title} (${m.year || '?'}) | Dir: ${m.director || '?'} | Info: ${m.genre || ''}`
-        ).join("\n");
-
-        const scanResult = getRelevantContext(prompt, fullMovieContext);
-        
-        out.textContent += `\n>> TARGET: ${scanResult.method}`;
-        out.textContent += `\n>> UPLOADING FRAGMENT (${scanResult.text.length} chars)...`;
+        btn.textContent = "TRANSMITTING...";
+        out.textContent = ">> CONTACTING NEURAL NET...";
 
         try {
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
@@ -6152,13 +6111,14 @@ ID,TITLE
             const requestBody = {
                 model: model, 
                 messages: [
+                    // Broad system prompt allows it to be a Film Expert AND a general assistant
                     { 
                         "role": "system", 
-                        "content": "You are the INKREALM CINEMA ENGINE. Analyze the movie list fragment provided below to answer the user question." 
+                        "content": "You are the INKREALM INTELLIGENCE. You are an expert in cinema, art, and culture, but you are helpful with any request the user has." 
                     },
                     { 
                         "role": "user", 
-                        "content": `CONTEXT FRAGMENT:\n...${scanResult.text}...\n\n---\n\nQUESTION: ${prompt}` 
+                        "content": prompt 
                     }
                 ],
                 temperature: 0.5, 
@@ -6178,12 +6138,13 @@ ID,TITLE
             
             if (data.choices && data.choices[0]) {
                 const result = data.choices[0].message.content;
-                out.innerHTML = `>> ANALYSIS COMPLETE:\n\n${result}`;
+                out.innerHTML = `>> RESPONSE:\n\n${result}`;
             } else { throw new Error("EMPTY RESPONSE."); }
 
         } catch(e) { 
+            out.style.background = "#FF1991"; 
+            out.style.color = "white"; 
             out.innerHTML = `>> FAILURE: ${e.message}`; 
-            console.error(e);
         } finally { 
             btn.disabled = false; 
             btn.textContent = "🚀 ANALYZE"; 
