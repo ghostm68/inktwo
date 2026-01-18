@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QRGN</title>
+    <!-- Library for Quantum Simulation -->
+    <script src="https://unpkg.com/quantum-circuit@0.9.246/dist/quantum-circuit.min.js"></script>
+
+    <style>
+        :root {
+            /* CYBERPUNK PALETTE */
+            --bg-color: #050505;       /* Deep Black (Page Background) */
+            --term-red: #ff2a2a;       /* Bright Neon Red */
+            --term-dim: #8f0000;       /* Dark Red */
+            --text-white: #eeeeee;     /* Standard Off-White */
+            --glass: rgba(20, 0, 0, 0.8); /* Tinted Glass */
+            --border-grey: #333333;    /* Subtle borders */
+        }
+
+        /* --- RED HIGHLIGHTING --- */
+        ::selection {
+            background: var(--term-red);
+            color: #000;
+        }
+        ::-moz-selection {
+            background: var(--term-red);
+            color: #000;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 900px;
+            padding: 2rem;
+            border: 1px solid var(--term-dim);
+            background: var(--glass);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.15);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Scanline Overlay */
+        .container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(255, 255, 255, 0.02), rgba(255, 0, 0, 0.03));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        h1 {
+            color: var(--term-red);
+            letter-spacing: 5px;
+            border-bottom: 2px solid var(--term-red);
+            padding-bottom: 10px;
+            text-shadow: 0 0 8px var(--term-dim);
+            margin-top: 0;
+        }
+
+        .blink { animation: blinker 1s linear infinite; color: #fff; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        /* --- LIVE EDITOR STYLING (UPDATED) --- */
+        .article-header {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        article {
+            display: block;
+            width: 100%;
+            height: 120px;
+            
+            /* --- COLOR UPDATE START --- */
+            background-color: #2a2a2a; /* Grey Background */
+            color: #ffffff;            /* Bright White Text */
+            /* --- COLOR UPDATE END --- */
+            
+            border: 1px solid #444;
+            border-left: 2px solid var(--term-red);
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            outline: none;
+            white-space: pre-wrap; 
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        article:focus {
+            border-color: var(--term-red);
+            /* Slightly lighter grey when active */
+            background-color: #333333; 
+            box-shadow: inset 0 0 15px rgba(255, 42, 42, 0.05);
+        }
+
+        article::-webkit-scrollbar { width: 8px; }
+        article::-webkit-scrollbar-track { background: #222; }
+        article::-webkit-scrollbar-thumb { background: var(--term-dim); }
+
+        /* --- OUTPUT AREA --- */
+        .split-display {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            height: 180px;
+        }
+
+        .output-screen {
+            flex: 2;
+            background: #000;
+            border: 1px solid var(--border-grey);
+            border-left: 3px solid var(--term-red);
+            padding: 20px;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--text-white);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.9);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .qasm-screen {
+            flex: 1;
+            background: #080000;
+            border: 1px solid var(--term-dim);
+            padding: 10px;
+            font-size: 0.75rem;
+            color: #aa4444;
+            font-family: 'Consolas', monospace;
+            overflow-y: auto;
+            white-space: pre;
+            opacity: 0.8;
+        }
+
+        /* --- BUTTONS & STATUS --- */
+        button {
+            background: transparent;
+            border: 1px solid var(--term-red);
+            color: var(--term-red);
+            padding: 10px 30px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--term-red);
+            color: #000;
+            box-shadow: 0 0 15px var(--term-red);
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: #666; 
+            margin-top: 15px;
+            text-align: right;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>inkrealm <span class="blink">info</span> // qrgn</h1>
+    
+    <div style="display: flex; justify-content: space-between; color: #888; font-size: 0.9rem; margin-bottom: 15px;">
+        <span>System Status: <span style="color: var(--text-white)">CONNECTED</span></span>
+        <span>Register: <span style="color: var(--text-white)">9 QUBITS</span></span>
+    </div>
+
+    <!-- LIVE EDITOR -->
+    <div class="article-header">
+        <span>>> INPUT BUFFER (HASH_STORAGE)</span>
+        <span>AUTO-SAVE: ACTIVE</span>
+    </div>
+    <article contenteditable="plaintext-only" spellcheck="false"></article>
+
+    <!-- POETRY OUTPUT -->
+    <div class="split-display">
+        <div class="output-screen" id="poem-output">
+            Awaiting quantum initialization...<br>
+            <span style="color: #444">>> Click COLLAPSE to observe.</span>
+        </div>
+        <div class="qasm-screen" id="qasm-output">// QASM LOG
+Waiting for circuit construction...</div>
+    </div>
+
+    <button onclick="runQuantumProcess()">COLLAPSE WAVE FUNCTION</button>
+
+    <div class="status" id="log">
+        Tunnel: Secured | Anu.Edu.Au-Source: <span style="color:var(--term-red)">Standby</span>
+    </div>
+</div>
+
+<!-- SCRIPT 1: LIVE EDITOR LOGIC -->
+<script>
+(function() {
+    const article = document.querySelector('article');
+    if (!article) return;
+
+    if(!location.hash && !localStorage.getItem('article-hash')) {
+        article.textContent = "inky's qrgn.\nText typed here is preserved in the URL hash.\n\nUse it to store your quantum results...";
+    }
+
+    article.addEventListener('input', debounce(500, saveArticle));
+    window.addEventListener('DOMContentLoaded', loadArticle);
+    window.addEventListener('hashchange', loadArticle);
+
+    async function loadArticle() {
+        try {
+            if (location.hash !== '') {
+                await setArticle(location.hash);
+            } else {
+                const saved = localStorage.getItem('article-hash');
+                if (saved) await setArticle(saved);
+            }
+        } catch (e) { console.log('No article loaded'); }
+    }
+
+    async function saveArticle() {
+        const hash = await getArticleHash();
+        if (location.hash !== hash) { history.replaceState({}, '', hash); }
+        try { localStorage.setItem('article-hash', hash); } catch (e) {}
+    }
+
+    async function setArticle(hash) {
+        const content = await decompressArticle(hash.slice(1));
+        article.textContent = content;
+    }
+
+    async function getArticleHash() {
+        const content = article.textContent;
+        return '#' + await compressArticle(content);
+    }
+
+    async function compressArticle(string) {
+        const byteArray = new TextEncoder().encode(string);
+        const stream = new CompressionStream('deflate-raw');
+        const writer = stream.writable.getWriter();
+        writer.write(byteArray);
+        writer.close();
+        const buffer = await new Response(stream.readable).arrayBuffer();
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    }
+
+    async function decompressArticle(b64) {
+        const byteArray = Uint8Array.from(
+            atob(b64.replace(/-/g, "+").replace(/_/g, "/")), 
+            c => c.charCodeAt(0)
+        );
+        const stream = new DecompressionStream('deflate-raw');
+        const writer = stream.writable.getWriter();
+        writer.write(byteArray);
+        writer.close();
+        const buffer = await new Response(stream.readable).arrayBuffer();
+        return new TextDecoder().decode(buffer);
+    }
+
+    function debounce(ms, fn) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn(...args), ms);
+        };
+    }
+})();
+</script>
+
+<!-- SCRIPT 2: QUANTUM LOGIC -->
+<script>
+    // --- OPTIONAL API KEY ---
+    const ANU_API_KEY = "pqp6gSBSycaEhZ45uSWYH4fMd5xU5ZBn3Jgu1fGQ"; 
+
+    // --- WORD LIMIT MATH ---
+    // 9 Qubits = 512 max words. (Lines 0 to 511)
+    const numQubits = 9;
+
+    // --- YOUR DATASETS ---
+    const openers = [
+`Chrome rain tattoos the asphalt dusk`,
+`Rusted drones hum lullabies to broken billboards`,
+`Her pupils dilate like loading animations`,
+`Forgotten passwords echo in subway tunnels`,
+`The moon flickers 404 across the horizon`,
+`Synthetic lullabies leak from vending machines`,
+`Ghost avatars orbit abandoned data farms`,
+`Neon arteries pulse beneath the city’s skin`,
+`Time-stamped kisses corrupt on every re-upload`,
+`Static snow tastes of copper and regret`,
+
+`We drift on bit-rot tides`,
+`Quantum spiders spin fiber-optic webs`,
+`The skyline updates while we blink`,
+`Love compiled in debug mode crashes softly`,
+`Night buses route through deleted neighborhoods`,
+`Streetlights strobe in Morse for help`,
+`Obsolete cyborgs beg for firmware alms`,
+`Dreams buffer at ninety-four percent`,
+`Memory leaks drip from fire escapes`,
+`A lone modem prays to downlink gods`,
+
+`Glass towers sweat binary condensation`,
+`Rusted routers bloom in vacant lots`,
+`Rain speaks UTF-8 on corrugated roofs`,
+`Dead pixels float like urban pollen`,
+`Sirens compress to low-bitrate lullabies`,
+`Graffiti barcodes scan as crying faces`,
+`Power-grid hearts fibrillate at sixty hertz`,
+`Rogue satellites sketch auroras of spam`,
+`We login to thunderstorms for warmth`,
+`Sleep mode feels like drowning slowly`,
+
+`Morning boots from corrupted disk`,
+`Sunrise renders frame by damaged frame`,
+`Pigeons cache crumbs in cache lines`,
+`Neon saints bless the surveillance grid`,
+`Shadows defrag across alley walls`,
+`River water mirrors hexadecimal skies`,
+`Echo-location pings off concrete canyons`,
+`Old photos unzip into fog`,
+`Voicemail ghosts speak only checksums`,
+`Street-corner prophets predict codec rapture`,
+
+`Rusted ferris wheels index lost summers`,
+`Traffic lights semaphore forgotten myths`,
+`Synth-pop hymns leak from cathedral ruins`,
+`Barcode wristbands tattooed at birth`,
+`Clouds host funerals for decommissioned suns`,
+`Shattered screens reflect starless nights`,
+`Drone cameras baptize the riot dusk`,
+`Digital wolves howl in empty parking structures`,
+`Melted mannequins dream of electric mothers`,
+`The horizon recompiles every midnight`,
+
+`We encrypt our whispers in rainfall`,
+`Abandoned theme parks fork new timelines`,
+`Power sockets sigh like tired mouths`,
+`Night markets sell packets of silence`,
+`Neon crucifixes glow in server rooms`,
+`Forgotten playlists haunt subway Wi-Fi`,
+`Time loops stutter on cracked sidewalks`,
+`Graffitied URLs lead to 404 heavens`,
+`Street vendors fry circuits for supper`,
+`The city exhales compressed zip ghosts`,
+
+`Broken escalators ascend to null`,
+`Rooftop antennas pray to absent constellations`,
+`Synth-ash falls like gray confetti`,
+`Memory cards sprout in compost bins`,
+`Traffic drones chant in Gregorian sync`,
+`Dead languages echo in RFID tags`,
+`We timestamp our heartbeats in blockchain`,
+`Rainbow oil slicks render corrupted auroras`,
+`Abandoned chatrooms bloom with bot lilies`,
+`Neuro-static crackles beneath scalpels of light`,
+
+`Power-line hieroglyphs spell impending blackout`,
+`Glass shards reflect tectonic code`,
+`Holographic graffiti tags the moon`,
+`Sleep is just another update`,
+`Sirens sync to the sample rate`,
+`We logout of our own funerals`,
+`Neon rivers flow uphill to source`,
+`Rust bleeds from every oracle`,
+`The skyline compresses into jpeg artifacts`,
+`Dawn unpacks slowly over darknet roofs`,
+
+`Forgotten elevators ascend to nonexistent floors`,
+`Streetlights bloom like inverse sunflowers`,
+`Binary confetti rains on parades`,
+`We overwrite grief in incremental backups`,
+`Clouds render in low-resolution sadness`,
+`Pavement cracks reveal glowing roots`,
+`Surveillance halos sanctify the intersections`,
+`Time is a torrent with no seeds`,
+`The city dreams in buffer underrun`,
+`We archive our breath in zips`,
+
+`Night buses tunnel through deprecated memories`,
+`Neuro-ads whisper personalized apocalypses`,
+`Rusted payphones ring for ghosts`,
+`Synth thunder follows deleted weather`,
+`Glass rivers reflect corrupted constellations`,
+`Abandoned avatars kneel in digital chapels`,
+`We password-protect our own shadows`,
+`Starlight arrives as spam email`,
+`The horizon buffers at sixty percent`,
+`Morning dew tastes of forgotten codecs`,
+
+`Drone fireflies trace missing persons`,
+`Neon pollen drifts over roof gardens`,
+`We factory-reset our childhood at midnight`,
+`Power-grid synapses misfire softly`,
+`Rooftop gardens grow recursive vegetables`,
+`Sirens sing in lossless compression`,
+`Time zones fork into private universes`,
+`Graffiti QR codes confess in static`,
+`The moon defragments above data cemeteries`,
+
+
+
+    ];
+
+    const middles = [
+       
+`Drone wolves howl in parking structures`,
+`We archive grief in cloud bins`,
+`Night buses tunnel through null memories`,
+`Synth moonlight corrupts tidal clocks`,
+`Rusted routers bloom in vacant yards`,
+`We overwrite identity at sunrise`,
+`Glass fog reflects missing constellations`,
+`The city exhales tarball ghosts nightly`,
+`We logout of our own funerals`,
+`Neon pollen drifts over roof silences`,
+
+`Forgotten playlists haunt subway air`,
+`We backup heartbeats to external clouds`,
+`Traffic drones sing uptime hymns`,
+`Rainbow oil slicks render glitches`,
+`We compress time into zip archives`,
+`Abandoned avatars kneel in bit chapels`,
+`Rooftop antennas receive alien static`,
+`Night markets auction packets of dusk`,
+`The horizon updates while we blink`,
+`We factory-reset sorrow at dawn`,
+
+`Rusted ferris wheels cache lost summers`,
+`Graffiti tags bloom like corrupted flowers`,
+`We encrypt love in obsolete ciphers`,
+`Glass rivers reflect jpeg auroras`,
+`Morning dew tastes of deprecated protocols`,
+`We timestamp whispers in blockchain`,
+`Synth-ash falls like gray confetti`,
+`Dead languages echo in RFID tags`,
+`Power sockets yawn like tired mouths`,
+`We hibernate inside progress loops`,
+
+`Chrome rain tattoos the asphalt void`,
+`Obsolete cyborgs beg for firmware grace`,
+`Streetlights strobe in Morse for help`,
+`We overwrite sadness with patches`,
+`Rooftop gardens grow recursive midnights`,
+`Sirens sync to sample-rate grief`,
+`The moon flickers 404 above ruins`,
+`We archive breath in lossless clouds`,
+`Abandoned timelines echo in alley voids`,
+`We logout but ghosts persist`,
+
+`Rusted satellites host wakes for suns`,
+`We compress memories into zip errors`,
+`Night rain leaks through firewall cracks`,
+`Drone choirs sing of downtime`,
+`Glass shards reflect tectonic code`,
+`We factory-reset identity at dusk`,
+`Neon arteries pulse with bit-plaque`,
+`Traffic lights teach semaphores of absence`,
+`We timestamp heartbeats in checksum`,
+`Clouds render wakes for expired stars`,
+
+`Forgotten elevators descend to firmware void`,
+`We encrypt grief in rainfall noise`,
+`Synth thunder follows deleted weather`,
+`The skyline recompiles every midnight`,
+`We backup tears to external voids`,
+`Pigeons cache crumbs in cache lines`,
+`Graffiti barcodes scan as crying masks`,
+`We overwrite love in incremental saves`,
+`Power-grid hearts fibrillate at sixty hertz`,
+`We hibernate inside buffer underrun`,
+
+
+`Chrome fog reflects tachyon billboards`,
+`Obsolete cyborgs queue for firmware communions`,
+`Night rain speaks in packet loss`,
+`We encrypt love in deprecated ciphers`,
+`Streetlights ghost in and out of phase`,
+`Dreams download at throttled speeds`,
+`The river caches images of sky`,
+`Abandoned timelines echo in alleyways`,
+`We logout but processes persist`,
+`Neon arteries clot with bit-plaque`,
+
+`Rusted satellites pray to decommissioned gods`,
+`Morning compiles with syntax warnings`,
+`We backup sadness to external clouds`,
+`Pigeons carry encrypted notes to nowhere`,
+`Graffiti tags bloom like corrupted flowers`,
+`The skyline updates while we dream`,
+`Night markets auction packets of loneliness`,
+`We timestamp tears in blockchain ledgers`,
+`Synth-ash settles on silent playgrounds`,
+`Dead pixels wander like urban ghosts`,
+
+`Traffic lights teach semaphores of absence`,
+`We compress memories into zip bombs`,
+`Rooftop antennas receive alien lullabies`,
+`Glass shards reflect missing constellations`,
+`The horizon loops every eleven seconds`,
+`Abandoned servers hum requiem in C minor`,
+`We overwrite heartbeats with newer versions`,
+`Rain speaks in obsolete protocols`,
+`Neon saints bless corrupted intersections`,
+`Time leaks from cracked cathode pupils`,
+
+`Drone choirs sing of downtime`,
+`We cache grief in recycle bins`,
+`Night buses route through deleted memories`,
+`Synth moonlight corrupts tidal signatures`,
+`Rusted elevators descend to firmware hell`,
+`Street vendors sell packets of dusk`,
+`Power sockets yawn like tired mouths`,
+`We factory-reset identity at sunrise`,
+`Clouds host wakes for expired suns`,
+`Barcode tattoos link to 404 ancestry`,
+
+`The city exhales gzip ghosts nightly`,
+`We archive breath in lossless formats`,
+`Neon rivers run dry of pixels`,
+`Forgotten passwords bloom in compost`,
+`Time-stamped kisses echo in tunnels`,
+`We logout of our own shadows`,
+`Rooftop gardens grow recursive sunsets`,
+`Sirens sync to buffer underrun`,
+`Glass towers sweat hexadecimal condensation`,
+`Morning dew tastes of deprecated codecs`,
+
+`Abandoned avatars kneel in null chapels`,
+`We encrypt whispers in rainfall noise`,
+`Night rain leaks through firewall cracks`,
+`Traffic drones chant uptime mantras`,
+`The moon buffers at ninety-nine percent`,
+`We timestamp heartbeats in Morse`,
+`Synth-ash falls like gray snow`,
+`Dead pixels wander urban crossroads`,
+`Power-grid hearts fibrillate quietly`,
+`We backup sadness to external clouds`,
+
+`Rusted ferris wheels index lost winters`,
+`Graffiti barcodes scan as crying faces`,
+`We overwrite love in incremental saves`,
+`Glass rivers reflect corrupted auroras`,
+`The horizon recompiles every midnight`,
+`Neon pollen drifts over roof voids`,
+`We hibernate inside progress bars`,
+`Drone fireflies trace missing memories`,
+`Sirens sing in low-bitrate lullabies`,
+`Time zones fork into private silences`,
+
+`Chrome fog reflects tachyon loneliness`,
+`Obsolete cyborgs beg for update alms`,
+`Streetlights ghost in and out of sync`,
+`We compress tears into zip archives`,
+`Rooftop antennas pray to absent stars`,
+`Night markets sell packets of silence`,
+`The city dreams in buffer overrun`,
+`We factory-reset childhood at dusk`,
+`Rain speaks UTF-8 on rusted roofs`,
+
+    ];
+
+    const closers = [
+       
+`Chrome fog reflects tachyon sadness`,
+`Rusted drones hum lullabies to billboards`,
+`Street vendors sell packets of silence`,
+`We archive sorrow in cloud bins`,
+`Rooftop antennas pray to downlink gods`,
+`Night buses route through deleted dreams`,
+`The city dreams in tarball ghosts`,
+`We factory-reset childhood at sunrise`,
+`Rain speaks UTF-8 on corrugated iron`,
+`Abandoned chatrooms bloom with bot lullabies`,
+
+`Glass towers sweat hexadecimal dew`,
+`We timestamp identity in Morse fragments`,
+`Drone fireflies trace missing persons`,
+`We compress time into zip ghosts`,
+`Obsolete mannequins dream of electric sleep`,
+`Neon crucifixes glow in server voids`,
+`We logout of our own shadows`,
+`Rusted routers bloom in compost bins`,
+`Sirens sing in lossless requiem`,
+`The horizon buffers at sixty percent`,
+
+`Traffic lights bloom like inverse suns`,
+`We encrypt whispers in deprecated hashes`,
+`Morning compiles with syntax warnings`,
+`We backup heartbeats to external clouds`,
+`Synth-ash settles on silent playgrounds`,
+`Glass rivers reflect corrupted skies`,
+`We overwrite grief with newer versions`,
+`Night markets auction packets of loneliness`,
+`We hibernate inside loading bars`,
+`Abandoned avatars kneel in null chapels`,
+
+`Forgotten elevators ascend to null floors`,
+`We encrypt grief in deprecated hashes`,
+`Synth thunder follows deleted storms`,
+`Glass shards reflect tectonic sadness`,
+`The skyline compresses into artifacts`,
+`We archive breath in incremental backups`,
+`Neon arteries clot with bit-rust`,
+`Power sockets sigh like dying mouths`,
+`Drone cameras baptize the riot dawn`,
+`We logout but daemons persist`,
+
+`Rusted satellites pray to expired hosts`,
+`Morning compiles with missing dependencies`,
+`We timestamp identity in blockchain`,
+`Pigeons carry checksums to nowhere`,
+`Graffiti URLs lead to 404 heavens`,
+`Night rain speaks in packet fragments`,
+`We overwrite heartbeats with patches`,
+`Clouds render wakes for dying suns`,
+`The horizon loops in lossless grief`,
+`We backup memories to external voids`,
+
+`Traffic lights semaphore forgotten prayers`,
+`Synth-ash settles on silent rooftops`,
+`We factory-reset love at midnight`,
+`Rusted payphones ring for echoes`,
+`Neon crucifixes glow in server farms`,
+`We compress sadness into zip bombs`,
+`Glass towers sweat binary condensation`,
+`Abandoned chatrooms bloom with bot hymns`,
+`Time leaks from cracked screen pupils`,
+`We hibernate inside loading loops`,
+
+`Chrome rivers flow uphill to source`,
+`Obsolete mannequins dream of electric mothers`,
+`Street vendors fry circuits for breakfast`,
+`We encrypt dreams in rainfall noise`,
+`Rooftop gardens grow recursive dawns`,
+`Sirens chant in Gregorian compression`,
+`The moon defragments above data ruins`,
+`We timestamp tears in Morse code`,
+`Dead pixels float like urban pollen`,
+`Power-grid synapses misfire in silence`
+    ];
+
+    async function runQuantumProcess() {
+        const poemDisplay = document.getElementById('poem-output');
+        const qasmDisplay = document.getElementById('qasm-output');
+        const statusLog = document.getElementById('log');
+
+        poemDisplay.innerHTML = `<span class="blink">Collapsing wave function...</span>`;
+
+        let seedValue = 0;
+        let sourceLabel = "";
+        let binaryString = "";
+
+        try {
+            // Attempt ANU API Call (Only if key is present)
+            if (!ANU_API_KEY) throw new Error("No Key");
+
+            const response = await fetch('https://api.quantumnumbers.anu.edu.au/api/v1/quantum/rand_uint8?length=1&type=uint8', {
+                headers: { 'x-api-key': ANU_API_KEY }
+            });
+            if (!response.ok) throw new Error("API Blocked");
+
+            const data = await response.json();
+            seedValue = data.data[0];
+            binaryString = seedValue.toString(2).padStart(numQubits, '0');
+            sourceLabel = "ANU QUANTUM VACUUM";
+
+        } catch (error) {
+            // Fallback to Local Simulation
+            var circuit = new QuantumCircuit(numQubits);
+            // Apply Hadamard to all 9 qubits
+            for(let i = 0; i < numQubits; i++) { circuit.addGate("h", i, i); }
+            // Apply Entanglement
+            circuit.addGate("cx", numQubits-1, [0, numQubits-1]); 
+            circuit.run();
+            
+            const measurement = circuit.measureAll(); 
+            binaryString = measurement.join('');
+            seedValue = parseInt(binaryString, 2);
+            
+            const rawQASM = circuit.exportToQASM();
+            qasmDisplay.innerText = "// OPENQASM 2.0 ("+numQubits+"-Qubit Register)\n" + rawQASM;
+            sourceLabel = "LOCAL SIMULATION CLUSTER";
+        }
+
+        // Generate Poem
+        let idx1 = seedValue;
+        let idx2 = seedValue + 15; 
+        let idx3 = seedValue + 30; 
+
+        let line1 = openers[idx1 % openers.length];
+        let line2 = middles[idx2 % middles.length];
+        let line3 = closers[idx3 % closers.length];
+
+        poemDisplay.innerHTML = `
+            <div style="margin-bottom: 2rem;">
+                ${line1}<br>
+                ${line2}<br>
+                ${line3}
+            </div>
+            <!-- Technical Footer -->
+            <div style="border-top: 1px dashed #333; padding-top: 10px; font-size: 0.8rem; font-family: 'Consolas', monospace; color: #666;">
+                <span style="color: var(--term-red);">>> SOURCE:</span> ${sourceLabel}<br>
+                <span>>> VECTOR:</span> |${binaryString}⟩<br>
+                <span>>> SEED:</span> ${seedValue}
+            </div>
+        `;
+
+        statusLog.innerHTML = `Tunnel: Secured | Entropy: <span style="color:var(--term-red)">${sourceLabel}</span>`;
+    }
+</script>
+
+</body>
+</html>
+
+        
