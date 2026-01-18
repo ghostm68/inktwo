@@ -223,6 +223,38 @@
     color: var(--term-red);
 }
 
+/* --- UPDATED ETCH-A-SKETCH INTEGRATION --- */
+.canvas-container {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    width: 500px; /* Reduced from 600px */
+    background: var(--glass);
+    border: 1px solid var(--border-grey);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    z-index: 5;
+}
+
+.canvas-header {
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.5rem;
+    height: 25px; /* Added fixed height */
+}
+
+.canvas-header::before {
+    content: ">> ";
+    color: var(--term-red);
+}
+
 #etch-a-sketch {
     display: block;
     margin: 0 auto;
@@ -230,6 +262,9 @@
     background-color: var(--bg-secondary) !important;
     cursor: crosshair;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    width: 100%; /* Make responsive */
+    height: 400px; /* Reduced from 600px */
+    max-width: 460px; /* Prevent overflow */
 }
 
 .canvas-controls {
@@ -240,12 +275,20 @@
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid #333;
+    height: 40px; /* Fixed height for controls */
 }
 
-#clear-sketch {
+/* Adjust container to make room for smaller canvas */
+.container {
+    width: 900px;
+    margin-right: 550px; /* Reduced from 650px */
+}
+
+/* Export button styling */
+#export-sketch {
     background: transparent;
-    border: 1px solid var(--control-grey);
-    color: var(--control-grey);
+    border: 1px solid #4a4a4a;
+    color: #4a4a4a;
     padding: 8px 20px;
     font-family: inherit;
     font-size: 0.9rem;
@@ -255,25 +298,11 @@
     letter-spacing: 1px;
 }
 
-#clear-sketch:hover {
-    background: var(--control-grey);
+#export-sketch:hover {
+    background: #4a4a4a;
     color: #000;
-    box-shadow: 0 0 10px var(--control-grey);
+    box-shadow: 0 0 10px #4a4a4a;
 }
-
-#color-picker {
-    width: 40px;
-    height: 30px;
-    border: 1px solid var(--canvas-border);
-    background: transparent;
-    cursor: pointer;
-    padding: 2px;
-}
-
-#color-picker:hover {
-    border-color: var(--term-red);
-}
-
 /* Adjust container to make room for canvas */
 .container {
     width: 900px;
@@ -408,23 +437,29 @@ Waiting for circuit construction...</div>
     <!-- ETCH-A-SKETCH CANVAS -->
 <div class="canvas-container">
     <div class="canvas-header">
-        <span>ANALOG OUTPUT BUFFER</span>
+        <span> OUTPUT BUFFER</span>
         <span style="color: var(--term-red);">ACTIVE</span>
     </div>
     <canvas id="etch-a-sketch" width="600" height="600"></canvas>
-    <div class="canvas-controls">
-        <button id="clear-sketch">CLEAR MATRIX</button>
-        <input type="color" id="color-picker" value="#ffffff">
-    </div>
+  <div class="canvas-controls">
+    <button id="clear-sketch">CLEAR MATRIX</button>
+    <input type="color" id="color-picker" value="#ffffff">
+    <button id="export-sketch">EXPORT</button>
+</div>
 </div>
   <script>
 const canvas = document.getElementById('etch-a-sketch');
 const ctx = canvas.getContext('2d');
 const clearBtn = document.getElementById('clear-sketch');
 const colorPicker = document.getElementById('color-picker');
+const exportBtn = document.getElementById('export-sketch'); // Add this
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
+
+// Initialize canvas with cyberpunk background
+ctx.fillStyle = '#2a2a2a';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 ctx.strokeStyle = colorPicker.value;
 ctx.lineJoin = 'round';
@@ -451,6 +486,7 @@ function draw(e) {
   [lastX, lastY] = [x, y];
 }
 
+// Mouse events
 canvas.addEventListener('mousedown', (e) => {
   isDrawing = true;
   [lastX, lastY] = [e.offsetX, e.offsetY];
@@ -470,12 +506,34 @@ canvas.addEventListener('touchmove', draw);
 canvas.addEventListener('touchend', () => isDrawing = false);
 canvas.addEventListener('touchcancel', () => isDrawing = false);
 
+// Clear function with cyberpunk background reset
 clearBtn.addEventListener('click', () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 });
 
 colorPicker.addEventListener('change', (e) => {
   ctx.strokeStyle = e.target.value;
+});
+
+// NEW EXPORT FUNCTION
+exportBtn.addEventListener('click', () => {
+  // Create download link
+  const link = document.createElement('a');
+  link.download = `quantum-sketch-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  
+  // Visual feedback
+  exportBtn.style.background = '#4a4a4a';
+  exportBtn.style.color = '#000';
+  exportBtn.textContent = 'EXPORTED!';
+  
+  setTimeout(() => {
+    exportBtn.style.background = 'transparent';
+    exportBtn.style.color = '#4a4a4a';
+    exportBtn.textContent = 'EXPORT';
+  }, 1500);
 });
 
   </script>
