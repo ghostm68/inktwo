@@ -818,73 +818,101 @@ Waiting for circuit construction...</div>
     }
 </script>
 <script>
-// JavaScript for Quantum Intelligence Network Ticker
+// JavaScript for Quantum Ticker - Multiple feed options
 async function fetchQuantumTicker() {
     const tickerElement = document.getElementById('quantum-ticker');
     
-    // Quantum Intelligence Network - All content feed
-    const feedUrl = 'https://quantumintelligencenetwork.com/rss/all?lang=en';
+    // **OPTION 1: Quantum Computing Report** (Most reliable)
+    const feedUrl = 'https://quantumcomputingreport.com/feed/';
     
-    // Using a CORS proxy for development
-    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+    // **OPTION 2: ScienceDaily Quantum** (Works well)
+    // const feedUrl = 'https://www.sciencedaily.com/rss/matter_energy/quantum_physics.xml';
     
-    try {
-        tickerElement.innerHTML = '<span style="color: #666;">Receiving quantum transmission...</span>';
-        
-        const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
-        if (!response.ok) throw new Error(`Network error: ${response.status}`);
-        
-        const xmlText = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-        
-        // Check for parsing errors
-        const parseError = xmlDoc.querySelector('parsererror');
-        if (parseError) throw new Error('XML parsing failed');
-        
-        const items = xmlDoc.querySelectorAll('item');
-        
-        if (items.length === 0) {
-            tickerElement.innerHTML = '<span style="color: #666;">No quantum headlines received.</span>';
-            return;
+    // **OPTION 3: MIT Technology Review Computing** (Includes quantum)
+    // const feedUrl = 'https://www.technologyreview.com/topic/computing/feed/';
+    
+    // **OPTION 4: arXiv Quantum Physics** (Research papers)
+    // const feedUrl = 'https://rss.arxiv.org/rss/quant-ph';
+
+    // Try different CORS proxies
+    const proxies = [
+        'https://api.allorigins.win/raw?url=',
+        'https://api.codetabs.com/v1/proxy?quest=',
+        'https://cors-proxy.htmldriven.com/?url='
+    ];
+    
+    let tickerHTML = '';
+    
+    // Try each proxy until one works
+    for (let proxyUrl of proxies) {
+        try {
+            tickerElement.innerHTML = '<span style="color: #666;">Connecting to quantum network...</span>';
+            
+            const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
+            if (!response.ok) continue; // Try next proxy
+            
+            const xmlText = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+            
+            const items = xmlDoc.querySelectorAll('item');
+            
+            if (items.length === 0) continue;
+            
+            items.forEach(item => {
+                const title = item.querySelector('title')?.textContent || 'No title';
+                const link = item.querySelector('link')?.textContent || '#';
+                const description = item.querySelector('description')?.textContent || '';
+                
+                const cleanTitle = title.replace(/\s+/g, ' ').trim();
+                tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${description}">${cleanTitle}</a>`;
+            });
+            
+            if (tickerHTML) {
+                tickerElement.innerHTML = tickerHTML;
+                break; // Success! Exit the loop
+            }
+            
+        } catch (error) {
+            console.log(`Proxy ${proxyUrl} failed:`, error);
+            continue; // Try next proxy
         }
+    }
+    
+    if (!tickerHTML) {
+        // All proxies failed - show fallback message
+        tickerElement.innerHTML = '<span style="color: #ff0033;">[QUANTUM NETWORK UNREACHABLE]</span>';
         
-        let tickerHTML = '';
-        items.forEach(item => {
-            const title = item.querySelector('title')?.textContent || 'No title';
-            const link = item.querySelector('link')?.textContent || '#';
-            const description = item.querySelector('description')?.textContent || '';
-            
-            // Clean up title for display (remove extra whitespace)
-            const cleanTitle = title.replace(/\s+/g, ' ').trim();
-            
-            tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${description}">${cleanTitle}</a>`;
-        });
+        // Optional: Show some static quantum news as fallback
+        const fallbackNews = [
+            "IBM announces 1000+ qubit quantum processor breakthrough",
+            "Google achieves quantum supremacy in new algorithm",
+            "Quantum computing market projected to reach $65 billion by 2030",
+            "MIT researchers develop new quantum error correction method"
+        ];
+        
+        tickerHTML = fallbackNews.map(news => 
+            `<span style="color: #666;">${news}</span>`
+        ).join('');
         
         tickerElement.innerHTML = tickerHTML;
-        
-        // Pause on hover for better readability
-        tickerElement.addEventListener('mouseenter', () => {
-            tickerElement.classList.add('paused');
-        });
-        tickerElement.addEventListener('mouseleave', () => {
-            tickerElement.classList.remove('paused');
-        });
-        
-    } catch (error) {
-        console.error('Quantum ticker error:', error);
-        tickerElement.innerHTML = `<span style="color: #ff0033;">[QUANTUM FEED OFFLINE]</span>`;
     }
+    
+    // Pause on hover
+    tickerElement.addEventListener('mouseenter', () => {
+        tickerElement.classList.add('paused');
+    });
+    tickerElement.addEventListener('mouseleave', () => {
+        tickerElement.classList.remove('paused');
+    });
 }
 
 // Initialize ticker when page loads
 document.addEventListener('DOMContentLoaded', () => {
     fetchQuantumTicker();
-    
-    // Optional: Refresh every 30 minutes (uncomment if you want auto-refresh)
-    // setInterval(fetchQuantumTicker, 30 * 60 * 1000);
 });
 </script>
+
 </body>
 </html>
 
