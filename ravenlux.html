@@ -15,6 +15,10 @@
             --text-white: #eeeeee;     /* Standard Off-White */
             --glass: rgba(20, 0, 0, 0.8); /* Tinted Glass */
             --border-grey: #333333;    /* Subtle borders */
+             --accent: #ff2a2a;        /* Match your existing red */
+    --bg-secondary: #2a2a2a;  /* Grey background for canvas */
+    --canvas-border: #444444; /* Grey border */
+    --control-grey: #666666;  /* Grey for controls */
         }
 
         /* --- RED HIGHLIGHTING --- */
@@ -187,7 +191,109 @@
             text-align: right;
             border-top: 1px solid #333;
             padding-top: 5px;
-        }
+    }    
+   /* --- ETCH-A-SKETCH INTEGRATION --- */
+.canvas-container {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    width: 600px;
+    background: var(--glass);
+    border: 1px solid var(--border-grey);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    z-index: 5;
+}
+
+.canvas-header {
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    padding-bottom: 0.5rem;
+}
+
+.canvas-header::before {
+    content: ">> ";
+    color: var(--term-red);
+}
+
+#etch-a-sketch {
+    display: block;
+    margin: 0 auto;
+    border: 2px solid var(--canvas-border) !important;
+    background-color: var(--bg-secondary) !important;
+    cursor: crosshair;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.canvas-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+}
+
+#clear-sketch {
+    background: transparent;
+    border: 1px solid var(--control-grey);
+    color: var(--control-grey);
+    padding: 8px 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#clear-sketch:hover {
+    background: var(--control-grey);
+    color: #000;
+    box-shadow: 0 0 10px var(--control-grey);
+}
+
+#color-picker {
+    width: 40px;
+    height: 30px;
+    border: 1px solid var(--canvas-border);
+    background: transparent;
+    cursor: pointer;
+    padding: 2px;
+}
+
+#color-picker:hover {
+    border-color: var(--term-red);
+}
+
+/* Adjust container to make room for canvas */
+.container {
+    width: 900px;
+    margin-right: 650px; /* Make space for canvas */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1600px) {
+    .canvas-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: 2rem auto;
+        width: fit-content;
+    }
+    
+    .container {
+        margin-right: 0;
+    }
+}     
         #quantum-ticker-container {
     width: 100%;
     background: #111;
@@ -299,7 +405,80 @@ Waiting for circuit construction...</div>
         Tunnel: Secured | Anu.Edu.Au-Source: <span style="color:var(--term-red)">Standby</span>
     </div>
 </div>
+    <!-- ETCH-A-SKETCH CANVAS -->
+<div class="canvas-container">
+    <div class="canvas-header">
+        <span>ANALOG OUTPUT BUFFER</span>
+        <span style="color: var(--term-red);">ACTIVE</span>
+    </div>
+    <canvas id="etch-a-sketch" width="600" height="600"></canvas>
+    <div class="canvas-controls">
+        <button id="clear-sketch">CLEAR MATRIX</button>
+        <input type="color" id="color-picker" value="#ffffff">
+    </div>
+</div>
+  <script>
+const canvas = document.getElementById('etch-a-sketch');
+const ctx = canvas.getContext('2d');
+const clearBtn = document.getElementById('clear-sketch');
+const colorPicker = document.getElementById('color-picker');
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
 
+ctx.strokeStyle = colorPicker.value;
+ctx.lineJoin = 'round';
+ctx.lineCap = 'round';
+ctx.lineWidth = 2;
+
+function draw(e) {
+  if (!isDrawing) return;
+  
+  let x, y;
+  
+  if (e.touches) {
+    x = e.touches[0].clientX - canvas.offsetLeft;
+    y = e.touches[0].clientY - canvas.offsetTop;
+  } else {
+    x = e.offsetX;
+    y = e.offsetY;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  [lastX, lastY] = [x, y];
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  isDrawing = true;
+  [lastX, lastY] = [e.offsetX, e.offsetY];
+});
+
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseout', () => isDrawing = false);
+
+// Touch events
+canvas.addEventListener('touchstart', (e) => {
+  isDrawing = true;
+  [lastX, lastY] = [e.touches[0].clientX - canvas.offsetLeft, e.touches[0].clientY - canvas.offsetTop];
+});
+
+canvas.addEventListener('touchmove', draw);
+canvas.addEventListener('touchend', () => isDrawing = false);
+canvas.addEventListener('touchcancel', () => isDrawing = false);
+
+clearBtn.addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+colorPicker.addEventListener('change', (e) => {
+  ctx.strokeStyle = e.target.value;
+});
+
+  </script>
 <!-- SCRIPT 1: LIVE EDITOR LOGIC -->
 <script>
 (function() {
@@ -818,22 +997,13 @@ Waiting for circuit construction...</div>
     }
 </script>
 <script>
-// JavaScript for Quantum Ticker - Multiple feed options
+// JavaScript for Quantum Ticker - Single Line Scrolling
 async function fetchQuantumTicker() {
     const tickerElement = document.getElementById('quantum-ticker');
     
     // **OPTION 1: Quantum Computing Report** (Most reliable)
     const feedUrl = 'https://quantumcomputingreport.com/feed/';
     
-    // **OPTION 2: ScienceDaily Quantum** (Works well)
-    // const feedUrl = 'https://www.sciencedaily.com/rss/matter_energy/quantum_physics.xml';
-    
-    // **OPTION 3: MIT Technology Review Computing** (Includes quantum)
-    // const feedUrl = 'https://www.technologyreview.com/topic/computing/feed/';
-    
-    // **OPTION 4: arXiv Quantum Physics** (Research papers)
-    // const feedUrl = 'https://rss.arxiv.org/rss/quant-ph';
-
     // Try different CORS proxies
     const proxies = [
         'https://api.allorigins.win/raw?url=',
@@ -841,7 +1011,7 @@ async function fetchQuantumTicker() {
         'https://cors-proxy.htmldriven.com/?url='
     ];
     
-    let tickerHTML = '';
+    let tickerContent = '';
     
     // Try each proxy until one works
     for (let proxyUrl of proxies) {
@@ -849,7 +1019,7 @@ async function fetchQuantumTicker() {
             tickerElement.innerHTML = '<span style="color: #666;">Connecting to quantum network...</span>';
             
             const response = await fetch(proxyUrl + encodeURIComponent(feedUrl));
-            if (!response.ok) continue; // Try next proxy
+            if (!response.ok) continue;
             
             const xmlText = await response.text();
             const parser = new DOMParser();
@@ -859,51 +1029,54 @@ async function fetchQuantumTicker() {
             
             if (items.length === 0) continue;
             
+            // Create ONE continuous line with separators
+            const headlines = [];
             items.forEach(item => {
                 const title = item.querySelector('title')?.textContent || 'No title';
                 const link = item.querySelector('link')?.textContent || '#';
-                const description = item.querySelector('description')?.textContent || '';
-                
                 const cleanTitle = title.replace(/\s+/g, ' ').trim();
-                tickerHTML += `<a href="${link}" target="_blank" rel="noopener" title="${description}">${cleanTitle}</a>`;
+                
+                // Add each headline as a linked item with separator
+                headlines.push(`<a href="${link}" target="_blank" rel="noopener">${cleanTitle}</a>`);
             });
             
-            if (tickerHTML) {
-                tickerElement.innerHTML = tickerHTML;
-                break; // Success! Exit the loop
-            }
+            // Join with separators to create continuous flow
+            tickerContent = headlines.join(' • ') + ' • ';
+            
+            // Duplicate content for seamless looping
+            tickerContent = tickerContent.repeat(3);
+            
+            break; // Success! Exit the loop
             
         } catch (error) {
             console.log(`Proxy ${proxyUrl} failed:`, error);
-            continue; // Try next proxy
+            continue;
         }
     }
     
-    if (!tickerHTML) {
-        // All proxies failed - show fallback message
-        tickerElement.innerHTML = '<span style="color: #ff0033;">[QUANTUM NETWORK UNREACHABLE]</span>';
-        
-        // Optional: Show some static quantum news as fallback
+    if (!tickerContent) {
+        // Fallback content
         const fallbackNews = [
             "IBM announces 1000+ qubit quantum processor breakthrough",
-            "Google achieves quantum supremacy in new algorithm",
+            "Google achieves quantum supremacy in new algorithm", 
             "Quantum computing market projected to reach $65 billion by 2030",
             "MIT researchers develop new quantum error correction method"
         ];
         
-        tickerHTML = fallbackNews.map(news => 
-            `<span style="color: #666;">${news}</span>`
-        ).join('');
-        
-        tickerElement.innerHTML = tickerHTML;
+        tickerContent = fallbackNews.join(' • ') + ' • ';
+        tickerContent = tickerContent.repeat(3);
     }
+    
+    // Set the content and apply scrolling
+    tickerElement.innerHTML = tickerContent;
+    tickerElement.classList.add('scrolling');
     
     // Pause on hover
     tickerElement.addEventListener('mouseenter', () => {
-        tickerElement.classList.add('paused');
+        tickerElement.style.animationPlayState = 'paused';
     });
     tickerElement.addEventListener('mouseleave', () => {
-        tickerElement.classList.remove('paused');
+        tickerElement.style.animationPlayState = 'running';
     });
 }
 
