@@ -255,23 +255,38 @@
 </script>
 
 <script>
-    // --- DICTIONARY LOADING ---
-    let dictionaryData = {};
+    // --- MULTI-SOURCE DICTIONARY LOADING ---
+    let dictEnglish = {};
+    let dictGerman = {};
     
     async function initDictionary() {
+        const statusEl = document.getElementById('dict-status');
+        
         try {
-            document.getElementById('dict-status').innerText = "DOWNLOADING ARCHIVE...";
-            const res = await fetch('https://raw.githubusercontent.com/ghostm68/dictionary/master/dictionary.json');
+            statusEl.innerText = "INIT_DATALINK...";
             
-            if (!res.ok) throw new Error("Network response was not ok");
+            // We load both dictionaries in parallel using Promise.all
+            // 1. Webster's (English) - Reliable, good definitions
+            // 2. German/English - For the Noir/Cityspeak aesthetic
+            const [resEng, resGer] = await Promise.all([
+                fetch('https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json'),
+                fetch('https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json')
+            ]);
+
+            if (!resEng.ok || !resGer.ok) throw new Error("Data corruption");
+
+            dictEnglish = await resEng.json();
+            dictGerman = await resGer.json();
+
+            statusEl.innerText = "ARCHIVE: EN/DE MOUNTED";
+            statusEl.style.color = "#444";
             
-            dictionaryData = await res.json();
-            document.getElementById('dict-status').innerText = "ARCHIVE: ONLINE";
-            document.getElementById('dict-status').style.color = "#444";
+            addMessage('bot', "System: Multi-Language Archive Loaded.");
+
         } catch (e) {
             console.error("Dictionary Load Failed", e);
-            document.getElementById('dict-status').innerText = "ARCHIVE: CORRUPTED";
-            document.getElementById('dict-status').style.color = "red";
+            statusEl.innerText = "ARCHIVE: CORRUPTED";
+            statusEl.style.color = "red";
         }
     }
 
@@ -303,7 +318,6 @@
         const aiStatus = document.getElementById('ai-status').innerText;
         
         if (aiStatus === 'NEURAL_NET_ACTIVE') {
-             // Use AI
             const typing = document.createElement('div');
             typing.className = 'chat-bubble bot-message';
             typing.textContent = '...Calculating...';
@@ -312,11 +326,30 @@
             typing.remove();
             addMessage('bot', response || "Signal Lost.");
         } else {
-            // Use Dictionary (Fallback)
-            const cleanWord = msg.split(' ')[0].toUpperCase();
-            if(dictionaryData[cleanWord] || dictionaryData[msg.toUpperCase()]) {
-                const def = dictionaryData[cleanWord] || dictionaryData[msg.toUpperCase()];
-                addMessage('bot', `ARCHIVE HIT: ${def.substring(0, 150)}...`);
+            // DICTIONARY LOOKUP (Standard + German)
+            const cleanWord = msg.toLowerCase();
+            let response = "";
+
+            // 1. English Definition
+            if(dictEnglish[cleanWord]) {
+                response += `[EN]: ${dictEnglish[cleanWord].substring(0, 120)}...<br>`;
+            } else if (dictEnglish[msg]) { // Try as typed
+                response += `[EN]: ${dictEnglish[msg].substring(0, 120)}...<br>`;
+            }
+
+            // 2. German Lookup (Reverse lookup in the JSON provided)
+            // The JSON is likely German keys -> English values, or English keys -> German values.
+            // The specific file linked is German Key -> English Value. 
+            // So we can search values to find the German word.
+            const entries = Object.entries(dictGerman);
+            const germanMatch = entries.find(([ger, eng]) => eng.toLowerCase().includes(cleanWord));
+            
+            if(germanMatch) {
+                response += `[DE]: ${germanMatch[0]} (Translation)`;
+            }
+
+            if(response) {
+                addMessage('bot', response);
             } else {
                 addMessage('bot', "Not in Archive. Enable Neural Link for generation.");
             }
@@ -332,10 +365,7 @@
     let audioCtx, humOsc, gainNode;
 
     window.togglePower = function() {
-        // If already active, this acts as a toggle off? 
-        // Or maybe just a "status check". Let's make it toggle off if on.
         if (window.isPowered) {
-            // Turn Off
             window.isPowered = false;
             window.resetPowerUI();
             if(gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
@@ -343,10 +373,7 @@
             document.getElementById('ai-status').classList.replace("text-red-600", "text-zinc-600");
             addMessage('bot', "Neural Link Severed.");
         } else {
-            // Turn On (Trigger module function)
-            if(window.engageAI) {
-                window.engageAI();
-            }
+            if(window.engageAI) window.engageAI();
         }
     }
 
@@ -412,7 +439,7 @@
         });
     }
 
-    // --- HYBRID EXCAVATION (CUT-UP METHOD) ---
+    // --- HYBRID EXCAVATION (CUT-UP + TRANSLATION) ---
     window.handleNodeClick = async function(name) {
         if(name === currentNode.name) return;
         
@@ -428,27 +455,38 @@
 
         let newWords = [];
         
-        // 1. DICTIONARY "CUT-UP"
-        const lookup = name.toUpperCase();
-        if (dictionaryData[lookup]) {
-            const def = dictionaryData[lookup];
-            // Filter common words to find the "virus" words
-            const stopWords = ["THE","AND","THAT","WITH","FROM","HAVE","THIS","WHICH","BEING","USED"];
+        // 1. DICTIONARY "CUT-UP" (English)
+        const lookup = name.toLowerCase();
+        if (dictEnglish[lookup]) {
+            const def = dictEnglish[lookup];
+            const stopWords = ["the","and","that","with","from","have","this","which","being","used"];
             const candidates = def.split(/[\s,.;]+/)
                 .map(w => w.replace(/[^a-zA-Z]/g, '').toUpperCase())
-                .filter(w => w.length > 4 && !stopWords.includes(w));
+                .filter(w => w.length > 4 && !stopWords.includes(w.toLowerCase()));
             
-            // Randomly select 5 to create a dissociative effect
             const shuffled = candidates.sort(() => 0.5 - Math.random());
-            newWords = [...new Set(shuffled)].slice(0, 5).map(w => ({name: w}));
+            // Take 3 English words
+            newWords = [...new Set(shuffled)].slice(0, 3).map(w => ({name: w}));
         }
 
-        // 2. AI GENERATION (If active)
+        // 2. GERMAN TRANSLATION INJECTION
+        // Find a German word that translates TO this English word
+        const deEntries = Object.entries(dictGerman);
+        const germanMatch = deEntries.find(([ger, eng]) => eng.toLowerCase().includes(lookup));
+        if (germanMatch) {
+            // Add the German word as a node
+            newWords.push({ name: germanMatch[0].toUpperCase() });
+        }
+
+        // 3. AI GENERATION (If active)
         if (document.getElementById('ai-status').innerText === "NEURAL_NET_ACTIVE") {
             const aiRaw = await window.askAI(name, 'graph');
             if(aiRaw) {
                 const aiSplit = aiRaw.split(',').map(w => ({name: w.trim().replace(/\./g, '').toUpperCase()}));
-                if (aiSplit.length > 0) newWords = aiSplit; // AI overrides dict if it works? Or maybe mixes? Let's override for "fresh" data.
+                if (aiSplit.length > 0) {
+                    // Combine AI results with Dictionary results
+                    newWords = [...newWords, ...aiSplit].slice(0, 6);
+                }
             }
         }
 
@@ -460,7 +498,6 @@
             currentNode = newNode;
             window.update();
         } else {
-             // Fallback
              addMessage('bot', `Word [${name}] not found in Archive. Enable Neural Link.`);
         }
     }
@@ -500,7 +537,6 @@
         loadAll();
         initDictionary();
         
-        // Splash remove
         document.getElementById('splash-screen').addEventListener('click', function() {
             this.style.opacity = '0';
             setTimeout(() => { 
@@ -510,7 +546,6 @@
             }, 500);
         });
         
-        // Ticker
         const target = document.getElementById('teletype');
         const txt = ">> REALITY_STUDIO_ACTIVE";
         let i = 0;
