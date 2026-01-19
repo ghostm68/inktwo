@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NOVA_EXPRESS_TERMINAL</title>
+  <title>NOVA__2741</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Special+Elite&display=swap" rel="stylesheet">
@@ -312,7 +312,7 @@
     }
 
     // --- CHAT LOGIC ---
-    window.sendChat = async function() {
+   window.sendChat = async function() {
         const input = document.getElementById('chat-input');
         const msg = input.value.trim();
         if(!msg) return;
@@ -320,6 +320,20 @@
         addMessage('user', ">> " + msg);
         input.value = '';
 
+        // 1. ALWAYS CHECK ARCHIVES FIRST (The "Fact")
+        const archiveResult = searchArchives(msg);
+        let foundInArchive = false;
+
+        if (archiveResult.def) {
+            foundInArchive = true;
+            const prefix = archiveResult.type === 'EN' ? "ARCHIVE" : (archiveResult.type.includes('DE') ? "POLYGLOT" : "DATA");
+            // We use a slight delay for the archive so it feels like a distinct system
+            setTimeout(() => {
+                addMessage('bot', `${prefix}: ${archiveResult.def}`);
+            }, 200);
+        }
+
+        // 2. CHECK NEURAL LINK (The "Commentary")
         const aiStatus = document.getElementById('ai-status').innerText;
         
         if (aiStatus === 'NEURAL_NET_ACTIVE') {
@@ -327,24 +341,24 @@
             typing.className = 'chat-bubble bot-message';
             typing.textContent = '...Calculating...';
             document.getElementById('chat-container').appendChild(typing);
+            
+            // Ask the AI
             const response = await window.askAI(msg, 'chat');
             typing.remove();
+            
+            // If we found it in the archive, maybe style the AI response differently or just append it
             addMessage('bot', response || "Signal Lost.");
+            
         } else {
-            const result = searchArchives(msg);
-            if (result.def) {
-                const prefix = result.type === 'EN' ? "ARCHIVE" : (result.type.includes('DE') ? "POLYGLOT" : "DATA");
-                addMessage('bot', `${prefix}: ${result.def}`);
-            } else {
+            // AI IS OFF
+            if (!foundInArchive) {
                 addMessage('bot', "Not in Archives. Enable Neural Link for deep search.");
             }
         }
     }
-    
-    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+     document.getElementById('chat-input').addEventListener('keypress', (e) => {
         if(e.key === 'Enter') window.sendChat();
     });
-
     // --- TOGGLE SWITCH ---
     window.isPowered = false;
     let audioCtx, humOsc, gainNode;
