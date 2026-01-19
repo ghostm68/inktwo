@@ -395,10 +395,10 @@
     const svg = d3.select("#canvas");
     let width = window.innerWidth <= 768 ? window.innerWidth : window.innerWidth - 280;
     let height = window.innerWidth <= 768 ? 350 : window.innerHeight - 400;
-    const simulation = d3.forceSimulation()
+  const simulation = d3.forceSimulation()
         .force("link", d3.forceLink().id(d => d.name).distance(100))
         .force("charge", d3.forceManyBody().strength(-600))
-        .force("center", d3.forceCenter(width / 2, height / 2));
+        .force("center", d3.forceCenter(width / 2, height / 2)); // Keep this line
 
     window.update = function() {
         const nodes = currentNode.children || [];
@@ -406,38 +406,39 @@
             ["Virus", "Control", "Nova", "Machine"].forEach(w => nodes.push({name: w}));
             currentNode.children = nodes;
         }
-
         const links = nodes.map(d => ({ source: currentNode.name, target: d.name }));
         const displayNodes = [{ name: currentNode.name, isParent: true }, ...nodes];
-        
         document.getElementById('path-log').innerHTML = history.map((h, i) => `<div onclick="jumpTo(${i})" style="cursor:pointer; opacity:0.7">>> ${h.name}</div>`).join('');
         document.getElementById('word-menu').innerHTML = nodes.map(n => `<div onclick="handleNodeClick('${n.name}')" style="cursor:pointer; color:#888; margin-bottom:4px">${n.name}</div>`).join('');
-
         const link = svg.selectAll(".link").data(links, d => d.target).join("line").attr("stroke", "#222").attr("class", "link");
         const node = svg.selectAll(".node-group").data(displayNodes, d => d.name).join("g")
             .attr("class", "node-group")
             .on("click", (e, d) => handleNodeClick(d.name))
             .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
-
         node.selectAll("circle").data(d => [d]).join("circle")
             .attr("r", d => d.isParent ? 12 : 6)
             .attr("class", d => d.isParent ? "node-center" : "node-orbit");
-
         node.selectAll("text").data(d => [d]).join("text")
             .attr("class", "label")
             .attr("dy", 24)
             .attr("text-anchor", "middle")
             .text(d => d.name);
 
+        // Keeps all nodes within the viewport (Prevents them from flying away).
+        // This has to be placed at the END of the update() to run at every frame.
         simulation.nodes(displayNodes);
         simulation.force("link").links(links);
+        simulation.force("center", d3.forceCenter(width / 2, height / 2));
         simulation.alpha(1).restart();
         simulation.on("tick", () => {
             link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-            node.attr("transform", d => `translate(${d.x},${d.y})`);
+            node.attr("transform", d => {
+                const x = Math.max(0, Math.min(width, d.x));
+                const y = Math.max(0, Math.min(height, d.y));
+                return `translate(${x},${y})`;
+            });
         });
     }
-
     // --- HYBRID EXCAVATION ---
     window.handleNodeClick = async function(name) {
         if(name === currentNode.name) return;
@@ -503,9 +504,15 @@ function saveAll() {
         document.getElementById('word-count').innerText = (txt.length > 0 ? txt.split(/\s+/).length : 0) + "W";
     }
 
+    function saveAll() {
+        localStorage.setItem('nova_editor', document.getElementById('editor').innerHTML);
+        const txt = document.getElementById('editor').innerText.trim();
+        document.getElementById('word-count').innerText = (txt.length > 0 ? txt.split(/\s+/).length : 0) + "W";
+    }
+
     function loadAll() {
         const saved = localStorage.getItem('nova_editor');
-        // We check > 50 to make sure we don't load an accidental empty save
+        // Check if there is saved data
         if(saved && saved.trim().length > 50) { 
             document.getElementById('editor').innerHTML = saved; 
         } else {
@@ -518,8 +525,10 @@ function saveAll() {
                 "------------------------------------------<br>" +
                 "// INITIATE CUT-UP PROTOCOL VIA GRAPH NODES<br>" +
                 "// CLICK TO DISSOCIATE CONTROL LINES";
+            // ADD THE "PRIME DIRECTIVE" AFTER THE BOOT SEQUENCE
+            // And insert it into the editor so it's visible
+            document.getElementById('editor').innerHTML += "<br><br>Initiate Inquiry. The future is built on forgotten data...";
         }
-        // Force word count update immediately
         saveAll();
     }
     window.exportDraft = function() { 
