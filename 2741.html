@@ -89,12 +89,8 @@
 
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
-    <h1 class="text-red-600 font-bold text-4xl mb-4 tracking-tighter">NOVA_EXPRESS</h1>
-    <p id="splash-text" class="text-zinc-500 animate-pulse text-xs tracking-widest uppercase">Initializing Control Systems...</p>
-    <p class="text-[9px] text-zinc-700 mt-4 max-w-md text-center">
-        DEFAULT: STATIC ARCHIVE (OFFLINE DICTIONARY)<br>
-        OPTIONAL: NEURAL LINK (REQUIRES 600MB DOWNLOAD)
-    </p>
+    <h1 class="text-red-600 font-bold text-4xl mb-4 tracking-tighter">INKREALM_2741</h1>
+    <p id="splash-text" class="text-zinc-500 animate-pulse text-xs tracking-widest uppercase">Initializing Reality Studio...</p>
 </div>
 
 <div class="app-grid">
@@ -103,14 +99,14 @@
         <div id="power-light" class="w-2 h-2 bg-zinc-900 rounded-full"></div>
         <h1 class="text-white font-bold tracking-tighter text-xs uppercase">SELECTRIC_2741</h1>
         
-        <!-- POWER BUTTON (THE CONSENT SWITCH) -->
+        <!-- POWER BUTTON (NO POPUP, just Warning in Text) -->
         <button id="power-toggle" class="text-[9px] border border-zinc-800 px-2 py-1 text-zinc-500 hover:bg-zinc-900 transition font-bold" onclick="window.togglePower()">
-            ENABLE NEURAL LINK
+            ENABLE NEURAL LINK [~600MB]
         </button>
 
         <!-- DOWNLOAD PROGRESS -->
         <div id="llm-progress-container">
-            <div id="llm-label">DOWNLOADING_WEIGHTS...</div>
+            <div id="llm-label">DOWNLOADING...</div>
             <div id="llm-progress"></div>
         </div>
     </div>
@@ -147,7 +143,7 @@
             <span id="ai-status" class="text-zinc-600 font-bold">ARCHIVE_ONLY</span>
         </div>
         <div id="chat-container">
-            <div class="chat-bubble bot-message">Terminal Active. Dictionary Protocol loaded. Neural Net in standby.</div>
+            <div class="chat-bubble bot-message">Terminal Active. Archives Mounted. Neural Net Standby.</div>
         </div>
         <div class="chat-input-area">
             <input type="text" id="chat-input" placeholder="Type to search archive..." >
@@ -157,7 +153,7 @@
   </div>
 
   <footer>
-    <div id="dict-status">LOADING DICTIONARY (12MB)...</div>
+    <div id="dict-status">LOADING ARCHIVES...</div>
     <div class="flex gap-4 uppercase"><span>Nova Construct</span><span>|</span><span id="footer-status">SYSTEM_STABLE</span></div>
   </footer>
 </div>
@@ -171,19 +167,11 @@
     let isAiLoading = false;
     let isAiReady = false;
 
-    // --- AI INITIALIZATION ---
+    // --- AI INITIALIZATION (NO POPUPS) ---
     window.engageAI = async function() {
         if (isAiReady || isAiLoading) return;
         
-        // CONSENT CHECK
-        const userConsent = confirm("INITIALIZE NEURAL LINK?\n\nThis will download the Qwen-0.5B model (~600MB) to your browser cache.\n\nThis allows for generative text and deep association beyond the static dictionary.\n\nProceed?");
-        
-        if(!userConsent) {
-            // User cancelled - reset button
-            window.resetPowerUI();
-            return;
-        }
-
+        // Start immediately
         isAiLoading = true;
         document.getElementById('llm-progress-container').style.display = 'block';
         document.getElementById('power-toggle').innerText = "DOWNLOADING...";
@@ -255,39 +243,57 @@
 </script>
 
 <script>
-    // --- MULTI-SOURCE DICTIONARY LOADING ---
-    let dictEnglish = {};
-    let dictGerman = {};
+    // --- MULTI-SOURCE DICTIONARY ARCHITECTURE ---
+    let dictionaries = []; 
     
+    const dictionaryUrls = [
+        'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+        'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+        'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+        'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json'
+    ];
+
     async function initDictionary() {
         const statusEl = document.getElementById('dict-status');
+        statusEl.innerText = "FETCHING 4 SOURCES...";
         
         try {
-            statusEl.innerText = "INIT_DATALINK...";
-            
-            // We load both dictionaries in parallel using Promise.all
-            // 1. Webster's (English) - Reliable, good definitions
-            // 2. German/English - For the Noir/Cityspeak aesthetic
-            const [resEng, resGer] = await Promise.all([
-                fetch('https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json'),
-                fetch('https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json')
-            ]);
+            const responses = await Promise.all(dictionaryUrls.map(url => fetch(url)));
+            for (let r of responses) { if (!r.ok) throw new Error("Source died: " + r.url); }
 
-            if (!resEng.ok || !resGer.ok) throw new Error("Data corruption");
+            statusEl.innerText = "PARSING DATA...";
+            dictionaries = await Promise.all(responses.map(r => r.json()));
 
-            dictEnglish = await resEng.json();
-            dictGerman = await resGer.json();
-
-            statusEl.innerText = "ARCHIVE: EN/DE MOUNTED";
+            statusEl.innerText = "ARCHIVE: OMNI-LINK ACTIVE";
             statusEl.style.color = "#444";
-            
-            addMessage('bot', "System: Multi-Language Archive Loaded.");
+            addMessage('bot', "System: Webster, AdamBom, & Polyglot Archives Mounted.");
 
         } catch (e) {
             console.error("Dictionary Load Failed", e);
-            statusEl.innerText = "ARCHIVE: CORRUPTED";
+            statusEl.innerText = "ARCHIVE: PARTIAL/FAIL";
             statusEl.style.color = "red";
         }
+    }
+
+    function searchArchives(rawWord) {
+        if (!dictionaries.length) return { def: null, type: null };
+        const wLower = rawWord.toLowerCase();
+        const wUpper = rawWord.toUpperCase();
+        
+        // 1. Check English Sources (Indexes 0, 1, 2)
+        for (let i = 0; i < 3; i++) {
+            const dict = dictionaries[i];
+            if (dict[wLower]) return { def: dict[wLower], type: 'EN' };
+            if (dict[wUpper]) return { def: dict[wUpper], type: 'EN' };
+        }
+
+        // 2. Check German Source (Index 3)
+        const gerDict = dictionaries[3];
+        if (gerDict[wLower] || gerDict[wUpper]) return { def: gerDict[wLower] || gerDict[wUpper], type: 'DE->EN' };
+        const entry = Object.entries(gerDict).find(([ger, eng]) => eng.toLowerCase().includes(wLower));
+        if (entry) return { def: entry[0], type: 'EN->DE' };
+
+        return { def: null, type: null };
     }
 
     // --- UI HELPERS ---
@@ -299,7 +305,7 @@
 
     window.resetPowerUI = function() {
         const btn = document.getElementById('power-toggle');
-        btn.innerText = "ENABLE NEURAL LINK";
+        btn.innerText = "ENABLE NEURAL LINK [~600MB]";
         btn.classList.remove("text-red-600", "border-red-600");
         btn.disabled = false;
         window.isPowered = false;
@@ -314,7 +320,6 @@
         addMessage('user', ">> " + msg);
         input.value = '';
 
-        // AI CHECK
         const aiStatus = document.getElementById('ai-status').innerText;
         
         if (aiStatus === 'NEURAL_NET_ACTIVE') {
@@ -326,32 +331,12 @@
             typing.remove();
             addMessage('bot', response || "Signal Lost.");
         } else {
-            // DICTIONARY LOOKUP (Standard + German)
-            const cleanWord = msg.toLowerCase();
-            let response = "";
-
-            // 1. English Definition
-            if(dictEnglish[cleanWord]) {
-                response += `[EN]: ${dictEnglish[cleanWord].substring(0, 120)}...<br>`;
-            } else if (dictEnglish[msg]) { // Try as typed
-                response += `[EN]: ${dictEnglish[msg].substring(0, 120)}...<br>`;
-            }
-
-            // 2. German Lookup (Reverse lookup in the JSON provided)
-            // The JSON is likely German keys -> English values, or English keys -> German values.
-            // The specific file linked is German Key -> English Value. 
-            // So we can search values to find the German word.
-            const entries = Object.entries(dictGerman);
-            const germanMatch = entries.find(([ger, eng]) => eng.toLowerCase().includes(cleanWord));
-            
-            if(germanMatch) {
-                response += `[DE]: ${germanMatch[0]} (Translation)`;
-            }
-
-            if(response) {
-                addMessage('bot', response);
+            const result = searchArchives(msg);
+            if (result.def) {
+                const prefix = result.type === 'EN' ? "ARCHIVE" : (result.type.includes('DE') ? "POLYGLOT" : "DATA");
+                addMessage('bot', `${prefix}: ${result.def}`);
             } else {
-                addMessage('bot', "Not in Archive. Enable Neural Link for generation.");
+                addMessage('bot', "Not in Archives. Enable Neural Link for deep search.");
             }
         }
     }
@@ -439,7 +424,7 @@
         });
     }
 
-    // --- HYBRID EXCAVATION (CUT-UP + TRANSLATION) ---
+    // --- HYBRID EXCAVATION ---
     window.handleNodeClick = async function(name) {
         if(name === currentNode.name) return;
         
@@ -455,38 +440,27 @@
 
         let newWords = [];
         
-        // 1. DICTIONARY "CUT-UP" (English)
-        const lookup = name.toLowerCase();
-        if (dictEnglish[lookup]) {
-            const def = dictEnglish[lookup];
-            const stopWords = ["the","and","that","with","from","have","this","which","being","used"];
-            const candidates = def.split(/[\s,.;]+/)
+        // 1. DICTIONARY CUT-UP
+        const result = searchArchives(name);
+        if (result.def) {
+            const stopWords = ["the","and","that","with","from","have","this","which","being","used","noun","verb"];
+            const cleanDef = result.def.toString();
+            const candidates = cleanDef.split(/[\s,.;()]+/)
                 .map(w => w.replace(/[^a-zA-Z]/g, '').toUpperCase())
                 .filter(w => w.length > 4 && !stopWords.includes(w.toLowerCase()));
             
             const shuffled = candidates.sort(() => 0.5 - Math.random());
-            // Take 3 English words
-            newWords = [...new Set(shuffled)].slice(0, 3).map(w => ({name: w}));
+            newWords = [...new Set(shuffled)].slice(0, 4).map(w => ({name: w}));
+            
+            if(result.type === 'EN->DE') newWords.push({name: result.def.toUpperCase()});
         }
 
-        // 2. GERMAN TRANSLATION INJECTION
-        // Find a German word that translates TO this English word
-        const deEntries = Object.entries(dictGerman);
-        const germanMatch = deEntries.find(([ger, eng]) => eng.toLowerCase().includes(lookup));
-        if (germanMatch) {
-            // Add the German word as a node
-            newWords.push({ name: germanMatch[0].toUpperCase() });
-        }
-
-        // 3. AI GENERATION (If active)
+        // 2. AI GENERATION
         if (document.getElementById('ai-status').innerText === "NEURAL_NET_ACTIVE") {
             const aiRaw = await window.askAI(name, 'graph');
             if(aiRaw) {
                 const aiSplit = aiRaw.split(',').map(w => ({name: w.trim().replace(/\./g, '').toUpperCase()}));
-                if (aiSplit.length > 0) {
-                    // Combine AI results with Dictionary results
-                    newWords = [...newWords, ...aiSplit].slice(0, 6);
-                }
+                if (aiSplit.length > 0) newWords = [...newWords, ...aiSplit].slice(0, 6);
             }
         }
 
@@ -498,7 +472,7 @@
             currentNode = newNode;
             window.update();
         } else {
-             addMessage('bot', `Word [${name}] not found in Archive. Enable Neural Link.`);
+             addMessage('bot', `Word [${name}] not found in Archives. Enable Neural Link.`);
         }
     }
 
