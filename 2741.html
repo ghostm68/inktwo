@@ -83,6 +83,26 @@
     #llm-progress-container { display: none; margin-left: 10px; flex-grow:1; max-width: 150px; background: #222; height: 8px; border: 1px solid #444; position:relative; }
     #llm-progress { width: 0%; height: 100%; background: var(--red); transition: width 0.2s; }
     #llm-label { position:absolute; top:-14px; left:0; font-size:8px; color:var(--red); width: 200px;}
+    /* CUSTOM SELECTION HIGHLIGHT */
+    ::selection {
+      background: var(--red);
+      color: var(--black);
+      text-shadow: none;
+    }
+    
+    /* INTERACTIVE CHAT BUBBLES */
+    .bot-message { 
+        cursor: copy; /* change cursor to show it's interactable */
+        transition: all 0.2s;
+    }
+    .bot-message:hover {
+        background: #1a0505; /* subtle glow on hover */
+        border-color: var(--red);
+    }
+    .bot-message:active {
+        background: var(--red);
+        color: black;
+    }
   </style>
 </head>
 <body>
@@ -297,9 +317,42 @@
     }
 
     // --- UI HELPERS ---
-    function addMessage(role, text) {
+   function addMessage(role, text) {
         const c = document.getElementById('chat-container');
-        c.innerHTML += `<div class="chat-bubble ${role === 'user' ? 'user-message' : 'bot-message'}">${text}</div>`;
+        
+        // Create the element programmatically so we can add events
+        const div = document.createElement('div');
+        div.className = `chat-bubble ${role === 'user' ? 'user-message' : 'bot-message'}`;
+        div.innerHTML = text;
+
+        // IMPORT FEATURE: If it's a bot message, make it clickable
+        if (role !== 'user') {
+            div.title = "CLICK TO INJECT DATA TO EDITOR";
+            div.onclick = function() {
+                // 1. Visual Flash to confirm click
+                const originalBorder = this.style.borderColor;
+                this.style.backgroundColor = "var(--red)";
+                this.style.color = "black";
+                setTimeout(() => {
+                    this.style.backgroundColor = ""; 
+                    this.style.color = "";
+                }, 150);
+
+                // 2. Clean the text (Remove the "ARCHIVE:" prefixes for cleaner writing)
+                // This regex strips "ARCHIVE:", "POLYGLOT:", etc.
+                let cleanText = text.replace(/^(ARCHIVE|POLYGLOT|DATA|GERMAN.*):/i, "").trim();
+                
+                // 3. Inject into Editor
+                const editor = document.getElementById('editor');
+                // We add a subtle separator before pasting
+                editor.innerHTML += ` <span style="color:#555">[REC]</span> ${cleanText} `;
+                
+                // 4. Save and Update Counts
+                saveAll();
+            };
+        }
+
+        c.appendChild(div);
         c.scrollTop = c.scrollHeight;
     }
 
