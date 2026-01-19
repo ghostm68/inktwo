@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>2741 Selectric v4.13</title>
+  <title>2741 Selectric [HYBRID_QWEN]</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Special+Elite&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: var(--black); z-index: 2000;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      cursor: pointer; border: 4px double var(--red);
+      cursor: pointer; border: 4px double var(--red); transition: opacity 0.5s;
     }
 
     /* CRT Scanline Overlay */
@@ -78,6 +78,10 @@
     
     .teletype-text::after { content: "|"; animation: blink 1s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    
+    /* Loading Bar for LLM */
+    #llm-progress-container { display: none; margin-left: 10px; flex-grow:1; max-width: 100px; background: #222; height: 6px; border: 1px solid #444; }
+    #llm-progress { width: 0%; height: 100%; background: var(--red); transition: width 0.2s; }
   </style>
 </head>
 <body>
@@ -85,19 +89,21 @@
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
     <h1 class="text-red-600 font-bold text-4xl mb-4 tracking-tighter">INKREALM_2741</h1>
-    <p class="text-zinc-500 animate-pulse text-xs tracking-widest uppercase">Click to Initialize Hardware</p>
+    <p id="splash-text" class="text-zinc-500 animate-pulse text-xs tracking-widest uppercase">Click to Initialize Hardware</p>
+    <p class="text-[9px] text-zinc-700 mt-4">DICTIONARY_PROTOCOL: STANDBY</p>
 </div>
 
 <div class="app-grid">
   <header class="flex items-center justify-between px-4">
     <div class="flex items-center gap-3">
         <div id="power-light" class="w-2 h-2 bg-zinc-900 rounded-full"></div>
-        <h1 class="text-white font-bold tracking-tighter text-xs uppercase">SELECTRIC_2741_v4.13</h1>
-        <button id="power-toggle" class="text-[9px] border border-zinc-800 px-2 py-1 text-zinc-500" onclick="togglePower()">PWR: OFF</button>
+        <h1 class="text-white font-bold tracking-tighter text-xs uppercase">SELECTRIC_2741_HYBRID</h1>
+        <button id="power-toggle" class="text-[9px] border border-zinc-800 px-2 py-1 text-zinc-500 hover:bg-zinc-900 transition" onclick="window.togglePower()">PWR: OFF</button>
+        <div id="llm-progress-container"><div id="llm-progress"></div></div>
     </div>
     <div class="flex gap-2">
-        <button onclick="clearChat()" class="text-[9px] border border-zinc-800 px-2 py-1">CLR_COMMS</button>
-        <button onclick="exportDraft()" class="text-[9px] border border-zinc-800 px-2 py-1 text-red-600 font-bold">EXTRACT</button>
+        <button onclick="window.clearChat()" class="text-[9px] border border-zinc-800 px-2 py-1">CLR_COMMS</button>
+        <button onclick="window.exportDraft()" class="text-[9px] border border-zinc-800 px-2 py-1 text-red-600 font-bold">EXTRACT</button>
     </div>
   </header>
 
@@ -125,217 +131,391 @@
     <aside class="comms-console">
         <div class="bg-zinc-900 text-[9px] p-2 text-zinc-500 uppercase flex justify-between border-b border-red-900">
             <span>Comms_Link_Active</span>
-            <span id="witch-status" class="text-red-700 font-bold">Protected</span>
+            <span id="ai-status" class="text-red-700 font-bold">OFFLINE</span>
         </div>
         <div id="chat-container">
-            <div class="chat-bubble bot-message">2741 Interface Active. Request story data.</div>
+            <div class="chat-bubble bot-message">System Active. Dictionary Protocol Loaded. AI Standby.</div>
         </div>
         <div class="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Type command..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button onclick="sendMessage()" class="bg-red-800 px-2 text-[9px] ml-1">SEND</button>
+            <input type="text" id="chat-input" placeholder="Type command..." disabled>
+            <button id="send-btn" class="bg-red-900 text-zinc-500 px-2 text-[9px] ml-1" disabled>SEND</button>
         </div>
     </aside>
   </div>
 
   <footer>
-    <div>TERMINAL_v4.13 // SHADOW_STABLE</div>
-    <div class="flex gap-4 uppercase"><span>InkRealm Construct</span><span>|</span><span id="footer-status">WITCH_PROTOCOL_ACTIVE</span></div>
+    <div>TERMINAL_v4.13 // HYBRID_QWEN_0.5B</div>
+    <div class="flex gap-4 uppercase"><span>InkRealm Construct</span><span>|</span><span id="footer-status">DICT_ONLY</span></div>
   </footer>
 </div>
 
-<script>
-    // --- SPLASH & ENTRY ---
-    document.getElementById('splash-screen').addEventListener('click', function() {
-        this.style.opacity = '0';
-        this.style.transition = 'opacity 0.5s';
-        document.querySelector('.app-grid').style.display = 'grid';
-        setTimeout(() => { this.style.display = 'none'; }, 500);
-        update();
-    });
+<!-- MODULE SCRIPT FOR WEBLLM -->
+<script type="module">
+    import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
 
-    // --- WITCH PROTOCOL ---
-    function animateWitch() {
-        const status = document.getElementById('witch-status');
-        const footer = document.getElementById('footer-status');
-        const texts = ['Protected', 'Scanning', 'Warding', 'Secure', 'Charged'];
-        let index = 0;
-        setInterval(() => {
-            status.textContent = texts[index];
-            if(footer) footer.textContent = `WITCH_PROTOCOL_${texts[index].toUpperCase()}`;
-            index = (index + 1) % texts.length;
-        }, 3000);
-    }
+    // Smallest, fastest model for noir style (~300-600MB compressed)
+    const SELECTED_MODEL = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+    
+    let engine;
+    let isAiLoading = false;
+    let isAiReady = false;
 
-    // --- CHAT LOGIC ---
-    async function sendMessage() {
-        const input = document.getElementById('chat-input');
-        const message = input.value.trim();
-        if (!message) return;
-
-        const container = document.getElementById('chat-container');
-        container.innerHTML += `<div class="chat-bubble user-message">>> ${message}</div>`;
-        input.value = '';
-
-        const typing = document.createElement('div');
-        typing.className = 'chat-bubble bot-message';
-        typing.textContent = '...Analyzing Signal...';
-        container.appendChild(typing);
-        container.scrollTop = container.scrollHeight;
-
+    // EXPOSE AI FUNCTIONS TO GLOBAL SCOPE
+    window.engageAI = async function() {
+        if (isAiReady) return;
+        if (isAiLoading) return;
+        
+        isAiLoading = true;
+        document.getElementById('llm-progress-container').style.display = 'block';
+        document.getElementById('footer-status').innerText = "DOWNLOADING_NEURAL_WEIGHTS...";
+        
         try {
-            const response = await fetch(`https://text.pollinations.ai/In a short noir style, answer: ${message}`);
-            const data = await response.text();
-            typing.remove();
-            container.innerHTML += `<div class="chat-bubble bot-message">${data.trim()}</div>`;
-        } catch (e) {
-            typing.textContent = "Signal Interference: Connection Lost.";
+            const initProgressCallback = (report) => {
+                const percent = Math.round(report.progress * 100);
+                document.getElementById('llm-progress').style.width = `${percent}%`;
+            };
+
+            engine = await CreateMLCEngine(
+                SELECTED_MODEL,
+                { initProgressCallback: initProgressCallback }
+            );
+
+            isAiReady = true;
+            document.getElementById('llm-progress-container').style.display = 'none';
+            document.getElementById('ai-status').innerText = "ONLINE";
+            document.getElementById('footer-status').innerText = "QWEN_NEURAL_ACTIVE";
+            
+            // Enable Chat
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('send-btn');
+            input.disabled = false;
+            btn.disabled = false;
+            btn.classList.replace('bg-red-900', 'bg-red-600');
+            btn.classList.replace('text-zinc-500', 'text-white');
+            btn.onclick = window.sendChat;
+            
+            input.placeholder = "Qwen Link Active. Interrogate.";
+            
+            addMessage('bot', "Neural Link Established. Qwen-0.5B loaded into local memory. I am ready.");
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('footer-status').innerText = "GPU_FAILURE";
+            addMessage('bot', "ERR: GPU Not Supported or VRAM Insufficient. Reverting to Dictionary only.");
+            window.togglePower(); // Turn switch back off
         }
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function clearChat() {
-        if (confirm("Wipe comms history?")) {
-            document.getElementById('chat-container').innerHTML = `<div class="chat-bubble bot-message">History wiped. Link reset.</div>`;
-        }
-    }
-
-    // --- TERMINAL TICKER ---
-    const statusMessages = [
-        ">> 2741_LINK_ESTABLISHED",
-        ">> SELECTRIC_ELEMENT_ROTATING",
-        ">> DATA_STREAM_VIA_ATS/360",
-        ">> TERMINAL_LOCK_ENGAGED",
-        ">> NOIR_PROTOCOL_v4.13"
-    ];
-    let messageIndex = 0, charIndex = 0, isDeleting = false;
-
-    function typeStatus() {
-        const target = document.getElementById('teletype');
-        if(!target) return;
-        const currentMsg = statusMessages[messageIndex];
-        target.innerText = isDeleting ? currentMsg.substring(0, charIndex - 1) : currentMsg.substring(0, charIndex + 1);
-        charIndex = isDeleting ? charIndex - 1 : charIndex + 1;
-        let speed = isDeleting ? 40 : 80;
-        if (!isDeleting && charIndex === currentMsg.length) { speed = 3000; isDeleting = true; }
-        else if (isDeleting && charIndex === 3) { isDeleting = false; messageIndex = (messageIndex + 1) % statusMessages.length; speed = 500; }
-        setTimeout(typeStatus, speed);
-    }
-
-    // --- AUDIO & GRAPH ---
-    let audioCtx, humOsc, gainNode, filter, isPowered = false;
-    function initAudio() {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        humOsc = audioCtx.createOscillator(); gainNode = audioCtx.createGain(); filter = audioCtx.createBiquadFilter();
-        humOsc.type = 'sawtooth'; humOsc.frequency.setValueAtTime(55, audioCtx.currentTime);
-        filter.type = 'lowpass'; filter.frequency.setValueAtTime(120, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        humOsc.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination); humOsc.start();
-    }
-
-    function togglePower() {
-        if (!audioCtx) initAudio();
-        const btn = document.getElementById('power-toggle'), light = document.getElementById('power-light');
-        if (!isPowered) {
-            isPowered = true; btn.innerText = "PWR: ON"; btn.style.color = "var(--red)"; light.classList.add('bg-red-600', 'animate-pulse');
-            gainNode.gain.setTargetAtTime(0.04, audioCtx.currentTime, 0.5);
-        } else {
-            isPowered = false; btn.innerText = "PWR: OFF"; btn.style.color = "#555"; light.classList.remove('bg-red-600', 'animate-pulse');
-            gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
-        }
-    }
-
-    const lexicon = {
-        name: "World",
-        children: [
-            { name: "Violence", children: [{name: "Laceration"}, {name: "Contusion"}] },
-            { name: "Atmosphere", children: [{name: "Neon"}, {name: "Steam"}] },
-            { name: "Mind", children: [{name: "Amnesia"}, {name: "Paranoia"}] },
-            { name: "Evidence", children: [{name: "Ledger"}, {name: "Cigarette"}] }
-        ]
+        isAiLoading = false;
     };
 
-    let currentNode = lexicon, history = [], typingActivity = 0;
+    window.askAI = async function(prompt, type = 'chat') {
+        if (!isAiReady) return null;
+        try {
+            const systemMsg = type === 'graph' 
+                ? "You are a thesaurus. Return 4 noir, dark, cyberpunk synonyms for the user word. Comma separated only. No extra text."
+                : "You are a noir detective dossier. Be brief, cynical, and atmospheric.";
+
+            const reply = await engine.chat.completions.create({
+                messages: [
+                    { role: "system", content: systemMsg },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 150,
+            });
+            return reply.choices[0].message.content;
+        } catch (e) {
+            return null;
+        }
+    };
+</script>
+
+<script>
+    // --- DICTIONARY LOADING ---
+    let dictionaryData = {};
+    
+    // Fetching the large JSON dictionary asynchronously
+    async function initDictionary() {
+        try {
+            // Using a rawgit proxy for reliability or direct raw.github
+            const res = await fetch('https://raw.githubusercontent.com/ghostm68/dictionary/master/dictionary.json');
+            dictionaryData = await res.json();
+            console.log("Dictionary Loaded: ", Object.keys(dictionaryData).length + " words");
+        } catch (e) {
+            console.error("Dictionary Load Failed", e);
+        }
+    }
+
+    // --- STANDARD UI LOGIC ---
+
+    // Splash
+    document.getElementById('splash-screen').addEventListener('click', function() {
+        this.style.opacity = '0';
+        setTimeout(() => { 
+            this.style.display = 'none'; 
+            document.querySelector('.app-grid').style.display = 'grid';
+            window.update(); // Start D3
+        }, 500);
+    });
+
+    // Chat Handler
+    function addMessage(role, text) {
+        const c = document.getElementById('chat-container');
+        c.innerHTML += `<div class="chat-bubble ${role === 'user' ? 'user-message' : 'bot-message'}">${text}</div>`;
+        c.scrollTop = c.scrollHeight;
+    }
+
+    window.sendChat = async function() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if(!msg) return;
+        
+        addMessage('user', ">> " + msg);
+        input.value = '';
+
+        // Check if AI is on
+        const aiStatus = document.getElementById('ai-status').innerText;
+        if (aiStatus !== 'ONLINE') {
+            // Fallback for when AI is off (Simple Dictionary Search in Chat)
+            const cleanWord = msg.split(' ')[0].toUpperCase(); // Just grab first word
+            if(dictionaryData[cleanWord] || dictionaryData[msg.toUpperCase()]) {
+                const def = dictionaryData[cleanWord] || dictionaryData[msg.toUpperCase()];
+                addMessage('bot', `ARCHIVE HIT: ${def.substring(0, 200)}...`);
+            } else {
+                addMessage('bot', "System Offline. Enable PWR for Neural Processing.");
+            }
+            return;
+        }
+
+        // Use AI
+        const typing = document.createElement('div');
+        typing.className = 'chat-bubble bot-message';
+        typing.textContent = '...Processing...';
+        document.getElementById('chat-container').appendChild(typing);
+        
+        const response = await window.askAI(msg, 'chat');
+        typing.remove();
+        addMessage('bot', response || "Signal Lost.");
+    }
+    
+    // Enter key support
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') window.sendChat();
+    });
+
+    // --- POWER TOGGLE (AI CONSENT) ---
+    let isPowered = false;
+    let audioCtx, humOsc, gainNode;
+
+    window.togglePower = function() {
+        const btn = document.getElementById('power-toggle');
+        const light = document.getElementById('power-light');
+        
+        if (!isPowered) {
+            // TURNING ON
+            isPowered = true;
+            btn.innerText = "PWR: ON";
+            btn.style.color = "var(--red)";
+            light.classList.add('bg-red-600', 'animate-pulse');
+            initAudio(); // Sound
+            
+            // Trigger AI Download if module exists
+            if(window.engageAI) {
+                window.engageAI();
+            } else {
+                alert("Browser does not support modules.");
+            }
+        } else {
+            // TURNING OFF (Visual only, we don't unload AI from memory usually as it's expensive to reload)
+            isPowered = false;
+            btn.innerText = "PWR: OFF";
+            btn.style.color = "#555";
+            light.classList.remove('bg-red-600', 'animate-pulse');
+            if(gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+            
+            document.getElementById('ai-status').innerText = "STANDBY";
+            document.getElementById('chat-input').disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('send-btn').classList.replace('bg-red-600', 'bg-red-900');
+        }
+    }
+
+    function initAudio() {
+        if(!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            humOsc = audioCtx.createOscillator(); gainNode = audioCtx.createGain();
+            humOsc.type = 'sawtooth'; humOsc.frequency.setValueAtTime(55, audioCtx.currentTime);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(120, audioCtx.currentTime);
+            humOsc.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination); humOsc.start();
+        }
+        gainNode.gain.setTargetAtTime(0.04, audioCtx.currentTime, 0.5);
+    }
+
+    // --- GRAPH LOGIC ---
+    const lexicon = { name: "Case", children: [] }; // Starts empty, filled by users or dictionary
+    let currentNode = lexicon, history = [];
+    
+    // D3 Setup
     const svg = d3.select("#canvas");
     let width = window.innerWidth <= 768 ? window.innerWidth : window.innerWidth - 280;
     let height = window.innerWidth <= 768 ? 350 : window.innerHeight - 400;
+    const simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.name).distance(100))
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("center", d3.forceCenter(width / 2, height / 2));
 
-    const simulation = d3.forceSimulation().force("link", d3.forceLink().id(d => d.name).distance(100)).force("charge", d3.forceManyBody().strength(-600)).force("center", d3.forceCenter(width / 2, height / 2));
-
-    function update() {
+    window.update = function() {
         const nodes = currentNode.children || [];
+        // If empty start, seed it
+        if(nodes.length === 0 && currentNode.name === "Case") {
+            ["Murder", "Shadow", "Neon", "Rain"].forEach(w => nodes.push({name: w}));
+            currentNode.children = nodes;
+        }
+
         const links = nodes.map(d => ({ source: currentNode.name, target: d.name }));
         const displayNodes = [{ name: currentNode.name, isParent: true }, ...nodes];
-        document.getElementById('path-log').innerHTML = history.map((h, i) => `<div class="log-item" onclick="jumpTo(${i})">> ${h.name}</div>`).join('');
-        document.getElementById('word-menu').innerHTML = nodes.map(n => `<div class="log-item" onclick="handleNodeClick('${n.name}')">${n.name}</div>`).join('');
-        const link = svg.selectAll(".link").data(links, d => d.target).join("line").attr("stroke", "#111");
-        const node = svg.selectAll(".node-group").data(displayNodes, d => d.name).join("g").attr("class", "node-group").on("click", (e, d) => handleNodeClick(d.name)).call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
-        node.selectAll("circle").data(d => [d]).join("circle").attr("r", d => d.isParent ? 10 : 6).attr("class", d => d.isParent ? "node-center" : "node-orbit");
-        node.selectAll("text").data(d => [d]).join("text").attr("class", "label").attr("dy", 22).attr("text-anchor", "middle").text(d => d.name);
-        simulation.nodes(displayNodes); simulation.force("link").links(links); simulation.alpha(1).restart();
+        
+        // Sidebar update
+        document.getElementById('path-log').innerHTML = history.map((h, i) => `<div onclick="jumpTo(${i})" style="cursor:pointer; opacity:0.7">>> ${h.name}</div>`).join('');
+        document.getElementById('word-menu').innerHTML = nodes.map(n => `<div onclick="handleNodeClick('${n.name}')" style="cursor:pointer; color:#888; margin-bottom:4px">${n.name}</div>`).join('');
+
+        // D3 Draw
+        const link = svg.selectAll(".link").data(links, d => d.target).join("line").attr("stroke", "#222").attr("class", "link");
+        const node = svg.selectAll(".node-group").data(displayNodes, d => d.name).join("g")
+            .attr("class", "node-group")
+            .on("click", (e, d) => handleNodeClick(d.name))
+            .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+
+        node.selectAll("circle").data(d => [d]).join("circle")
+            .attr("r", d => d.isParent ? 12 : 6)
+            .attr("class", d => d.isParent ? "node-center" : "node-orbit");
+
+        node.selectAll("text").data(d => [d]).join("text")
+            .attr("class", "label")
+            .attr("dy", 24)
+            .attr("text-anchor", "middle")
+            .text(d => d.name);
+
+        simulation.nodes(displayNodes);
+        simulation.force("link").links(links);
+        simulation.alpha(1).restart();
         simulation.on("tick", () => {
             link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
             node.attr("transform", d => `translate(${d.x},${d.y})`);
         });
     }
 
-    async function handleNodeClick(name) {
+    // --- HYBRID EXCAVATION LOGIC ---
+    window.handleNodeClick = async function(name) {
         if(name === currentNode.name) return;
+        
+        // 1. Check if node already has children (already explored)
         const target = currentNode.children?.find(c => c.name === name);
-        if(target && target.children) { history.push(currentNode); currentNode = target; update(); }
-        else { insertText(name); await excavate(name); }
+        if(target && target.children) { 
+            history.push(currentNode); 
+            currentNode = target; 
+            window.update(); 
+            return;
+        }
+
+        // 2. Insert into editor
+        insertText(name); 
+
+        // 3. GENERATE NEW NODES (The Hybrid Step)
+        let newWords = [];
+        
+        // A. TRY DICTIONARY FIRST (Fast, Offline)
+        // The json is huge, keys are uppercase usually in this specific repo
+        const lookup = name.toUpperCase();
+        if (dictionaryData[lookup]) {
+            // The dictionary value is a definition string. 
+            // We need to be clever to extract synonyms or related words.
+            // Simple heuristic: Take long words from the definition.
+            const def = dictionaryData[lookup];
+            // Filter common words out
+            const common = ["THE", "AND", "THAT", "WITH", "FROM", "HAVE", "THIS"];
+            const words = def.split(/\s+/)
+                .map(w => w.replace(/[^a-zA-Z]/g, '').toUpperCase())
+                .filter(w => w.length > 4 && !common.includes(w))
+                .slice(0, 5); // Take top 5 unique interesting words
+            
+            newWords = [...new Set(words)].map(w => ({name: w}));
+            console.log("Dictionary Source used for", name);
+        }
+
+        // B. IF DICTIONARY FAIL OR USER WANTS AI AND AI IS READY
+        if (newWords.length < 2 && document.getElementById('ai-status').innerText === "ONLINE") {
+            const aiRaw = await window.askAI(name, 'graph');
+            if(aiRaw) {
+                const aiSplit = aiRaw.split(',').map(w => ({name: w.trim().replace(/\./g, '').toUpperCase()}));
+                newWords = aiSplit;
+                console.log("AI Source used for", name);
+            }
+        }
+
+        // Apply findings
+        if (newWords.length > 0) {
+            let newNode = currentNode.children.find(n => n.name === name);
+            if(!newNode) {
+                // If clicked from sidebar and not in graph currently
+                newNode = { name: name };
+            }
+            newNode.children = newWords;
+            history.push(currentNode);
+            currentNode = newNode;
+            window.update();
+        } else {
+             // Fallback if no dictionary and no AI
+             addMessage('bot', `No data found for [${name}]. Enable PWR for neural generation.`);
+        }
     }
 
-    async function excavate(word) {
-        try {
-            const res = await fetch(`https://text.pollinations.ai/Visceral noir synonyms for ${word}. Commas only.`);
-            const data = await res.text();
-            const aiWords = data.split(',').map(w => ({ name: w.trim().replace('.', '') }));
-            let targetNode = currentNode.children.find(n => n.name === word);
-            if(targetNode) { targetNode.children = aiWords; history.push(currentNode); currentNode = targetNode; update(); }
-        } catch(e) {}
+    function insertText(w) { 
+        document.getElementById('editor').innerHTML += ` <span style="color:red">${w}</span> `; 
+        saveAll(); 
     }
-
-    function insertText(w) { document.getElementById('editor').innerHTML += ` <span style="color:red">${w}</span> `; saveAll(); }
-    function jumpTo(index) { currentNode = history[index]; history = history.slice(0, index); update(); }
-    function goHome() { history = []; currentNode = lexicon; update(); }
     
+    window.jumpTo = function(index) { currentNode = history[index]; history = history.slice(0, index); window.update(); }
+
     function saveAll() {
-        localStorage.setItem('noir_editor_2741_v413', document.getElementById('editor').innerHTML);
+        localStorage.setItem('hybrid_editor', document.getElementById('editor').innerHTML);
         const txt = document.getElementById('editor').innerText.trim();
         document.getElementById('word-count').innerText = (txt.length > 0 ? txt.split(/\s+/).length : 0) + "W";
     }
-    
+
     function loadAll() {
-        const saved = localStorage.getItem('noir_editor_2741_v413');
-        if(saved && saved.trim().length > 50) { 
-            document.getElementById('editor').innerHTML = saved; 
-        } else {
-            document.getElementById('editor').innerHTML = 
-                "_2741_PROTOCOL:<br>" +
-                "i. POWER ON to sync the Selectric core.<br>" +
-                "ii. CLICK nodes to rotate the element.<br>" +
-                "iii. RED nodes trigger ATS/360 semantic branches.<br>" +
-                "iv. TYPE to pulse the voltage monitor.<br>" +
-                "v. EXPORT to extract the final dossier.<br><br>" +
-                "------------------------------------------<br><br>" +
-                "The 2741 hummed in its desk, the element poised like a hammer. The detective's cigarette was the only thing working harder than his liver, and the neon rain was turning the sidewalk into a smear of spilled ink...";
-        }
-        saveAll();
+        const saved = localStorage.getItem('hybrid_editor');
+        if(saved) document.getElementById('editor').innerHTML = saved;
     }
-    
-    function exportDraft() { const blob = new Blob([document.getElementById('editor').innerText], {type: 'text/plain'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'noir-log.txt'; a.click(); }
 
-    document.getElementById('editor').addEventListener('input', saveAll);
+    window.exportDraft = function() { 
+        const blob = new Blob([document.getElementById('editor').innerText], {type: 'text/plain'}); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'noir-log.txt'; a.click(); 
+    }
 
-    window.onload = () => { 
-        loadAll(); 
-        typeStatus(); 
-        animateWitch(); 
-    };
+    window.clearChat = function() {
+        document.getElementById('chat-container').innerHTML = `<div class="chat-bubble bot-message">Log Wiped.</div>`;
+    }
 
+    // D3 Drag Helpers
     function dragstarted(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
     function dragged(e, d) { d.fx = e.x; d.fy = e.y; }
     function dragended(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+    // Init
+    window.onload = () => {
+        loadAll();
+        initDictionary();
+        
+        // Ticker
+        const target = document.getElementById('teletype');
+        const txt = ">> HYBRID_SYSTEM_READY";
+        let i = 0;
+        setInterval(() => {
+            target.innerText = txt.substring(0, i+1) + (i%2?"|":"");
+            if(i < txt.length) i++;
+        }, 100);
+    };
 </script>
 </body>
 </html>
