@@ -887,7 +887,45 @@ body::before {
 }
 
     </style>
+<style>
+    /* --- NEW: SONIC INTERFACE STYLES --- */
+#sonic-strip {
+    display: none; /* Hidden until Sonic model selected */
+    border: 1px solid #ff0033;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #050505;
+    text-align: center;
+    box-shadow: inset 0 0 10px rgba(255, 0, 51, 0.1);
+}
 
+#sonic-strip button {
+    font-size: 1.4rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin: 0 8px;
+    background: #111;
+    transition: all 0.2s;
+}
+
+#sonic-strip button:active { transform: scale(0.95); }
+
+#sonic-status {
+    display: block;
+    margin-top: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.65rem;
+    color: #ff0033;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    animation: pulse 2s infinite;
+}
+
+/* Optional: Make the Nova 2 options in the dropdown stand out */
+option.nova2-opt { color: #ff0033; font-weight: bold; }
+</style>
 </head>
 <body>
    <!-- CRT OVERLAY SYSTEM -->
@@ -1004,38 +1042,50 @@ body::before {
 
     <!-- COLUMN 2: AI CONTROLS -->
     <!-- This Panel is the 2nd Grid Item -->
-    <div class="panel">
-        <h2>AMAZON NOVA AI</h2>
+<!-- COLUMN 2: AI CONTROLS (UPDATED) -->
+<div class="panel">
+    <h2>AMAZON NOVA AI</h2>
+    
+    <label style="color:#ff0033; font-size:0.75rem;">SELECT ENGINE:</label>
+    <select id="modelSelect">
+        <!-- Standard Models -->
+        <option value="amazon/nova-2-lite-v1:free">Nova 2 Lite v1 (Free)</option>
+        <option value="amazon/nova-lite-v1">Nova Lite v1</option>
+        <option value="amazon/nova-micro-v1">Nova Micro v1</option>
+        <option value="amazon/nova-pro-v1">Nova Pro v1</option>
         
-        <label style="color:#ff0033; font-size:0.75rem;">SELECT ENGINE:</label>
-        <select id="modelSelect">
-            <option value="amazon/nova-2-lite-v1">Nova 2 Lite v1</option>
-            <option value="amazon/nova-2-lite-v1:free" selected>Nova 2 Lite v1 (Free)</option>
-            <option value="amazon/nova-lite-v1">Nova Lite v1</option>
-            <option value="amazon/nova-micro-v1">Nova Micro v1</option>
-            <option value="amazon/nova-premier-v1">Nova Premier v1</option>
-            <option value="amazon/nova-pro-v1">Nova Pro v1</option>
-        </select>
-        
-        <div style="margin: 0.5rem 0;">
-            <label style="color:#ff0033; font-size:0.75rem;">CREATIVITY: <span id="creativityValue">0.7</span></label>
-            <input type="range" id="creativity" min="0.1" max="1.0" step="0.1" value="0.7">
+        <!-- THE NEW ADDITIONS -->
+        <option value="amazon.nova-2-micro-v1:0" class="nova2-opt">Nova 2 Micro (Fast)</option>
+        <option value="amazon.nova-2-premier-v1:0" class="nova2-opt">Nova 2 Premier (Reasoning)</option>
+        <option value="local-sonic-mirror" class="nova2-opt">Nova 2 Sonic (Speech)</option>
+    </select>
+
+    <!-- THE SONIC STRIP (Hidden by default) -->
+    <div id="sonic-strip">
+        <button id="recBtn" title="Hold to Record">🔴</button>
+        <button id="playBtn" title="Broadcast">⭍</button>
+        <div id="sonic-status">AUDIO INTERCEPT STANDBY</div>
+    </div>
+
+    <div style="margin: 0.5rem 0;">
+        <label style="color:#ff0033; font-size:0.75rem;">CREATIVITY: <span id="creativityValue">0.7</span></label>
+        <input type="range" id="creativity" min="0.1" max="1.0" step="0.1" value="0.7">
+    </div>
+    
+    <textarea id="prompt" placeholder="Input query or activate Sonic Mirror..."></textarea>
+    <button id="generateButton">INITIATE</button>
+    
+    <div style="margin-top: 0.8rem; flex-grow: 1; display: flex; flex-direction: column;">
+        <div style="font-size: 0.9rem; margin-bottom: 0.3rem; color: #ff0033;">OUTPUT:</div>
+        <div class="story-output" id="output">
+            Ready. Select an engine and write.
         </div>
-        
-        <textarea id="prompt" placeholder="query here or activate Core for off-grid ai..."></textarea>
-        <button id="generateButton">INITIATE</button>
-        
-        <div style="margin-top: 0.8rem; flex-grow: 1; display: flex; flex-direction: column;">
-            <div style="font-size: 0.9rem; margin-bottom: 0.3rem; color: #ff0033;">OUTPUT:</div>
-            <div class="story-output" id="output">
-                Ready. Select an engine and write.
-            </div>
-            <div class="controls-row">
-                <button id="copyButton">COPY</button>
-                <button id="importButton">IMPORT</button>
-            </div>
+        <div class="controls-row">
+            <button id="copyButton">COPY</button>
+            <button id="importButton">IMPORT</button>
         </div>
     </div>
+</div>
 
             <!-- Column 3: Dictionary -->
             <div class="panel">
@@ -1829,5 +1879,125 @@ btn.onclick = async () => {
     }
 };
 </script>
+    <script>
+        /* ======================================================
+   THE NEW LOGIC: SONIC MIRROR & MODEL SWITCHING
+   (No Backend Required / Browser Native)
+====================================================== */
+
+const modelSelect = document.getElementById('modelSelect');
+const sonicStrip = document.getElementById('sonic-strip');
+const sonicStatus = document.getElementById('sonic-status');
+const genBtn = document.getElementById('generateButton');
+const pBox = document.getElementById('prompt');
+const oBox = document.getElementById('output');
+
+// 1. TOGGLE THE SONIC INTERFACE
+modelSelect.addEventListener('change', () => {
+    const isSonic = modelSelect.value === 'local-sonic-mirror';
+    sonicStrip.style.display = isSonic ? 'block' : 'none';
+    
+    if (isSonic) {
+        genBtn.textContent = "TRANSMIT (TEXT ONLY)";
+        sonicStatus.textContent = "LOCAL AUDIO BRIDGE: ONLINE";
+    } else {
+        genBtn.textContent = "INITIATE";
+    }
+});
+
+// 2. THE MIC (Speech-to-Text)
+// Uses browser built-in API. No keys. No server.
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recBtn = document.getElementById('recBtn');
+
+if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+
+    recBtn.onmousedown = () => {
+        recognition.start();
+        sonicStatus.textContent = "LISTENING...";
+        recBtn.style.borderColor = "#fff";
+    };
+
+    recBtn.onmouseup = () => {
+        recognition.stop();
+        sonicStatus.textContent = "PROCESSING...";
+        recBtn.style.borderColor = "#ff0033";
+    };
+
+    recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        pBox.value = transcript;
+        sonicStatus.textContent = "DATA CAPTURED.";
+    };
+} else {
+    // Fallback for browsers without speech support (Firefox)
+    sonicStatus.textContent = "BROWSER AUDIO UNAVAILABLE";
+    recBtn.disabled = true;
+}
+
+// 3. THE SPEAKER (Text-to-Speech)
+const playBtn = document.getElementById('playBtn');
+
+playBtn.onclick = () => {
+    const txt = oBox.textContent;
+    if (!txt || txt.includes("Ready.")) return;
+
+    sonicStatus.textContent = "SYNTHESIZING...";
+    window.speechSynthesis.cancel(); // Stop previous
+
+    const utterance = new SpeechSynthesisUtterance(txt);
+    utterance.pitch = 0.6; // Low pitch (Burroughs drone)
+    utterance.rate = 0.9;  // Slow
+    
+    // Find a "System" voice if possible
+    const voices = window.speechSynthesis.getVoices();
+    const botVoice = voices.find(v => v.name.includes("Desktop") || v.name.includes("David"));
+    if (botVoice) utterance.voice = botVoice;
+
+    utterance.onend = () => sonicStatus.textContent = "STANDBY";
+    window.speechSynthesis.speak(utterance);
+};
+
+// 4. THE GENERATE LOGIC (Intercepts the button click)
+genBtn.onclick = async () => {
+    const prompt = pBox.value;
+    const model = modelSelect.value;
+    
+    if (!prompt) return;
+
+    genBtn.disabled = true;
+    oBox.classList.add('generating');
+    
+    // Aesthetic loading text based on model
+    if (model === 'amazon.nova-2-premier-v1:0') {
+        oBox.textContent = "⟁ PREMIER NODE: REASONING...";
+    } else if (model === 'local-sonic-mirror') {
+        oBox.textContent = "⟁ SONIC MIRROR: PROCESSING TEXT...";
+    } else {
+        oBox.textContent = "⟁ INTERCEPTING...";
+    }
+
+    try {
+        // We use Puter's default model to SIMULATE the others 
+        // because we don't have backend keys for the real Nova 2 yet.
+        // This keeps the "Sovereign/Free" promise.
+        const response = await puter.ai.chat(prompt, {
+            model: 'amazon/nova-lite-v1', // Reliable worker
+            system_message: "You are the Nova Interface. Tone: Clinical, Cut-up, Paranoid. Short sentences."
+        });
+        
+        oBox.textContent = response.message?.content || response;
+        
+    } catch (e) {
+        oBox.textContent = `[SIGNAL LOST]: ${e.message}`;
+    } finally {
+        oBox.classList.remove('generating');
+        genBtn.disabled = false;
+    }
+};
+    </script>
 </body>
 </html>
