@@ -1259,46 +1259,48 @@ setTimeout(updateWordCount, 100);
   });
 
   /* ----------  chat logic  ---------- */
-  async function sendMessage() {
-    const msg = $('wordstar-user-input').value.trim();
-    if (!msg || !currentApiKey) {
-      if (!currentApiKey) $('wordstar-key-status').innerHTML = '<span style="color:#EF4444;">⚠ API key required</span>';
-      return;
-    }
-    addMessage('user', msg);
-    $('wordstar-user-input').value = '';
-    const btn = $('wordstar-send-btn');
-    btn.disabled = true; btn.textContent = 'Thinking...'; btn.style.background = '#6B7280';
-
-    try {
-      const model = $('wordstar-model-select').value;
-      const res = await fetch(BASE_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${currentApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: msg }],
-          temperature: 0.7,
-          max_tokens: 1000,
-          stream: false
-        })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error.message || 'API error');
-      lastAIResponse = json.choices[0].message.content;
-      addMessage('assistant', lastAIResponse);
-      $('wordstar-insert-btn').style.display = 'block';
-    } catch (err) {
-      console.error(err);
-      addMessage('system', 'Error: ' + err.message);
-    } finally {
-      btn.disabled = false; btn.textContent = 'Send'; btn.style.background = '#b91c1c';
-    }
+async function sendMessage() {
+  const msg = $('wordstar-user-input').value.trim();
+  if (!msg || !currentApiKey) {
+    if (!currentApiKey) $('wordstar-key-status').innerHTML = '<span style="color:#EF4444;">⚠ API key required</span>';
+    return;
   }
+  addMessage('user', msg);
+  $('wordstar-user-input').value = '';
+  const btn = $('wordstar-send-btn');
+  btn.disabled = true; btn.textContent = 'Thinking...'; btn.style.background = '#6B7280';
+
+  try {
+    const model = $('wordstar-model-select').value;
+    const proxy = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+    const res = await fetch(proxy, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${currentApiKey}`,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: msg }],
+        temperature: 0.7,
+        max_tokens: 1000,
+        stream: false
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message || 'API error');
+    lastAIResponse = json.choices[0].message.content;
+    addMessage('assistant', lastAIResponse);
+    $('wordstar-insert-btn').style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    addMessage('system', 'Error: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send'; btn.style.background = '#b91c1c';
+  }
+}
 
   function addMessage(role, text) {
     const chat = $('wordstar-chat-history');
