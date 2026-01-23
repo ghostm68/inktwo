@@ -1212,10 +1212,13 @@ setTimeout(updateWordCount, 100);
     });
 })();
 </script>
-<script>
+	<script>
 (function() {
     /* Configuration */
-    const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+    const BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+    // We use a proxy to bypass the CORS "Failed to Fetch" error
+    const PROXY_URL = 'https://corsproxy.io/?' + encodeURIComponent(BASE_URL);
+    
     let lastAIResponse = '';
     
     /* DOM Elements */
@@ -1224,8 +1227,8 @@ setTimeout(updateWordCount, 100);
     /* 1. Initialization & Key Management */
     const savedKey = localStorage.getItem('nvidia_nim_key');
     if (savedKey) {
-        $('wordstar-api-key').value = savedKey; // In real app, hide this
-        $('wordstar-key-status').innerHTML = '<span style="color:#76b900">✓ Key loaded</span>';
+        $('wordstar-api-key').value = savedKey;
+        $('wordstar-key-status').innerHTML = '<span style="color:#ff0000">✓ Key loaded</span>';
     }
 
     /* 2. Event Listeners */
@@ -1241,7 +1244,7 @@ setTimeout(updateWordCount, 100);
         const key = $('wordstar-api-key').value.trim();
         if(key.startsWith('nvapi-')) {
             localStorage.setItem('nvidia_nim_key', key);
-            $('wordstar-key-status').innerHTML = '<span style="color:#76b900">✓ Key saved</span>';
+            $('wordstar-key-status').innerHTML = '<span style="color:#ff0000">✓ Key saved</span>';
         } else {
             alert('Invalid Key: Must start with nvapi-');
         }
@@ -1255,7 +1258,7 @@ setTimeout(updateWordCount, 100);
 
     // Insert Logic
     $('wordstar-insert-btn').addEventListener('click', () => {
-        const editor = document.getElementById('main-editor'); // Ensure your editor has this ID
+        const editor = document.getElementById('main-editor'); 
         if (!editor) return addMessage('system', 'Error: <textarea id="main-editor"> not found');
         
         const [start, end] = [editor.selectionStart, editor.selectionEnd];
@@ -1272,18 +1275,18 @@ setTimeout(updateWordCount, 100);
         if (!msg) return;
         if (!key) { alert('Please enter an NVIDIA API Key'); return; }
 
-        // UI Updates
+        // UI Updates - Red/Black Theme
         addMessage('user', msg);
         $('wordstar-user-input').value = '';
         const btn = $('wordstar-send-btn');
         btn.disabled = true; 
-        btn.textContent = 'Thinking...';
-        btn.style.backgroundColor = '#555';
+        btn.textContent = 'THINKING...';
+        btn.style.backgroundColor = '#222';
+        btn.style.color = '#666';
 
         try {
-            // Note: We are calling DIRECTLY. 
-            // This requires a "CORS Unblock" browser extension to work on localhost/file://
-            const response = await fetch(NVIDIA_BASE_URL, {
+            // CALLING THROUGH PROXY TO FIX CORS ERROR
+            const response = await fetch(PROXY_URL, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${key}`,
@@ -1291,56 +1294,67 @@ setTimeout(updateWordCount, 100);
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: $('wordstar-model-select').value,
-                    messages: [{ role: 'user', content: msg }],
+                    model: $('wordstar-model-select').value || "nvidia/nvidia-nemotron-nano-9b-v2",
+                    messages: [
+                        { "role": "system", "content": "You are a creative writing assistant. Respond in a clean, professional manner." },
+                        { "role": "user", "content": msg }
+                    ],
                     temperature: 0.5,
                     max_tokens: 1024,
                     stream: false
                 })
             });
 
-            if (response.status === 403) throw new Error("403 Forbidden: NVIDIA blocked the request. 1) Check Key. 2) Ensure CORS Extension is ON.");
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`API Error: ${response.status} - ${errorData}`);
+            }
 
             const data = await response.json();
-            lastAIResponse = data.choices[0].message.content;
             
-            addMessage('assistant', lastAIResponse);
-            $('wordstar-insert-btn').style.display = 'block';
-            $('wordstar-insert-btn').textContent = 'Insert into Editor';
+            if (data.choices && data.choices[0]) {
+                lastAIResponse = data.choices[0].message.content;
+                addMessage('assistant', lastAIResponse);
+                $('wordstar-insert-btn').style.display = 'block';
+                $('wordstar-insert-btn').textContent = 'INSERT INTO STORY';
+                $('wordstar-insert-btn').style.border = '1px solid #ff0000';
+            }
 
         } catch (error) {
             console.error(error);
-            addMessage('system', error.message);
+            addMessage('system', 'CONNECTION ERROR: ' + error.message);
         } finally {
             btn.disabled = false; 
-            btn.textContent = 'Send';
-            btn.style.backgroundColor = '#76b900';
+            btn.textContent = 'SEND';
+            btn.style.backgroundColor = '#000';
+            btn.style.color = '#fff';
+            btn.style.border = '1px solid #ff0000';
         }
     }
 
-    /* 4. Helper: Add Message to UI */
+    /* 4. Helper: Add Message to UI (Red/White/Black/Grey Scheme) */
     function addMessage(role, text) {
         const chat = $('wordstar-chat-history');
         const div = document.createElement('div');
+        
+        // Color Mapping
         const config = {
-            user: { color: '#fff', bg: '#333', border: '#76b900', label: 'You' },
-            assistant: { color: '#ddd', bg: '#222', border: '#fff', label: 'NVIDIA' },
-            system: { color: '#f88', bg: '#420000', border: 'red', label: 'Error' }
+            user: { color: '#ffffff', bg: '#1a1a1a', border: '#444444', label: 'USER' },
+            assistant: { color: '#ffffff', bg: '#000000', border: '#ff0000', label: 'AI' },
+            system: { color: '#ff0000', bg: '#1a0000', border: '#ff0000', label: 'SYSTEM ERROR' }
         }[role];
 
         div.innerHTML = `
-            <div style="margin-bottom:12px; padding:10px; background:${config.bg}; border-left:3px solid ${config.border}; border-radius:4px;">
-                <div style="font-size:10px; font-weight:bold; color:${config.border}; text-transform:uppercase; margin-bottom:4px;">${config.label}</div>
-                <div style="white-space:pre-wrap; color:${config.color}; line-height:1.4;">${text}</div>
+            <div style="margin-bottom:12px; padding:10px; background:${config.bg}; border:1px solid ${config.border}; border-radius:2px;">
+                <div style="font-size:9px; font-weight:bold; color:${config.border}; letter-spacing:1px; margin-bottom:6px;">${config.label}</div>
+                <div style="white-space:pre-wrap; color:${config.color}; line-height:1.5; font-family:monospace;">${text}</div>
             </div>`;
         
         chat.appendChild(div);
         chat.scrollTop = chat.scrollHeight;
     }
 })();
-</script>
-
+		</script>
   <script>
     const mermaidCodeTextarea = document.getElementById('mermaid-code');
     const insertChartButton = document.getElementById('insert-chart-button');
