@@ -438,121 +438,112 @@ body.loaded > * {
         </div>
     </div>
 </div>
-<script type="module">
-    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+  <script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-    const MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-    let engine;
-    let lastText = '';
-    const $ = id => document.getElementById(id);
+const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
+let engine;
 
-    // Toggle Menu
-    $('qwen-toggle').onclick = (e) => {
-        const box = $('qwen-sidebar');
-        box.style.display = box.style.display === 'none' ? 'block' : 'none';
-        const rect = e.target.getBoundingClientRect();
-        box.style.top = (rect.bottom + 5) + 'px';
-    };
+/* DOM ELEMENTS */
+const btn = document.getElementById('loadCoreBtn');
+const status = document.getElementById('download-status');
+const bar = document.getElementById('progress-bar');
+const percent = document.getElementById('progress-percent');
+const output = document.getElementById('output');
+const generateBtn = document.getElementById('generateButton');
+const toggle = document.getElementById('qwen-toggle');
+const sidebar = document.getElementById('qwen-sidebar');
 
-    // Load Engine Logic
-    $('qwen-load-btn').onclick = async () => {
-        const bootBtn = $('qwen-load-btn');
-        const diagnostic = $('qwen-diagnostic');
-        
-        try {
-            // Hardware Probe
-            if (!navigator.gpu) throw new Error("WebGPU Not Found.");
-            const adapter = await navigator.gpu.requestAdapter();
-            if (!adapter) throw new Error("GPU Refused Handshake.");
+/* TOGGLE SIDEBAR */
+toggle.onclick = (e) => {
+    sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+    sidebar.style.top = (e.target.getBoundingClientRect().bottom + 5) + 'px';
+};
 
-            bootBtn.disabled = true;
-            bootBtn.textContent = "SYNCING CORE...";
-            $('qwen-progress-wrap').style.display = 'block';
-            diagnostic.textContent = "⟁ INITIALIZING LOCAL INTERCEPT...";
+/* LOAD LOGIC (Your exact working flow) */
+btn.onclick = async () => {
+    try {
+        if (!navigator.gpu) throw new Error("WebGPU API not found.");
 
-            engine = await webllm.CreateMLCEngine(MODEL_ID, {
-                initProgressCallback: (report) => {
-                    const p = Math.round(report.progress * 100);
-                    $('qwen-progress-bar').style.width = p + '%';
-                    $('qwen-progress-pct').textContent = p + '%';
-                    $('qwen-progress-text').textContent = report.text.toUpperCase();
-                    
-                    if (p === 100) {
-                        $('qwen-boot-zone').style.display = 'none';
-                        $('qwen-progress-wrap').style.display = 'none';
-                        $('qwen-status').textContent = 'ACTIVE';
-                        $('qwen-status').style.color = '#ff0033';
-                        $('qwen-input').disabled = false;
-                        $('qwen-send').disabled = false;
-                        $('qwen-send').style.background = '#ff0033';
-                        $('qwen-send').style.color = '#000';
-                        diagnostic.innerHTML = "⟁ LOCAL CORE STABLE. SOFT MACHINE ONLINE.";
-                    }
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error("GPU refused handshake.");
+
+        btn.disabled = true;
+        btn.textContent = "SYNCING CORE...";
+        status.style.display = 'block';
+        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT...";
+
+        engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (report) => {
+                const p = Math.round(report.progress * 100);
+                bar.style.width = p + '%';
+                percent.textContent = p;
+                
+                if (p < 100) {
+                    output.textContent = "⟁ SYNCING: " + report.text;
+                } else {
+                    btn.style.display = 'none';
+                    output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                    generateBtn.disabled = false;
+                    generateBtn.style.background = "#ff0033";
+                    generateBtn.style.color = "#000";
+                    document.getElementById('node-status').textContent = "ACTIVE";
+                    document.getElementById('node-status').style.color = "#ff0033";
                 }
-            });
-        } catch (err) {
-            diagnostic.innerHTML = `<span style="color:#ff0033">[SIGNAL INTERRUPTED]</span><br><br>DIAGNOSTIC: ${err.message}`;
-            bootBtn.textContent = "CORE UNAVAILABLE";
-        }
-    };
-
-    // Send Logic
-    $('qwen-send').onclick = async () => {
-        const val = $('qwen-input').value.trim();
-        if (!val || !engine) return;
-
-        addMsg('user', val);
-        $('qwen-input').value = '';
-        $('qwen-send').disabled = true;
-
-        try {
-            let cur = "";
-            const chunks = await engine.chat.completions.create({
-                messages: [
-                    { role: "system", content: "You are the INK REALM Fashion Interface. Write with sensory-rich, architectural elegance. Focus on the 'sculpture' of the garment—describe the weight of fabrics (satin, chiffon, velvet), the precision of the cut (bias-cut, darts, boning), and the way the silhouette moves. Use evocative, tactile language that captures both the craftsmanship and the atmospheric mood of the runway." },
-                    { role: "user", content: val }
-                ],
-                stream: true
-            });
-
-            const div = addMsg('assistant', '...');
-            const target = div.querySelector('.txt');
-
-            for await (const chunk of chunks) {
-                cur += chunk.choices[0]?.delta.content || "";
-                target.textContent = cur;
-                $('qwen-chat-box').scrollTop = $('qwen-chat-box').scrollHeight;
             }
-            lastText = cur;
-            $('qwen-insert').style.display = 'block';
-        } catch (e) {
-            addMsg('system', 'ERR: ' + e.message);
-        } finally {
-            $('qwen-send').disabled = false;
-        }
-    };
+        });
 
-    function addMsg(role, text) {
-        const box = $('qwen-chat-box');
-        const d = document.createElement('div');
-        d.style.marginBottom = '10px';
-        d.style.borderLeft = `2px solid ${role==='user'?'#444':'#ff0033'}`;
-        d.style.paddingLeft = '8px';
-        d.innerHTML = `<div style="font-size:8px; color:#666;">${role.toUpperCase()}</div><div class="txt" style="color:#eee;">${text}</div>`;
-        box.appendChild(d);
-        box.scrollTop = box.scrollHeight;
-        return d;
+        /* GENERATION LOGIC */
+        generateBtn.onclick = async () => {
+            const promptVal = document.getElementById('prompt').value;
+            if (!promptVal) return;
+            
+            generateBtn.disabled = true;
+            generateBtn.textContent = "PROCESSING...";
+            output.textContent = ""; 
+            
+            try {
+                const messages = [
+                    { 
+                        role: "system", 
+                        content: "You are the INK REALM Fashion Interface. Write with sensory-rich, architectural elegance. Focus on the 'sculpture' of the garment—describe fabrics, precision of the cut, and the silhouette's movement. Use evocative, tactile language." 
+                    },
+                    { role: "user", content: promptVal }
+                ];
+
+                const chunks = await engine.chat.completions.create({ messages, stream: true });
+                let fullText = "";
+
+                for await (const chunk of chunks) {
+                    fullText += chunk.choices[0]?.delta?.content || "";
+                    output.textContent = fullText;
+                    output.scrollTop = output.scrollHeight;
+                }
+                
+                document.getElementById('insert-btn').style.display = 'block';
+                document.getElementById('insert-btn').onclick = () => {
+                    const editor = document.getElementById('main-editor') || document.querySelector('textarea');
+                    if (editor) {
+                        const s = editor.selectionStart;
+                        editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(editor.selectionEnd);
+                    }
+                };
+
+            } catch (genErr) {
+                output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = "Transmit";
+            }
+        };
+
+    } catch (err) {
+        output.textContent = "[LOCAL CORE UNAVAILABLE]: " + err.message;
+        btn.textContent = "CORE ERROR";
     }
-
-    $('qwen-insert').onclick = () => {
-        const ed = document.getElementById('main-editor') || document.querySelector('textarea');
-        if (ed) {
-            const s = ed.selectionStart;
-            ed.value = ed.value.slice(0, s) + lastText + ed.value.slice(ed.selectionEnd);
-        }
-        $('qwen-insert').style.display = 'none';
-    };
+};
 </script>
+
     <div class="flex items-center gap-6">
       <div class="flex items-center gap-3">
         <div class="text-right">
