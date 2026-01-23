@@ -364,7 +364,7 @@ body.loaded > * {
         <a class="flex items-center gap-3" href="#">
           <span class="text-xl font-bold">.......by inkrealm.info</span>
         </a>
-        <span class="text-xs text-gray-500">.............Powered by google stitch, JS by claude sonnet</span>
+        <span class="text-xs text-gray-500">.............Powered by google stitch</span>
       </div>
       <div class="flex items-center gap-2 bg-[#2A232E] p-1 rounded-lg">
         <select id="font-select" class="bg-transparent border-none text-white text-sm focus:ring-0 w-32">
@@ -400,7 +400,168 @@ body.loaded > * {
           <p class="text-xs text-gray-400" id="rome-time">10:45 AM</p>
         </div>
       </div>
+<!-- WordStar AI: Local Qwen Edition (Red/Black Terminal) -->
+<div id="wordstar-qwen-container" style="display: inline-block; font-family: 'Courier New', monospace; vertical-align: middle; margin-right: 15px;">
+    
+    <!-- Header Button -->
+    <button id="qwen-toggle" style="padding: 5px 10px; background: #000; color: #ff0033; border: 1px solid #ff0033; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">
+        [ QWEN_OFFLINE ]
+    </button>
+    
+    <!-- Dropdown Terminal -->
+    <div id="qwen-sidebar" style="display: none; position: absolute; width: 350px; background: #000; border: 2px solid #ff0033; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,1); z-index: 10001; margin-top: 5px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 8px;">
+            <h4 style="margin: 0; color: #ff0033; font-size: 11px; letter-spacing: 2px;">LOCAL_NODE // QWEN_0.5B</h4>
+            <span id="qwen-status" style="font-size: 9px; color: #666; border: 1px solid #333; padding: 1px 4px;">IDLE</span>
+        </div>
 
+        <!-- Initial Load Button -->
+        <div id="qwen-boot-zone">
+            <button id="qwen-load-btn" style="width: 100%; padding: 10px; background: #ff0033; color: #000; border: none; cursor: pointer; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+                Initialize Neural Link (~400MB)
+            </button>
+        </div>
+
+        <!-- Minimal Progress Bar -->
+        <div id="qwen-progress-wrap" style="display: none; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #ff0033; margin-bottom: 4px;">
+                <span id="qwen-progress-text">LOADING...</span>
+                <span id="qwen-progress-pct">0%</span>
+            </div>
+            <div style="width: 100%; height: 2px; background: #222;">
+                <div id="qwen-progress-bar" style="width: 0%; height: 100%; background: #ff0033;"></div>
+            </div>
+        </div>
+
+        <!-- Chat History -->
+        <div id="qwen-chat-box" style="height: 200px; border: 1px solid #222; padding: 10px; overflow-y: auto; margin-bottom: 10px; font-size: 12px; background: #050505; scrollbar-width: thin; scrollbar-color: #ff0033 #000;">
+            <div style="color: #444; text-align: center; margin-top: 60px; font-size: 10px;">STANDBY: ENGINE NOT LOADED</div>
+        </div>
+        
+        <textarea id="qwen-input" placeholder="INPUT COMMAND..." disabled style="width: 100%; height: 50px; padding: 8px; margin-bottom: 8px; background: #111; border: 1px solid #333; color: white; font-size: 12px; resize: none; box-sizing: border-box; font-family: monospace;"></textarea>
+        
+        <div style="display: flex; gap: 5px;">
+            <button id="qwen-send" disabled style="flex: 2; padding: 8px; background: #222; color: #444; border: 1px solid #333; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 10px;">Transmit</button>
+            <button id="qwen-insert" style="flex: 1; padding: 8px; background: #000; color: #fff; border: 1px solid #ff0033; cursor: pointer; display: none; text-transform: uppercase; font-size: 10px;">Insert</button>
+        </div>
+    </div>
+</div>
+		 <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+    window.webllm = webllm;
+</script>
+
+<script>
+(function() {
+    // We hardcode the tiny Qwen 0.5B model for ~400MB download
+    const MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+    let engine = null;
+    let lastText = '';
+    const $ = id => document.getElementById(id);
+
+    // Toggle UI
+    $('qwen-toggle').addEventListener('click', (e) => {
+        const box = $('qwen-sidebar');
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        const rect = e.target.getBoundingClientRect();
+        box.style.top = (rect.bottom + 5) + 'px';
+    });
+
+    // Boot Engine
+    $('qwen-load-btn').addEventListener('click', async () => {
+        if (!window.webllm) return;
+        
+        $('qwen-load-btn').disabled = true;
+        $('qwen-load-btn').textContent = 'BOOTING...';
+        $('qwen-progress-wrap').style.display = 'block';
+        $('qwen-chat-box').innerHTML = '';
+
+        try {
+            engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
+                initProgressCallback: (report) => {
+                    $('qwen-progress-text').textContent = report.text.toUpperCase();
+                    const p = Math.round(report.progress * 100) + '%';
+                    $('qwen-progress-pct').textContent = p;
+                    $('qwen-progress-bar').style.width = p;
+                }
+            });
+
+            $('qwen-boot-zone').style.display = 'none';
+            $('qwen-progress-wrap').style.display = 'none';
+            $('qwen-status').textContent = 'ACTIVE';
+            $('qwen-status').style.color = '#ff0033';
+            $('qwen-input').disabled = false;
+            $('qwen-send').disabled = false;
+            $('qwen-send').style.background = '#ff0033';
+            $('qwen-send').style.color = '#000';
+            addMsg('system', 'LOCAL_LINK_ESTABLISHED');
+
+        } catch (e) {
+            addMsg('system', 'BOOT_ERROR: ' + e.message);
+            $('qwen-load-btn').disabled = false;
+            $('qwen-load-btn').textContent = 'RETRY BOOT';
+        }
+    });
+
+    // Chat
+    $('qwen-send').addEventListener('click', send);
+    $('qwen-input').addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+
+    async function send() {
+        const val = $('qwen-input').value.trim();
+        if (!val || !engine) return;
+
+        addMsg('user', val);
+        $('qwen-input').value = '';
+        $('qwen-send').disabled = true;
+
+        try {
+            let cur = "";
+            const chunks = await engine.chat.completions.create({
+                messages: [{role: "user", content: val}],
+                stream: true
+            });
+
+            const div = addMsg('assistant', '...');
+            const target = div.querySelector('.txt');
+
+            for await (const chunk of chunks) {
+                cur += chunk.choices[0]?.delta.content || "";
+                target.textContent = cur;
+                $('qwen-chat-box').scrollTop = $('qwen-chat-box').scrollHeight;
+            }
+            lastText = cur;
+            $('qwen-insert').style.display = 'block';
+        } catch (e) {
+            addMsg('system', 'NODE_CRASH: ' + e.message);
+        } finally {
+            $('qwen-send').disabled = false;
+        }
+    }
+
+    function addMsg(role, text) {
+        const box = $('qwen-chat-box');
+        const d = document.createElement('div');
+        d.style.marginBottom = '10px';
+        d.style.borderLeft = `2px solid ${role==='user'?'#444':'#ff0033'}`;
+        d.style.paddingLeft = '8px';
+        d.innerHTML = `<div style="font-size:8px; color:#666;">${role.toUpperCase()}</div><div class="txt" style="color:#eee;">${text}</div>`;
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
+        return d;
+    }
+
+    $('qwen-insert').addEventListener('click', () => {
+        const ed = document.getElementById('main-editor') || document.querySelector('textarea');
+        if (ed) {
+            const s = ed.selectionStart;
+            ed.value = ed.value.slice(0, s) + lastText + ed.value.slice(ed.selectionEnd);
+        }
+        $('qwen-insert').style.display = 'none';
+    });
+})();
+</script> 
       <div class="auto-save-indicator text-sm text-green-400 flex items-center gap-2">
         <span class="material-symbols-outlined text-sm">cloud_done</span>
         <span>Auto-saved</span>
