@@ -392,6 +392,7 @@ body.loaded > * {
     </div>
 <!-- WordStar AI: Local Qwen Edition (Red/Black Terminal) -->
 <!-- WordStar AI: Local Qwen Edition (Single-Block Version) -->
+<!-- WordStar AI: Fashion Node (Clean Sync Version) -->
 <div id="fashion-node-container" style="display: inline-block; font-family: 'Courier New', monospace; vertical-align: middle; margin-right: 15px;">
     
     <button id="qwen-toggle" style="padding: 5px 10px; background: #000; color: #ff0033; border: 1px solid #ff0033; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase;">
@@ -418,51 +419,60 @@ body.loaded > * {
             <div style="font-size: 9px; color: #ff0033; margin-top: 4px; text-align: right;"><span id="progress-percent">0</span>%</div>
         </div>
 
-        <div id="output" style="height: 180px; border: 1px solid #222; padding: 10px; overflow-y: auto; margin-bottom: 10px; font-size: 11px; background: #050505; color: #eee; line-height: 1.4; white-space: pre-wrap;">OFFLINE: CORE NOT SYNCED</div>
+        <!-- This is the 'Output' element your working script uses -->
+        <div id="output" style="height: 180px; border: 1px solid #222; padding: 10px; overflow-y: auto; margin-bottom: 10px; font-size: 11px; background: #050505; color: #eee; line-height: 1.4; white-space: pre-wrap; scrollbar-width: thin; scrollbar-color: #ff0033 #000;">OFFLINE: CORE NOT SYNCED</div>
         
+        <!-- This is the 'prompt' element your working script uses -->
         <textarea id="prompt" placeholder="DESCRIBE THE SILHOUETTE..." style="width: 100%; height: 50px; padding: 8px; margin-bottom: 8px; background: #111; border: 1px solid #333; color: white; font-size: 12px; resize: none; box-sizing: border-box; font-family: monospace;"></textarea>
         
         <div style="display: flex; gap: 5px;">
+            <!-- This is the 'generateButton' element your working script uses -->
             <button id="generateButton" style="flex: 2; padding: 8px; background: #222; color: #444; border: 1px solid #333; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 10px;">Transmit</button>
             <button id="insert-btn" style="flex: 1; padding: 8px; background: #000; color: #fff; border: 1px solid #ff0033; cursor: pointer; display: none; text-transform: uppercase; font-size: 10px;">Insert</button>
         </div>
     </div>
 </div>
-  <script type="module">
+
+<script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
+// Exact model from your working version
 const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
 let engine;
 
-/* DOM ELEMENTS */
+// DOM Elements
 const btn = document.getElementById('loadCoreBtn');
 const status = document.getElementById('download-status');
 const bar = document.getElementById('progress-bar');
 const percent = document.getElementById('progress-percent');
 const output = document.getElementById('output');
 const generateBtn = document.getElementById('generateButton');
-const toggle = document.getElementById('qwen-toggle');
 const sidebar = document.getElementById('qwen-sidebar');
 
-/* TOGGLE SIDEBAR */
-toggle.onclick = (e) => {
+// UI Toggle
+document.getElementById('qwen-toggle').onclick = (e) => {
     sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
     sidebar.style.top = (e.target.getBoundingClientRect().bottom + 5) + 'px';
 };
 
-/* LOAD LOGIC (Your exact working flow) */
+// --- START OF YOUR WORKING LOGIC ---
 btn.onclick = async () => {
     try {
-        if (!navigator.gpu) throw new Error("WebGPU API not found.");
-
+        // 1. Hardware Probe
+        if (!navigator.gpu) {
+            throw new Error("WebGPU API not found.");
+        }
         const adapter = await navigator.gpu.requestAdapter();
-        if (!adapter) throw new Error("GPU refused handshake.");
+        if (!adapter) {
+            throw new Error("GPU refused handshake.");
+        }
 
         btn.disabled = true;
         btn.textContent = "SYNCING CORE...";
         status.style.display = 'block';
-        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT...";
+        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
 
+        // 2. Initialize Engine
         engine = await webllm.CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
                 const p = Math.round(report.progress * 100);
@@ -472,9 +482,9 @@ btn.onclick = async () => {
                 if (p < 100) {
                     output.textContent = "⟁ SYNCING: " + report.text;
                 } else {
+                    // Success State
                     btn.style.display = 'none';
                     output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
-                    generateBtn.disabled = false;
                     generateBtn.style.background = "#ff0033";
                     generateBtn.style.color = "#000";
                     document.getElementById('node-status').textContent = "ACTIVE";
@@ -483,10 +493,11 @@ btn.onclick = async () => {
             }
         });
 
-        /* GENERATION LOGIC */
+        // 3. Generation Logic
         generateBtn.onclick = async () => {
-            const promptVal = document.getElementById('prompt').value;
-            if (!promptVal) return;
+            const promptInput = document.getElementById('prompt');
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
             
             generateBtn.disabled = true;
             generateBtn.textContent = "PROCESSING...";
@@ -496,9 +507,9 @@ btn.onclick = async () => {
                 const messages = [
                     { 
                         role: "system", 
-                        content: "You are the INK REALM Fashion Interface. Write with sensory-rich, architectural elegance. Focus on the 'sculpture' of the garment—describe fabrics, precision of the cut, and the silhouette's movement. Use evocative, tactile language." 
+                        content: "You are the INK REALM Fashion Interface. Write with sensory-rich, architectural elegance. Describe fabrics, cuts, and silhouettes." 
                     },
-                    { role: "user", content: promptVal }
+                    { role: "user", content: prompt }
                 ];
 
                 const chunks = await engine.chat.completions.create({ messages, stream: true });
@@ -509,9 +520,11 @@ btn.onclick = async () => {
                     output.textContent = fullText;
                     output.scrollTop = output.scrollHeight;
                 }
-                
-                document.getElementById('insert-btn').style.display = 'block';
-                document.getElementById('insert-btn').onclick = () => {
+
+                // Insert logic
+                const insBtn = document.getElementById('insert-btn');
+                insBtn.style.display = 'block';
+                insBtn.onclick = () => {
                     const editor = document.getElementById('main-editor') || document.querySelector('textarea');
                     if (editor) {
                         const s = editor.selectionStart;
@@ -528,8 +541,11 @@ btn.onclick = async () => {
         };
 
     } catch (err) {
-        output.textContent = "[LOCAL CORE UNAVAILABLE]: " + err.message;
-        btn.textContent = "CORE ERROR";
+        console.warn("Local Core failed:", err.message);
+        status.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = "CORE UNAVAILABLE";
+        output.textContent = `[SIGNAL INTERRUPTED]: ${err.message}`;
     }
 };
 </script>
