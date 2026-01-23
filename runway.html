@@ -1157,8 +1157,7 @@ setTimeout(updateWordCount, 100);
         <!-- API Key Section -->
         <div style="margin-bottom: 15px;">
             <input type="password" id="wordstar-api-key" placeholder="NVIDIA API Key" style="width: 100%; padding: 10px; margin-bottom: 8px; background: #4B5563; border: 1px solid #6B7280; border-radius: 6px; color: white; font-size: 13px;" autocomplete="off">
-            <button id="wordstar-save-key" style="width: 100%; padding: 10px; background: #b91c1c; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background 0.2s;">Save Key</button>
-            <div id="wordstar-key-status" style="font-size: 12px; height: 16px; color: #D1D5DB; margin-top: 4px;"></div>
+                 <div id="wordstar-key-status" style="font-size: 12px; height: 16px; color: #D1D5DB; margin-top: 4px;"></div>
         </div>
 
         <!-- Model Selector (NVIDIA free tier) -->
@@ -1212,28 +1211,10 @@ setTimeout(updateWordCount, 100);
 })();
 </script>
 <script>
-/* WordStar AI Assistant – NVIDIA edition */
-(function () {
-  let currentApiKey = '';
+/* WordStar AI – NVIDIA – no key persistence */
+(() => {
   let lastAIResponse = '';
   const BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-
-  /* ----------  initialise  ---------- */
-  const savedKey = localStorage.getItem('wordstarNvidiaKey');
-  if (savedKey) {
-    currentApiKey = savedKey;
-    document.getElementById('wordstar-api-key').value = '••••••••' + savedKey.slice(-4);
-    document.getElementById('wordstar-key-status').innerHTML =
-      '<span style="color:#fff;">✓ Key loaded</span>';
-  }
-
-  /* ----------  tiny CSS  ---------- */
-  const style = document.createElement('style');
-  style.textContent = `
-    #wordstar-model-select option:checked { background:#4B5563 !important; color:white !important; }
-    #wordstar-model-select option:hover   { background:#6B7280 !important; color:white !important; }
-  `;
-  document.head.appendChild(style);
 
   /* ----------  UI glue  ---------- */
   const $ = id => document.getElementById(id);
@@ -1242,65 +1223,48 @@ setTimeout(updateWordCount, 100);
     box.style.display = box.style.display === 'none' ? 'block' : 'none';
   });
 
-  $('wordstar-save-key').addEventListener('click', () => {
-    const raw = $('wordstar-api-key').value.trim();
-    if (raw && !raw.startsWith('••••••••')) {
-      currentApiKey = raw;
-      localStorage.setItem('wordstarNvidiaKey', raw);
-      $('wordstar-api-key').value = '••••••••' + raw.slice(-4);
-      $('wordstar-key-status').innerHTML = '<span style="color:#10B981;">✓ Key saved</span>';
-    }
-  });
-
   $('wordstar-send-btn').addEventListener('click', sendMessage);
   $('wordstar-insert-btn').addEventListener('click', insertText);
   $('wordstar-user-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  /* ----------  chat logic  ---------- */
-async function sendMessage() {
-  const msg = $('wordstar-user-input').value.trim();
-  if (!msg || !currentApiKey) {
-    if (!currentApiKey) $('wordstar-key-status').innerHTML = '<span style="color:#EF4444;">⚠ API key required</span>';
-    return;
-  }
-  addMessage('user', msg);
-  $('wordstar-user-input').value = '';
-  const btn = $('wordstar-send-btn');
-  btn.disabled = true; btn.textContent = 'Thinking...'; btn.style.background = '#6B7280';
+  /* ----------  chat  ---------- */
+  async function sendMessage() {
+    const msg = $('wordstar-user-input').value.trim();
+    const key = $('wordstar-api-key').value.trim();
+    if (!msg || !key) {
+      $('wordstar-key-status').textContent = '⚠ API key required';
+      return;
+    }
+    addMessage('user', msg);
+    $('wordstar-user-input').value = '';
+    const btn = $('wordstar-send-btn');
+    btn.disabled = true; btn.textContent = 'Thinking…'; btn.style.background = '#6B7280';
 
-  try {
-    const model = $('wordstar-model-select').value;
-    const proxy = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
-    const res = await fetch(proxy, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${currentApiKey}`,
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: msg }],
-        temperature: 0.7,
-        max_tokens: 1000,
-        stream: false
-      })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    const json = await res.json();
-    if (json.error) throw new Error(json.error.message || 'API error');
-    lastAIResponse = json.choices[0].message.content;
-    addMessage('assistant', lastAIResponse);
-    $('wordstar-insert-btn').style.display = 'block';
-  } catch (err) {
-    console.error(err);
-    addMessage('system', 'Error: ' + err.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Send'; btn.style.background = '#b91c1c';
+    try {
+      const model = $('wordstar-model-select').value;
+      const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(BASE_URL), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: msg }], temperature: 0.7, max_tokens: 1000 })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      lastAIResponse = json.choices[0].message.content;
+      addMessage('assistant', lastAIResponse);
+      $('wordstar-insert-btn').style.display = 'block';
+    } catch (e) {
+      console.error(e);
+      addMessage('system', 'Error: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send'; btn.style.background = '#b91c1c';
+    }
   }
-}
 
   function addMessage(role, text) {
     const chat = $('wordstar-chat-history');
@@ -1310,40 +1274,23 @@ async function sendMessage() {
       assistant: { bg: '#1F2937', border: '#ef4444', label: 'AI' },
       system: { bg: '#7F1D1D', border: '#dc2626', label: 'System' }
     };
-    const c = colours[role] || colours.system;
-    div.innerHTML = `
-      <div style="margin-bottom:10px;padding:8px 10px;background:${c.bg};border-radius:6px;border-left:3px solid ${c.border};">
-        <strong style="color:#fecaca;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">${c.label}</strong>
-        <div style="color:#D1D5DB;margin-top:4px;line-height:1.4;white-space:pre-wrap;">${text}</div>
-      </div>`;
+    const c = colours[role];
+    div.innerHTML = `<div style="margin-bottom:10px;padding:8px 10px;background:${c.bg};border-radius:6px;border-left:3px solid ${c.border};">
+      <strong style="color:#fecaca;font-size:11px;">${c.label}</strong>
+      <div style="color:#D1D5DB;margin-top:4px;white-space:pre-wrap">${text}</div></div>`;
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
   }
 
   function insertText() {
-    if (!lastAIResponse) return;
     const ed = document.getElementById('main-editor');
-    if (!ed) { addMessage('system', 'Editor (#main-editor) not found.'); return; }
-    const [start, end] = [ed.selectionStart, ed.selectionEnd];
-    ed.value = ed.value.slice(0, start) + lastAIResponse + ed.value.slice(end);
-    const newPos = start + lastAIResponse.length;
-    ed.setSelectionRange(newPos, newPos);
+    if (!ed) { addMessage('system', 'Editor (#main-editor) not found'); return; }
+    const [s, e] = [ed.selectionStart, ed.selectionEnd];
+    ed.value = ed.value.slice(0, s) + lastAIResponse + ed.value.slice(e);
+    ed.setSelectionRange(s + lastAIResponse.length, s + lastAIResponse.length);
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     ed.focus();
-    const btn = $('wordstar-insert-btn');
-    const orig = btn.textContent;
-    btn.textContent = 'Inserted!'; btn.style.background = '#10B981';
-    setTimeout(() => { btn.textContent = orig; btn.style.background = '#ef4444'; }, 1500);
   }
-
-  /* ----------  button hover fluff  ---------- */
-  const hover = (el, colour) => {
-    el.addEventListener('mouseenter', () => { if (!el.disabled) el.style.background = colour; });
-    el.addEventListener('mouseleave', () => { el.style.background = ''; });
-  };
-  hover($('wordstar-send-btn'), '#dc2626');
-  hover($('wordstar-insert-btn'), '#dc2626');
-  hover($('wordstar-save-key'), '#dc2626');
 })();
 </script>
 
