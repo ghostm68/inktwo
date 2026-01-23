@@ -504,31 +504,49 @@ btn.onclick = async () => {
             output.textContent = ""; 
             
             try {
-                const messages = [
-                    { 
-                        role: "system", 
-                        content: "You are the INK REALM Fashion Interface. Write with sensory-rich, architectural elegance. Describe fabrics, cuts, and silhouettes." 
-                    },
-                    { role: "user", content: prompt }
-                ];
+                  const messages = [
+        { 
+            role: "system", 
+            content: "You are the INK REALM Fashion Interface. Write with haute couture precision. AVOID generic filler like 'sophistication' or 'beauty.' Focus on technical materiality: the grain of the fabric, the tension of the seams, and the sharp geometry of the silhouette. Be terse, luxurious, and incisive. Describe the garment as a physical object of construction." 
+        },
+        { role: "user", content: prompt }
+    ];
 
-                const chunks = await engine.chat.completions.create({ messages, stream: true });
-                let fullText = "";
+    // This starts the stream
+    const chunks = await engine.chat.completions.create({ 
+        messages, 
+        stream: true,
+        temperature: 0.6, 
+        top_p: 0.9,
+        max_tokens: 512   
+    });
 
-                for await (const chunk of chunks) {
+    let fullText = "";
+    output.textContent = ""; // Clear previous text
+
+    // This loop catches the 'drops' of text and displays them
+           for await (const chunk of chunks) {
                     fullText += chunk.choices[0]?.delta?.content || "";
                     output.textContent = fullText;
                     output.scrollTop = output.scrollHeight;
                 }
 
-                // Insert logic
+                // 2. NOW the text is finished, show the Insert button
                 const insBtn = document.getElementById('insert-btn');
-                insBtn.style.display = 'block';
+                insBtn.style.display = 'block'; // Make it visible
+                
                 insBtn.onclick = () => {
+                    // Look for your main editor (the runway fashion area)
                     const editor = document.getElementById('main-editor') || document.querySelector('textarea');
                     if (editor) {
                         const s = editor.selectionStart;
-                        editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(editor.selectionEnd);
+                        const e = editor.selectionEnd;
+                        // Splice the AI text exactly where your cursor is
+                        editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(e);
+                        
+                        // Hide the button again until the next generation
+                        insBtn.style.display = 'none';
+                        editor.focus(); 
                     }
                 };
 
