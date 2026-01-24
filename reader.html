@@ -171,7 +171,104 @@
     <div id="loading" class="text-center py-12 text-lg" style="color: var(--red);">Loading brim.txt...</div>
     <div id="content" class="text-sm leading-relaxed whitespace-pre-wrap special-elite" style="display:none;"></div>
   </div>
-<script>
+<script id="ai-script">
+    // AI-only functionality
+    const NVIDIA_MODELS = {
+        "stable": "meta/llama-3.3-70b-instruct", 
+        "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
+    };
+    let currentModel = NVIDIA_MODELS.stable;
+    let aiContext = 'current';
+
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const aiInput = document.getElementById('aiInput');
+    const askAiBtn = document.getElementById('askAiBtn');
+    const aiResponseDiv = document.getElementById('aiResponse');
+    const contextInfo = document.getElementById('contextInfo');
+
+    // Load saved API key
+    if(localStorage.getItem('brim_nvidia_key')) {
+        apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
+    }
+    
+    // Save API key on input
+    apiKeyInput.addEventListener('input', (e) => {
+        localStorage.setItem('brim_nvidia_key', e.target.value);
+    });
+
+    // AI Submit
+    askAiBtn.addEventListener('click', async () => {
+        const apiKey = apiKeyInput.value.trim();
+        const msg = aiInput.value.trim();
+        if (!apiKey || !msg) return;
+
+        askAiBtn.disabled = true;
+        askAiBtn.textContent = "TRANSMITTING...";
+        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama 3.3...</p>`;
+
+        try {
+            let systemContext = '';
+            if (aiContext === 'current') {
+                const entry = window.readerEntries.find(e => e.id === window.readerCurrentIndex);
+                if(entry) systemContext = `CONTEXT (Current Section - ${entry.title}):\n${entry.content.substring(0, 3000)}\n\n---\n`;
+            } else if (aiContext === 'all') {
+                systemContext = `CONTEXT (Outline):\n${window.readerEntries.map(e => e.title).join('\n')}\n\n---\n`;
+            }
+
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: currentModel,
+                    messages: [
+                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold." },
+                        { role: "user", content: systemContext + "\nUser Question: " + msg }
+                    ],
+                    temperature: 0.6, top_p: 1, max_tokens: 1024
+                })
+            });
+
+            if (!response.ok) {
+                if(response.status === 404) throw new Error("404 Switch");
+                throw new Error(await response.text());
+            }
+            const data = await response.json();
+            aiResponseDiv.textContent = data.choices[0].message.content;
+
+        } catch (error) {
+            if(error.message.includes("404") || error.message.includes("Switch")) {
+                currentModel = NVIDIA_MODELS.backup;
+                aiResponseDiv.innerHTML = `<p style="color:#666">Llama unavailable. Switched to Nemotron. Try again.</p>`;
+            } else {
+                aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
+            }
+        } finally {
+            askAiBtn.disabled = false;
+            askAiBtn.textContent = "TRANSMIT TO NVIDIA";
+        }
+    });
+
+    // Context button toggles
+    document.addEventListener('click', e => {
+        if (e.target.classList.contains('context-btn')) {
+            document.querySelectorAll('.context-btn').forEach(btn => {
+                btn.style.background = 'var(--dark-grey)';
+                btn.style.color = '#888';
+                btn.style.borderColor = '#333';
+            });
+            e.target.style.background = 'var(--red)';
+            e.target.style.color = 'var(--black)';
+            e.target.style.borderColor = 'var(--red)';
+            aiContext = e.target.dataset.context;
+            contextInfo.textContent = `Context: ${aiContext.toUpperCase()}`;
+        }
+    });
+</script>
+  <script id="reader-script">
+    // ==========================================
+    // READER CONFIGURATION
+    // ==========================================
     const TXT_FILE_URL = 'brim.txt';
     const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
@@ -184,22 +281,22 @@
       vignettes: /\[vignette\]|\bvignette(s)?\b/i
     };
 
-    const NVIDIA_MODELS = {
-        "stable": "meta/llama-3.3-70b-instruct", 
-        "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
-    };
-    let currentModel = NVIDIA_MODELS.stable;
-
-    let entries = [];
-    let currentIndex = 0;
+    // ==========================================
+    // STATE - exposed to AI script via window
+    // ==========================================
+    window.readerEntries = [];
+    window.readerCurrentIndex = 0;
+    
     let currentFilter = 'all';
     let searchQuery = '';
     let searchResults = [];
     let isSearching = false;
     let isIndexVisible = false;
-    let aiContext = 'current';
     let searchTimeout = null;
 
+    // ==========================================
+    // DOM ELEMENTS
+    // ==========================================
     const searchBox = document.getElementById('searchBox');
     const searchStats = document.getElementById('searchStats');
     const prevBtn = document.getElementById('prevBtn');
@@ -210,12 +307,10 @@
     const entryInfo = document.getElementById('entryInfo');
     const loadingDiv = document.getElementById('loading');
     const contentDiv = document.getElementById('content');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const aiInput = document.getElementById('aiInput');
-    const askAiBtn = document.getElementById('askAiBtn');
-    const aiResponseDiv = document.getElementById('aiResponse');
-    const contextInfo = document.getElementById('contextInfo');
 
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
     function debounce(func, delay) {
       return function(...args) {
         if (searchTimeout) clearTimeout(searchTimeout);
@@ -238,6 +333,9 @@
       }
     }
 
+    // ==========================================
+    // LOADING & PARSING
+    // ==========================================
     async function loadText() {
       try {
         const response = await fetch(TXT_FILE_URL);
@@ -248,7 +346,7 @@
         loadingDiv.style.display = 'none';
         contentDiv.style.display = 'block';
         
-        if (entries.length > 0) showEntry(entries[0].id);
+        if (window.readerEntries.length > 0) showEntry(window.readerEntries[0].id);
         
         const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
         if(allBtn) {
@@ -272,7 +370,7 @@
         if (match) {
           if (currentEntry.content.trim()) {
             detectTags(currentEntry);
-            entries.push(currentEntry);
+            window.readerEntries.push(currentEntry);
           }
           currentEntry = { id: ++entryId, title: match[0].trim(), content: line + '\n', tags: [] };
         } else {
@@ -282,7 +380,7 @@
 
       if (currentEntry.content.trim()) {
         detectTags(currentEntry);
-        entries.push(currentEntry);
+        window.readerEntries.push(currentEntry);
       }
     }
 
@@ -293,10 +391,13 @@
     }
 
     function getFilteredEntries() {
-      if (currentFilter === 'all') return entries;
-      return entries.filter(e => e.tags.includes(currentFilter));
+      if (currentFilter === 'all') return window.readerEntries;
+      return window.readerEntries.filter(e => e.tags.includes(currentFilter));
     }
 
+    // ==========================================
+    // SEARCH LOGIC
+    // ==========================================
     function parseSearchQuery(query) {
       const terms = { and: [], or: [], not: [], exact: [] };
       const exactMatches = query.match(/"([^"]+)"/g);
@@ -371,17 +472,20 @@
       return result;
     }
 
+    // ==========================================
+    // DISPLAY & NAVIGATION
+    // ==========================================
     function showEntry(entryId) {
-      if (entries.length === 0) return;
-      const entry = entries.find(e => e.id === entryId);
+      if (window.readerEntries.length === 0) return;
+      const entry = window.readerEntries.find(e => e.id === entryId);
       if (!entry) return;
 
-      currentIndex = entryId;
+      window.readerCurrentIndex = entryId;
       const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
       contentDiv.innerHTML = displayContent;
 
       const viewableItems = isSearching ? searchResults : getFilteredEntries();
-      const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
+      const itemIndex = viewableItems.findIndex(e => e.id === window.readerCurrentIndex);
       const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
       const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
       const wordCount = entry.content.split(/\s+/).length;
@@ -437,11 +541,14 @@
     function navigateEntries(direction) {
       const items = isSearching ? searchResults : getFilteredEntries();
       if (items.length === 0) return;
-      const idx = items.findIndex(e => e.id === currentIndex);
+      const idx = items.findIndex(e => e.id === window.readerCurrentIndex);
       const newIdx = direction === 'next' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
       if (newIdx !== idx) showEntry(items[newIdx].id);
     }
 
+    // ==========================================
+    // EVENT LISTENERS
+    // ==========================================
     document.addEventListener('DOMContentLoaded', loadText);
 
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
@@ -492,92 +599,33 @@
       }
     });
 
-    if(localStorage.getItem('brim_nvidia_key')) apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
-    apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
-
-    askAiBtn.addEventListener('click', async () => {
-        const apiKey = apiKeyInput.value.trim();
-        const msg = aiInput.value.trim();
-        if (!apiKey || !msg) return;
-
-        askAiBtn.disabled = true;
-        askAiBtn.textContent = "TRANSMITTING...";
-        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama 3.3...</p>`;
-
-        try {
-            let systemContext = '';
-            if (aiContext === 'current') {
-                const entry = entries.find(e => e.id === currentIndex);
-                if(entry) systemContext = `CONTEXT (Current Section - ${entry.title}):\n${entry.content.substring(0, 3000)}\n\n---\n`;
-            } else if (aiContext === 'all') {
-                systemContext = `CONTEXT (Outline):\n${entries.map(e => e.title).join('\n')}\n\n---\n`;
-            }
-
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: currentModel,
-                    messages: [
-                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold." },
-                        { role: "user", content: systemContext + "\nUser Question: " + msg }
-                    ],
-                    temperature: 0.6, top_p: 1, max_tokens: 1024
-                })
-            });
-
-            if (!response.ok) {
-                if(response.status === 404) throw new Error("404 Switch");
-                throw new Error(await response.text());
-            }
-            const data = await response.json();
-            aiResponseDiv.textContent = data.choices[0].message.content;
-
-        } catch (error) {
-            if(error.message.includes("404") || error.message.includes("Switch")) {
-                currentModel = NVIDIA_MODELS.backup;
-                aiResponseDiv.innerHTML = `<p style="color:#666">Llama unavailable. Switched to Nemotron. Try again.</p>`;
-            } else {
-                aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
-            }
-        } finally {
-            askAiBtn.disabled = false;
-            askAiBtn.textContent = "TRANSMIT TO NVIDIA";
-        }
-    });
-
-    document.addEventListener('click', e => {
-      if (e.target.classList.contains('context-btn')) {
-        document.querySelectorAll('.context-btn').forEach(btn => {
-          btn.style.background = 'var(--dark-grey)';
-          btn.style.color = '#888';
-          btn.style.borderColor = '#333';
-        });
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-        e.target.style.borderColor = 'var(--red)';
-        aiContext = e.target.dataset.context;
-        contextInfo.textContent = `Context: ${aiContext.toUpperCase()}`;
-      }
-    });
-
+    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
-      if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
+      if (document.activeElement === searchBox || 
+          document.activeElement === document.getElementById('aiInput') || 
+          document.activeElement === document.getElementById('apiKeyInput')) return;
+      
       if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
       if (e.key === 'ArrowRight') { e.preventDefault(); navigateEntries('next'); }
       if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showRandomEntry(); }
       if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
     });
     
+    // Button hover effects
     document.addEventListener('mouseover', e => {
-      if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn')) {
+      if (e.target.matches('button:not(:disabled)') && 
+          !e.target.classList.contains('context-btn') && 
+          !e.target.classList.contains('filter-btn')) {
         e.target.style.background = 'var(--red)';
         e.target.style.color = 'var(--black)';
       }
     });
+    
     document.addEventListener('mouseout', e => {
-      if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn') && e.target.id !== 'askAiBtn') {
+      if (e.target.matches('button:not(:disabled)') && 
+          !e.target.classList.contains('context-btn') && 
+          !e.target.classList.contains('filter-btn') && 
+          e.target.id !== 'askAiBtn') {
         e.target.style.background = 'transparent';
         e.target.style.color = 'var(--red)';
       }
