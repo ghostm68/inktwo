@@ -172,7 +172,9 @@
     <div id="content" class="text-sm leading-relaxed whitespace-pre-wrap special-elite" style="display:none;"></div>
   </div>
 <script id="ai-script">
-    // AI-only functionality
+    // ==========================================
+    // AI CONFIGURATION
+    // ==========================================
     const NVIDIA_MODELS = {
         "stable": "meta/llama-3.3-70b-instruct", 
         "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
@@ -186,6 +188,9 @@
     const aiResponseDiv = document.getElementById('aiResponse');
     const contextInfo = document.getElementById('contextInfo');
 
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
     // Load saved API key
     if(localStorage.getItem('brim_nvidia_key')) {
         apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
@@ -196,50 +201,98 @@
         localStorage.setItem('brim_nvidia_key', e.target.value);
     });
 
-    // AI Submit
+    // ==========================================
+    // LOGIC
+    // ==========================================
     askAiBtn.addEventListener('click', async () => {
         const apiKey = apiKeyInput.value.trim();
         const msg = aiInput.value.trim();
-        if (!apiKey || !msg) return;
+        
+        // 1. Basic Validation
+        if (!apiKey) {
+            aiResponseDiv.innerHTML = '<p class="text-red-500">Please enter an NVIDIA API Key.</p>';
+            return;
+        }
+        if (!msg) return;
 
+        // 2. Ensure Reader Data exists (links to the previous script)
+        if (!window.readerEntries || window.readerEntries.length === 0) {
+            aiResponseDiv.innerHTML = '<p class="text-red-500">Brim text not loaded yet. Please wait.</p>';
+            return;
+        }
+
+        // 3. Prepare UI
         askAiBtn.disabled = true;
         askAiBtn.textContent = "TRANSMITTING...";
-        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama 3.3...</p>`;
+        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama...</p>`;
 
         try {
+            // 4. Build Context
             let systemContext = '';
+            
             if (aiContext === 'current') {
                 const entry = window.readerEntries.find(e => e.id === window.readerCurrentIndex);
-                if(entry) systemContext = `CONTEXT (Current Section - ${entry.title}):\n${entry.content.substring(0, 3000)}\n\n---\n`;
+                if (entry) {
+                    // Limit characters to avoid token limits
+                    const cleanContent = entry.content.substring(0, 4000); 
+                    systemContext = `CONTEXT (Current Section - ${entry.title}):\n${cleanContent}\n\n---\n`;
+                }
             } else if (aiContext === 'all') {
-                systemContext = `CONTEXT (Outline):\n${window.readerEntries.map(e => e.title).join('\n')}\n\n---\n`;
+                // Just send titles for the outline view to save tokens
+                const outline = window.readerEntries.map(e => `- ${e.title} (${e.tags.join(', ')})`).join('\n');
+                systemContext = `CONTEXT (Full Manuscript Outline):\n${outline}\n\n---\n`;
             }
 
+            // 5. Send Request
+            // Note: Using corsproxy to bypass local browser restrictions.
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+            
             const response = await fetch(proxyUrl, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                headers: { 
+                    'Authorization': `Bearer ${apiKey}`, 
+                    'Content-Type': 'application/json' 
+                },
                 body: JSON.stringify({
                     model: currentModel,
                     messages: [
-                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold." },
+                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold, concise, and literary." },
                         { role: "user", content: systemContext + "\nUser Question: " + msg }
                     ],
-                    temperature: 0.6, top_p: 1, max_tokens: 1024
+                    temperature: 0.6,
+                    top_p: 1,
+                    max_tokens: 1024
                 })
             });
 
             if (!response.ok) {
-                if(response.status === 404) throw new Error("404 Switch");
-                throw new Error(await response.text());
+                // Handle errors
+                if (response.status === 404) throw new Error("404 Switch");
+                
+                // Try to parse JSON error from NVIDIA for better readability
+                const errText = await response.text();
+                try {
+                    const errJson = JSON.parse(errText);
+                    throw new Error(errJson.error?.message || errText);
+                } catch (e) {
+                    throw new Error(errText);
+                }
             }
+
             const data = await response.json();
-            aiResponseDiv.textContent = data.choices[0].message.content;
+            
+            // Format the output (simple markdown to html conversion for bolding)
+            let aiText = data.choices[0].message.content;
+            aiText = aiText.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--red)">$1</strong>');
+            aiText = aiText.replace(/\n/g, '<br>');
+            
+            aiResponseDiv.innerHTML = aiText;
 
         } catch (error) {
+            console.error(error);
             if(error.message.includes("404") || error.message.includes("Switch")) {
                 currentModel = NVIDIA_MODELS.backup;
-                aiResponseDiv.innerHTML = `<p style="color:#666">Llama unavailable. Switched to Nemotron. Try again.</p>`;
+                aiResponseDiv.innerHTML = `<p style="color:#888">Primary model unavailable. Switched to Backup (Nemotron). <br><strong>Please click Transmit again.</strong></p>`;
             } else {
                 aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
             }
@@ -249,19 +302,28 @@
         }
     });
 
-    // Context button toggles
+    // ==========================================
+    // UI HANDLERS
+    // ==========================================
     document.addEventListener('click', e => {
         if (e.target.classList.contains('context-btn')) {
+            // Reset all buttons
             document.querySelectorAll('.context-btn').forEach(btn => {
-                btn.style.background = 'var(--dark-grey)';
+                btn.style.background = 'var(--dark-grey, #333)';
                 btn.style.color = '#888';
                 btn.style.borderColor = '#333';
             });
+            
+            // Activate clicked button
             e.target.style.background = 'var(--red)';
-            e.target.style.color = 'var(--black)';
+            e.target.style.color = 'black'; // Better contrast on red
             e.target.style.borderColor = 'var(--red)';
+            
             aiContext = e.target.dataset.context;
-            contextInfo.textContent = `Context: ${aiContext.toUpperCase()}`;
+            
+            // Update Helper Text
+            const helpText = aiContext === 'current' ? 'Reading current entry' : 'Reading all titles';
+            if(contextInfo) contextInfo.textContent = `Context: ${aiContext.toUpperCase()} (${helpText})`;
         }
     });
 </script>
