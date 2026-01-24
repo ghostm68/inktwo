@@ -177,7 +177,7 @@
     // ==========================================
     const TXT_FILE_URL = 'brim.txt';
 
-    // YOUR ORIGINAL REGEX
+    // Regex for parsing entries
     const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
     const TAG_PATTERNS = {
@@ -189,7 +189,7 @@
       vignettes: /\[vignette\]|\bvignette(s)?\b/i
     };
 
-    // NVIDIA CONFIG
+    // NVIDIA AI Config
     const NVIDIA_MODELS = {
         "stable": "meta/llama-3.3-70b-instruct", 
         "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
@@ -197,7 +197,7 @@
     let currentModel = NVIDIA_MODELS.stable;
 
     // ==========================================
-    // 2. STATE
+    // 2. STATE VARIABLES
     // ==========================================
     let entries = [];
     let currentIndex = 0;
@@ -256,7 +256,7 @@
     }
 
     // ==========================================
-    // 4. PARSING & LOADING (Restored)
+    // 4. LOADING & PARSING
     // ==========================================
 
     async function loadText() {
@@ -271,7 +271,7 @@
         
         if (entries.length > 0) showEntry(entries[0].id);
         
-        // Visuals
+        // Highlight "All" filter
         const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
         if(allBtn) {
             allBtn.style.background = 'var(--red)';
@@ -306,7 +306,6 @@
         detectTags(currentEntry);
         entries.push(currentEntry);
       }
-      console.log(`Parsed ${entries.length} BRIM entries`);
     }
 
     function detectTags(entry) {
@@ -321,7 +320,7 @@
     }
 
     // ==========================================
-    // 5. SEARCH & HIGHLIGHT (Restored)
+    // 5. SEARCH LOGIC (FIXED AUTO-OPEN)
     // ==========================================
 
     function parseSearchQuery(query) {
@@ -360,17 +359,23 @@
         searchResults = [];
         updateSearchStats();
         buildIndex();
-        const filtered = getFilteredEntries();
-        if (filtered.length > 0) showEntry(filtered[0].id);
+        // Hide index if search is cleared? (Optional, staying visible is usually better)
         return;
       }
 
       isSearching = true;
       const terms = parseSearchQuery(query);
       searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
+      
       updateSearchStats();
-      buildIndex();
-      if (searchResults.length > 0) showEntry(searchResults[0].id);
+      buildIndex(); // Rebuild the list with matches
+      
+      // CRITICAL FIX: Auto-Open the list and show first result
+      if (searchResults.length > 0) {
+          showEntry(searchResults[0].id);
+          dateNav.classList.remove('hidden'); // Force list open
+          isIndexVisible = true;
+      }
     }
 
     function updateSearchStats() {
@@ -395,7 +400,7 @@
     }
 
     // ==========================================
-    // 6. DISPLAY & NAVIGATION
+    // 6. DISPLAY & NAV
     // ==========================================
 
     function showEntry(entryId) {
@@ -407,7 +412,6 @@
       const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
       contentDiv.innerHTML = displayContent;
 
-      // Determine what list we are navigating
       const viewableItems = isSearching ? searchResults : getFilteredEntries();
       const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
       const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
@@ -423,7 +427,6 @@
       nextBtn.disabled = itemIndex >= viewableItems.length - 1;
       
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      updateSearchStats();
     }
 
     function buildIndex() {
@@ -451,8 +454,6 @@
         `;
         div.addEventListener('click', () => {
           showEntry(entry.id);
-          // dateNav.classList.add('hidden'); // Optional: Uncomment to close on click
-          // isIndexVisible = false;
         });
         div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
         div.addEventListener('mouseout', () => div.style.background = 'transparent');
@@ -477,17 +478,17 @@
     }
 
     // ==========================================
-    // 7. EVENT LISTENERS
+    // 7. AI & EVENTS
     // ==========================================
 
     document.addEventListener('DOMContentLoaded', loadText);
 
-    // Search (Debounced 300ms)
+    // Search Input
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
     searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
     searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
 
-    // Navigation
+    // Nav Buttons
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
@@ -499,7 +500,7 @@
       if (isIndexVisible) buildIndex();
     });
 
-    // Filter Buttons (Restored Logic)
+    // Filter Buttons
     document.getElementById('filterBtns').addEventListener('click', e => {
       if (e.target.classList.contains('filter-btn')) {
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -519,37 +520,29 @@
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
         
-        // Logic
         currentFilter = e.target.dataset.filter;
         
-        // Reset Search (Crucial for tags to work properly)
-        searchQuery = '';
-        isSearching = false;
+        // Clear search when filtering
         searchBox.value = '';
+        isSearching = false;
+        searchQuery = '';
 
         const filtered = getFilteredEntries();
         if (filtered.length > 0) showEntry(filtered[0].id);
-        else contentDiv.innerHTML = '<p class="text-center" style="color:#666">No entries found.</p>';
+        else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
         
         buildIndex();
         
-        // Visual: Open Index
+        // Auto-Open index on filter
         dateNav.classList.remove('hidden');
         isIndexVisible = true;
       }
     });
 
-    // ==========================================
-    // 8. AI LOGIC (Isolated)
-    // ==========================================
-    
-    // API Key State
-    if(localStorage.getItem('brim_nvidia_key')) {
-        apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
-    }
+    // AI Logic
+    if(localStorage.getItem('brim_nvidia_key')) apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
     apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
 
-    // Ask AI
     askAiBtn.addEventListener('click', async () => {
         const apiKey = apiKeyInput.value.trim();
         const msg = aiInput.value.trim();
@@ -618,7 +611,7 @@
       }
     });
 
-    // Shortcuts & Hover
+    // Keys & Hover
     document.addEventListener('keydown', e => {
       if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
@@ -626,14 +619,13 @@
       if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showRandomEntry(); }
       if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
     });
-
+    
     document.addEventListener('mouseover', e => {
       if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn')) {
         e.target.style.background = 'var(--red)';
         e.target.style.color = 'var(--black)';
       }
     });
-    
     document.addEventListener('mouseout', e => {
       if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn') && e.target.id !== 'askAiBtn') {
         e.target.style.background = 'transparent';
