@@ -126,7 +126,6 @@
         <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #cc0000; color: #cc0000;" data-filter="passages">Passages</button>
         <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff3333; color: #ff3333;" data-filter="sections">Sections</button>
         <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff6666; color: #ff6666;" data-filter="sketches">Sketches</button>
-        <button class="filter-btn bg-transparent border py-1 px-3 text-xs transition-colors duration-300" style="border-color: #ff9999; color: #ff9999;" data-filter="vignettes">Vignettes</button>
       </div>
 
       <div id="dateNav" class="mt-4 max-h-80 overflow-y-auto border p-2 transition-all duration-300 hidden custom-scrollbar" style="border-color: #222;"></div>
@@ -151,7 +150,7 @@
             <button class="context-btn border py-1 px-3 text-xs transition-colors duration-300" style="background: var(--dark-grey); border-color: #333; color: #888;" data-context="all">All BRIMs</button>
             <button class="context-btn border py-1 px-3 text-xs transition-colors duration-300" style="background: var(--dark-grey); border-color: #333; color: #888;" data-context="none">No Context</button>
           </div>
-          <p class="text-xs mt-1" id="contextInfo" style="color: #555;">AI will have access to the BRIM you're currently reading</p>
+          <p class="text-xs mt-1" id="contextInfo" style="color: #555;">AI has access to current text.</p>
         </div>
         
         <div class="mb-4">
@@ -279,6 +278,7 @@
             allBtn.style.color = 'var(--black)';
             allBtn.style.borderColor = 'var(--red)';
         }
+        buildIndex();
       } catch (error) {
         loadingDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
       }
@@ -306,7 +306,6 @@
         detectTags(currentEntry);
         entries.push(currentEntry);
       }
-      console.log(`Parsed ${entries.length} BRIM entries`);
     }
 
     function detectTags(entry) {
@@ -321,7 +320,7 @@
     }
 
     // ==========================================
-    // 5. SEARCH LOGIC (FIXED)
+    // 5. SEARCH LOGIC (FIXED AUTO-OPEN)
     // ==========================================
 
     function parseSearchQuery(query) {
@@ -353,6 +352,41 @@
       return true;
     }
 
+    function performSearch(query) {
+      searchQuery = query;
+      if (!query.trim()) {
+        isSearching = false;
+        searchResults = [];
+        updateSearchStats();
+        buildIndex();
+        // Hide index if search is cleared? (Optional, staying visible is usually better)
+        return;
+      }
+
+      isSearching = true;
+      const terms = parseSearchQuery(query);
+      searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
+      
+      updateSearchStats();
+      buildIndex(); // Rebuild the list with matches
+      
+      // CRITICAL FIX: Auto-Open the list and show first result
+      if (searchResults.length > 0) {
+          showEntry(searchResults[0].id);
+          dateNav.classList.remove('hidden'); // Force list open
+          isIndexVisible = true;
+      }
+    }
+
+    function updateSearchStats() {
+      if (isSearching) {
+        searchStats.textContent = `${searchResults.length} matches`;
+      } else {
+        const filtered = getFilteredEntries();
+        searchStats.textContent = currentFilter !== 'all' ? `${filtered.length} entries tagged '${currentFilter}'` : '';
+      }
+    }
+
     function highlightText(text, query) {
       if (!query.trim()) return text;
       const terms = parseSearchQuery(query);
@@ -365,57 +399,14 @@
       return result;
     }
 
-    function updateSearchStats() {
-      if (isSearching) {
-        searchStats.textContent = `${searchResults.length} matches`;
-      } else {
-        const filtered = getFilteredEntries();
-        searchStats.textContent = currentFilter !== 'all' ? `${filtered.length} entries tagged '${currentFilter}'` : '';
-      }
-    }
-
-    function performSearch(query) {
-      searchQuery = query;
-      if (!query.trim()) {
-        isSearching = false;
-        searchResults = [];
-        updateSearchStats();
-        buildIndex();
-        const filtered = getFilteredEntries();
-        if (filtered.length > 0) showEntry(filtered[0].id);
-        return;
-      }
-
-      isSearching = true;
-      const terms = parseSearchQuery(query);
-      searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
-      updateSearchStats();
-      buildIndex();
-      if (searchResults.length > 0) {
-        showEntry(searchResults[0].id);
-        // Auto-show the index when searching
-        dateNav.classList.remove('hidden');
-        isIndexVisible = true;
-      }
-    }
-
     // ==========================================
-    // 6. DISPLAY & NAV (FIXED)
+    // 6. DISPLAY & NAV
     // ==========================================
 
     function showEntry(entryId) {
-      if (entries.length === 0) {
-        contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No content loaded.</p>';
-        entryInfo.textContent = '';
-        return;
-      }
-
+      if (entries.length === 0) return;
       const entry = entries.find(e => e.id === entryId);
-      if (!entry) {
-        contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No matching entry found.</p>';
-        entryInfo.textContent = '';
-        return;
-      }
+      if (!entry) return;
 
       currentIndex = entryId;
       const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
@@ -434,8 +425,8 @@
 
       prevBtn.disabled = itemIndex <= 0;
       nextBtn.disabled = itemIndex >= viewableItems.length - 1;
+      
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      updateSearchStats();
     }
 
     function buildIndex() {
@@ -451,7 +442,6 @@
         const div = document.createElement('div');
         div.className = 'group block p-2 cursor-pointer border-b last:border-b-0 transition-colors duration-200';
         div.style.borderColor = '#111';
-        div.setAttribute('data-id', entry.id);
         
         const preview = entry.content.replace(/\n/g, ' ').substring(0, 100).trim();
         div.innerHTML = `
@@ -464,16 +454,9 @@
         `;
         div.addEventListener('click', () => {
           showEntry(entry.id);
-          // Keep the index open after clicking (uncomment next line if you want to hide it)
-          // dateNav.classList.add('hidden');
-          // isIndexVisible = false;
         });
-        div.addEventListener('mouseover', () => {
-          div.style.background = '#0a0a0a';
-        });
-        div.addEventListener('mouseout', () => {
-          div.style.background = 'transparent';
-        });
+        div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
+        div.addEventListener('mouseout', () => div.style.background = 'transparent');
         dateNav.appendChild(div);
       });
     }
@@ -495,7 +478,7 @@
     }
 
     // ==========================================
-    // 7. AI & EVENTS (WITH IMPROVEMENTS)
+    // 7. AI & EVENTS
     // ==========================================
 
     document.addEventListener('DOMContentLoaded', loadText);
@@ -504,9 +487,6 @@
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
     searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
     searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
-    
-    aiInput.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
-    aiInput.addEventListener('blur', e => e.target.style.borderColor = '#222');
 
     // Nav Buttons
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
@@ -520,10 +500,9 @@
       if (isIndexVisible) buildIndex();
     });
 
-    // Filter Buttons (FIXED)
+    // Filter Buttons
     document.getElementById('filterBtns').addEventListener('click', e => {
       if (e.target.classList.contains('filter-btn')) {
-        // Reset all buttons
         document.querySelectorAll('.filter-btn').forEach(btn => {
           btn.style.background = 'transparent';
           const tag = btn.dataset.filter;
@@ -537,32 +516,24 @@
             btn.style.color = colors[1].replace('text-', '');
           }
         });
-        
-        // Highlight clicked button
         e.target.style.background = 'var(--red)';
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
         
-        // Update filter
         currentFilter = e.target.dataset.filter;
         
-        // Clear search when filtering? Keep search if we're searching
-        if (!isSearching) {
-          searchBox.value = '';
-          searchQuery = '';
-        }
+        // Clear search when filtering
+        searchBox.value = '';
+        isSearching = false;
+        searchQuery = '';
+
+        const filtered = getFilteredEntries();
+        if (filtered.length > 0) showEntry(filtered[0].id);
+        else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
         
-        // Update view based on search state
-        if (isSearching) {
-          performSearch(searchQuery); // Re-filter search results
-        } else {
-          const filtered = getFilteredEntries();
-          if (filtered.length > 0) showEntry(filtered[0].id);
-          else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
-        }
-        
-        // Always rebuild index and show it
         buildIndex();
+        
+        // Auto-Open index on filter
         dateNav.classList.remove('hidden');
         isIndexVisible = true;
       }
@@ -571,23 +542,6 @@
     // AI Logic
     if(localStorage.getItem('brim_nvidia_key')) apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
     apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
-
-    function buildAIPrompt(userMessage) {
-      let systemContext = '';
-      if (aiContext === 'current' && currentIndex !== -1) {
-        const entry = entries.find(e => e.id === currentIndex);
-        if (entry) {
-          const preview = entry.content.substring(0, 3000);
-          const truncated = entry.content.length > 3000 ? '... [truncated]' : '';
-          systemContext = `You are helping edit a work-in-progress manuscript called BRIM. Here is the current section:\n\nTitle: ${entry.title}\n\nContent:\n${preview}${truncated}\n\n---\n\n`;
-        }
-      } else if (aiContext === 'all') {
-        const list = entries.map(e => `- ${e.title}`).join('\n');
-        const totalWords = entries.reduce((sum, e) => sum + e.content.split(/\s+/).length, 0);
-        systemContext = `You are helping edit a work-in-progress manuscript called BRIM with ${entries.length} sections and approximately ${totalWords} words.\n\nSections:\n${list}\n\n---\n\n`;
-      }
-      return systemContext + userMessage;
-    }
 
     askAiBtn.addEventListener('click', async () => {
         const apiKey = apiKeyInput.value.trim();
@@ -599,8 +553,14 @@
         aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama 3.3...</p>`;
 
         try {
-            const prompt = buildAIPrompt(msg);
-            
+            let systemContext = '';
+            if (aiContext === 'current') {
+                const entry = entries.find(e => e.id === currentIndex);
+                if(entry) systemContext = `CONTEXT (Current Section - ${entry.title}):\n${entry.content.substring(0, 3000)}\n\n---\n`;
+            } else if (aiContext === 'all') {
+                systemContext = `CONTEXT (Outline):\n${entries.map(e => e.title).join('\n')}\n\n---\n`;
+            }
+
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
             const response = await fetch(proxyUrl, {
                 method: 'POST',
@@ -609,7 +569,7 @@
                     model: currentModel,
                     messages: [
                         { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold." },
-                        { role: "user", content: prompt }
+                        { role: "user", content: systemContext + "\nUser Question: " + msg }
                     ],
                     temperature: 0.6, top_p: 1, max_tokens: 1024
                 })
@@ -632,7 +592,6 @@
         } finally {
             askAiBtn.disabled = false;
             askAiBtn.textContent = "TRANSMIT TO NVIDIA";
-            aiInput.value = ''; // Clear input after sending
         }
     });
 
@@ -648,12 +607,7 @@
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
         aiContext = e.target.dataset.context;
-        const descriptions = {
-          current: 'AI will have access to the BRIM you\'re currently reading',
-          all: 'AI will have an overview of all BRIM sections',
-          none: 'AI will respond without specific context'
-        };
-        contextInfo.textContent = descriptions[aiContext] || 'Context: current';
+        contextInfo.textContent = `Context: ${aiContext.toUpperCase()}`;
       }
     });
 
