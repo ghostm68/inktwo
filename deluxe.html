@@ -10,10 +10,21 @@
 <link rel="shortcut icon" href="./Images/favicon.ico" />
 
 <!-- SCRIPTS -->
-<script src="https://js.puter.com/v2/"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+<!-- TRANSFORMERS.JS FOR LOCAL SD -->
+<script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+    
+    // Allow local models and disable cache limits for large models
+    env.allowLocalModels = true;
+    env.useBrowserCache = true;
+    
+    // Make pipeline available globally for the main script
+    window.transformersPipeline = pipeline;
+    window.transformersEnv = env;
+</script>
 <!-- STANDARD FONTS (Google/Adobe/Icons) -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
@@ -99,97 +110,94 @@ body { font-family: 'Noto Sans', sans-serif; background-color: #1a1a1a; color: #
 /* Important: Force the editor to use the selected font */
 #editor * { font-family: inherit !important; }
 #editor { font-family: 'SovietProgram', monospace; }
+/* EDITOR RESET */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Noto Sans', sans-serif; background-color: #1a1a1a; color: #e0e0e0; overflow: hidden; }
 
-/* Scrollbar */
+#editor * { font-family: inherit !important; }
+#editor { font-family: 'SovietProgram', monospace; }
+
 ::-webkit-scrollbar { width: 12px; }
 ::-webkit-scrollbar-track { background: #2a2a2a; }
 ::-webkit-scrollbar-thumb { background: #666; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #888; }
 
 /* CRT Effect */
 #crt-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.15; }
-.scanline { width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)); background-size: 100% 4px; position: absolute; pointer-events: none; animation: scanline 10s linear infinite; }
+.scanline { width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)); background-size: 100% 4px; animation: scanline 10s linear infinite; }
 @keyframes scanline { 0% { transform: translateY(0); } 100% { transform: translateY(100%); } }
-#crt-overlay::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.3) 100%); pointer-events: none; }
 
-/* Main container */
 #editor-wrapper { display: flex; flex-direction: column; height: 100dvh; width: 100vw; }
 
 /* Toolbar */
 #toolbar { background-color: #2a2a2a; border-bottom: 2px solid #ff0000; padding: 12px 15px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .toolbar-group { display: flex; gap: 4px; align-items: center; padding-right: 8px; border-right: 1px solid #444; }
 .toolbar-group:last-child { border-right: none; }
-#toolbar select { background-color: #333; color: #e0e0e0; border: 1px solid #555; padding: 6px 10px; border-radius: 4px; font-size: 13px; cursor: pointer; }
-#toolbar input[type="number"] { width: 60px; background-color: #333; color: #e0e0e0; border: 1px solid #555; padding: 6px 8px; border-radius: 4px; font-size: 13px; }
-#toolbar input[type="color"] { width: 40px; height: 32px; background-color: #333; border: 1px solid #555; border-radius: 4px; cursor: pointer; }
-#toolbar button { background-color: #333; color: #e0e0e0; border: 1px solid #555; padding: 6px 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+#toolbar select, #toolbar input, #toolbar button { background-color: #333; color: #e0e0e0; border: 1px solid #555; padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+#toolbar button { cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 #toolbar button:hover { background-color: #444; border-color: #666; }
-#toolbar button:active { background-color: #555; }
 #toolbar button .material-symbols-outlined { font-size: 20px; }
 
-/* Editor area */
+/* Editor */
 #editor-container { flex: 1; overflow: hidden; display: flex; justify-content: center; background-color: #1a1a1a; padding: 20px; }
 #editor { width: 100%; max-width: 1200px; height: 100%; background-color: #222; background-image: url('https://raw.githubusercontent.com/ghostm68/pantheon/main/deluxe12.gif'); background-size: cover; background-attachment: fixed; color: #e0e0e0; border: 2px solid #ff0000; padding: 30px; font-family: 'SovietProgram', monospace; font-size: 16px; line-height: 1.6; overflow-y: auto; outline: none; box-shadow: 0 0 20px rgba(255, 0, 0, 0.3); }
-
 #editor.full-width { max-width: 100%; }
-#editor:focus { border-color: #ff3333; box-shadow: 0 0 30px rgba(255, 51, 51, 0.5); }
 
 /* Status bar */
 #status-bar { background-color: #2a2a2a; border-top: 2px solid #ff0000; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888; }
 #quantum-status { font-style: italic; }
 #word-count { font-weight: bold; color: #ff0000; }
 
-/* Image upload helper */
-.image-block { display: inline-block; max-width: 100%; margin: 10px 0; }
-.image-block img { max-width: 100%; height: auto; border: 1px solid #555; }
+/* Image blocks */
+.image-block { display: inline-block; max-width: 100%; margin: 10px 0; position: relative; }
+.image-block img { max-width: 100%; height: auto; border: 2px solid #ff0000; box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
 
-/* Code block styling */
-.code-block { background-color: #1a1a1a; border: 1px solid #ff0000; border-radius: 4px; padding: 15px; margin: 10px 0; font-family: 'Ac437 IBM MDA', monospace; color: #00ff00; overflow-x: auto; }
+/* Progress bar for generation */
+.generation-progress { width: 100%; height: 4px; background: #333; margin-top: 10px; border-radius: 2px; overflow: hidden; }
+.generation-progress-bar { height: 100%; background: linear-gradient(90deg, #ff0000, #ff6600); width: 0%; transition: width 0.3s; }
 
-/* Hidden file input */
-#fileInput { display: none; }
+/* Model loading indicator */
+#model-status { position: fixed; top: 60px; right: 20px; background: #2a2a2a; border: 2px solid #ff0000; padding: 15px; border-radius: 4px; z-index: 10000; display: none; max-width: 300px; }
+#model-status.active { display: block; }
+#model-status .progress-bar { width: 100%; height: 8px; background: #333; margin-top: 10px; border-radius: 4px; overflow: hidden; }
+#model-status .progress-fill { height: 100%; background: #ff0000; width: 0%; transition: width 0.5s; }
 
-/* Color picker popup */
-#colorPicker { display: none; position: absolute; background-color: #333; border: 2px solid #ff0000; padding: 10px; border-radius: 4px; z-index: 1000; }
+/* Code blocks */
+.code-block { background-color: #1a1a1a; border: 1px solid #ff0000; border-radius: 4px; padding: 15px; margin: 10px 0; font-family: monospace; color: #00ff00; overflow-x: auto; }
 
-/* Bold/Italic Safety Fixes */
-strong, b { font-weight: bold; }
-em, i { font-style: italic; }
-#editor b, #editor strong, #editor i, #editor em, #editor u, #editor s { color: inherit; }
-
-/* ORB CONTAINER */
+/* Orb */
 .orb-container { display: inline-block; vertical-align: middle; margin-right: 15px; width: 50px; height: 50px; position: relative; }
-.glitch-orb { width: 100%; height: 100%; fill: none; stroke-width: 3; overflow: visible; }
+.glitch-orb { width: 100%; height: 100%; fill: none; stroke-width: 3; }
 .orb-circle { stroke: #ff0033; }
 .orb-triangle { stroke: #ffffff; }
-.orb-container svg { animation: slow-spin 10s linear infinite; filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4)); transition: all 0.2s ease; }
-.orb-container:hover svg { animation: glitch-shake 0.3s cubic-bezier(.25, .46, .45, .94) both infinite; filter: drop-shadow(2px 2px 0px rgba(255, 255, 255, 0.5)) drop-shadow(-2px -2px 0px rgba(255, 0, 51, 0.8)); }
-.orb-container:hover .orb-triangle { fill: rgba(255, 255, 255, 0.1); }
+.orb-container svg { animation: slow-spin 10s linear infinite; filter: drop-shadow(0 0 5px rgba(255, 0, 51, 0.4)); }
 @keyframes slow-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@keyframes glitch-shake { 0% { transform: translate(0) rotate(0deg); } 20% { transform: translate(-2px, 2px) rotate(-5deg); } 40% { transform: translate(-2px, -2px) rotate(5deg); } 60% { transform: translate(2px, 2px) rotate(-5deg); } 80% { transform: translate(2px, -2px) rotate(5deg); } 100% { transform: translate(0) rotate(0deg); } }
-</style>
 
+#fileInput { display: none; }
+</style>
 </head>
 <body>
 
-<!-- CRT Overlay -->
-<div id="crt-overlay">
-  <div class="scanline"></div>
+<div id="crt-overlay"><div class="scanline"></div></div>
+
+<!-- Model Loading Status -->
+<div id="model-status">
+    <div id="model-status-text">Initializing local AI...</div>
+    <div class="progress-bar"><div class="progress-fill" id="model-progress"></div></div>
+    <div id="model-status-sub" style="font-size: 11px; margin-top: 5px; color: #888;"></div>
 </div>
 
-<!-- Editor Wrapper -->
 <div id="editor-wrapper">
-    
-    <!-- Toolbar -->
     <div id="toolbar">
-		<div class="orb-container">
+        <div class="orb-container">
             <svg class="glitch-orb" viewBox="0 0 100 100">
                 <circle class="orb-circle" cx="50" cy="50" r="45" />
                 <polygon class="orb-triangle" points="50,25 78,75 22,75" />
             </svg>
         </div>
- <div class="toolbar-group">
-    <select id="fontSelector">
+        
+        <div class="toolbar-group">
+            <select id="fontSelector">
+        <select id="fontSelector">
         <option value="'SovietProgram', monospace">Soviet Program</option>
         <option value="'SovietProgram Thin', monospace">Soviet Program Thin</option>
         <option value="'SovietProgram Light', monospace">Soviet Program Light</option>
@@ -281,106 +289,72 @@ em, i { font-style: italic; }
         <!-- ANCIENT -->
         <option value="'UnifrakturMaguntia', cursive">Unifraktur (Dark Gothic)</option>
     </select>
-    <input type="number" id="fontSize" min="8" max="48" value="16">
-</div>
-        <!-- Text formatting -->
-        <div class="toolbar-group">
-            <button id="boldButton" title="Bold (Ctrl+B)"><span class="material-symbols-outlined">format_bold</span></button>
-            <button id="italicButton" title="Italic (Ctrl+I)"><span class="material-symbols-outlined">format_italic</span></button>
-            <button id="underlineButton" title="Underline (Ctrl+U)"><span class="material-symbols-outlined">format_underlined</span></button>
-            <button id="strikeButton" title="Strikethrough"><span class="material-symbols-outlined">strikethrough_s</span></button>
+            <input type="number" id="fontSize" min="8" max="48" value="16">
         </div>
 
-        <!-- Alignment -->
         <div class="toolbar-group">
-            <button id="alignLeft" title="Align Left"><span class="material-symbols-outlined">format_align_left</span></button>
-            <button id="alignCenter" title="Align Center"><span class="material-symbols-outlined">format_align_center</span></button>
-            <button id="alignRight" title="Align Right"><span class="material-symbols-outlined">format_align_right</span></button>
-            <button id="alignJustify" title="Justify"><span class="material-symbols-outlined">format_align_justify</span></button>
+            <button id="boldButton" title="Bold"><span class="material-symbols-outlined">format_bold</span></button>
+            <button id="italicButton" title="Italic"><span class="material-symbols-outlined">format_italic</span></button>
+            <button id="underlineButton" title="Underline"><span class="material-symbols-outlined">format_underlined</span></button>
         </div>
 
-        <!-- Undo/Redo -->
         <div class="toolbar-group">
-            <button id="undoButton" title="Undo (Ctrl+Z)"><span class="material-symbols-outlined">undo</span></button>
-            <button id="redoButton" title="Redo (Ctrl+Y)"><span class="material-symbols-outlined">redo</span></button>
+            <button id="alignLeft"><span class="material-symbols-outlined">format_align_left</span></button>
+            <button id="alignCenter"><span class="material-symbols-outlined">format_align_center</span></button>
+            <button id="alignRight"><span class="material-symbols-outlined">format_align_right</span></button>
         </div>
 
-        <!-- Blocks -->
         <div class="toolbar-group">
-            <button id="addTextBlock" title="Add Text Block"><span class="material-symbols-outlined">text_fields</span></button>
-            <button id="addCodeBlock" title="Add Code Block"><span class="material-symbols-outlined">code</span></button>
-            <button id="uploadButton" title="Upload Image"><span class="material-symbols-outlined">upload</span></button>
+            <button id="undoButton"><span class="material-symbols-outlined">undo</span></button>
+            <button id="redoButton"><span class="material-symbols-outlined">redo</span></button>
         </div>
 
-        <!-- AI Image Generation -->
         <div class="toolbar-group">
-    <select id="aiModelSelector" title="AI Image Model">
-        <option value="flux" selected>FLUX.1 (Fast & Quality)</option>
-        <option value="flux-realism">FLUX Realism</option>
-        <option value="flux-anime">FLUX Anime</option>
-        <option value="flux-3d">FLUX 3D</option>
-        <option value="turbo">SD Turbo (Fast)</option>
-        <option value="dreamshaper">DreamShaper</option>
-        <option value="deliberate">Deliberate</option>
-    </select>
-    <button id="generateImage" title="Generate AI Image from Selected Text" style="background-color: #ff0000; border-color: #ff0000;"><span class="material-symbols-outlined">auto_awesome</span></button>
-</div>
-
-        <!-- Color -->
-        <div class="toolbar-group">
-            <button id="colorButton" title="Text Color"><span class="material-symbols-outlined">palette</span></button>
-            <input type="color" id="colorPicker" value="#e0e0e0">
+            <button id="addCodeBlock"><span class="material-symbols-outlined">code</span></button>
+            <button id="uploadButton"><span class="material-symbols-outlined">upload</span></button>
         </div>
 
-        <!-- Width toggle -->
+        <!-- LOCAL AI IMAGE GENERATION -->
         <div class="toolbar-group">
-            <button id="toggleWidth" title="Toggle Width"><span class="material-symbols-outlined">open_in_full</span></button>
+            <select id="aiModelSelector" title="Local AI Model">
+                <option value="Xenova/stable-diffusion-turbo" selected>SD Turbo (Fastest)</option>
+                <option value="Xenova/stable-diffusion-v1-5">SD v1.5 (Quality)</option>
+                <option value="Xenova/stable-diffusion-2-1">SD 2.1 (Balanced)</option>
+                <option value="Xenova/sdxl-turbo">SDXL Turbo (High Res Fast)</option>
+            </select>
+            <button id="generateImage" title="Generate AI Image Locally" style="background-color: #ff0000; border-color: #ff0000;">
+                <span class="material-symbols-outlined">auto_awesome</span>
+            </button>
+            <button id="loadModelBtn" title="Pre-load Model" style="background-color: #333;">
+                <span class="material-symbols-outlined">download</span>
+            </button>
         </div>
 
-        <!-- Copy -->
         <div class="toolbar-group">
-            <button id="copySelectedBlocks" title="Copy Text"><span class="material-symbols-outlined">content_copy</span></button>
+            <button id="toggleWidth"><span class="material-symbols-outlined">open_in_full</span></button>
+            <button id="copySelectedBlocks"><span class="material-symbols-outlined">content_copy</span></button>
         </div>
     </div>
 
-    <!-- Editor -->
     <div id="editor-container">
         <div id="editor" contenteditable="true" spellcheck="true">
             <p style="color: #888; font-style: italic;">
-                Welcome to INK REALM Word Processor<br><br>
+                Welcome to INK REALM DELUXE with Local AI<br><br>
                 
-                <strong>Getting Started:</strong><br>
-                • Select your favorite retro IBM font from the toolbar<br>
-                • Use formatting buttons for Bold, Italic, Underline, Strikethrough<br>
-                • Align your text: Left, Center, Right, or Justify<br><br>
+                <strong>🧠 LOCAL AI IMAGE GENERATION:</strong><br>
+                • Select text describing the image you want<br>
+                • Choose model: SD Turbo (fastest) or SDXL Turbo (higher quality)<br>
+                • Click the ✨ button to generate - runs entirely in your browser!<br>
+                • First generation downloads ~1-2GB model (cached for future use)<br>
+                • No API keys, no servers, completely private<br><br>
                 
-                <strong>AI Image Generation:</strong><br>
-                • Type a description of the image you want<br>
-                • Select that text with your cursor<br>
-                • Choose an AI model from the dropdown (FLUX, DALL-E, Imagen, etc.)<br>
-                • Click the sparkle (✨) button to generate an AI image<br>
-                • The image will appear in your document<br><br>
-                
-                <strong>Adding Content:</strong><br>
-                • Upload images from your computer<br>
-                • Add code blocks for programming snippets<br>
-                • Change text color with the palette button<br><br>
-                
-                <strong>Saving & Export:</strong><br>
-                • Save - Auto-saves to your browser for recovery<br>
-                • Download TXT - Plain text file<br>
-                • Download PDF - Formatted document<br><br>
-                
-                <strong>Keyboard Shortcuts:</strong><br>
-                • Ctrl+B = Bold | Ctrl+I = Italic | Ctrl+U = Underline<br>
-                • Ctrl+Z = Undo | Ctrl+Y = Redo | Ctrl+S = Save<br><br>
+                <strong>Pre-load Model:</strong> Click download button to cache model before generating<br><br>
                 
                 Start typing to replace this text...
             </p>
         </div>
     </div>
 
-    <!-- Status Bar -->
     <div id="status-bar">
         <div id="quantum-status">Quantum circuit: Ready</div>
         <div id="word-count">0 words</div>
@@ -390,238 +364,232 @@ em, i { font-style: italic; }
             <button id="downloadPdf" style="background: #777; border: none; padding: 6px 15px; border-radius: 4px; color: white; cursor: pointer;">Download PDF</button>
         </div>
     </div>
-
 </div>
 
-<!-- Hidden file input -->
 <input type="file" id="fileInput" accept="image/*">
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const editor = document.getElementById('editor');
-    const fontSelector = document.getElementById('fontSelector');
-    const fontSize = document.getElementById('fontSize');
-    const boldButton = document.getElementById('boldButton');
-    const italicButton = document.getElementById('italicButton');
-    const underlineButton = document.getElementById('underlineButton');
-    const strikeButton = document.getElementById('strikeButton');
-    const alignLeft = document.getElementById('alignLeft');
-    const alignCenter = document.getElementById('alignCenter');
-    const alignRight = document.getElementById('alignRight');
-    const alignJustify = document.getElementById('alignJustify');
-    const undoButton = document.getElementById('undoButton');
-    const redoButton = document.getElementById('redoButton');
-    const addTextBlock = document.getElementById('addTextBlock');
-    const addCodeBlock = document.getElementById('addCodeBlock');
-    const uploadButton = document.getElementById('uploadButton');
-    const colorButton = document.getElementById('colorButton');
-    const colorPicker = document.getElementById('colorPicker');
-    const toggleWidth = document.getElementById('toggleWidth');
-    const copySelectedBlocks = document.getElementById('copySelectedBlocks');
-    const saveButton = document.getElementById('saveButton');
-    const downloadPdf = document.getElementById('downloadPdf');
-    const downloadTxt = document.getElementById('downloadTxt');
-    const quantumStatus = document.getElementById('quantum-status');
-    const wordCount = document.getElementById('word-count');
-    const fileInput = document.getElementById('fileInput');
-    const generateImage = document.getElementById('generateImage');
-    const aiModelSelector = document.getElementById('aiModelSelector');
-    const aiQualitySelector = document.getElementById('aiQualitySelector');
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
-    // Show/hide quality selector based on model
-    aiModelSelector.addEventListener('change', () => {
-        const model = aiModelSelector.value;
+// Configure environment
+env.allowLocalModels = true;
+env.useBrowserCache = true;
+env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
+
+// Global state
+let currentGenerator = null;
+let currentModel = null;
+let isGenerating = false;
+
+// DOM elements
+const editor = document.getElementById('editor');
+const fontSelector = document.getElementById('fontSelector');
+const fontSize = document.getElementById('fontSize');
+const quantumStatus = document.getElementById('quantum-status');
+const wordCount = document.getElementById('word-count');
+const modelStatus = document.getElementById('model-status');
+const modelStatusText = document.getElementById('model-status-text');
+const modelStatusSub = document.getElementById('model-status-sub');
+const modelProgress = document.getElementById('model-progress');
+const aiModelSelector = document.getElementById('aiModelSelector');
+
+// Show model loading status
+function showModelStatus(text, subtext = '', progress = 0) {
+    modelStatus.classList.add('active');
+    modelStatusText.textContent = text;
+    modelStatusSub.textContent = subtext;
+    modelProgress.style.width = progress + '%';
+}
+
+function hideModelStatus() {
+    setTimeout(() => {
+        modelStatus.classList.remove('active');
+    }, 1000);
+}
+
+// Initialize or get pipeline
+async function getGenerator(modelName, progressCallback = null) {
+    if (currentGenerator && currentModel === modelName) {
+        return currentGenerator;
+    }
+    
+    showModelStatus('Loading AI model...', 'Downloading weights (1-2GB)...', 0);
+    
+    try {
+        const generator = await pipeline('text-to-image', modelName, {
+            dtype: 'fp16',
+            device: 'webgpu',
+            progress_callback: (progress) => {
+                if (progressCallback) progressCallback(progress);
+                const percent = Math.round(progress.progress * 100);
+                showModelStatus(
+                    'Loading AI model...', 
+                    `Downloading: ${progress.file || 'weights'}...`, 
+                    percent
+                );
+            }
+        });
         
-        // Models that support quality settings
-        if (model === 'gpt-image-1' || model === 'gpt-image-1-mini') {
-            aiQualitySelector.style.display = 'inline-block';
-            aiQualitySelector.innerHTML = `
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-            `;
-        } else if (model === 'dall-e-3') {
-            aiQualitySelector.style.display = 'inline-block';
-            aiQualitySelector.innerHTML = `
-                <option value="standard">Standard</option>
-                <option value="hd">HD</option>
-            `;
-        } else {
-            aiQualitySelector.style.display = 'none';
-        }
-    });
+        currentGenerator = generator;
+        currentModel = modelName;
+        
+        showModelStatus('Model ready!', '', 100);
+        hideModelStatus();
+        
+        return generator;
+    } catch (err) {
+        showModelStatus('Failed to load model', err.message, 0);
+        console.error('Model load error:', err);
+        throw err;
+    }
+}
 
-  // Font controls
 // Font controls
 fontSelector.addEventListener('change', () => {
     editor.style.fontFamily = fontSelector.value;
     editor.focus();
 });
 
-    fontSize.addEventListener('input', () => {
-        editor.style.fontSize = `${fontSize.value}px`;
-    });
+fontSize.addEventListener('input', () => {
+    editor.style.fontSize = `${fontSize.value}px`;
+});
 
-    // Text formatting
-    boldButton.addEventListener('click', () => {
-        document.execCommand('bold', false, null);
-        editor.focus();
-    });
+// Text formatting
+document.getElementById('boldButton').addEventListener('click', () => {
+    document.execCommand('bold', false, null);
+    editor.focus();
+});
 
-    italicButton.addEventListener('click', () => {
-        document.execCommand('italic', false, null);
-        editor.focus();
-    });
+document.getElementById('italicButton').addEventListener('click', () => {
+    document.execCommand('italic', false, null);
+    editor.focus();
+});
 
-    underlineButton.addEventListener('click', () => {
-        document.execCommand('underline', false, null);
-        editor.focus();
-    });
+document.getElementById('underlineButton').addEventListener('click', () => {
+    document.execCommand('underline', false, null);
+    editor.focus();
+});
 
-    strikeButton.addEventListener('click', () => {
-        document.execCommand('strikeThrough', false, null);
-        editor.focus();
-    });
+// Alignment
+document.getElementById('alignLeft').addEventListener('click', () => {
+    document.execCommand('justifyLeft', false, null);
+    editor.focus();
+});
 
-    // Alignment
-    alignLeft.addEventListener('click', () => {
-        document.execCommand('justifyLeft', false, null);
-        editor.focus();
-    });
+document.getElementById('alignCenter').addEventListener('click', () => {
+    document.execCommand('justifyCenter', false, null);
+    editor.focus();
+});
 
-    alignCenter.addEventListener('click', () => {
-        document.execCommand('justifyCenter', false, null);
-        editor.focus();
-    });
+document.getElementById('alignRight').addEventListener('click', () => {
+    document.execCommand('justifyRight', false, null);
+    editor.focus();
+});
 
-    alignRight.addEventListener('click', () => {
-        document.execCommand('justifyRight', false, null);
-        editor.focus();
-    });
+// Undo/Redo
+document.getElementById('undoButton').addEventListener('click', () => {
+    document.execCommand('undo', false, null);
+    editor.focus();
+});
 
-    alignJustify.addEventListener('click', () => {
-        document.execCommand('justifyFull', false, null);
-        editor.focus();
-    });
+document.getElementById('redoButton').addEventListener('click', () => {
+    document.execCommand('redo', false, null);
+    editor.focus();
+});
 
-    // Undo/Redo
-    undoButton.addEventListener('click', () => {
-        document.execCommand('undo', false, null);
-        editor.focus();
-    });
+// Add code block
+document.getElementById('addCodeBlock').addEventListener('click', () => {
+    const codeBlock = '<div class="code-block" contenteditable="true">// Enter code here...</div><p><br></p>';
+    document.execCommand('insertHTML', false, codeBlock);
+    editor.focus();
+});
 
-    redoButton.addEventListener('click', () => {
-        document.execCommand('redo', false, null);
-        editor.focus();
-    });
+// Image upload
+document.getElementById('uploadButton').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
 
-    // Keyboard shortcuts
-    editor.addEventListener('keydown', (e) => {
-        if (e.ctrlKey || e.metaKey) {
-            switch(e.key.toLowerCase()) {
-                case 'b':
-                    e.preventDefault();
-                    document.execCommand('bold', false, null);
-                    break;
-                case 'i':
-                    e.preventDefault();
-                    document.execCommand('italic', false, null);
-                    break;
-                case 'u':
-                    e.preventDefault();
-                    document.execCommand('underline', false, null);
-                    break;
-                case 's':
-                    e.preventDefault();
-                    saveDocument();
-                    break;
-            }
-        }
-    });
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = `<div class="image-block"><img src="${event.target.result}" alt="Uploaded image"></div><p><br></p>`;
+            document.execCommand('insertHTML', false, img);
+            editor.focus();
+        };
+        reader.readAsDataURL(file);
+    }
+});
 
-    // Add text block
-    addTextBlock.addEventListener('click', () => {
-        document.execCommand('insertHTML', false, '<p><br></p>');
-        editor.focus();
-    });
+// Toggle width
+document.getElementById('toggleWidth').addEventListener('click', () => {
+    editor.classList.toggle('full-width');
+});
 
-    // Add code block
-    addCodeBlock.addEventListener('click', () => {
-        const codeBlock = '<div class="code-block" contenteditable="true">// Enter code here...</div><p><br></p>';
-        document.execCommand('insertHTML', false, codeBlock);
-        editor.focus();
-    });
+// Copy
+document.getElementById('copySelectedBlocks').addEventListener('click', () => {
+    document.execCommand('copy');
+    quantumStatus.textContent = 'Text copied to quantum clipboard';
+    setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
+});
 
-    // Image upload
-    uploadButton.addEventListener('click', () => {
-        fileInput.click();
-    });
+// Pre-load model button
+document.getElementById('loadModelBtn').addEventListener('click', async () => {
+    const model = aiModelSelector.value;
+    try {
+        quantumStatus.textContent = 'Pre-loading model...';
+        await getGenerator(model);
+        quantumStatus.textContent = 'Model cached and ready ✓';
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
+    } catch (err) {
+        quantumStatus.textContent = 'Model load failed: ' + err.message;
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 5000);
+    }
+});
 
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = `<div class="image-block"><img src="${event.target.result}" alt="Uploaded image"></div><p><br></p>`;
-                document.execCommand('insertHTML', false, img);
-                editor.focus();
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    // Color picker
-    colorButton.addEventListener('click', () => {
-        colorPicker.click();
-    });
-
-    colorPicker.addEventListener('input', () => {
-        document.execCommand('foreColor', false, colorPicker.value);
-        editor.focus();
-    });
-
-    // Toggle width
-    toggleWidth.addEventListener('click', () => {
-        editor.classList.toggle('full-width');
-    });
-
-    // Copy selected text
-    copySelectedBlocks.addEventListener('click', () => {
-        document.execCommand('copy');
-        quantumStatus.textContent = 'Text copied to quantum clipboard';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 2000);
-    });
-
-    // Word count
-    function updateWordCount() {
-        const text = editor.innerText || editor.textContent;
-        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-        wordCount.textContent = `${words.length} words`;
+// AI Image Generation - LOCAL ONLY
+document.getElementById('generateImage').addEventListener('click', async () => {
+    if (isGenerating) {
+        quantumStatus.textContent = 'Generation already in progress...';
+        return;
     }
 
-    editor.addEventListener('input', updateWordCount);
-
-// AI Image Generation with Pollinations.ai
-generateImage.addEventListener('click', async () => {
     const selectedText = window.getSelection().toString().trim();
-    
     if (!selectedText) {
         quantumStatus.textContent = 'Select text to generate image from';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 2000);
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
         return;
     }
 
     const selectedModel = aiModelSelector.value;
-    const modelDisplay = aiModelSelector.options[aiModelSelector.selectedIndex].text;
-    quantumStatus.textContent = `Generating with ${modelDisplay}...`;
+    isGenerating = true;
     
     try {
-        // Build Pollinations image URL
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(selectedText)}?model=${selectedModel}&width=1024&height=1024&seed=${Math.floor(Math.random() * 1000000)}&nologo=true`;
+        quantumStatus.textContent = 'Initializing local AI...';
+        
+        // Get or create generator
+        const generator = await getGenerator(selectedModel);
+        
+        quantumStatus.textContent = 'Generating image locally...';
+        
+        // Determine settings based on model
+        const isTurbo = selectedModel.includes('turbo');
+        const width = selectedModel.includes('xl') ? 1024 : 512;
+        const height = selectedModel.includes('xl') ? 1024 : 512;
+        const steps = isTurbo ? 1 : 25;
+        
+        // Generate image
+        const result = await generator(selectedText, {
+            width: width,
+            height: height,
+            num_inference_steps: steps,
+            guidance_scale: isTurbo ? 0.0 : 7.5,
+        });
+        
+        // Convert blob to data URL
+        const blob = result;
+        const imageUrl = URL.createObjectURL(blob);
         
         // Create image element
         const img = document.createElement('img');
@@ -630,21 +598,12 @@ generateImage.addEventListener('click', async () => {
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
         
-        // Wait for image to load to confirm it worked
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            // Timeout after 30 seconds
-            setTimeout(() => reject(new Error('Image generation timeout')), 30000);
-        });
-        
-        // Wrap the img element and insert it
+        // Wrap and insert
         const wrapper = document.createElement('div');
         wrapper.className = 'image-block';
         wrapper.appendChild(img);
         wrapper.innerHTML += '<p><br></p>';
         
-        // Insert at cursor position
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
@@ -654,121 +613,115 @@ generateImage.addEventListener('click', async () => {
             editor.appendChild(wrapper);
         }
         
-        quantumStatus.textContent = 'Quantum image materialized ✨';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 3000);
+        quantumStatus.textContent = 'Image materialized locally ✨';
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
         
     } catch (err) {
-        console.error('[INK REALM] AI Image generation error:', err);
+        console.error('[INK REALM] Local generation error:', err);
         
         let errorMsg = '⚠️ Generation failed: ';
-        
-        if (err.message && err.message.includes('timeout')) {
-            errorMsg += 'Request timed out - try again';
-        } else if (err.message && err.message.includes('load')) {
-            errorMsg += 'Image failed to load - check connection';
+        if (err.message && err.message.includes('webgpu')) {
+            errorMsg += 'WebGPU not available - use Chrome/Edge';
+        } else if (err.message && err.message.includes('out of memory')) {
+            errorMsg += 'Out of memory - try SD Turbo model';
         } else {
             errorMsg += err.message || 'Unknown error';
         }
         
         quantumStatus.textContent = errorMsg;
-        
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 5000);
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 5000);
+    } finally {
+        isGenerating = false;
     }
 });
 
-    // Save document (localStorage kept - useful for auto-recovery)
-    function saveDocument() {
-        const content = editor.innerHTML;
-        localStorage.setItem('quantumDocument', content);
-        quantumStatus.textContent = 'Document saved to quantum cloud';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 2000);
+// Word count
+function updateWordCount() {
+    const text = editor.innerText || editor.textContent;
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    wordCount.textContent = `${words.length} words`;
+}
+editor.addEventListener('input', updateWordCount);
+
+// Save/Load
+function saveDocument() {
+    localStorage.setItem('quantumDocument', editor.innerHTML);
+    quantumStatus.textContent = 'Document saved to local storage';
+    setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
+}
+
+document.getElementById('saveButton').addEventListener('click', saveDocument);
+
+// Load saved
+const savedDoc = localStorage.getItem('quantumDocument');
+if (savedDoc) {
+    editor.innerHTML = savedDoc;
+    updateWordCount();
+}
+
+// Download TXT
+document.getElementById('downloadTxt').addEventListener('click', () => {
+    const text = editor.innerText || editor.textContent;
+    if (!text.trim()) {
+        quantumStatus.textContent = 'Nothing to download';
+        return;
     }
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ink-realm-document.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    quantumStatus.textContent = 'TXT downloaded';
+    setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
+});
 
-    saveButton.addEventListener('click', saveDocument);
-
-    // Load saved document
-    const savedDoc = localStorage.getItem('quantumDocument');
-    if (savedDoc) {
-        editor.innerHTML = savedDoc;
-        updateWordCount();
-        quantumStatus.textContent = 'Previous quantum state restored';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 2000);
-    }
-
-    // Download TXT
-    downloadTxt.addEventListener('click', () => {
-        const text = editor.innerText || editor.textContent;
-        
-        if (!text.trim()) {
-            quantumStatus.textContent = 'Quantum void detected: nothing to materialize';
-            setTimeout(() => {
-                quantumStatus.textContent = 'Quantum circuit: Ready';
-            }, 2000);
-            return;
-        }
-
-        const blob = new Blob([text], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ink-realm-document.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        quantumStatus.textContent = 'TXT materialized from quantum state';
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 2000);
-    });
-
- downloadPdf.addEventListener('click', async () => {
-    quantumStatus.textContent = 'Freezing quantum state to PDF...';
-    
+// Download PDF
+document.getElementById('downloadPdf').addEventListener('click', async () => {
+    quantumStatus.textContent = 'Generating PDF...';
     try {
         const { jsPDF } = window.jspdf;
-        // A4 size setup
         const doc = new jsPDF('p', 'pt', 'a4');
-        const editorContent = document.getElementById('editor');
-
-        // Use html method which uses html2canvas internally
-        // scale serves as resolution adjustment
-        await doc.html(editorContent, {
+        await doc.html(editor, {
             callback: function(doc) {
                 doc.save('ink-realm-deluxe.pdf');
-                quantumStatus.textContent = 'PDF materialized successfully';
-                setTimeout(() => {
-                    quantumStatus.textContent = 'Quantum circuit: Ready';
-                }, 2000);
+                quantumStatus.textContent = 'PDF generated';
             },
             x: 10,
             y: 10,
-            width: 575, // Target width for A4
-            windowWidth: editorContent.scrollWidth // Ensure it captures full width
+            width: 575,
+            windowWidth: editor.scrollWidth
         });
-        
-    } catch (error) {
-        quantumStatus.textContent = 'Quantum collapse: PDF generation failed';
-        console.error(error);
-        setTimeout(() => {
-            quantumStatus.textContent = 'Quantum circuit: Ready';
-        }, 3000);
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
+    } catch (err) {
+        quantumStatus.textContent = 'PDF generation failed';
+        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
     }
 });
 
-    // Initial word count
-    updateWordCount();
+// Keyboard shortcuts
+editor.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key.toLowerCase()) {
+            case 'b':
+                e.preventDefault();
+                document.execCommand('bold', false, null);
+                break;
+            case 'i':
+                e.preventDefault();
+                document.execCommand('italic', false, null);
+                break;
+            case 's':
+                e.preventDefault();
+                saveDocument();
+                break;
+        }
+    }
 });
+
+updateWordCount();
 </script>
 
 </body>
-	</html>
+</html>
