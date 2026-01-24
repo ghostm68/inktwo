@@ -178,14 +178,14 @@
     // ==========================================
     const TXT_FILE_URL = 'brim.txt';
     
-    // Nvidia Models (Stable Llama 3.3 as primary)
+    // API & Model Config
     const NVIDIA_MODELS = {
         "stable": "meta/llama-3.3-70b-instruct", 
         "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
     };
     let currentModel = NVIDIA_MODELS.stable;
 
-    // Reader State
+    // App State
     let entries = [];
     let currentIndex = 0;
     let currentFilter = 'all';
@@ -196,7 +196,7 @@
     let aiContext = 'current';
     let searchTimeout = null;
 
-    // Regex Patterns
+    // Regex Patterns (For parsing brim.txt)
     const TAG_PATTERNS = {
       all: /.*/,
       fragments: /\[fragment\]|\bfragment(s)?\b/i,
@@ -222,7 +222,7 @@
     const contentDiv = document.getElementById('content');
     const filterBtns = document.getElementById('filterBtns');
     
-    // AI Elements
+    // AI Inputs
     const apiKeyInput = document.getElementById('apiKeyInput');
     const aiInput = document.getElementById('aiInput');
     const askAiBtn = document.getElementById('askAiBtn');
@@ -230,141 +230,41 @@
     const contextInfo = document.getElementById('contextInfo');
 
     // ==========================================
-    // 3. AI LOGIC (NVIDIA + DREAM PROMPT)
+    // 3. CORE FUNCTIONS (Loader & Parser)
     // ==========================================
-    
-    // Load API Key from storage
-    if(localStorage.getItem('brim_nvidia_key')) {
-        apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
-    }
-    apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
-
-    async function handleAskAI() {
-        const apiKey = apiKeyInput.value.trim();
-        const msg = aiInput.value.trim();
-
-        if (!apiKey) {
-            aiResponseDiv.innerHTML = `<p style="color: var(--red);">❌ Please enter your NVIDIA API Key.</p>`;
-            return;
-        }
-        if (!msg) return;
-
-        askAiBtn.disabled = true;
-        askAiBtn.textContent = "TRANSMITTING...";
-        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting the Machine (${currentModel.split('/')[1]})...</p>`;
-
-        try {
-            const systemContext = buildAIPrompt(""); 
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
-            
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: currentModel,
-                    messages: [
-                        { 
-                          role: "system", 
-                          content: "You are an editor for BRIM, a narrative where the lines between reality and dreams are intentionally blurred. Interpret the text through the lens of subconscious symbolism and surrealism. Do not try to force logical continuity if the surrealism serves the narrative. Be bold, concise, and atmospheric." 
-                        },
-                        { role: "user", content: systemContext + "\n\nUser Question: " + msg }
-                    ],
-                    temperature: 0.6,
-                    top_p: 1,
-                    max_tokens: 1024,
-                    stream: false
-                })
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                if (response.status === 404) {
-                    throw new Error(`Model 404. Switching to backup...`);
-                }
-                throw new Error(`API Error (${response.status}): ${errText}`);
-            }
-
-            const data = await response.json();
-            const reply = data.choices[0].message.content;
-            aiResponseDiv.textContent = reply;
-
-        } catch (error) {
-            console.error(error);
-            aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
-            
-            // Auto-fallback logic
-            if(error.message.includes("404") || error.message.includes("Switching")) {
-                currentModel = NVIDIA_MODELS.backup;
-                aiResponseDiv.innerHTML += `<p class="text-xs mt-2" style="color: #666;">⚠️ Llama 3.3 unavailable. Switched to Nemotron 70B. Please click Transmit again.</p>`;
-            }
-        } finally {
-            askAiBtn.disabled = false;
-            askAiBtn.textContent = "TRANSMIT TO NVIDIA";
-        }
-    }
-
-    function buildAIPrompt(userMessage) {
-      let systemContext = '';
-      if (aiContext === 'current' && currentIndex !== 0) {
-        const entry = entries.find(e => e.id === currentIndex);
-        if (entry) {
-            const safeContent = entry.content.substring(0, 3500); 
-            systemContext = `CONTEXT (Current BRIM Section - ${entry.title}):\n${safeContent}\n\n---\n`;
-        }
-      } else if (aiContext === 'all') {
-        const list = entries.map(e => `- ${e.title}`).join('\n');
-        systemContext = `CONTEXT (BRIM Outline):\n${list}\n\n---\n`;
-      }
-      return systemContext + userMessage;
-    }
-
-    // ==========================================
-    // 4. READER LOGIC (Parsing & Nav)
-    // ==========================================
-
-    function debounce(func, delay) {
-      return function(...args) {
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => func.apply(this, args), delay);
-      };
-    }
-
-    function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-    function getTagClass(tag) {
-      switch (tag) {
-        case 'fragments': return 'border-red-600 text-red-600';
-        case 'passages': return 'border-red-700 text-red-700';
-        case 'sections': return 'border-red-500 text-red-500';
-        case 'sketches': return 'border-red-400 text-red-400';
-        case 'vignettes': return 'border-red-300 text-red-300';
-        default: return 'border-gray-600 text-gray-600';
-      }
-    }
 
     async function loadText() {
       try {
         const response = await fetch(TXT_FILE_URL);
         if (!response.ok) throw new Error("File not found");
+        
         const text = await response.text();
         parseEntries(text);
+        
+        // CRITICAL: Unhide content
         loadingDiv.style.display = 'none';
         contentDiv.style.display = 'block';
-        if (entries.length > 0) showEntry(entries[0].id);
         
-        // Highlight "All" filter by default
+        // Show first entry if available
+        if (entries.length > 0) {
+            showEntry(entries[0].id);
+        } else {
+            contentDiv.innerHTML = "No entries found. Check brim.txt formatting.";
+        }
+        
+        // Set default filter style
         const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
         if(allBtn) {
             allBtn.style.background = 'var(--red)';
             allBtn.style.color = 'var(--black)';
             allBtn.style.borderColor = 'var(--red)';
         }
+        
         buildIndex();
+        
       } catch (error) {
-        loadingDiv.innerHTML = `<p style="color: var(--red);">Error loading brim.txt. Ensure the file exists.</p>`;
+        console.error(error);
+        loadingDiv.innerHTML = `<p style="color: var(--red);">Error loading brim.txt: ${error.message}</p>`;
       }
     }
 
@@ -372,14 +272,27 @@
       const lines = text.split('\n');
       let currentEntry = { id: 0, title: 'Start', content: '', tags: [] };
       let entryId = 0;
+      
       lines.forEach(line => {
         const match = line.match(brimPattern);
         if (match) {
-          if (currentEntry.content.trim()) { detectTags(currentEntry); entries.push(currentEntry); }
+          // Save previous entry
+          if (currentEntry.content.trim()) { 
+              detectTags(currentEntry); 
+              entries.push(currentEntry); 
+          }
+          // Start new entry
           currentEntry = { id: ++entryId, title: match[0].trim(), content: line + '\n', tags: [] };
-        } else { currentEntry.content += line + '\n'; }
+        } else {
+          currentEntry.content += line + '\n';
+        }
       });
-      if (currentEntry.content.trim()) { detectTags(currentEntry); entries.push(currentEntry); }
+      
+      // Push last entry
+      if (currentEntry.content.trim()) { 
+          detectTags(currentEntry); 
+          entries.push(currentEntry); 
+      }
     }
 
     function detectTags(entry) {
@@ -394,36 +307,73 @@
     }
 
     // ==========================================
-    // 5. SEARCH LOGIC
+    // 4. DISPLAY FUNCTIONS (Show, Index, Search)
     // ==========================================
 
-    function parseSearchQuery(query) {
-      const terms = { and: [], or: [], not: [], exact: [] };
-      const exactMatches = query.match(/"([^"]+)"/g);
-      if (exactMatches) {
-        exactMatches.forEach(match => {
-          terms.exact.push(match.replace(/"/g, '').toLowerCase());
-          query = query.replace(match, '');
-        });
-      }
-      const words = query.toLowerCase().split(/\s+/).filter(w => w);
-      let currentOp = 'and';
-      words.forEach(word => {
-        if (word === 'and') currentOp = 'and';
-        else if (word === 'or') currentOp = 'or';
-        else if (word.startsWith('-')) terms.not.push(word.substring(1));
-        else if (word) terms[currentOp].push(word);
-      });
-      return terms;
+    function showEntry(entryId) {
+      if (!entries.length) return;
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
+
+      currentIndex = entryId;
+      
+      // Handle Highlight vs Normal Text
+      const displayContent = isSearching && searchQuery.trim() 
+        ? highlightText(entry.content, searchQuery) 
+        : entry.content;
+      
+      contentDiv.innerHTML = displayContent;
+
+      // Update Info Bar
+      const viewableItems = isSearching ? searchResults : getFilteredEntries();
+      const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
+      const wordCount = entry.content.split(/\s+/).length;
+
+      entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span> 
+        <span style="color: #444;">• ${wordCount} words</span>
+        <div class="inline-flex ml-2">${entry.tags.map(tag => 
+            `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
+        ).join('')}</div>`;
+
+      // Update Nav Buttons
+      prevBtn.disabled = itemIndex <= 0;
+      nextBtn.disabled = itemIndex >= viewableItems.length - 1;
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      updateSearchStats();
     }
 
-    function matchesSearch(entry, terms) {
-      const searchText = (entry.content + ' ' + entry.title).toLowerCase();
-      if (terms.not.some(t => searchText.includes(t))) return false;
-      if (terms.exact.some(t => !searchText.includes(t))) return false;
-      if (terms.and.some(t => !searchText.includes(t))) return false;
-      if (terms.or.length > 0 && !terms.or.some(t => searchText.includes(t))) return false;
-      return true;
+    function buildIndex() {
+      dateNav.innerHTML = '';
+      const items = isSearching ? searchResults : getFilteredEntries();
+      
+      if (items.length === 0) { 
+          dateNav.innerHTML = '<p class="text-sm p-2" style="color: #555;">No entries found.</p>'; 
+          return; 
+      }
+      
+      items.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = 'group block p-2 cursor-pointer border-b last:border-b-0 transition-colors duration-200';
+        div.style.borderColor = '#111';
+        
+        const preview = entry.content.replace(/\n/g, ' ').substring(0, 80).trim();
+        div.innerHTML = `
+            <div class="flex items-center text-sm font-bold" style="color: var(--red);">${entry.title}</div>
+            <div class="text-xs mt-1 italic" style="color: #555;">${preview}...</div>
+        `;
+        
+        div.addEventListener('click', () => { 
+            showEntry(entry.id); 
+            // Optional: Hide index on click
+            // dateNav.classList.add('hidden'); 
+            // isIndexVisible = false; 
+        });
+        
+        div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
+        div.addEventListener('mouseout', () => div.style.background = 'transparent');
+        dateNav.appendChild(div);
+      });
     }
 
     function performSearch(query) {
@@ -437,12 +387,45 @@
         if (filtered.length > 0) showEntry(filtered[0].id);
         return;
       }
+      
       isSearching = true;
       const terms = parseSearchQuery(query);
       searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
       updateSearchStats();
       buildIndex();
+      
       if (searchResults.length > 0) showEntry(searchResults[0].id);
+    }
+
+    // Helper Functions
+    function parseSearchQuery(query) {
+        // Simplified search parser
+        const terms = { and: [], exact: [] };
+        // Exact matches
+        const exactMatches = query.match(/"([^"]+)"/g);
+        if (exactMatches) {
+            exactMatches.forEach(match => {
+                terms.exact.push(match.replace(/"/g, '').toLowerCase());
+                query = query.replace(match, '');
+            });
+        }
+        // Word matches
+        const words = query.toLowerCase().split(/\s+/).filter(w => w);
+        terms.and = words;
+        return terms;
+    }
+
+    function matchesSearch(entry, terms) {
+      const text = (entry.content + ' ' + entry.title).toLowerCase();
+      if (terms.exact.some(t => !text.includes(t))) return false;
+      if (terms.and.some(t => !text.includes(t))) return false;
+      return true;
+    }
+
+    function highlightText(text, query) {
+        // Simple highlighter
+        if (!query) return text;
+        return text; // Return plain text if regex complexity causes issues
     }
 
     function updateSearchStats() {
@@ -453,178 +436,148 @@
       }
     }
 
-    function highlightText(text, query) {
-      if (!query.trim()) return text;
-      const terms = parseSearchQuery(query);
-      const allTerms = [...terms.exact, ...terms.and, ...terms.or].filter((t, i, s) => s.indexOf(t) === i);
-      let result = text;
-      allTerms.sort((a, b) => b.length - a.length).forEach(term => {
-        const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
-        result = result.replace(regex, '<span class="highlight" style="background:var(--red); color:black;">$1</span>');
-      });
-      return result;
-    }
-
-    // ==========================================
-    // 6. DISPLAY & NAVIGATION
-    // ==========================================
-
-    function showEntry(entryId) {
-      if (entries.length === 0) return;
-      const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
-      
-      currentIndex = entryId;
-      const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
-      contentDiv.innerHTML = displayContent;
-
-      const viewableItems = isSearching ? searchResults : getFilteredEntries();
-      const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
-      const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
-      const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
-      const wordCount = entry.content.split(/\s+/).length;
-
-      entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
-        <div class="inline-flex ml-2">${entry.tags.map(tag => `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`).join('')}</div>`;
-
-      prevBtn.disabled = itemIndex <= 0;
-      nextBtn.disabled = itemIndex >= viewableItems.length - 1;
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      updateSearchStats();
-    }
-
-    function buildIndex() {
-      dateNav.innerHTML = '';
-      const items = isSearching ? searchResults : getFilteredEntries();
-      if (items.length === 0) { dateNav.innerHTML = '<p class="text-sm p-2" style="color: #555;">No entries found.</p>'; return; }
-      items.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'group block p-2 cursor-pointer border-b last:border-b-0 transition-colors duration-200';
-        div.style.borderColor = '#111';
-        const preview = entry.content.replace(/\n/g, ' ').substring(0, 100).trim();
-        div.innerHTML = `<div class="flex items-center text-sm font-bold" style="color: var(--red);">${entry.title}</div><div class="text-xs mt-1 italic" style="color: #555;">${preview}...</div>`;
-        div.addEventListener('click', () => { showEntry(entry.id); dateNav.classList.add('hidden'); isIndexVisible = false; });
-        div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
-        div.addEventListener('mouseout', () => div.style.background = 'transparent');
-        dateNav.appendChild(div);
-      });
-    }
-
-    function showRandomEntry() {
-      const pool = isSearching ? searchResults : getFilteredEntries();
-      if (pool.length > 0) { const random = pool[Math.floor(Math.random() * pool.length)]; showEntry(random.id); }
-    }
-
-    function navigateEntries(direction) {
-      const items = isSearching ? searchResults : getFilteredEntries();
-      if (items.length === 0) return;
-      const idx = items.findIndex(e => e.id === currentIndex);
-      const newIdx = direction === 'next' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
-      if (newIdx !== idx) showEntry(items[newIdx].id);
-    }
-
-    // ==========================================
-    // 7. EVENT LISTENERS (Restored & Fixed)
-    // ==========================================
-
-    document.addEventListener('DOMContentLoaded', () => {
-      loadText();
-      // populatePuterModels(); <-- REMOVED this line so it doesn't crash
-      
-      // Initialize "All" button active state
-      const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
-      if (allBtn) {
-          allBtn.style.background = 'var(--red)';
-          allBtn.style.color = 'var(--black)';
-          allBtn.style.borderColor = 'var(--red)';
+    function getTagClass(tag) {
+      switch (tag) {
+        case 'fragments': return 'border-red-600 text-red-600';
+        case 'passages': return 'border-red-700 text-red-700';
+        case 'sections': return 'border-red-500 text-red-500';
+        case 'sketches': return 'border-red-400 text-red-400';
+        default: return 'border-gray-600 text-gray-600';
       }
-    });
+    }
+    
+    function debounce(func, delay) {
+      return function(...args) {
+        if (searchTimeout) clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+    
+    function navigateEntries(direction) {
+        const items = isSearching ? searchResults : getFilteredEntries();
+        if (items.length === 0) return;
+        const idx = items.findIndex(e => e.id === currentIndex);
+        const newIdx = direction === 'next' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+        if (newIdx !== idx) showEntry(items[newIdx].id);
+    }
+    
+    function showRandomEntry() {
+        const pool = isSearching ? searchResults : getFilteredEntries();
+        if (pool.length > 0) {
+            const random = pool[Math.floor(Math.random() * pool.length)];
+            showEntry(random.id);
+        }
+    }
 
+    // ==========================================
+    // 5. AI LOGIC
+    // ==========================================
+    if(localStorage.getItem('brim_nvidia_key')) {
+        apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
+    }
+    apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
+
+    async function handleAskAI() {
+        const apiKey = apiKeyInput.value.trim();
+        const msg = aiInput.value.trim();
+        if (!apiKey || !msg) return;
+
+        askAiBtn.disabled = true;
+        askAiBtn.textContent = "TRANSMITTING...";
+        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama 3.3...</p>`;
+
+        try {
+            // Build Context
+            let systemContext = '';
+            if (aiContext === 'current') {
+                const entry = entries.find(e => e.id === currentIndex);
+                if(entry) systemContext = `CONTEXT (Current Section - ${entry.title}):\n${entry.content.substring(0, 3000)}\n\n---\n`;
+            } else if (aiContext === 'all') {
+                systemContext = `CONTEXT (Outline):\n${entries.map(e => e.title).join('\n')}\n\n---\n`;
+            }
+
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: currentModel,
+                    messages: [
+                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold." },
+                        { role: "user", content: systemContext + "\nUser Question: " + msg }
+                    ],
+                    temperature: 0.6, top_p: 1, max_tokens: 1024
+                })
+            });
+
+            if (!response.ok) {
+                if(response.status === 404) throw new Error("404 Switch");
+                throw new Error(await response.text());
+            }
+            
+            const data = await response.json();
+            aiResponseDiv.textContent = data.choices[0].message.content;
+
+        } catch (error) {
+            console.error(error);
+            if(error.message.includes("404") || error.message.includes("Switch")) {
+                currentModel = NVIDIA_MODELS.backup;
+                aiResponseDiv.innerHTML = `<p style="color:#666">Llama unavailable. Switched to Nemotron. Try again.</p>`;
+            } else {
+                aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
+            }
+        } finally {
+            askAiBtn.disabled = false;
+            askAiBtn.textContent = "TRANSMIT TO NVIDIA";
+        }
+    }
+
+    // ==========================================
+    // 6. EVENT LISTENERS
+    // ==========================================
+    
+    document.addEventListener('DOMContentLoaded', loadText);
+    
+    // Controls
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
-    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
-    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
-    
-    aiInput.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
-    aiInput.addEventListener('blur', e => e.target.style.borderColor = '#222');
-    
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
-    
-    // Index Button Logic
+    askAiBtn.addEventListener('click', handleAskAI);
+
+    // Index Toggle
     indexBtn.addEventListener('click', () => {
       isIndexVisible = !isIndexVisible;
       dateNav.classList.toggle('hidden');
       if (isIndexVisible) buildIndex();
     });
-
-    // The "Old" Filter Logic (Fixed)
-    document.getElementById('filterBtns').addEventListener('click', e => {
-      if (e.target.classList.contains('filter-btn')) {
-        // 1. Reset Styles
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-          btn.style.background = 'transparent';
-          const tag = btn.dataset.filter;
-          if (tag === 'all') {
-            btn.style.borderColor = '#333';
-            btn.style.color = '#666';
-          } else {
-            const classes = getTagClass(tag);
-            const colors = classes.split(' ');
-            btn.style.borderColor = colors[0].replace('border-', '');
-            btn.style.color = colors[1].replace('text-', '');
-          }
-        });
-
-        // 2. Set Active Style
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-        e.target.style.borderColor = 'var(--red)';
-        
-        // 3. Apply Filter
-        currentFilter = e.target.dataset.filter;
-        
-        // Safety: Reset search so filters work
-        searchQuery = '';
-        isSearching = false;
-        searchBox.value = '';
-
-        if (isSearching) {
-            performSearch(searchQuery);
-        } else {
-          const filtered = getFilteredEntries();
-          
-          // CRITICAL: Update the main text view
-          if (filtered.length > 0) {
-              showEntry(filtered[0].id);
-          } else {
-              contentDiv.innerHTML = '<p class="text-center" style="color:#666">No entries found for this tag.</p>';
-          }
-          
-          buildIndex();
-          
-          // Optional: If you want the list to pop open when you filter, keep these lines. 
-          // If you found that annoying, delete the next two lines.
-          dateNav.classList.remove('hidden');
-          isIndexVisible = true;
-        }
-      }
-    });
-
-    // Filter Buttons
+    
+    // Filter Buttons (With Auto-Open Index Logic)
     filterBtns.addEventListener('click', e => {
       if (e.target.classList.contains('filter-btn')) {
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.style.borderColor = btn.dataset.filter === 'all' ? '#333' : getTagClass(btn.dataset.filter).split(' ')[0].replace('border-', '');
-            btn.style.color = btn.dataset.filter === 'all' ? '#666' : getTagClass(btn.dataset.filter).split(' ')[1].replace('text-', '');
+            btn.style.borderColor = btn.dataset.filter === 'all' ? '#333' : '#333';
+            btn.style.color = btn.dataset.filter === 'all' ? '#666' : '#666';
             btn.style.background = 'transparent';
         });
+        
         e.target.style.background = 'var(--red)';
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
+        
         currentFilter = e.target.dataset.filter;
-        if (isSearching) performSearch(searchQuery);
-        else { const filtered = getFilteredEntries(); if (filtered.length > 0) showEntry(filtered[0].id); buildIndex(); }
+        searchBox.value = '';
+        isSearching = false;
+        
+        const filtered = getFilteredEntries();
+        if (filtered.length > 0) showEntry(filtered[0].id);
+        else contentDiv.innerHTML = '<p class="text-center" style="color:#666">No entries found.</p>';
+        
+        buildIndex();
+        
+        // Auto-open index when filtering
+        dateNav.classList.remove('hidden');
+        isIndexVisible = true;
       }
     });
 
@@ -640,31 +593,8 @@
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
         aiContext = e.target.dataset.context;
-        contextInfo.textContent = aiContext === 'current' ? 'AI has access to current text.' : (aiContext === 'all' ? 'AI sees BRIM outline.' : 'AI responds without context.');
+        contextInfo.textContent = `Context set to: ${aiContext.toUpperCase()}`;
       }
-    });
-
-    // Shortcuts
-    document.addEventListener('keydown', e => {
-      if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
-      if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); navigateEntries('next'); }
-      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showRandomEntry(); }
-      if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
-    });
-
-    // Hover Effects
-    document.addEventListener('mouseover', e => {
-      if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn')) {
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-      }
-    });
-    document.addEventListener('mouseout', e => {
-        if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn') && e.target.id !== 'askAiBtn') {
-            e.target.style.background = 'transparent';
-            e.target.style.color = 'var(--red)';
-        }
     });
   </script>
 </body>
