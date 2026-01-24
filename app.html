@@ -381,33 +381,145 @@ article:focus::before {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
 } 
- /* Add this to your CSS */
-.terminal-select {
-    background: #000; 
-    color: #fff; 
-    border: 1px solid #333; 
-    padding: 0.5rem 1rem; 
-    font-family: 'IBM Plex Mono', monospace; 
-    font-size: 0.85rem;
+/* --- Header Layout --- */
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 100%;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #000;
+    padding: 5px;
+    border: 1px solid #222; /* Subtle grouping border */
+}
+
+.terminal-label {
+    color: #666;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+/* --- The Custom Dropdown (Replaces Terminal Select) --- */
+
+/* 1. Hide the real select (but keep it functional) */
+.custom-select-container select {
+    display: none; 
+}
+
+/* 2. The Container */
+.custom-select-container {
+    position: relative;
+    width: 280px; /* Wide enough for your text */
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    user-select: none;
+}
+
+/* 3. The "Button" (What you see when closed) */
+.select-selected {
+    background-color: #000;
+    color: #fff; /* Default Text Color */
+    padding: 10px 15px;
+    border: 1px solid #333;
     cursor: pointer;
-    min-width: 200px;
-    
-    /* This removes the blue outline/glow */
-    outline: none;     
-    
-    /* This tells the browser "I am a dark theme app" */
-    /* It forces the dropdown menu to be dark grey instead of white/blue */
-    color-scheme: dark;     
-    
-    /* This removes the default chunky browser arrow */
-    -webkit-appearance: none; 
-    appearance: none;
-    
-    /* This adds a custom clean white arrow */
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem top 50%;
-    background-size: 0.65em auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+/* Hovering over the closed box */
+.select-selected:hover {
+    border-color: #999;
+}
+
+/* The Arrow Icon */
+.select-selected:after {
+    content: "";
+    width: 0;
+    height: 0;
+    border: 5px solid transparent;
+    border-top-color: #fff;
+    margin-left: 10px;
+}
+
+/* 4. Active State (When Open) */
+.select-selected.select-arrow-active {
+    border-color: #ff0033; /* Red Border */
+    box-shadow: 0 0 10px rgba(255, 0, 51, 0.2);
+}
+
+.select-selected.select-arrow-active:after {
+    border-top-color: transparent;
+    border-bottom-color: #ff0033; /* Red Arrow */
+    transform: translateY(-5px);
+}
+
+/* 5. The Dropdown List */
+.select-items {
+    position: absolute;
+    background-color: #000;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    border: 1px solid #ff0033; /* Red Border for list */
+    border-top: none;
+    max-height: 400px;
+    overflow-y: auto;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.9);
+}
+
+/* 6. The Options inside the list */
+.select-items div {
+    color: #ccc;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #111;
+}
+
+/* 7. HOVERING AN OPTION (The Fix for the Blue Highlight) */
+.select-items div:hover {
+    background-color: #ff0033; /* Matrix Red Background */
+    color: #000; /* Black Text */
+    font-weight: bold;
+}
+
+/* Helper to hide */
+.select-hide {
+    display: none;
+}
+
+/* --- Initialize Button Style --- */
+.terminal-btn {
+    background: #111;
+    color: #fff;
+    border: 1px solid #333;
+    padding: 10px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.terminal-btn:hover {
+    background: #fff;
+    color: #000;
 }
 
 .terminal-select:hover {
@@ -454,27 +566,28 @@ article:focus::before {
          onclick="this.classList.toggle('expanded')"
          title="Click to Enlarge">
         </div> 
-<div class="header-center" style="display:flex; align-items:center; gap: 15px;">
-    <!-- 1. THE SELECTOR -->
-<div class="controls">
-    
-    <div class="control-group">
-        <label> MODEL</label>
-        <!-- The Select Menu -->
-        <select id="model-select" class="terminal-select">
+<div class="header-center">
+    <div class="controls">
+        <div class="control-group">
+            <label class="terminal-label">PROTOCOL //</label>
             
-        <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (1.5B) - CoRE</option>
-            <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (0.5B) - NANo </option>
-            <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">HERMES 3 (3B) - SMARTEST</option>
-            <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">PHI 3.5 (3.8B) - HIGH LOGIC</option>
-            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">LLAMA 3.2 (1B) - FASTEST</option>    
-             <option value="gemma-2-2b-it-q4f16_1-MLC">GEMMA 2 (2B) - CREATIVE</option>
-            <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">STABLE ZEPHYR (1.6B) - BALANCED</option>
-            <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k">RED PAJAMA (3B) - RELIC</option>
-        </select>
-        
-        <!-- THE NEW BUTTON -->
-        <button id="connect-btn" class="terminal-btn">INITIALIZE LINK</button>
+            <!-- THE CONTAINER FOR OUR CUSTOM JS SELECT -->
+            <div class="custom-select-container">
+                <!-- The Real Select (Hidden but working) -->
+                <select id="model-select">
+                    <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (1.5B) - CoRE</option>
+                    <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (0.5B) - NANo </option>
+                    <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">HERMES 3 (3B) - SMARTEST</option>
+                    <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">PHI 3.5 (3.8B) - HIGH LOGIC</option>
+                    <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">LLAMA 3.2 (1B) - FASTEST</option>    
+                    <option value="gemma-2-2b-it-q4f16_1-MLC">GEMMA 2 (2B) - CREATIVE</option>
+                    <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">STABLE ZEPHYR (1.6B) - BALANCED</option>
+                    <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k">RED PAJAMA (3B) - RELIC</option>
+                </select>
+            </div>
+            
+            <button id="connect-btn" class="terminal-btn">INITIALIZE LINK</button>
+        </div>
     </div>
 
     <!-- Status Indicator -->
@@ -482,13 +595,7 @@ article:focus::before {
         <span id="status-text">OFFLINE</span>
         <div id="status-dot" class="status-dot" style="background: #333;"></div>
     </div>
-
 </div>
-   
-        <div class="status-indicator">
-            <span id="status-text">CONNECTING</span>
-            <div id="status-dot" class="status-dot"></div>
-        </div>
     </header>
 
     <!-- Main -->
@@ -553,6 +660,83 @@ article:focus::before {
             <a href="https://twitter.com/inkrealm" target="_blank">@INKREALM</a>
         </div>
     </footer>
+    <script>
+   document.addEventListener("DOMContentLoaded", function() {
+    initCustomSelect();
+});
+
+function initCustomSelect() {
+    const originalSelect = document.getElementById("model-select");
+    const container = document.querySelector(".custom-select-container");
+    
+    if (!originalSelect || !container) return;
+
+    // 1. Create the Display Button
+    const selectedDisplay = document.createElement("div");
+    selectedDisplay.className = "select-selected";
+    // Set initial text
+    selectedDisplay.innerHTML = originalSelect.options[originalSelect.selectedIndex].innerHTML;
+    container.appendChild(selectedDisplay);
+
+    // 2. Create the Options List container
+    const optionsList = document.createElement("div");
+    optionsList.className = "select-items select-hide";
+
+    // 3. Build options from the real select
+    for (let i = 0; i < originalSelect.length; i++) {
+        const optionDiv = document.createElement("div");
+        optionDiv.innerHTML = originalSelect.options[i].innerHTML;
+        
+        optionDiv.addEventListener("click", function(e) {
+            // Update Visuals
+            selectedDisplay.innerHTML = this.innerHTML;
+            
+            // Update Logic (The hidden select)
+            originalSelect.selectedIndex = i;
+            
+            // Dispatch Change Event for WebLLM
+            const event = new Event('change', { bubbles: true });
+            originalSelect.dispatchEvent(event);
+            
+            // Close dropdown
+            selectedDisplay.click();
+        });
+        
+        optionsList.appendChild(optionDiv);
+    }
+    container.appendChild(optionsList);
+
+    // 4. Toggle Open/Close
+    selectedDisplay.addEventListener("click", function(e) {
+        e.stopPropagation();
+        closeAllSelect(this);
+        optionsList.classList.toggle("select-hide");
+        this.classList.toggle("select-arrow-active");
+    });
+
+    // 5. Click Outside to Close
+    document.addEventListener("click", closeAllSelect);
+    
+    function closeAllSelect(elmnt) {
+        const items = document.getElementsByClassName("select-items");
+        const selecteds = document.getElementsByClassName("select-selected");
+        const arrNo = [];
+        
+        for (let i = 0; i < selecteds.length; i++) {
+            if (elmnt == selecteds[i]) {
+                arrNo.push(i)
+            } else {
+                selecteds[i].classList.remove("select-arrow-active");
+            }
+        }
+        for (let i = 0; i < items.length; i++) {
+            if (arrNo.indexOf(i)) {
+                items[i].classList.add("select-hide");
+            }
+        }
+    }
+}
+            </script>
 <script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
