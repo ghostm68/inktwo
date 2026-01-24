@@ -524,25 +524,92 @@
     }
 
     // ==========================================
-    // 7. EVENT LISTENERS
+    // 7. EVENT LISTENERS (Restored & Fixed)
     // ==========================================
-    
-    // Initialize
-    document.addEventListener('DOMContentLoaded', loadText);
-    
-    // AI
-    askAiBtn.addEventListener('click', handleAskAI);
 
-    // Search
+    document.addEventListener('DOMContentLoaded', () => {
+      loadText();
+      // populatePuterModels(); <-- REMOVED this line so it doesn't crash
+      
+      // Initialize "All" button active state
+      const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+      if (allBtn) {
+          allBtn.style.background = 'var(--red)';
+          allBtn.style.color = 'var(--black)';
+          allBtn.style.borderColor = 'var(--red)';
+      }
+    });
+
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
     searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
     searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
-
-    // Navigation
+    
+    aiInput.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
+    aiInput.addEventListener('blur', e => e.target.style.borderColor = '#222');
+    
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
-    indexBtn.addEventListener('click', () => { isIndexVisible = !isIndexVisible; dateNav.classList.toggle('hidden'); if (isIndexVisible) buildIndex(); });
+    
+    // Index Button Logic
+    indexBtn.addEventListener('click', () => {
+      isIndexVisible = !isIndexVisible;
+      dateNav.classList.toggle('hidden');
+      if (isIndexVisible) buildIndex();
+    });
+
+    // The "Old" Filter Logic (Fixed)
+    document.getElementById('filterBtns').addEventListener('click', e => {
+      if (e.target.classList.contains('filter-btn')) {
+        // 1. Reset Styles
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.style.background = 'transparent';
+          const tag = btn.dataset.filter;
+          if (tag === 'all') {
+            btn.style.borderColor = '#333';
+            btn.style.color = '#666';
+          } else {
+            const classes = getTagClass(tag);
+            const colors = classes.split(' ');
+            btn.style.borderColor = colors[0].replace('border-', '');
+            btn.style.color = colors[1].replace('text-', '');
+          }
+        });
+
+        // 2. Set Active Style
+        e.target.style.background = 'var(--red)';
+        e.target.style.color = 'var(--black)';
+        e.target.style.borderColor = 'var(--red)';
+        
+        // 3. Apply Filter
+        currentFilter = e.target.dataset.filter;
+        
+        // Safety: Reset search so filters work
+        searchQuery = '';
+        isSearching = false;
+        searchBox.value = '';
+
+        if (isSearching) {
+            performSearch(searchQuery);
+        } else {
+          const filtered = getFilteredEntries();
+          
+          // CRITICAL: Update the main text view
+          if (filtered.length > 0) {
+              showEntry(filtered[0].id);
+          } else {
+              contentDiv.innerHTML = '<p class="text-center" style="color:#666">No entries found for this tag.</p>';
+          }
+          
+          buildIndex();
+          
+          // Optional: If you want the list to pop open when you filter, keep these lines. 
+          // If you found that annoying, delete the next two lines.
+          dateNav.classList.remove('hidden');
+          isIndexVisible = true;
+        }
+      }
+    });
 
     // Filter Buttons
     filterBtns.addEventListener('click', e => {
