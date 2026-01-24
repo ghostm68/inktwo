@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>b/R-im reader</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -229,32 +229,56 @@
     const aiResponseDiv = document.getElementById('aiResponse');
     const contextInfo = document.getElementById('contextInfo');
 
-    // ==========================================
-    // 3. YOUR ORIGINAL HELPERS (Restored)
-    // ==========================================
+ // ==========================================
+// 3. YOUR ORIGINAL HELPERS (Restored)
+// ==========================================
 
-    function debounce(func, delay) {
-      return function(...args) {
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => func.apply(this, args), delay);
-      };
+function debounce(func, delay) {
+  return function(...args) {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getTagClass(tag) {
+  switch (tag) {
+    case 'fragments': return 'border-red-600 text-red-600';
+    case 'passages': return 'border-red-700 text-red-700';
+    case 'sections': return 'border-red-500 text-red-500';
+    case 'sketches': return 'border-red-400 text-red-400';
+    case 'vignettes': return 'border-red-300 text-red-300';
+    default: return 'border-gray-600 text-gray-600';
+  }
+}
+
+// ADD THIS FUNCTION HERE
+function restoreButtonStates() {
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.style.background = 'transparent';
+    const tag = btn.dataset.filter;
+    if (tag === 'all') {
+      btn.style.borderColor = '#333';
+      btn.style.color = '#666';
+    } else {
+      const classes = getTagClass(tag);
+      const colors = classes.split(' ');
+      btn.style.borderColor = colors[0].replace('border-', '');
+      btn.style.color = colors[1].replace('text-', '');
     }
-
-    function escapeRegex(str) {
-      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
-    function getTagClass(tag) {
-      switch (tag) {
-        case 'fragments': return 'border-red-600 text-red-600';
-        case 'passages': return 'border-red-700 text-red-700';
-        case 'sections': return 'border-red-500 text-red-500';
-        case 'sketches': return 'border-red-400 text-red-400';
-        case 'vignettes': return 'border-red-300 text-red-300';
-        default: return 'border-gray-600 text-gray-600';
-      }
-    }
-
+  });
+  
+  // Highlight current filter
+  const currentBtn = document.querySelector(`[data-filter="${currentFilter}"]`);
+  if (currentBtn) {
+    currentBtn.style.background = 'var(--red)';
+    currentBtn.style.color = 'var(--black)';
+    currentBtn.style.borderColor = 'var(--red)';
+  }
+}
     // ==========================================
     // 4. LOADING & PARSING
     // ==========================================
@@ -352,20 +376,31 @@
       return true;
     }
 
-    function performSearch(query) {
-      searchQuery = query;
-      if (!query.trim()) {
-        isSearching = false;
-        searchResults = [];
-        updateSearchStats();
-        buildIndex();
-        // Hide index if search is cleared? (Optional, staying visible is usually better)
-        return;
-      }
+   
+function performSearch(query) {
+  searchQuery = query;
+  if (!query.trim()) {
+    isSearching = false;
+    searchResults = [];
+    updateSearchStats();
+    buildIndex();
+    return;
+  }
 
-      isSearching = true;
-      const terms = parseSearchQuery(query);
-      searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
+  isSearching = true;
+  const terms = parseSearchQuery(query);
+  searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
+  
+  updateSearchStats();
+  buildIndex();
+  
+  // Auto-open index and show first result
+  if (searchResults.length > 0) {
+      showEntry(searchResults[0].id);
+      dateNav.classList.remove('hidden');
+      isIndexVisible = true;
+  }
+}
       
       updateSearchStats();
       buildIndex(); // Rebuild the list with matches
@@ -402,32 +437,32 @@
     // ==========================================
     // 6. DISPLAY & NAV
     // ==========================================
+function showEntry(entryId) {
+  if (entries.length === 0) return;
+  const entry = entries.find(e => e.id === entryId);
+  if (!entry) return;
 
-    function showEntry(entryId) {
-      if (entries.length === 0) return;
-      const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
+  currentIndex = entryId;
+  const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
+  contentDiv.innerHTML = displayContent;
 
-      currentIndex = entryId;
-      const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
-      contentDiv.innerHTML = displayContent;
+  const viewableItems = isSearching ? searchResults : getFilteredEntries();
+  const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
+  const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
+  const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
+  const wordCount = entry.content.split(/\s+/).length;
 
-      const viewableItems = isSearching ? searchResults : getFilteredEntries();
-      const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
-      const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
-      const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
-      const wordCount = entry.content.split(/\s+/).length;
+  entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
+    <div class="inline-flex ml-2">${entry.tags.map(tag => 
+      `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
+    ).join('')}</div>`;
 
-      entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
-        <div class="inline-flex ml-2">${entry.tags.map(tag => 
-          `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
-        ).join('')}</div>`;
-
-      prevBtn.disabled = itemIndex <= 0;
-      nextBtn.disabled = itemIndex >= viewableItems.length - 1;
-      
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  prevBtn.disabled = itemIndex <= 0;
+  nextBtn.disabled = itemIndex >= viewableItems.length - 1;
+  
+  updateSearchStats(); // Add this line
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
     function buildIndex() {
       dateNav.innerHTML = '';
@@ -460,14 +495,14 @@
         dateNav.appendChild(div);
       });
     }
-
-    function showRandomEntry() {
-      const pool = isSearching ? searchResults : getFilteredEntries();
-      if (pool.length > 0) {
-        const random = pool[Math.floor(Math.random() * pool.length)];
-        showEntry(random.id);
-      }
-    }
+  
+function showRandomEntry() {
+  const pool = isSearching ? searchResults : getFilteredEntries();
+  if (pool.length > 0) {
+    const random = pool[Math.floor(Math.random() * pool.length)];
+    showEntry(random.id);
+  }
+}
 
     function navigateEntries(direction) {
       const items = isSearching ? searchResults : getFilteredEntries();
@@ -500,23 +535,28 @@
       if (isIndexVisible) buildIndex();
     });
 
-    // Filter Buttons
-    document.getElementById('filterBtns').addEventListener('click', e => {
-      if (e.target.classList.contains('filter-btn')) {
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-          btn.style.background = 'transparent';
-          const tag = btn.dataset.filter;
-          if (tag === 'all') {
-            btn.style.borderColor = '#333';
-            btn.style.color = '#666';
-          } else {
-            const classes = getTagClass(tag);
-            const colors = classes.split(' ');
-            btn.style.borderColor = colors[0].replace('border-', '');
-            btn.style.color = colors[1].replace('text-', '');
-          }
-        });
-        e.target.style.background = 'var(--red)';
+   // Filter Buttons
+document.getElementById('filterBtns').addEventListener('click', e => {
+  if (e.target.classList.contains('filter-btn')) {
+    // Clear search when filtering
+    searchBox.value = '';
+    isSearching = false;
+    searchQuery = '';
+
+    currentFilter = e.target.dataset.filter;
+    
+    restoreButtonStates();
+    
+    const filtered = getFilteredEntries();
+    if (filtered.length > 0) showEntry(filtered[0].id);
+    else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
+    
+    buildIndex();
+    dateNav.classList.remove('hidden');
+    isIndexVisible = true;
+  }
+}); 
+  e.target.style.background = 'var(--red)';
         e.target.style.color = 'var(--black)';
         e.target.style.borderColor = 'var(--red)';
         
