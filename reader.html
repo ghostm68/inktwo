@@ -208,8 +208,6 @@
     let isIndexVisible = false;
     let aiContext = 'current';
     let searchTimeout = null;
-    let lastRandomIds = [];
-    let searchHistory = JSON.parse(localStorage.getItem('brim_search_history') || '[]');
 
     // DOM ELEMENTS
     const searchBox = document.getElementById('searchBox');
@@ -255,22 +253,6 @@
         case 'vignettes': return 'border-red-300 text-red-300';
         default: return 'border-gray-600 text-gray-600';
       }
-    }
-
-    // Fuzzy search scoring
-    function fuzzyScore(str, query) {
-        str = str.toLowerCase();
-        query = query.toLowerCase();
-        let score = 0;
-        let strIndex = 0;
-        
-        for (let char of query) {
-            const foundAt = str.indexOf(char, strIndex);
-            if (foundAt === -1) return 0;
-            score += 1 / (foundAt - strIndex + 1);
-            strIndex = foundAt + 1;
-        }
-        return score;
     }
 
     // ==========================================
@@ -338,7 +320,7 @@
     }
 
     // ==========================================
-    // 5. ENHANCED SEARCH LOGIC
+    // 5. SEARCH LOGIC
     // ==========================================
 
     function parseSearchQuery(query) {
@@ -370,14 +352,6 @@
       return true;
     }
 
-    function saveSearchHistory(query) {
-        if (!searchHistory.includes(query) && searchResults.length > 0) {
-            searchHistory.unshift(query);
-            searchHistory = searchHistory.slice(0, 10);
-            localStorage.setItem('brim_search_history', JSON.stringify(searchHistory));
-        }
-    }
-
     function performSearch(query) {
       searchQuery = query;
       if (!query.trim()) {
@@ -390,30 +364,7 @@
 
       isSearching = true;
       const terms = parseSearchQuery(query);
-      
-      // Exact matches first
-      let exactMatches = getFilteredEntries().filter(e => matchesSearch(e, terms));
-      
-      // Then fuzzy matches (if query is simple word)
-      let fuzzyMatches = [];
-      if (terms.and.length === 1 && terms.or.length === 0 && terms.not.length === 0 && terms.exact.length === 0) {
-          const searchWord = terms.and[0];
-          fuzzyMatches = getFilteredEntries()
-              .filter(e => !exactMatches.includes(e))
-              .map(e => ({
-                  entry: e,
-                  score: fuzzyScore(e.content + ' ' + e.title, searchWord)
-              }))
-              .filter(item => item.score > 0.3)
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 5)
-              .map(item => item.entry);
-      }
-      
-      searchResults = [...exactMatches, ...fuzzyMatches];
-      
-      // Save to history
-      saveSearchHistory(query);
+      searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
       
       updateSearchStats();
       buildIndex();
@@ -447,7 +398,7 @@
     }
 
     // ==========================================
-    // 6. DISPLAY & NAVIGATION
+    // 6. DISPLAY & NAV
     // ==========================================
 
     function showEntry(entryId) {
@@ -508,43 +459,12 @@
       });
     }
 
-    // ==========================================
-    // 7. ENHANCED RANDOM FUNCTION
-    // ==========================================
-
     function showRandomEntry() {
-        const pool = isSearching ? searchResults : getFilteredEntries();
-        if (pool.length === 0) return;
-        
-        // Avoid showing same entry twice in a row
-        let availablePool = pool.filter(e => !lastRandomIds.includes(e.id));
-        if (availablePool.length === 0) {
-            availablePool = pool;
-            lastRandomIds = [];
-        }
-        
-        // Weighted random: favor longer entries
-        const weighted = availablePool.map(e => ({
-            entry: e,
-            weight: Math.log(e.content.split(/\s+/).length + 1)
-        }));
-        
-        const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
-        let random = Math.random() * totalWeight;
-        
-        let selected = weighted[0].entry;
-        for (let item of weighted) {
-            random -= item.weight;
-            if (random <= 0) {
-                selected = item.entry;
-                break;
-            }
-        }
-        
-        lastRandomIds.push(selected.id);
-        if (lastRandomIds.length > 3) lastRandomIds.shift();
-        
-        showEntry(selected.id);
+      const pool = isSearching ? searchResults : getFilteredEntries();
+      if (pool.length > 0) {
+        const random = pool[Math.floor(Math.random() * pool.length)];
+        showEntry(random.id);
+      }
     }
 
     function navigateEntries(direction) {
@@ -556,30 +476,23 @@
     }
 
     // ==========================================
-    // 8. EVENT LISTENERS
+    // 7. AI & EVENTS
     // ==========================================
 
     document.addEventListener('DOMContentLoaded', loadText);
 
-    // Search Input with history
+    // Search Input
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
-    searchBox.addEventListener('focus', e => {
-        e.target.style.borderColor = 'var(--red)';
-        if (searchHistory.length > 0 && !searchBox.value) {
-            searchStats.textContent = `Recent: ${searchHistory.slice(0, 3).join(', ')}`;
-        }
-    });
-    searchBox.addEventListener('blur', e => {
-        e.target.style.borderColor = '#222';
-        if (!isSearching) {
-            updateSearchStats();
-        }
-    });
+    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
+    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
 
     // Nav Buttons
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
-    randomBtn.addEventListener('click', showRandomEntry);
+    randomBtn.addEventListener('click', () => {
+      console.log('Random button clicked');
+      showRandomEntry();
+    });
     
     // Index Toggle
     indexBtn.addEventListener('click', () => {
@@ -627,10 +540,7 @@
       }
     });
 
-    // ==========================================
-    // 9. AI LOGIC
-    // ==========================================
-
+    // AI Logic
     if(localStorage.getItem('brim_nvidia_key')) apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
     apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
 
@@ -702,35 +612,15 @@
       }
     });
 
-    // ==========================================
-    // 10. KEYBOARD SHORTCUTS (ENHANCED)
-    // ==========================================
-
+    // Keys & Hover
     document.addEventListener('keydown', e => {
       if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
-      
-      // Navigation
       if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
       if (e.key === 'ArrowRight') { e.preventDefault(); navigateEntries('next'); }
-      
-      // Random
       if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showRandomEntry(); }
-      
-      // Search focus
       if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
-      
-      // Quick jump to entry 1-9
-      if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.altKey) {
-          e.preventDefault();
-          const num = parseInt(e.key);
-          const pool = isSearching ? searchResults : getFilteredEntries();
-          if (num <= pool.length) {
-              showEntry(pool[num - 1].id);
-          }
-      }
     });
     
-    // Hover Effects
     document.addEventListener('mouseover', e => {
       if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn')) {
         e.target.style.background = 'var(--red)';
