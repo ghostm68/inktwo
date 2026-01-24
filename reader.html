@@ -173,20 +173,19 @@
   </div>
 
 <script>
-    // --- CONFIGURATION ---
+    // ==========================================
+    // 1. CONFIGURATION & STATE
+    // ==========================================
     const TXT_FILE_URL = 'brim.txt';
     
-    // Stable Nvidia Models (Llama 3.3 is the current "King" of stability/speed)
+    // Nvidia Models (Stable Llama 3.3 as primary)
     const NVIDIA_MODELS = {
         "stable": "meta/llama-3.3-70b-instruct", 
         "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
-        "fast": "meta/llama-3.1-8b-instruct"
     };
-    
-    // Default to Llama 3.3
     let currentModel = NVIDIA_MODELS.stable;
 
-    // --- STATE MANAGEMENT ---
+    // Reader State
     let entries = [];
     let currentIndex = 0;
     let currentFilter = 'all';
@@ -197,7 +196,7 @@
     let aiContext = 'current';
     let searchTimeout = null;
 
-    // --- PATTERNS ---
+    // Regex Patterns
     const TAG_PATTERNS = {
       all: /.*/,
       fragments: /\[fragment\]|\bfragment(s)?\b/i,
@@ -208,7 +207,9 @@
     };
     const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
-    // --- DOM ELEMENTS ---
+    // ==========================================
+    // 2. DOM ELEMENTS
+    // ==========================================
     const searchBox = document.getElementById('searchBox');
     const searchStats = document.getElementById('searchStats');
     const prevBtn = document.getElementById('prevBtn');
@@ -220,15 +221,19 @@
     const loadingDiv = document.getElementById('loading');
     const contentDiv = document.getElementById('content');
     const filterBtns = document.getElementById('filterBtns');
+    
+    // AI Elements
     const apiKeyInput = document.getElementById('apiKeyInput');
     const aiInput = document.getElementById('aiInput');
     const askAiBtn = document.getElementById('askAiBtn');
     const aiResponseDiv = document.getElementById('aiResponse');
     const contextInfo = document.getElementById('contextInfo');
 
-    // --- AI LOGIC (NVIDIA VIA PROXY) ---
+    // ==========================================
+    // 3. AI LOGIC (NVIDIA + DREAM PROMPT)
+    // ==========================================
     
-    // Load saved key
+    // Load API Key from storage
     if(localStorage.getItem('brim_nvidia_key')) {
         apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
     }
@@ -246,12 +251,10 @@
 
         askAiBtn.disabled = true;
         askAiBtn.textContent = "TRANSMITTING...";
-        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Connecting to Llama 3.3 (via Nvidia)...</p>`;
+        aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting the Machine (${currentModel.split('/')[1]})...</p>`;
 
         try {
             const systemContext = buildAIPrompt(""); 
-            
-            // PROXY URL (Using corsproxy.io)
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
             
             const response = await fetch(proxyUrl, {
@@ -263,10 +266,13 @@
                 body: JSON.stringify({
                     model: currentModel,
                     messages: [
-                        { role: "system", content: "You are an editor for BRIM, a narrative where the lines between reality and dreams are intentionally blurred. Interpret the text through the lens of subconscious symbolism and surrealism. Do not try to force logical continuity if the surrealism serves the narrative. Be bold, concise, and atmospheric" },
+                        { 
+                          role: "system", 
+                          content: "You are an editor for BRIM, a narrative where the lines between reality and dreams are intentionally blurred. Interpret the text through the lens of subconscious symbolism and surrealism. Do not try to force logical continuity if the surrealism serves the narrative. Be bold, concise, and atmospheric." 
+                        },
                         { role: "user", content: systemContext + "\n\nUser Question: " + msg }
                     ],
-                    temperature: 0.5,
+                    temperature: 0.6,
                     top_p: 1,
                     max_tokens: 1024,
                     stream: false
@@ -275,9 +281,8 @@
 
             if (!response.ok) {
                 const errText = await response.text();
-                // Check for common 404/401 errors
                 if (response.status === 404) {
-                    throw new Error(`Model ${currentModel} not found (404). Nvidia may have moved it.`);
+                    throw new Error(`Model 404. Switching to backup...`);
                 }
                 throw new Error(`API Error (${response.status}): ${errText}`);
             }
@@ -290,10 +295,10 @@
             console.error(error);
             aiResponseDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
             
-            // Auto-fallback suggestion
-            if(error.message.includes("404") && currentModel === NVIDIA_MODELS.stable) {
-                aiResponseDiv.innerHTML += `<p class="text-xs mt-2" style="color: #666;">Tip: Trying Backup Model (Nemotron)... Click Ask again.</p>`;
+            // Auto-fallback logic
+            if(error.message.includes("404") || error.message.includes("Switching")) {
                 currentModel = NVIDIA_MODELS.backup;
+                aiResponseDiv.innerHTML += `<p class="text-xs mt-2" style="color: #666;">⚠️ Llama 3.3 unavailable. Switched to Nemotron 70B. Please click Transmit again.</p>`;
             }
         } finally {
             askAiBtn.disabled = false;
@@ -306,7 +311,7 @@
       if (aiContext === 'current' && currentIndex !== 0) {
         const entry = entries.find(e => e.id === currentIndex);
         if (entry) {
-            const safeContent = entry.content.substring(0, 3500); // 3500 char limit
+            const safeContent = entry.content.substring(0, 3500); 
             systemContext = `CONTEXT (Current BRIM Section - ${entry.title}):\n${safeContent}\n\n---\n`;
         }
       } else if (aiContext === 'all') {
@@ -316,7 +321,9 @@
       return systemContext + userMessage;
     }
 
-    // --- READER LOGIC (Standard) ---
+    // ==========================================
+    // 4. READER LOGIC (Parsing & Nav)
+    // ==========================================
 
     function debounce(func, delay) {
       return function(...args) {
@@ -324,7 +331,9 @@
         searchTimeout = setTimeout(() => func.apply(this, args), delay);
       };
     }
+
     function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
     function getTagClass(tag) {
       switch (tag) {
         case 'fragments': return 'border-red-600 text-red-600';
@@ -339,12 +348,14 @@
     async function loadText() {
       try {
         const response = await fetch(TXT_FILE_URL);
+        if (!response.ok) throw new Error("File not found");
         const text = await response.text();
         parseEntries(text);
         loadingDiv.style.display = 'none';
         contentDiv.style.display = 'block';
-        if (entries.length > 0) showEntry(0);
+        if (entries.length > 0) showEntry(entries[0].id);
         
+        // Highlight "All" filter by default
         const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
         if(allBtn) {
             allBtn.style.background = 'var(--red)';
@@ -353,7 +364,7 @@
         }
         buildIndex();
       } catch (error) {
-        loadingDiv.innerHTML = `<p style="color: var(--red);">Error loading brim.txt.</p>`;
+        loadingDiv.innerHTML = `<p style="color: var(--red);">Error loading brim.txt. Ensure the file exists.</p>`;
       }
     }
 
@@ -381,6 +392,10 @@
       if (currentFilter === 'all') return entries;
       return entries.filter(e => e.tags.includes(currentFilter));
     }
+
+    // ==========================================
+    // 5. SEARCH LOGIC
+    // ==========================================
 
     function parseSearchQuery(query) {
       const terms = { and: [], or: [], not: [], exact: [] };
@@ -450,20 +465,28 @@
       return result;
     }
 
+    // ==========================================
+    // 6. DISPLAY & NAVIGATION
+    // ==========================================
+
     function showEntry(entryId) {
       if (entries.length === 0) return;
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
+      
       currentIndex = entryId;
       const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
       contentDiv.innerHTML = displayContent;
+
       const viewableItems = isSearching ? searchResults : getFilteredEntries();
       const itemIndex = viewableItems.findIndex(e => e.id === currentIndex);
       const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
       const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
       const wordCount = entry.content.split(/\s+/).length;
+
       entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
         <div class="inline-flex ml-2">${entry.tags.map(tag => `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`).join('')}</div>`;
+
       prevBtn.disabled = itemIndex <= 0;
       nextBtn.disabled = itemIndex >= viewableItems.length - 1;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -500,11 +523,43 @@
       if (newIdx !== idx) showEntry(items[newIdx].id);
     }
 
-    // --- EVENT LISTENERS ---
+    // ==========================================
+    // 7. EVENT LISTENERS
+    // ==========================================
+    
+    // Initialize
     document.addEventListener('DOMContentLoaded', loadText);
     
-    // AI Listeners
+    // AI
     askAiBtn.addEventListener('click', handleAskAI);
+
+    // Search
+    searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
+    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
+    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
+
+    // Navigation
+    prevBtn.addEventListener('click', () => navigateEntries('prev'));
+    nextBtn.addEventListener('click', () => navigateEntries('next'));
+    randomBtn.addEventListener('click', showRandomEntry);
+    indexBtn.addEventListener('click', () => { isIndexVisible = !isIndexVisible; dateNav.classList.toggle('hidden'); if (isIndexVisible) buildIndex(); });
+
+    // Filter Buttons
+    filterBtns.addEventListener('click', e => {
+      if (e.target.classList.contains('filter-btn')) {
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.style.borderColor = btn.dataset.filter === 'all' ? '#333' : getTagClass(btn.dataset.filter).split(' ')[0].replace('border-', '');
+            btn.style.color = btn.dataset.filter === 'all' ? '#666' : getTagClass(btn.dataset.filter).split(' ')[1].replace('text-', '');
+            btn.style.background = 'transparent';
+        });
+        e.target.style.background = 'var(--red)';
+        e.target.style.color = 'var(--black)';
+        e.target.style.borderColor = 'var(--red)';
+        currentFilter = e.target.dataset.filter;
+        if (isSearching) performSearch(searchQuery);
+        else { const filtered = getFilteredEntries(); if (filtered.length > 0) showEntry(filtered[0].id); buildIndex(); }
+      }
+    });
 
     // Context Toggles
     document.addEventListener('click', e => {
@@ -522,31 +577,7 @@
       }
     });
 
-    // Standard Listeners
-    searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
-    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
-    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
-    prevBtn.addEventListener('click', () => navigateEntries('prev'));
-    nextBtn.addEventListener('click', () => navigateEntries('next'));
-    randomBtn.addEventListener('click', showRandomEntry);
-    indexBtn.addEventListener('click', () => { isIndexVisible = !isIndexVisible; dateNav.classList.toggle('hidden'); if (isIndexVisible) buildIndex(); });
-
-    filterBtns.addEventListener('click', e => {
-      if (e.target.classList.contains('filter-btn')) {
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.style.borderColor = btn.dataset.filter === 'all' ? '#333' : getTagClass(btn.dataset.filter).split(' ')[0].replace('border-', '');
-            btn.style.color = btn.dataset.filter === 'all' ? '#666' : getTagClass(btn.dataset.filter).split(' ')[1].replace('text-', '');
-            btn.style.background = 'transparent';
-        });
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-        e.target.style.borderColor = 'var(--red)';
-        currentFilter = e.target.dataset.filter;
-        if (isSearching) performSearch(searchQuery);
-        else { const filtered = getFilteredEntries(); if (filtered.length > 0) showEntry(filtered[0].id); buildIndex(); }
-      }
-    });
-
+    // Shortcuts
     document.addEventListener('keydown', e => {
       if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
@@ -555,6 +586,7 @@
       if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
     });
 
+    // Hover Effects
     document.addEventListener('mouseover', e => {
       if (e.target.matches('button:not(:disabled)') && !e.target.classList.contains('context-btn') && !e.target.classList.contains('filter-btn')) {
         e.target.style.background = 'var(--red)';
