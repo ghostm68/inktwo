@@ -1,4 +1,4 @@
-ok<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -387,33 +387,32 @@ article:focus::before {
         </div> 
 <div class="header-center" style="display:flex; align-items:center; gap: 15px;">
     <!-- 1. THE SELECTOR -->
-  <div class="control-group">
-    <label>MODEL FREQUENCY</label>
-<select id="model-select" class="terminal-select">
-    <!-- THE BEST ALL-ROUNDER -->
-    <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">HERMES 3 (3B) - SMARTEST</option>
+<div class="controls">
     
-    <!-- THE LOGIC EXPERT (New) -->
-    <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">PHI 3.5 (3.8B) - HIGH LOGIC</option>
-    
-    <!-- THE SPEEDSTER -->
-    <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">LLAMA 3.2 (1B) - FASTEST</option>
-    
-    <!-- THE BALANCED (New) -->
-    <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">STABLE ZEPHYR (1.6B) - BALANCED</option>
-    
-    <!-- THE CREATIVE -->
-    <option value="gemma-2-2b-it-q4f16_1-MLC">GEMMA 2 (2B) - CREATIVE</option>
+    <div class="control-group">
+        <label>NEURAL MODEL</label>
+        <!-- The Select Menu -->
+        <select id="model-select" class="terminal-select">
+            <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">HERMES 3 (3B) - SMARTEST</option>
+            <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">PHI 3.5 (3.8B) - HIGH LOGIC</option>
+            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">LLAMA 3.2 (1B) - FASTEST</option>    
+             <option value="gemma-2-2b-it-q4f16_1-MLC">GEMMA 2 (2B) - CREATIVE</option>
+            <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">STABLE ZEPHYR (1.6B) - BALANCED</option>
+            <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k">RED PAJAMA (3B) - RELIC</option>
+        </select>
+        
+        <!-- THE NEW BUTTON -->
+        <button id="connect-btn" class="terminal-btn">INITIALIZE LINK</button>
+    </div>
 
-    
-    <!-- not recoomended -->
-    <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC">RedPajama - relic</option>
-</select>
+    <!-- Status Indicator -->
+    <div class="status-indicator">
+        <span id="status-text">OFFLINE</span>
+        <div id="status-dot" class="status-dot" style="background: #333;"></div>
+    </div>
 
-<!-- REMOVED: API Key Input -->
-<!-- REMOVED: Liquid Settings Div (no longer needed) -->
-    <!-- 2. THE LOCAL CORE MODULE (Compact) -->
-    
+</div>
+   
         <div class="status-indicator">
             <span id="status-text">CONNECTING</span>
             <div id="status-dot" class="status-dot"></div>
@@ -487,12 +486,13 @@ import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 class InkRealmTerminal {
     constructor() {
-        // Safe check for model select
         const select = document.getElementById("model-select");
-        this.modelId = select ? select.value : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+        // Default to a model if select is missing
+        this.modelId = select ? select.value : "Llama-3.2-1B-Instruct-q4f16_1-MLC";
         
         this.engine = null;
         this.isGenerating = false;
+        this.isOnline = false; // Starts Offline (Manual Trigger)
         this.systemPrompt = "You are a sophisticated AI interface in a literary terminal environment. Tone: Professional terminal aesthetic, warm, intelligent, terse.";
         
         this.init();
@@ -501,55 +501,71 @@ class InkRealmTerminal {
     init() {
         this.runSplash();
         this.setupEvents();
-        setTimeout(() => this.connectSystem(), 1200);
-        
-        // Pre-warm message
-        if (navigator.gpu) {
-            this.addSystemMessage("DETECTED GPU ACCELERATION. STANDBY.");
-        } else {
-            this.addSystemMessage("WARNING: NO GPU DETECTED. SYSTEM WILL BE SLOW.");
-        }
+        // Note: We do NOT connect automatically. Waiting for user to click INITIALIZE.
     }
 
-    // === CORE ENGINE ===
-    async ensureEngine() {
-        if (this.engine && this.engine.currentModelId === this.modelId) {
-            return this.engine;
-        }
-
+    // === 1. MANUAL CONNECTION LOGIC ===
+    async connectEngine() {
+        const btn = document.getElementById("connect-btn");
         const statusDot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
 
-        if (statusText) statusText.textContent = "LOADING CORE...";
-        if (statusDot) statusDot.style.background = "#ff9900"; 
+        if (this.isOnline) return; 
+
+        if(btn) {
+            btn.disabled = true;
+            btn.textContent = "ESTABLISHING...";
+        }
+        if(statusText) statusText.textContent = "DOWNLOADING...";
+        if(statusDot) statusDot.style.background = "#ff9900"; // Orange
 
         try {
-            this.addSystemMessage(`⟁ INITIALIZING NEURAL LINK: ${this.modelId}...`);
+            this.addSystemMessage(`⟁ INITIATING HANDSHAKE: ${this.modelId}`);
             
             this.engine = await webllm.CreateMLCEngine(this.modelId, {
                 initProgressCallback: (report) => {
                     const p = Math.round(report.progress * 100);
-                    if(p < 100 && statusText) statusText.textContent = `DOWNLOADING: ${p}%`;
+                    if(p < 100) {
+                        if(statusText) statusText.textContent = `SYNCING: ${p}%`;
+                        if(btn) btn.textContent = `${p}%`;
+                    }
                 }
             });
 
             this.engine.currentModelId = this.modelId;
+            this.isOnline = true;
             
-            this.addSystemMessage("⟁ LOCAL CORE ONLINE. READY.");
-            if (statusText) statusText.textContent = "ONLINE";
-            if (statusDot) statusDot.style.background = "#00ff41"; 
-            return this.engine;
-
+            // Success State
+            this.addSystemMessage("⟁ LINK ESTABLISHED. READY FOR INPUT.");
+            if(statusText) statusText.textContent = "ONLINE";
+            if(statusDot) statusDot.style.background = "#00ff41"; // Green
+            if(btn) {
+                btn.textContent = "LINK ACTIVE";
+                btn.style.borderColor = "#00ff41";
+                btn.style.color = "#00ff41";
+            }
+            
         } catch (err) {
-            if (statusText) statusText.textContent = "ERROR";
-            if (statusDot) statusDot.style.background = "#ff0000";
+            console.error(err);
+            if(statusText) statusText.textContent = "FAILURE";
+            if(statusDot) statusDot.style.background = "#ff0033";
+            if(btn) {
+                btn.textContent = "RETRY";
+                btn.disabled = false;
+            }
             this.addSystemMessage(`FATAL: ${err.message}`);
-            throw err;
         }
     }
 
+    // === 2. GENERATION LOGIC ===
     async generate() {
         if (this.isGenerating) return;
+        
+        // Block typing if offline
+        if (!this.isOnline) {
+            this.addSystemMessage("⚠ ERROR: SYSTEM OFFLINE. PLEASE CLICK [INITIALIZE LINK].");
+            return;
+        }
 
         const input = document.getElementById("text-input");
         const sendBtn = document.getElementById("send-button");
@@ -558,7 +574,7 @@ class InkRealmTerminal {
         if (!prompt) return;
 
         this.isGenerating = true;
-        if (sendBtn) {
+        if(sendBtn) {
             sendBtn.disabled = true;
             sendBtn.textContent = "...";
         }
@@ -569,14 +585,12 @@ class InkRealmTerminal {
         const loadingId = this.addLoading();
 
         try {
-            const engine = await this.ensureEngine();
-
             const messages = [
                 { role: "system", content: this.systemPrompt },
                 { role: "user", content: prompt }
             ];
 
-            const chunks = await engine.chat.completions.create({
+            const chunks = await this.engine.chat.completions.create({
                 messages,
                 stream: true,
                 temperature: 0.7,
@@ -584,10 +598,9 @@ class InkRealmTerminal {
 
             this.removeLoading(loadingId);
 
-            // Create AI Message Bubble with "Typing" class
             const msgEl = this.addMessage("ai", "");
             const contentEl = msgEl.querySelector(".message-content");
-            contentEl.classList.add("typing"); // Add cursor
+            contentEl.classList.add("typing"); // Cursor effect
             
             let fullText = "";
             for await (const chunk of chunks) {
@@ -595,36 +608,34 @@ class InkRealmTerminal {
                 fullText += delta;
                 contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
                 
-                // Keep scrolling to bottom
+                // Auto-scroll
                 const container = document.getElementById("chat-messages");
                 if (container) container.scrollTop = container.scrollHeight;
             }
-            
-            // Remove cursor when done
             contentEl.classList.remove("typing");
 
         } catch (err) {
             this.removeLoading(loadingId);
-            this.addMessage("ai", `[SYSTEM ERROR] ${err.message}`);
+            this.addMessage("ai", `[runtime_error]: ${err.message}`);
         } finally {
             this.isGenerating = false;
-            if (sendBtn) {
+            if(sendBtn) {
                 sendBtn.disabled = false;
                 sendBtn.textContent = "SEND";
             }
         }
     }
 
-    // === UI UTILITIES ===
+    // === 3. UI UTILITIES ===
     runSplash() {
         const splash = document.getElementById('glitch-splash');
-        if(!splash) return; 
-        
+        if(!splash) return;
         setTimeout(() => {
             splash.style.opacity = '0';
             splash.style.transition = 'opacity 1s ease';
             setTimeout(() => {
                 splash.style.display = 'none';
+                // Show interface elements
                 const ids = ['header', 'writing-container', 'notepad-panel', 'footer'];
                 ids.forEach(id => {
                     const el = document.getElementById(id) || document.querySelector('.'+id);
@@ -634,30 +645,40 @@ class InkRealmTerminal {
         }, 2500);
     }
 
-    connectSystem() {
-        const txt = document.getElementById("status-text");
-        const dot = document.getElementById("status-dot");
-        if(txt) txt.textContent = "IDLE";
-        if(dot) dot.style.background = "#e80716";
-    }
-
-    // === ROBUST EVENT SETUP ===
     setupEvents() {
-        // Helper to safely add listener
         const safeListen = (id, event, fn) => {
             const el = document.getElementById(id);
             if (el) el.addEventListener(event, fn);
-            else console.warn(`UI Element missing: #${id}`);
         };
 
+        // MANUAL CONNECT
+        safeListen("connect-btn", "click", () => this.connectEngine());
+
+        // MODEL SWAP
         safeListen("model-select", "change", e => {
             this.modelId = e.target.value;
+            this.isOnline = false; // Reset to offline
+            
+            // Reset Button UI
+            const btn = document.getElementById("connect-btn");
+            if(btn) {
+                btn.disabled = false;
+                btn.textContent = "INITIALIZE LINK";
+                btn.style.color = "";
+                btn.style.borderColor = "";
+            }
+            
+            const statusDot = document.getElementById("status-dot");
+            if(statusDot) statusDot.style.background = "#333";
+            const statusTxt = document.getElementById("status-text");
+            if(statusTxt) statusTxt.textContent = "OFFLINE";
+
             const name = e.target.options[e.target.selectedIndex].text;
-            this.addSystemMessage(`TARGET MODEL CHANGED → ${name}`);
+            this.addSystemMessage(`TARGET REACQUIRED: ${name}`);
+            this.addSystemMessage(`WAITING FOR INITIALIZATION...`);
         });
 
         safeListen("send-button", "click", () => this.generate());
-        
         safeListen("text-input", "keydown", e => {
             if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -665,14 +686,13 @@ class InkRealmTerminal {
             }
         });
 
-        // CHECK BOTH POSSIBLE IDS FOR EXPORT
+        // NOTEPAD CONTROLS
         const exportHandler = () => this.exportNotepad();
         safeListen("export-notepad", "click", exportHandler);
-        safeListen("exportButton", "click", exportHandler); // Fallback for older HTML
+        safeListen("exportButton", "click", exportHandler);
 
-        // CHECK BOTH POSSIBLE IDS FOR CLEAR
         const clearHandler = () => {
-            if (confirm("Erase all local data?")) {
+            if (confirm("Purge local buffer?")) {
                 const pad = document.getElementById("notepad");
                 if(pad) pad.value = "";
             }
@@ -697,7 +717,6 @@ class InkRealmTerminal {
     exportNotepad() {
         const pad = document.getElementById("notepad");
         const content = pad ? pad.value : "";
-        
         if (!content.trim()) return alert("Buffer empty.");
         
         const blob = new Blob([content], { type: "text/plain" });
@@ -764,14 +783,14 @@ class InkRealmTerminal {
     }
 }
 
-// === INIT ===
+// === 4. GLOBAL INIT & TICKERS ===
 document.addEventListener("DOMContentLoaded", () => {
     window.app = new InkRealmTerminal();
     updateNewsFeed();
     updateMarketFeed();
 });
 
-// === FEEDS ===
+// NEWS TICKER
 async function updateNewsFeed() {
   const feedEl = document.getElementById("feed-news");
   if (!feedEl) return;
@@ -787,6 +806,7 @@ async function updateNewsFeed() {
   }
 }
 
+// MARKET TICKER
 async function updateMarketFeed() {
   const el = document.getElementById("feed-market");
   if(!el) return;
@@ -800,8 +820,9 @@ async function updateMarketFeed() {
     el.textContent = "TON — no signal";
   }
 }
-setInterval(updateNewsFeed, 5 * 60 * 1000);
-setInterval(updateMarketFeed, 60 * 1000);
+
+setInterval(updateNewsFeed, 5 * 60 * 1000); // 5 mins
+setInterval(updateMarketFeed, 60 * 1000);     // 1 min
 </script>
     <script>
 // ========== ARTICLE AUTO-SAVE TO URL (STANDALONE) ==========
