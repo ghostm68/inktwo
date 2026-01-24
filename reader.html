@@ -265,28 +265,29 @@
         }
     });
 </script>
-  <script id="reader-script">
+<script id="reader-script">
     // ==========================================
     // READER CONFIGURATION
     // ==========================================
     const TXT_FILE_URL = 'brim.txt';
+    // Kept your regex, assuming it works for your specific file format
     const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
     const TAG_PATTERNS = {
-      all: /.*/,
-      fragments: /\[fragment\]|\bfragment(s)?\b/i,
-      passages: /\[passage\]|\bpassage(s)?\b/i,
-      sections: /\[section\]|\bsection(s)?\b/i,
-      sketches: /\[sketch\]|\bsketch(es)?\b/i,
-      vignettes: /\[vignette\]|\bvignette(s)?\b/i
+        all: /.*/,
+        fragments: /\[fragment\]|\bfragment(s)?\b/i,
+        passages: /\[passage\]|\bpassage(s)?\b/i,
+        sections: /\[section\]|\bsection(s)?\b/i,
+        sketches: /\[sketch\]|\bsketch(es)?\b/i,
+        vignettes: /\[vignette\]|\bvignette(s)?\b/i
     };
 
     // ==========================================
-    // STATE - exposed to AI script via window
+    // STATE
     // ==========================================
     window.readerEntries = [];
     window.readerCurrentIndex = 0;
-    
+
     let currentFilter = 'all';
     let searchQuery = '';
     let searchResults = [];
@@ -309,326 +310,319 @@
     const contentDiv = document.getElementById('content');
 
     // ==========================================
-    // HELPER FUNCTIONS
+    // HELPERS
     // ==========================================
     function debounce(func, delay) {
-      return function(...args) {
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => func.apply(this, args), delay);
-      };
-    }
-
-    function escapeRegex(str) {
-      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return function(...args) {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => func.apply(this, args), delay);
+        };
     }
 
     function getTagClass(tag) {
-      switch (tag) {
-        case 'fragments': return 'border-red-600 text-red-600';
-        case 'passages': return 'border-red-700 text-red-700';
-        case 'sections': return 'border-red-500 text-red-500';
-        case 'sketches': return 'border-red-400 text-red-400';
-        case 'vignettes': return 'border-red-300 text-red-300';
-        default: return 'border-gray-600 text-gray-600';
-      }
+        switch (tag) {
+            case 'fragments': return 'border-red-600 text-red-600';
+            case 'passages': return 'border-red-700 text-red-700';
+            case 'sections': return 'border-red-500 text-red-500';
+            case 'sketches': return 'border-red-400 text-red-400';
+            case 'vignettes': return 'border-red-300 text-red-300';
+            default: return 'border-gray-600 text-gray-600';
+        }
+    }
+
+    // New: Converts raw text newlines into HTML paragraphs for better display
+    function formatContent(text) {
+        if (!text) return '';
+        return text.split('\n').map(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return '<br>'; // Preserve spacing
+            return `<p class="mb-4 leading-relaxed">${trimmed}</p>`;
+        }).join('');
     }
 
     // ==========================================
     // LOADING & PARSING
     // ==========================================
     async function loadText() {
-      try {
-        const response = await fetch(TXT_FILE_URL);
-        if (!response.ok) throw new Error("File not found");
-        const text = await response.text();
-        parseEntries(text);
-        
-        loadingDiv.style.display = 'none';
-        contentDiv.style.display = 'block';
-        
-        if (window.readerEntries.length > 0) showEntry(window.readerEntries[0].id);
-        
-        const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
-        if(allBtn) {
-            allBtn.style.background = 'var(--red)';
-            allBtn.style.color = 'var(--black)';
-            allBtn.style.borderColor = 'var(--red)';
+        try {
+            const response = await fetch(TXT_FILE_URL);
+            if (!response.ok) throw new Error("File not found");
+            const text = await response.text();
+            parseEntries(text);
+
+            loadingDiv.style.display = 'none';
+            contentDiv.style.display = 'block';
+
+            if (window.readerEntries.length > 0) {
+                // Show random entry on load, or first? Let's do first.
+                showEntry(window.readerEntries[0].id);
+            }
+
+            // Set visual state for "All" button
+            const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+            if (allBtn) styleActiveFilter(allBtn);
+            
+            buildIndex();
+        } catch (error) {
+            loadingDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
         }
-        buildIndex();
-      } catch (error) {
-        loadingDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
-      }
     }
 
     function parseEntries(text) {
-      const lines = text.split('\n');
-      let currentEntry = { id: 0, title: 'Start', content: '', tags: [] };
-      let entryId = 0;
+        const lines = text.split('\n');
+        // Start with a dummy entry
+        let currentEntry = { id: 0, title: 'Intro', content: '', tags: [] };
+        let entryId = 0;
+        let isFirst = true;
 
-      lines.forEach(line => {
-        const match = line.match(brimPattern);
-        if (match) {
-          if (currentEntry.content.trim()) {
+        lines.forEach(line => {
+            const match = line.match(brimPattern);
+            if (match) {
+                // Save previous entry if it has content
+                if (currentEntry.content.trim() && !isFirst) {
+                    detectTags(currentEntry);
+                    window.readerEntries.push(currentEntry);
+                }
+                isFirst = false;
+                
+                // Start new entry
+                // Note: We do NOT add the match line to content, to keep title separate
+                currentEntry = { 
+                    id: ++entryId, 
+                    title: match[0].trim(), 
+                    content: '', 
+                    tags: [] 
+                };
+            } else {
+                currentEntry.content += line + '\n';
+            }
+        });
+
+        // Push the final entry
+        if (currentEntry.content.trim()) {
             detectTags(currentEntry);
             window.readerEntries.push(currentEntry);
-          }
-          currentEntry = { id: ++entryId, title: match[0].trim(), content: line + '\n', tags: [] };
-        } else {
-          currentEntry.content += line + '\n';
         }
-      });
-
-      if (currentEntry.content.trim()) {
-        detectTags(currentEntry);
-        window.readerEntries.push(currentEntry);
-      }
     }
 
     function detectTags(entry) {
-      for (const [tag, pattern] of Object.entries(TAG_PATTERNS)) {
-        if (tag !== 'all' && pattern.test(entry.content)) entry.tags.push(tag);
-      }
+        for (const [tag, pattern] of Object.entries(TAG_PATTERNS)) {
+            if (tag !== 'all' && pattern.test(entry.content)) entry.tags.push(tag);
+        }
     }
 
     function getFilteredEntries() {
-      if (currentFilter === 'all') return window.readerEntries;
-      return window.readerEntries.filter(e => e.tags.includes(currentFilter));
+        if (currentFilter === 'all') return window.readerEntries;
+        return window.readerEntries.filter(e => e.tags.includes(currentFilter));
     }
 
     // ==========================================
-    // SEARCH LOGIC
+    // SEARCH
     // ==========================================
-    function parseSearchQuery(query) {
-      const terms = { and: [], or: [], not: [], exact: [] };
-      const exactMatches = query.match(/"([^"]+)"/g);
-      if (exactMatches) {
-        exactMatches.forEach(match => {
-          terms.exact.push(match.replace(/"/g, '').toLowerCase());
-          query = query.replace(match, '');
-        });
-      }
-      const words = query.toLowerCase().split(/\s+/).filter(w => w);
-      let currentOp = 'and';
-      words.forEach(word => {
-        if (word === 'and') currentOp = 'and';
-        else if (word === 'or') currentOp = 'or';
-        else if (word.startsWith('-')) terms.not.push(word.substring(1));
-        else if (word) terms[currentOp].push(word);
-      });
-      return terms;
-    }
-
-    function matchesSearch(entry, terms) {
-      const searchText = (entry.content + ' ' + entry.title).toLowerCase();
-      if (terms.not.some(t => searchText.includes(t))) return false;
-      if (terms.exact.some(t => !searchText.includes(t))) return false;
-      if (terms.and.some(t => !searchText.includes(t))) return false;
-      if (terms.or.length > 0 && !terms.or.some(t => searchText.includes(t))) return false;
-      return true;
-    }
-
     function performSearch(query) {
-      searchQuery = query;
-      if (!query.trim()) {
-        isSearching = false;
-        searchResults = [];
-        updateSearchStats();
+        searchQuery = query.toLowerCase();
+        if (!query.trim()) {
+            isSearching = false;
+            searchResults = [];
+            updateUIState();
+            return;
+        }
+
+        isSearching = true;
+        const pool = getFilteredEntries();
+        
+        // Simple but effective search (includes title and content)
+        searchResults = pool.filter(e => 
+            e.content.toLowerCase().includes(searchQuery) || 
+            e.title.toLowerCase().includes(searchQuery)
+        );
+
+        updateUIState();
+        
+        if (searchResults.length > 0) {
+            showEntry(searchResults[0].id);
+        } else {
+            contentDiv.innerHTML = '<div class="text-center mt-10 text-gray-500">No matches found within this filter.</div>';
+            entryInfo.innerHTML = '';
+        }
+    }
+
+    function updateUIState() {
+        // Update stats
+        if (isSearching) {
+            searchStats.textContent = `${searchResults.length} matches`;
+        } else {
+            const count = getFilteredEntries().length;
+            searchStats.textContent = currentFilter !== 'all' ? `${count} items` : `${count} total`;
+        }
         buildIndex();
-        return;
-      }
-
-      isSearching = true;
-      const terms = parseSearchQuery(query);
-      searchResults = getFilteredEntries().filter(e => matchesSearch(e, terms));
-      
-      updateSearchStats();
-      buildIndex();
-      
-      if (searchResults.length > 0) {
-          showEntry(searchResults[0].id);
-          dateNav.classList.remove('hidden');
-          isIndexVisible = true;
-      }
-    }
-
-    function updateSearchStats() {
-      if (isSearching) {
-        searchStats.textContent = `${searchResults.length} matches`;
-      } else {
-        const filtered = getFilteredEntries();
-        searchStats.textContent = currentFilter !== 'all' ? `${filtered.length} entries tagged '${currentFilter}'` : '';
-      }
-    }
-
-    function highlightText(text, query) {
-      if (!query.trim()) return text;
-      const terms = parseSearchQuery(query);
-      const allTerms = [...terms.exact, ...terms.and, ...terms.or].filter((t, i, s) => s.indexOf(t) === i);
-      let result = text;
-      allTerms.sort((a, b) => b.length - a.length).forEach(term => {
-        const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
-        result = result.replace(regex, '<span class="highlight" style="background:var(--red); color:black;">$1</span>');
-      });
-      return result;
     }
 
     // ==========================================
     // DISPLAY & NAVIGATION
     // ==========================================
     function showEntry(entryId) {
-      if (window.readerEntries.length === 0) return;
-      const entry = window.readerEntries.find(e => e.id === entryId);
-      if (!entry) return;
+        const entry = window.readerEntries.find(e => e.id === entryId);
+        if (!entry) return;
 
-      window.readerCurrentIndex = entryId;
-      const displayContent = isSearching && searchQuery.trim() ? highlightText(entry.content, searchQuery) : entry.content;
-      contentDiv.innerHTML = displayContent;
+        window.readerCurrentIndex = entryId;
 
-      const viewableItems = isSearching ? searchResults : getFilteredEntries();
-      const itemIndex = viewableItems.findIndex(e => e.id === window.readerCurrentIndex);
-      const resultInfo = isSearching ? ` • Result ${itemIndex + 1} of ${searchResults.length}` : '';
-      const filterInfo = currentFilter !== 'all' ? ` (${currentFilter})` : '';
-      const wordCount = entry.content.split(/\s+/).length;
+        // 1. Format the content nicely (handle newlines)
+        let htmlContent = formatContent(entry.content);
 
-      entryInfo.innerHTML = `BRIM: <span class="font-bold" style="color: var(--red);">${entry.title}</span>${resultInfo}${filterInfo} <span style="color: #444;">• ${wordCount} words</span>
-        <div class="inline-flex ml-2">${entry.tags.map(tag => 
-          `<span class="inline-block px-2 py-0.5 ml-1 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
-        ).join('')}</div>`;
+        // 2. Highlight if searching
+        if (isSearching && searchQuery.trim()) {
+            const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            htmlContent = htmlContent.replace(regex, '<span style="background:var(--red); color:black; padding:0 2px;">$1</span>');
+        }
 
-      prevBtn.disabled = itemIndex <= 0;
-      nextBtn.disabled = itemIndex >= viewableItems.length - 1;
-      
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+        contentDiv.innerHTML = htmlContent;
 
-    function buildIndex() {
-      dateNav.innerHTML = '';
-      const items = isSearching ? searchResults : getFilteredEntries();
+        // 3. Update Header Info
+        const viewableItems = isSearching ? searchResults : getFilteredEntries();
+        const itemIndex = viewableItems.findIndex(e => e.id === entryId);
+        const wordCount = entry.content.trim().split(/\s+/).length;
 
-      if (items.length === 0) {
-        dateNav.innerHTML = '<p class="text-sm p-2" style="color: #555;">No entries found.</p>';
-        return;
-      }
-
-      items.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'group block p-2 cursor-pointer border-b last:border-b-0 transition-colors duration-200';
-        div.style.borderColor = '#111';
-        
-        const preview = entry.content.replace(/\n/g, ' ').substring(0, 100).trim();
-        div.innerHTML = `
-          <div class="flex items-center text-sm font-bold" style="color: var(--red);">
-            ${entry.title} ${entry.tags.map(tag => 
-              `<span class="inline-block px-2 py-0.5 ml-2 text-xs rounded-sm border ${getTagClass(tag)}">${tag}</span>`
-            ).join('')}
-          </div>
-          <div class="text-xs mt-1 italic" style="color: #555;">${preview}...</div>
+        entryInfo.innerHTML = `
+            <div class="flex flex-col gap-1">
+                <div>
+                    <span class="text-xs text-gray-500 uppercase tracking-widest">BRIM ARCHIVE</span>
+                    <span class="ml-2 font-bold text-xl" style="color: var(--red);">${entry.title}</span>
+                </div>
+                <div class="text-xs text-gray-400 flex items-center gap-2">
+                    ${isSearching ? `Result ${itemIndex + 1}/${searchResults.length}` : `Entry ${itemIndex + 1}/${viewableItems.length}`}
+                    <span>•</span>
+                    ${wordCount} words
+                    <span class="ml-2 flex gap-1">
+                        ${entry.tags.map(tag => `<span class="px-1 border ${getTagClass(tag)} text-[10px] uppercase">${tag}</span>`).join('')}
+                    </span>
+                </div>
+            </div>
         `;
-        div.addEventListener('click', () => showEntry(entry.id));
-        div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
-        div.addEventListener('mouseout', () => div.style.background = 'transparent');
-        dateNav.appendChild(div);
-      });
+
+        // 4. Button States
+        prevBtn.disabled = itemIndex <= 0;
+        nextBtn.disabled = itemIndex >= viewableItems.length - 1;
+
+        // 5. Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        contentDiv.scrollTo({ top: 0 });
     }
 
     function showRandomEntry() {
-      const pool = isSearching ? searchResults : getFilteredEntries();
-      if (pool.length === 0) return;
-      const random = pool[Math.floor(Math.random() * pool.length)];
-      showEntry(random.id);
+        const pool = isSearching ? searchResults : getFilteredEntries();
+        if (pool.length === 0) return;
+
+        let randomIndex;
+        let attempts = 0;
+
+        // Try to find a random entry that isn't the current one
+        do {
+            randomIndex = Math.floor(Math.random() * pool.length);
+            attempts++;
+        } while (pool[randomIndex].id === window.readerCurrentIndex && pool.length > 1 && attempts < 5);
+
+        showEntry(pool[randomIndex].id);
     }
 
     function navigateEntries(direction) {
-      const items = isSearching ? searchResults : getFilteredEntries();
-      if (items.length === 0) return;
-      const idx = items.findIndex(e => e.id === window.readerCurrentIndex);
-      const newIdx = direction === 'next' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
-      if (newIdx !== idx) showEntry(items[newIdx].id);
+        const items = isSearching ? searchResults : getFilteredEntries();
+        if (items.length === 0) return;
+        
+        const currentIdxInView = items.findIndex(e => e.id === window.readerCurrentIndex);
+        if (currentIdxInView === -1) return; // Should not happen
+
+        let newIdx = direction === 'next' ? currentIdxInView + 1 : currentIdxInView - 1;
+        
+        // Bounds check
+        if (newIdx >= 0 && newIdx < items.length) {
+            showEntry(items[newIdx].id);
+        }
+    }
+
+    function buildIndex() {
+        const items = isSearching ? searchResults : getFilteredEntries();
+        dateNav.innerHTML = '';
+
+        if (items.length === 0) return;
+
+        items.forEach(entry => {
+            const div = document.createElement('div');
+            // Simplified preview text
+            const preview = entry.content.substring(0, 60).replace(/\n/g, ' ') + '...';
+            
+            div.className = 'p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors';
+            if (entry.id === window.readerCurrentIndex) {
+                div.style.background = '#1a1a1a'; // Highlight active in index
+                div.style.borderLeft = '3px solid var(--red)';
+            }
+
+            div.innerHTML = `
+                <div class="text-sm font-bold text-gray-300 mb-1">${entry.title}</div>
+                <div class="text-xs text-gray-600 font-mono">${preview}</div>
+            `;
+            
+            div.addEventListener('click', () => {
+                showEntry(entry.id);
+                // On mobile/small screens, maybe hide index after click?
+                // isIndexVisible = false; dateNav.classList.add('hidden');
+            });
+            dateNav.appendChild(div);
+        });
+    }
+
+    function styleActiveFilter(activeBtn) {
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.style.background = 'transparent';
+            btn.style.borderColor = '#333';
+            btn.style.color = '#666';
+        });
+        activeBtn.style.background = 'var(--red)';
+        activeBtn.style.color = 'black';
+        activeBtn.style.borderColor = 'var(--red)';
     }
 
     // ==========================================
-    // EVENT LISTENERS
+    // LISTENERS
     // ==========================================
     document.addEventListener('DOMContentLoaded', loadText);
 
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
-    searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
-    searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
 
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
-    
+
     indexBtn.addEventListener('click', () => {
-      isIndexVisible = !isIndexVisible;
-      dateNav.classList.toggle('hidden');
-      if (isIndexVisible) buildIndex();
+        isIndexVisible = !isIndexVisible;
+        dateNav.classList.toggle('hidden');
+        if (isIndexVisible) buildIndex();
     });
 
     document.getElementById('filterBtns').addEventListener('click', e => {
-      if (e.target.classList.contains('filter-btn')) {
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-          btn.style.background = 'transparent';
-          const tag = btn.dataset.filter;
-          if (tag === 'all') {
-            btn.style.borderColor = '#333';
-            btn.style.color = '#666';
-          } else {
-            const classes = getTagClass(tag);
-            const colors = classes.split(' ');
-            btn.style.borderColor = colors[0].replace('border-', '');
-            btn.style.color = colors[1].replace('text-', '');
-          }
-        });
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-        e.target.style.borderColor = 'var(--red)';
-        
-        currentFilter = e.target.dataset.filter;
-        searchBox.value = '';
-        isSearching = false;
-        searchQuery = '';
-
-        const filtered = getFilteredEntries();
-        if (filtered.length > 0) showEntry(filtered[0].id);
-        else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
-        
-        buildIndex();
-        dateNav.classList.remove('hidden');
-        isIndexVisible = true;
-      }
+        if (e.target.classList.contains('filter-btn')) {
+            styleActiveFilter(e.target);
+            currentFilter = e.target.dataset.filter;
+            
+            // Reset search when filtering
+            searchBox.value = '';
+            isSearching = false;
+            
+            updateUIState();
+            
+            const filtered = getFilteredEntries();
+            if (filtered.length > 0) showEntry(filtered[0].id);
+        }
     });
 
-    // Keyboard shortcuts
+    // Keyboard Shortcuts
     document.addEventListener('keydown', e => {
-      if (document.activeElement === searchBox || 
-          document.activeElement === document.getElementById('aiInput') || 
-          document.activeElement === document.getElementById('apiKeyInput')) return;
-      
-      if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); navigateEntries('next'); }
-      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); showRandomEntry(); }
-      if (e.key === '/') { e.preventDefault(); searchBox.focus(); }
-    });
-    
-    // Button hover effects
-    document.addEventListener('mouseover', e => {
-      if (e.target.matches('button:not(:disabled)') && 
-          !e.target.classList.contains('context-btn') && 
-          !e.target.classList.contains('filter-btn')) {
-        e.target.style.background = 'var(--red)';
-        e.target.style.color = 'var(--black)';
-      }
-    });
-    
-    document.addEventListener('mouseout', e => {
-      if (e.target.matches('button:not(:disabled)') && 
-          !e.target.classList.contains('context-btn') && 
-          !e.target.classList.contains('filter-btn') && 
-          e.target.id !== 'askAiBtn') {
-        e.target.style.background = 'transparent';
-        e.target.style.color = 'var(--red)';
-      }
+        // Ignore if typing in an input
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+        if (e.key === 'ArrowLeft') navigateEntries('prev');
+        if (e.key === 'ArrowRight') navigateEntries('next');
+        if (e.key.toLowerCase() === 'r') showRandomEntry();
     });
 </script>
 </body>
