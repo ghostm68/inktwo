@@ -315,18 +315,17 @@ body { font-family: 'Noto Sans', sans-serif; background-color: #1a1a1a; color: #
 
         <!-- LOCAL AI IMAGE GENERATION -->
         <div class="toolbar-group">
-            <select id="aiModelSelector" title="Local AI Model">
-                <option value="Xenova/stable-diffusion-turbo" selected>SD Turbo (Fastest)</option>
-                <option value="Xenova/stable-diffusion-v1-5">SD v1.5 (Quality)</option>
-                <option value="Xenova/stable-diffusion-2-1">SD 2.1 (Balanced)</option>
-                <option value="Xenova/sdxl-turbo">SDXL Turbo (High Res Fast)</option>
-            </select>
+           <select id="aiModelSelector" title="AI Image Model">
+    <option value="Deliberate" selected>Deliberate (Fast)</option>
+    <option value="SDXL 1.0">SDXL 1.0 (Quality)</option>
+    <option value="Anything Diffusion">Anything Diffusion (Anime)</option>
+    <option value="Realistic Vision">Realistic Vision</option>
+    <option value="DreamShaper">DreamShaper</option>
+</select>
             <button id="generateImage" title="Generate AI Image Locally" style="background-color: #ff0000; border-color: #ff0000;">
                 <span class="material-symbols-outlined">auto_awesome</span>
             </button>
-            <button id="loadModelBtn" title="Pre-load Model" style="background-color: #333;">
-                <span class="material-symbols-outlined">download</span>
-            </button>
+           
         </div>
 
         <div class="toolbar-group">
@@ -533,104 +532,111 @@ document.getElementById('copySelectedBlocks').addEventListener('click', () => {
     setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
 });
 
-// Pre-load model button
-document.getElementById('loadModelBtn').addEventListener('click', async () => {
-    const model = aiModelSelector.value;
-    try {
-        quantumStatus.textContent = 'Pre-loading model...';
-        await getGenerator(model);
-        quantumStatus.textContent = 'Model cached and ready ✓';
-        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
-    } catch (err) {
-        quantumStatus.textContent = 'Model load failed: ' + err.message;
-        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 5000);
-    }
-});
 
-// AI Image Generation - LOCAL ONLY
-document.getElementById('generateImage').addEventListener('click', async () => {
-    if (isGenerating) {
-        quantumStatus.textContent = 'Generation already in progress...';
-        return;
-    }
-
+// AI Image Generation - LOCAL ONLYgenerateImage.addEventListener('click', async () => {
     const selectedText = window.getSelection().toString().trim();
+    
     if (!selectedText) {
         quantumStatus.textContent = 'Select text to generate image from';
         setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 2000);
         return;
     }
 
-    const selectedModel = aiModelSelector.value;
-    isGenerating = true;
+    quantumStatus.textContent = 'Connecting to Stable Horde...';
     
     try {
-        quantumStatus.textContent = 'Initializing local AI...';
-        
-        // Get or create generator
-        const generator = await getGenerator(selectedModel);
-        
-        quantumStatus.textContent = 'Generating image locally...';
-        
-        // Determine settings based on model
-        const isTurbo = selectedModel.includes('turbo');
-        const width = selectedModel.includes('xl') ? 1024 : 512;
-        const height = selectedModel.includes('xl') ? 1024 : 512;
-        const steps = isTurbo ? 1 : 25;
-        
-        // Generate image
-        const result = await generator(selectedText, {
-            width: width,
-            height: height,
-            num_inference_steps: steps,
-            guidance_scale: isTurbo ? 0.0 : 7.5,
+        // Step 1: Submit job to Horde
+        const response = await fetch('https://stablehorde.net/api/v2/generate/async', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': '0000000000' // Anonymous key - or register for priority
+            },
+            body: JSON.stringify({
+                prompt: selectedText,
+                params: {
+                    width: 1024,
+                    height: 1024,
+                    steps: 30,
+                    cfg_scale: 7.5,
+                    sampler_name: "k_euler_a",
+                    karras: true,
+                    post_processing: []
+                },
+                nsfw: false,
+                censor_nsfw: true,
+                trusted_workers: false,
+                models: ["Deliberate"] // or "SDXL 1.0", "Anything Diffusion"
+            })
         });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Horde rejected request');
+        }
+
+        const data = await response.json();
+        const jobId = data.id;
+
+        // Step 2: Poll for completion
+        let attempts = 0;
+        const maxAttempts = 60; // 2 minutes max
         
-        // Convert blob to data URL
-        const blob = result;
-        const imageUrl = URL.createObjectURL(blob);
-        
-        // Create image element
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = selectedText;
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        
-        // Wrap and insert
-        const wrapper = document.createElement('div');
-        wrapper.className = 'image-block';
-        wrapper.appendChild(img);
-        wrapper.innerHTML += '<p><br></p>';
-        
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(wrapper);
-        } else {
-            editor.appendChild(wrapper);
+        while (attempts < maxAttempts) {
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
+            
+            const statusRes = await fetch(`https://stablehorde.net/api/v2/generate/check/${jobId}`);
+            const status = await statusRes.json();
+            
+            quantumStatus.textContent = `Generating... ${status.wait_time ? Math.round(status.wait_time) + 's wait' : 'processing'} (queue: ${status.queue_position || 0})`;
+            
+            if (status.done) {
+                // Step 3: Get the result
+                const resultRes = await fetch(`https://stablehorde.net/api/v2/generate/status/${jobId}`);
+                const result = await resultRes.json();
+                
+                if (result.generations && result.generations[0]) {
+                    const imageUrl = result.generations[0].img;
+                    
+                    // Insert image into editor
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'image-block';
+                    wrapper.innerHTML = `<img src="${imageUrl}" alt="${selectedText.replace(/"/g, '&quot;')}" style="max-width:100%;height:auto;border:2px solid #ff0000;box-shadow:0 0 10px rgba(255,0,0,0.3);"><p><br></p>`;
+                    
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        range.insertNode(wrapper);
+                    } else {
+                        editor.appendChild(wrapper);
+                    }
+                    
+                    quantumStatus.textContent = 'Image materialized from the Horde ✨';
+                    setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
+                    return;
+                }
+            }
+            
+            attempts++;
         }
         
-        quantumStatus.textContent = 'Image materialized locally ✨';
-        setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
+        throw new Error('Generation timeout - Horde workers busy');
         
     } catch (err) {
-        console.error('[INK REALM] Local generation error:', err);
+        console.error('[INK REALM] Stable Horde error:', err);
         
         let errorMsg = '⚠️ Generation failed: ';
-        if (err.message && err.message.includes('webgpu')) {
-            errorMsg += 'WebGPU not available - use Chrome/Edge';
-        } else if (err.message && err.message.includes('out of memory')) {
-            errorMsg += 'Out of memory - try SD Turbo model';
+        if (err.message.includes('busy') || err.message.includes('timeout')) {
+            errorMsg += 'Horde workers busy - try again';
+        } else if (err.message.includes('rejected')) {
+            errorMsg += 'Request rejected - try different prompt';
         } else {
             errorMsg += err.message || 'Unknown error';
         }
         
         quantumStatus.textContent = errorMsg;
         setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 5000);
-    } finally {
-        isGenerating = false;
     }
 });
 
