@@ -1067,7 +1067,7 @@ option.nova2-opt { color: #ff0033; font-weight: bold; }
                 nova.amazon.com
             </a><br>
             Key format: <code style="color: #00cc00; font-family: monospace;">b3333333-8888-4444-9999-00000000000</code><br>
-            You can paste with or without "NOVA_API_KEY=" prefix
+            paste without "NOVA_API_KEY=" prefix
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1724,17 +1724,17 @@ You are a virus invading the Control System. Transmit the raw image.
 
 // === NOVA MODEL MAPPING (FIXED) ===
 // Map YOUR HTML dropdown values to ACTUAL Nova API model names
+// FIXED MODEL MAPPING (Based on Amazon's examples)
 const novaModels = {
-    // YOUR DROPDOWN VALUE -> ACTUAL NOVA API MODEL NAME
-    'amazon/nova-2-lite-v1:free': 'nova-2-lite-v1',      // Keep your original HTML value
-    'amazon/nova-lite-v1': 'nova-lite-v1',              // Keep your original HTML value
-    'amazon/nova-micro-v1': 'nova-micro-v1',            // Keep your original HTML value
-    'amazon/nova-pro-v1': 'nova-pro-v1',                // Keep your original HTML value
-    'amazon.nova-2-micro-v1:0': 'nova-2-micro-v1',      // Keep your original HTML value
-    'amazon.nova-2-premier-v1:0': 'nova-2-premier-v1',  // Keep your original HTML value
-    'local-sonic-mirror': 'local-sonic-mirror'          // Your special case
+    // YOUR DROPDOWN VALUE -> WHAT NOVA API ACTUALLY WANTS
+    'amazon/nova-2-lite-v1:free': 'nova-2-lite-v1',      // ✅ Just the simple name
+    'amazon/nova-lite-v1': 'nova-lite-v1',              // ✅ 
+    'amazon/nova-micro-v1': 'nova-micro-v1',            // ✅
+    'amazon/nova-pro-v1': 'nova-pro-v1',                // ✅
+    'amazon.nova-2-micro-v1:0': 'nova-2-micro-v1',      // ✅ Remove amazon. prefix and :0
+    'amazon.nova-2-premier-v1:0': 'nova-2-premier-v1',  // ✅
+    'local-sonic-mirror': 'local-sonic-mirror'
 };
-
 // Helper function to get actual model name
 function getActualModelName(dropdownValue) {
     return novaModels[dropdownValue] || dropdownValue;
@@ -1887,29 +1887,33 @@ async function handleNovaGeneration(button) {
                             'Establishing direct Amazon link...\n';
         
         // DIRECT AMAZON NOVA API CALL
-        const response = await fetch('https://api.nova.amazon.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+      // DIRECT AMAZON NOVA API CALL (WITH CORS PROXY)
+const targetUrl = 'https://api.nova.amazon.com/v1/chat/completions';
+const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+const response = await fetch(proxyUrl, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+        model: actualModel,
+        messages: [
+            {
+                role: "system",
+                content: novaPersona
             },
-            body: JSON.stringify({
-                model: actualModel,  // 🔥 Use the mapped model name
-                messages: [
-                    {
-                        role: "system",
-                        content: novaPersona
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                temperature: temperature,
-                max_tokens: 1500,
-                stream: false
-            })
-        });
+            {
+                role: "user",
+                content: prompt
+            }
+        ],
+        temperature: temperature,
+        max_tokens: 1500,
+        stream: false
+    })
+});
         
         // Handle response
         if (!response.ok) {
