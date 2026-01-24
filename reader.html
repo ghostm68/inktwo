@@ -172,12 +172,7 @@
     <div id="content" class="text-sm leading-relaxed whitespace-pre-wrap special-elite" style="display:none;"></div>
   </div>
 <script>
-    // ==========================================
-    // 1. CONFIGURATION
-    // ==========================================
     const TXT_FILE_URL = 'brim.txt';
-
-    // Regex for parsing entries
     const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
     const TAG_PATTERNS = {
@@ -189,16 +184,12 @@
       vignettes: /\[vignette\]|\bvignette(s)?\b/i
     };
 
-    // NVIDIA AI Config
     const NVIDIA_MODELS = {
         "stable": "meta/llama-3.3-70b-instruct", 
         "backup": "nvidia/llama-3.1-nemotron-70b-instruct",
     };
     let currentModel = NVIDIA_MODELS.stable;
 
-    // ==========================================
-    // 2. STATE VARIABLES
-    // ==========================================
     let entries = [];
     let currentIndex = 0;
     let currentFilter = 'all';
@@ -209,7 +200,6 @@
     let aiContext = 'current';
     let searchTimeout = null;
 
-    // DOM ELEMENTS
     const searchBox = document.getElementById('searchBox');
     const searchStats = document.getElementById('searchStats');
     const prevBtn = document.getElementById('prevBtn');
@@ -220,18 +210,11 @@
     const entryInfo = document.getElementById('entryInfo');
     const loadingDiv = document.getElementById('loading');
     const contentDiv = document.getElementById('content');
-    const filterBtns = document.getElementById('filterBtns');
-    
-    // AI ELEMENTS
     const apiKeyInput = document.getElementById('apiKeyInput');
     const aiInput = document.getElementById('aiInput');
     const askAiBtn = document.getElementById('askAiBtn');
     const aiResponseDiv = document.getElementById('aiResponse');
     const contextInfo = document.getElementById('contextInfo');
-
-    // ==========================================
-    // 3. HELPER FUNCTIONS
-    // ==========================================
 
     function debounce(func, delay) {
       return function(...args) {
@@ -255,10 +238,6 @@
       }
     }
 
-    // ==========================================
-    // 4. LOADING & PARSING
-    // ==========================================
-
     async function loadText() {
       try {
         const response = await fetch(TXT_FILE_URL);
@@ -271,7 +250,6 @@
         
         if (entries.length > 0) showEntry(entries[0].id);
         
-        // Highlight "All" filter
         const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
         if(allBtn) {
             allBtn.style.background = 'var(--red)';
@@ -318,10 +296,6 @@
       if (currentFilter === 'all') return entries;
       return entries.filter(e => e.tags.includes(currentFilter));
     }
-
-    // ==========================================
-    // 5. SEARCH LOGIC
-    // ==========================================
 
     function parseSearchQuery(query) {
       const terms = { and: [], or: [], not: [], exact: [] };
@@ -397,10 +371,6 @@
       return result;
     }
 
-    // ==========================================
-    // 6. DISPLAY & NAV
-    // ==========================================
-
     function showEntry(entryId) {
       if (entries.length === 0) return;
       const entry = entries.find(e => e.id === entryId);
@@ -450,9 +420,7 @@
           </div>
           <div class="text-xs mt-1 italic" style="color: #555;">${preview}...</div>
         `;
-        div.addEventListener('click', () => {
-          showEntry(entry.id);
-        });
+        div.addEventListener('click', () => showEntry(entry.id));
         div.addEventListener('mouseover', () => div.style.background = '#0a0a0a');
         div.addEventListener('mouseout', () => div.style.background = 'transparent');
         dateNav.appendChild(div);
@@ -461,10 +429,9 @@
 
     function showRandomEntry() {
       const pool = isSearching ? searchResults : getFilteredEntries();
-      if (pool.length > 0) {
-        const random = pool[Math.floor(Math.random() * pool.length)];
-        showEntry(random.id);
-      }
+      if (pool.length === 0) return;
+      const random = pool[Math.floor(Math.random() * pool.length)];
+      showEntry(random.id);
     }
 
     function navigateEntries(direction) {
@@ -475,33 +442,22 @@
       if (newIdx !== idx) showEntry(items[newIdx].id);
     }
 
-    // ==========================================
-    // 7. AI & EVENTS
-    // ==========================================
-
     document.addEventListener('DOMContentLoaded', loadText);
 
-    // Search Input
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
     searchBox.addEventListener('focus', e => e.target.style.borderColor = 'var(--red)');
     searchBox.addEventListener('blur', e => e.target.style.borderColor = '#222');
 
-    // Nav Buttons
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
-    randomBtn.addEventListener('click', () => {
-      console.log('Random button clicked');
-      showRandomEntry();
-    });
+    randomBtn.addEventListener('click', showRandomEntry);
     
-    // Index Toggle
     indexBtn.addEventListener('click', () => {
       isIndexVisible = !isIndexVisible;
       dateNav.classList.toggle('hidden');
       if (isIndexVisible) buildIndex();
     });
 
-    // Filter Buttons
     document.getElementById('filterBtns').addEventListener('click', e => {
       if (e.target.classList.contains('filter-btn')) {
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -522,8 +478,6 @@
         e.target.style.borderColor = 'var(--red)';
         
         currentFilter = e.target.dataset.filter;
-        
-        // Clear search when filtering
         searchBox.value = '';
         isSearching = false;
         searchQuery = '';
@@ -533,14 +487,11 @@
         else contentDiv.innerHTML = '<p class="text-center" style="color: #555;">No entries found.</p>';
         
         buildIndex();
-        
-        // Auto-Open index on filter
         dateNav.classList.remove('hidden');
         isIndexVisible = true;
       }
     });
 
-    // AI Logic
     if(localStorage.getItem('brim_nvidia_key')) apiKeyInput.value = localStorage.getItem('brim_nvidia_key');
     apiKeyInput.addEventListener('input', (e) => localStorage.setItem('brim_nvidia_key', e.target.value));
 
@@ -596,7 +547,6 @@
         }
     });
 
-    // Context Toggles
     document.addEventListener('click', e => {
       if (e.target.classList.contains('context-btn')) {
         document.querySelectorAll('.context-btn').forEach(btn => {
@@ -612,7 +562,6 @@
       }
     });
 
-    // Keys & Hover
     document.addEventListener('keydown', e => {
       if (document.activeElement === searchBox || document.activeElement === aiInput || document.activeElement === apiKeyInput) return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); navigateEntries('prev'); }
