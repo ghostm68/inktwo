@@ -267,11 +267,11 @@
 </script>
 <script id="reader-script">
     // ==========================================
-    // READER CONFIGURATION
+    // 1. CONFIGURATION & REGEX
     // ==========================================
     const TXT_FILE_URL = 'brim.txt';
-    // Kept your regex, assuming it works for your specific file format
-    const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*\.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
+    // This regex splits your entries. 
+    const brimPattern = /^(\d+\s*(?:0r|\/)\s*\d+\s*.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+)/im;
 
     const TAG_PATTERNS = {
         all: /.*/,
@@ -283,11 +283,10 @@
     };
 
     // ==========================================
-    // STATE
+    // 2. STATE
     // ==========================================
     window.readerEntries = [];
     window.readerCurrentIndex = 0;
-
     let currentFilter = 'all';
     let searchQuery = '';
     let searchResults = [];
@@ -296,7 +295,7 @@
     let searchTimeout = null;
 
     // ==========================================
-    // DOM ELEMENTS
+    // 3. DOM ELEMENTS
     // ==========================================
     const searchBox = document.getElementById('searchBox');
     const searchStats = document.getElementById('searchStats');
@@ -310,13 +309,66 @@
     const contentDiv = document.getElementById('content');
 
     // ==========================================
-    // HELPERS
+    // 4. RESTORED LOGIC (The Fix)
     // ==========================================
-    function debounce(func, delay) {
-        return function(...args) {
-            if (searchTimeout) clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => func.apply(this, args), delay);
-        };
+    
+    // --- Restored: Advanced Search Parser ---
+    function parseSearchQuery(query) {
+        const terms = { and: [], or: [], not: [], exact: [] };
+        // Extract exact matches "like this"
+        const exactMatches = query.match(/"([^"]+)"/g);
+        if (exactMatches) {
+            exactMatches.forEach(match => {
+                terms.exact.push(match.replace(/"/g, '').toLowerCase());
+                query = query.replace(match, '');
+            });
+        }
+        const words = query.toLowerCase().split(/\s+/).filter(w => w);
+        let currentOp = 'and';
+        words.forEach(word => {
+            if (word === 'and') currentOp = 'and';
+            else if (word === 'or') currentOp = 'or';
+            else if (word.startsWith('-')) terms.not.push(word.substring(1));
+            else if (word) terms[currentOp].push(word);
+        });
+        return terms;
+    }
+
+    // --- Restored: Smart Matching ---
+    function matchesSearch(entry, terms) {
+        const searchText = (entry.content + ' ' + entry.title).toLowerCase();
+        if (terms.not.some(t => searchText.includes(t))) return false;
+        if (terms.exact.some(t => !searchText.includes(t))) return false;
+        if (terms.and.some(t => !searchText.includes(t))) return false;
+        if (terms.or.length > 0 && !terms.or.some(t => searchText.includes(t))) return false;
+        return true;
+    }
+
+    // --- Restored: Highlighter ---
+    function highlightText(text, query) {
+        if (!query.trim()) return text;
+        const terms = parseSearchQuery(query);
+        // Combine all positive terms for highlighting
+        const allTerms = [...terms.exact, ...terms.and, ...terms.or].filter((t, i, s) => s.indexOf(t) === i);
+        
+        let result = text; // We will process formatting later
+        allTerms.sort((a, b) => b.length - a.length).forEach(term => {
+            // Escape special regex chars
+            const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${safeTerm})`, 'gi');
+            result = result.replace(regex, '<span style="background:var(--red); color:black; padding:0 2px;">$1</span>');
+        });
+        return result;
+    }
+
+    // --- Helper: Format Paragraphs ---
+    function formatContent(text) {
+        if (!text) return '';
+        return text.split('\n').map(line => {
+            const trimmed = line.trim();
+            if (!trimmed) return '<br>';
+            return `<p class="mb-4 leading-relaxed">${trimmed}</p>`;
+        }).join('');
     }
 
     function getTagClass(tag) {
@@ -330,38 +382,38 @@
         }
     }
 
-    // New: Converts raw text newlines into HTML paragraphs for better display
-    function formatContent(text) {
-        if (!text) return '';
-        return text.split('\n').map(line => {
-            const trimmed = line.trim();
-            if (!trimmed) return '<br>'; // Preserve spacing
-            return `<p class="mb-4 leading-relaxed">${trimmed}</p>`;
-        }).join('');
+    function debounce(func, delay) {
+        return function(...args) {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => func.apply(this, args), delay);
+        };
     }
 
     // ==========================================
-    // LOADING & PARSING
+    // 5. LOADING & PARSING
     // ==========================================
     async function loadText() {
         try {
             const response = await fetch(TXT_FILE_URL);
             if (!response.ok) throw new Error("File not found");
-            const text = await response.text();
+            let text = await response.text();
+            
+            // FIX: Normalize line endings for Puter/Linux/Windows compatibility
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            
             parseEntries(text);
 
             loadingDiv.style.display = 'none';
             contentDiv.style.display = 'block';
 
             if (window.readerEntries.length > 0) {
-                // Show random entry on load, or first? Let's do first.
                 showEntry(window.readerEntries[0].id);
             }
-
-            // Set visual state for "All" button
+            
+            // Set "All" button active
             const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
             if (allBtn) styleActiveFilter(allBtn);
-            
+
             buildIndex();
         } catch (error) {
             loadingDiv.innerHTML = `<p style="color: var(--red);">Error: ${error.message}</p>`;
@@ -370,7 +422,6 @@
 
     function parseEntries(text) {
         const lines = text.split('\n');
-        // Start with a dummy entry
         let currentEntry = { id: 0, title: 'Intro', content: '', tags: [] };
         let entryId = 0;
         let isFirst = true;
@@ -378,31 +429,22 @@
         lines.forEach(line => {
             const match = line.match(brimPattern);
             if (match) {
-                // Save previous entry if it has content
                 if (currentEntry.content.trim() && !isFirst) {
                     detectTags(currentEntry);
                     window.readerEntries.push(currentEntry);
                 }
                 isFirst = false;
-                
-                // Start new entry
-                // Note: We do NOT add the match line to content, to keep title separate
-                currentEntry = { 
-                    id: ++entryId, 
-                    title: match[0].trim(), 
-                    content: '', 
-                    tags: [] 
-                };
+                currentEntry = { id: ++entryId, title: match[0].trim(), content: '', tags: [] };
             } else {
                 currentEntry.content += line + '\n';
             }
         });
 
-        // Push the final entry
         if (currentEntry.content.trim()) {
             detectTags(currentEntry);
             window.readerEntries.push(currentEntry);
         }
+        console.log(`Parsed ${window.readerEntries.length} entries`); // Check console to see if > 1
     }
 
     function detectTags(entry) {
@@ -417,10 +459,10 @@
     }
 
     // ==========================================
-    // SEARCH
+    // 6. SEARCH ACTIONS
     // ==========================================
     function performSearch(query) {
-        searchQuery = query.toLowerCase();
+        searchQuery = query;
         if (!query.trim()) {
             isSearching = false;
             searchResults = [];
@@ -430,25 +472,20 @@
 
         isSearching = true;
         const pool = getFilteredEntries();
+        const terms = parseSearchQuery(query); // Uses the restored parser
         
-        // Simple but effective search (includes title and content)
-        searchResults = pool.filter(e => 
-            e.content.toLowerCase().includes(searchQuery) || 
-            e.title.toLowerCase().includes(searchQuery)
-        );
+        searchResults = pool.filter(e => matchesSearch(e, terms)); // Uses the restored matcher
 
         updateUIState();
-        
         if (searchResults.length > 0) {
             showEntry(searchResults[0].id);
         } else {
-            contentDiv.innerHTML = '<div class="text-center mt-10 text-gray-500">No matches found within this filter.</div>';
+            contentDiv.innerHTML = '<div class="text-center mt-10 text-gray-500">No matches found.</div>';
             entryInfo.innerHTML = '';
         }
     }
 
     function updateUIState() {
-        // Update stats
         if (isSearching) {
             searchStats.textContent = `${searchResults.length} matches`;
         } else {
@@ -459,7 +496,7 @@
     }
 
     // ==========================================
-    // DISPLAY & NAVIGATION
+    // 7. DISPLAY & NAV
     // ==========================================
     function showEntry(entryId) {
         const entry = window.readerEntries.find(e => e.id === entryId);
@@ -467,21 +504,26 @@
 
         window.readerCurrentIndex = entryId;
 
-        // 1. Format the content nicely (handle newlines)
-        let htmlContent = formatContent(entry.content);
-
-        // 2. Highlight if searching
+        // Apply Highlights + Format Paragraphs
+        let displayContent = entry.content;
+        
+        // 1. Highlight raw text first (so we don't break HTML tags later)
         if (isSearching && searchQuery.trim()) {
-            const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            htmlContent = htmlContent.replace(regex, '<span style="background:var(--red); color:black; padding:0 2px;">$1</span>');
+             displayContent = highlightText(displayContent, searchQuery);
         }
+        
+        // 2. Convert newlines to P tags (but respect the spans we just added)
+        // We need a slightly custom formatter here because highlight adds HTML
+        displayContent = displayContent.split('\n').map(line => {
+            if (!line.trim()) return '<br>';
+            return `<p class="mb-4 leading-relaxed">${line}</p>`;
+        }).join('');
 
-        contentDiv.innerHTML = htmlContent;
+        contentDiv.innerHTML = displayContent;
 
-        // 3. Update Header Info
         const viewableItems = isSearching ? searchResults : getFilteredEntries();
         const itemIndex = viewableItems.findIndex(e => e.id === entryId);
-        const wordCount = entry.content.trim().split(/\s+/).length;
+        const wordCount = entry.content.replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
 
         entryInfo.innerHTML = `
             <div class="flex flex-col gap-1">
@@ -500,11 +542,9 @@
             </div>
         `;
 
-        // 4. Button States
         prevBtn.disabled = itemIndex <= 0;
         nextBtn.disabled = itemIndex >= viewableItems.length - 1;
 
-        // 5. Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
         contentDiv.scrollTo({ top: 0 });
     }
@@ -512,61 +552,42 @@
     function showRandomEntry() {
         const pool = isSearching ? searchResults : getFilteredEntries();
         if (pool.length === 0) return;
-
         let randomIndex;
-        let attempts = 0;
-
-        // Try to find a random entry that isn't the current one
         do {
             randomIndex = Math.floor(Math.random() * pool.length);
-            attempts++;
-        } while (pool[randomIndex].id === window.readerCurrentIndex && pool.length > 1 && attempts < 5);
-
+        } while (pool[randomIndex].id === window.readerCurrentIndex && pool.length > 1);
         showEntry(pool[randomIndex].id);
     }
 
     function navigateEntries(direction) {
         const items = isSearching ? searchResults : getFilteredEntries();
         if (items.length === 0) return;
-        
         const currentIdxInView = items.findIndex(e => e.id === window.readerCurrentIndex);
-        if (currentIdxInView === -1) return; // Should not happen
-
         let newIdx = direction === 'next' ? currentIdxInView + 1 : currentIdxInView - 1;
-        
-        // Bounds check
-        if (newIdx >= 0 && newIdx < items.length) {
-            showEntry(items[newIdx].id);
-        }
+        if (newIdx >= 0 && newIdx < items.length) showEntry(items[newIdx].id);
     }
 
     function buildIndex() {
         const items = isSearching ? searchResults : getFilteredEntries();
         dateNav.innerHTML = '';
-
         if (items.length === 0) return;
 
         items.forEach(entry => {
             const div = document.createElement('div');
-            // Simplified preview text
-            const preview = entry.content.substring(0, 60).replace(/\n/g, ' ') + '...';
+            // Strip HTML from preview in case highlights are baked in (rare here but safe)
+            const rawText = entry.content.replace(/<[^>]*>/g, '');
+            const preview = rawText.substring(0, 60).replace(/\n/g, ' ') + '...';
             
             div.className = 'p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors';
             if (entry.id === window.readerCurrentIndex) {
-                div.style.background = '#1a1a1a'; // Highlight active in index
+                div.style.background = '#1a1a1a';
                 div.style.borderLeft = '3px solid var(--red)';
             }
-
             div.innerHTML = `
                 <div class="text-sm font-bold text-gray-300 mb-1">${entry.title}</div>
                 <div class="text-xs text-gray-600 font-mono">${preview}</div>
             `;
-            
-            div.addEventListener('click', () => {
-                showEntry(entry.id);
-                // On mobile/small screens, maybe hide index after click?
-                // isIndexVisible = false; dateNav.classList.add('hidden');
-            });
+            div.addEventListener('click', () => showEntry(entry.id));
             dateNav.appendChild(div);
         });
     }
@@ -583,43 +604,32 @@
     }
 
     // ==========================================
-    // LISTENERS
+    // 8. LISTENERS
     // ==========================================
     document.addEventListener('DOMContentLoaded', loadText);
-
     searchBox.addEventListener('input', debounce(e => performSearch(e.target.value), 300));
-
     prevBtn.addEventListener('click', () => navigateEntries('prev'));
     nextBtn.addEventListener('click', () => navigateEntries('next'));
     randomBtn.addEventListener('click', showRandomEntry);
-
     indexBtn.addEventListener('click', () => {
         isIndexVisible = !isIndexVisible;
         dateNav.classList.toggle('hidden');
         if (isIndexVisible) buildIndex();
     });
-
     document.getElementById('filterBtns').addEventListener('click', e => {
         if (e.target.classList.contains('filter-btn')) {
             styleActiveFilter(e.target);
             currentFilter = e.target.dataset.filter;
-            
-            // Reset search when filtering
+            // Clear search when switching filters to avoid confusion
             searchBox.value = '';
             isSearching = false;
-            
             updateUIState();
-            
             const filtered = getFilteredEntries();
             if (filtered.length > 0) showEntry(filtered[0].id);
         }
     });
-
-    // Keyboard Shortcuts
     document.addEventListener('keydown', e => {
-        // Ignore if typing in an input
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
         if (e.key === 'ArrowLeft') navigateEntries('prev');
         if (e.key === 'ArrowRight') navigateEntries('next');
         if (e.key.toLowerCase() === 'r') showRandomEntry();
