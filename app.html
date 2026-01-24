@@ -335,7 +335,19 @@ article:focus::before {
 .send-button {
     min-height: 60px; /* was 100px */
     padding: .75rem 1.5rem; /* was 1rem 2rem */
-}        
+}   
+       /* Terminal Cursor Effect */
+.message.ai .message-content.typing::after {
+    content: "█";
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+    vertical-align: middle;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+} 
     </style>
 </head>
 <body>
@@ -460,13 +472,15 @@ article:focus::before {
             <a href="https://twitter.com/inkrealm" target="_blank">@INKREALM</a>
         </div>
     </footer>
-  <script type="module">
+<script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 class InkRealmTerminal {
     constructor() {
-        // Default to the first option in your select menu
-        this.modelId = document.getElementById("model-select").value; 
+        // Safe check for model select
+        const select = document.getElementById("model-select");
+        this.modelId = select ? select.value : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+        
         this.engine = null;
         this.isGenerating = false;
         this.systemPrompt = "You are a sophisticated AI interface in a literary terminal environment. Tone: Professional terminal aesthetic, warm, intelligent, terse.";
@@ -479,7 +493,7 @@ class InkRealmTerminal {
         this.setupEvents();
         setTimeout(() => this.connectSystem(), 1200);
         
-        // Pre-warm the engine if user has GPU
+        // Pre-warm message
         if (navigator.gpu) {
             this.addSystemMessage("DETECTED GPU ACCELERATION. STANDBY.");
         } else {
@@ -487,7 +501,7 @@ class InkRealmTerminal {
         }
     }
 
-    // === 1. CORE ENGINE LOGIC (Replaces Pollinations) ===
+    // === CORE ENGINE ===
     async ensureEngine() {
         if (this.engine && this.engine.currentModelId === this.modelId) {
             return this.engine;
@@ -496,8 +510,8 @@ class InkRealmTerminal {
         const statusDot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
 
-        statusText.textContent = "LOADING CORE...";
-        statusDot.style.background = "#ff9900"; // Orange loading state
+        if (statusText) statusText.textContent = "LOADING CORE...";
+        if (statusDot) statusDot.style.background = "#ff9900"; 
 
         try {
             this.addSystemMessage(`⟁ INITIALIZING NEURAL LINK: ${this.modelId}...`);
@@ -505,22 +519,20 @@ class InkRealmTerminal {
             this.engine = await webllm.CreateMLCEngine(this.modelId, {
                 initProgressCallback: (report) => {
                     const p = Math.round(report.progress * 100);
-                    // Update the footer status with download %
-                    if(p < 100) statusText.textContent = `DOWNLOADING: ${p}%`;
+                    if(p < 100 && statusText) statusText.textContent = `DOWNLOADING: ${p}%`;
                 }
             });
 
-            // Store the ID so we know we don't need to reload it
             this.engine.currentModelId = this.modelId;
             
             this.addSystemMessage("⟁ LOCAL CORE ONLINE. READY.");
-            statusText.textContent = "ONLINE";
-            statusDot.style.background = "#00ff41"; // Green ready state
+            if (statusText) statusText.textContent = "ONLINE";
+            if (statusDot) statusDot.style.background = "#00ff41"; 
             return this.engine;
 
         } catch (err) {
-            statusText.textContent = "ERROR";
-            statusDot.style.background = "#ff0000";
+            if (statusText) statusText.textContent = "ERROR";
+            if (statusDot) statusDot.style.background = "#ff0000";
             this.addSystemMessage(`FATAL: ${err.message}`);
             throw err;
         }
@@ -536,111 +548,127 @@ class InkRealmTerminal {
         if (!prompt) return;
 
         this.isGenerating = true;
-        sendBtn.disabled = true;
-        sendBtn.textContent = "...";
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.textContent = "...";
+        }
 
-        // UI: User Message
         this.addMessage("user", prompt);
         input.value = "";
 
         const loadingId = this.addLoading();
 
         try {
-            // 1. Get the Engine (Loads it if not ready)
             const engine = await this.ensureEngine();
 
-            // 2. Prepare Messages
             const messages = [
                 { role: "system", content: this.systemPrompt },
                 { role: "user", content: prompt }
             ];
 
-            // 3. Stream Response
             const chunks = await engine.chat.completions.create({
                 messages,
                 stream: true,
                 temperature: 0.7,
             });
 
-            // Remove loading dots
             this.removeLoading(loadingId);
 
-            // Create AI Message Bubble
+            // Create AI Message Bubble with "Typing" class
             const msgEl = this.addMessage("ai", "");
             const contentEl = msgEl.querySelector(".message-content");
+            contentEl.classList.add("typing"); // Add cursor
             
             let fullText = "";
             for await (const chunk of chunks) {
                 const delta = chunk.choices[0]?.delta?.content || "";
                 fullText += delta;
-                // Live typing effect
                 contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
-                // Auto scroll
+                
+                // Keep scrolling to bottom
                 const container = document.getElementById("chat-messages");
-                container.scrollTop = container.scrollHeight;
+                if (container) container.scrollTop = container.scrollHeight;
             }
+            
+            // Remove cursor when done
+            contentEl.classList.remove("typing");
 
         } catch (err) {
             this.removeLoading(loadingId);
             this.addMessage("ai", `[SYSTEM ERROR] ${err.message}`);
         } finally {
             this.isGenerating = false;
-            sendBtn.disabled = false;
-            sendBtn.textContent = "SEND";
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "SEND";
+            }
         }
     }
 
-    // === UI UTILITIES (Kept exactly as you had them) ===
+    // === UI UTILITIES ===
     runSplash() {
         const splash = document.getElementById('glitch-splash');
-        if(!splash) return; // Safety check
-        const header = document.querySelector('.header');
-        const writingContainer = document.getElementById('writing-container');
-        const notepadPanel = document.getElementById('notepad-panel');
-        const footer = document.getElementById('footer');
-
+        if(!splash) return; 
+        
         setTimeout(() => {
             splash.style.opacity = '0';
             splash.style.transition = 'opacity 1s ease';
             setTimeout(() => {
                 splash.style.display = 'none';
-                if(header) header.style.display = 'flex';
-                if(writingContainer) writingContainer.style.display = 'flex';
-                if(notepadPanel) notepadPanel.style.display = 'flex';
-                if(footer) footer.style.display = 'flex';
+                const ids = ['header', 'writing-container', 'notepad-panel', 'footer'];
+                ids.forEach(id => {
+                    const el = document.getElementById(id) || document.querySelector('.'+id);
+                    if(el) el.style.display = 'flex';
+                });
             }, 1000);
         }, 2500);
     }
 
     connectSystem() {
-        document.getElementById("status-text").textContent = "IDLE";
-        document.getElementById("status-dot").style.background = "#e80716";
+        const txt = document.getElementById("status-text");
+        const dot = document.getElementById("status-dot");
+        if(txt) txt.textContent = "IDLE";
+        if(dot) dot.style.background = "#e80716";
     }
 
+    // === ROBUST EVENT SETUP ===
     setupEvents() {
-        const modelSelect = document.getElementById("model-select");
+        // Helper to safely add listener
+        const safeListen = (id, event, fn) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(event, fn);
+            else console.warn(`UI Element missing: #${id}`);
+        };
 
-        modelSelect.addEventListener("change", e => {
+        safeListen("model-select", "change", e => {
             this.modelId = e.target.value;
             const name = e.target.options[e.target.selectedIndex].text;
             this.addSystemMessage(`TARGET MODEL CHANGED → ${name}`);
-            this.addSystemMessage(`(Model will load on next prompt)`);
         });
 
-        document.getElementById("send-button").addEventListener("click", () => this.generate());
+        safeListen("send-button", "click", () => this.generate());
         
-        document.getElementById("text-input").addEventListener("keydown", e => {
+        safeListen("text-input", "keydown", e => {
             if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 this.generate();
             }
         });
 
-        document.getElementById("export-notepad").addEventListener("click", () => this.exportNotepad());
-        
-        document.getElementById("clear-notepad").addEventListener("click", () => {
-            if (confirm("Erase all local data?")) document.getElementById("notepad").value = "";
-        });
+        // CHECK BOTH POSSIBLE IDS FOR EXPORT
+        const exportHandler = () => this.exportNotepad();
+        safeListen("export-notepad", "click", exportHandler);
+        safeListen("exportButton", "click", exportHandler); // Fallback for older HTML
+
+        // CHECK BOTH POSSIBLE IDS FOR CLEAR
+        const clearHandler = () => {
+            if (confirm("Erase all local data?")) {
+                const pad = document.getElementById("notepad");
+                if(pad) pad.value = "";
+            }
+        };
+        safeListen("clear-notepad", "click", clearHandler);
+        safeListen("clearButton", "click", clearHandler);
 
         document.addEventListener("click", e => {
             const id = e.target?.dataset?.import;
@@ -657,8 +685,11 @@ class InkRealmTerminal {
     }
 
     exportNotepad() {
-        const content = document.getElementById("notepad").value;
+        const pad = document.getElementById("notepad");
+        const content = pad ? pad.value : "";
+        
         if (!content.trim()) return alert("Buffer empty.");
+        
         const blob = new Blob([content], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -672,11 +703,13 @@ class InkRealmTerminal {
 
     addMessage(role, text) {
         const container = document.getElementById("chat-messages");
+        if(!container) return { querySelector: () => null };
+
         const div = document.createElement("div");
         div.className = `message ${role}`;
         const meta = role === "user" ? "USER" : "TERMINAL";
 
-        if (role === "ai" && !text) { // Prepare for streaming
+        if (role === "ai" && !text) { 
             const id = "msg-" + Math.random().toString(36).slice(2);
             div.innerHTML = `
                 <div class="message-header">${meta} <span class="notepad-btn" data-import="${id}">→ PAD</span></div>
@@ -694,6 +727,7 @@ class InkRealmTerminal {
 
     addSystemMessage(text) {
         const container = document.getElementById("chat-messages");
+        if(!container) return;
         const div = document.createElement("div");
         div.className = "message system";
         div.textContent = text;
@@ -703,6 +737,7 @@ class InkRealmTerminal {
 
     addLoading() {
         const container = document.getElementById("chat-messages");
+        if(!container) return;
         const id = "loading-" + Math.random().toString(36).slice(2);
         const div = document.createElement("div");
         div.className = "message ai";
@@ -719,18 +754,17 @@ class InkRealmTerminal {
     }
 }
 
-// === 2. INITIALIZE APP ===
+// === INIT ===
 document.addEventListener("DOMContentLoaded", () => {
     window.app = new InkRealmTerminal();
     updateNewsFeed();
     updateMarketFeed();
 });
 
-// === 3. NEWS & MARKET FEEDS (Kept Intact) ===
+// === FEEDS ===
 async function updateNewsFeed() {
   const feedEl = document.getElementById("feed-news");
   if (!feedEl) return;
-  
   try {
     const res = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
     const ids = await res.json();
@@ -744,121 +778,20 @@ async function updateNewsFeed() {
 }
 
 async function updateMarketFeed() {
+  const el = document.getElementById("feed-market");
+  if(!el) return;
   try {
     const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true");
     const data = await res.json();
     const ton = data["the-open-network"];
-    const price = ton.usd;
     const arrow = ton.usd_24h_change >= 0 ? "▲" : "▼";
-    document.getElementById("feed-market").textContent = `TON $${price.toLocaleString()} ${arrow}`;
+    el.textContent = `TON $${ton.usd.toLocaleString()} ${arrow}`;
   } catch {
-    document.getElementById("feed-market").textContent = "TON — no signal";
+    el.textContent = "TON — no signal";
   }
 }
-
 setInterval(updateNewsFeed, 5 * 60 * 1000);
 setInterval(updateMarketFeed, 60 * 1000);
-</script>
-    <!-- INK REALM: LOCAL CORE ENGINE (FINAL) -->
-<script type="module">
-import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-
-// Llama-3.2-1B is the most stable 700MB node for browsers
-const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
-let engine;
-
-const btn = document.getElementById('loadCoreBtn');
-const status = document.getElementById('download-status');
-const bar = document.getElementById('progress-bar');
-const percent = document.getElementById('progress-percent');
-
-document.addEventListener("DOMContentLoaded", () => {
-    const terminal = window.app;
-    if (!terminal) return;
-
-    // Capture whatever the terminal does naturally (the cloud logic)
-    const cloudLogic = terminal.generate.bind(terminal);
-
-    btn.onclick = async () => {
-        try {
-            // 1. HARDWARE HANDSHAKE
-            if (!navigator.gpu) throw new Error("WebGPU API not found.");
-            const adapter = await navigator.gpu.requestAdapter();
-            if (!adapter) throw new Error("GPU refused handshake. Enable Hardware Acceleration.");
-
-            btn.disabled = true;
-            btn.textContent = "PROBING CORE...";
-            status.style.display = 'block';
-            terminal.addSystemMessage("⟁ INITIALIZING LOCAL NEURAL CORE... PLEASE STAND BY.");
-
-            // 2. INITIALIZE ENGINE
-            engine = await webllm.CreateMLCEngine(modelId, {
-                initProgressCallback: (report) => {
-                    const p = Math.round(report.progress * 100);
-                    bar.style.width = p + '%';
-                    percent.textContent = p;
-                    
-                    if (p === 100) {
-                        btn.style.display = 'none';
-                        terminal.addSystemMessage("⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.");
-                    }
-                }
-            });
-
-            // 3. HIJACK GENERATE BUTTON
-            terminal.generate = async function() {
-                if (this.isGenerating) return;
-                const input = document.getElementById("text-input");
-                const prompt = input.value.trim();
-                if (!prompt) return;
-
-                this.isGenerating = true;
-                document.getElementById("send-button").disabled = true;
-                this.addMessage("user", prompt);
-                input.value = "";
-                const loadingId = this.addLoading();
-
-                try {
-                    const messages = [
-                        { role: "system", content: this.systemPrompt },
-                        { role: "user", content: prompt }
-                    ];
-
-                    const chunks = await engine.chat.completions.create({ messages, stream: true });
-                    this.removeLoading(loadingId);
-                    
-                    const msgEl = this.addMessage("ai", "");
-                    const contentEl = msgEl.querySelector(".message-content");
-                    
-                    let fullText = "";
-                    for await (const chunk of chunks) {
-                        fullText += chunk.choices[0]?.delta?.content || "";
-                        contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
-                        document.getElementById("chat-messages").scrollTop = document.getElementById("chat-messages").scrollHeight;
-                    }
-                } catch (err) {
-                    this.removeLoading(loadingId);
-                    this.addMessage("ai", `[LOCAL ENGINE FAILURE]: ${err.message}`);
-                } finally {
-                    this.isGenerating = false;
-                    document.getElementById("send-button").disabled = false;
-                }
-            };
-
-        } catch (err) {
-            console.warn("Local Core Reroute:", err.message);
-            status.style.display = 'none';
-            btn.disabled = true;
-            btn.textContent = "CORE UNAVAILABLE";
-            terminal.addSystemMessage(`[SIGNAL REDIRECTED]: ${err.message}`);
-            terminal.addSystemMessage("FAILSAFE ACTIVE: Using Cloud Frequencies.");
-            
-            // Revert back to the original cloud logic
-            terminal.generate = cloudLogic;
-        }
-    };
-});
-
 </script>
     <script>
 // ========== ARTICLE AUTO-SAVE TO URL (STANDALONE) ==========
