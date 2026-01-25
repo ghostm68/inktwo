@@ -1233,208 +1233,119 @@ option.nova2-opt { color: #ff0033; font-weight: bold; }
 <script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-// ------------------------------------------------------------------
-//  HERMES 3  –  SAUCE-INFUSED
-// ------------------------------------------------------------------
-const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC";   // or your q3 re-quant
-let engine;
+/********************************************************************
+ *  HERMES-3  –  PLUG-AND-PLAY  (fits your HTML exactly)
+ *******************************************************************/
+const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC";   // or your q3 quant
 
+/* ----------  your existing nodes  ---------- */
 const toggle   = document.getElementById('nous-toggle');
 const panel    = document.getElementById('nous-panel');
-const btn      = document.getElementById('loadCoreBtn');
-const output   = document.getElementById('nous-output');
+const loadBtn  = document.getElementById('loadCoreBtn');
+const status   = document.getElementById('nous-status');
 const dlTrack  = document.getElementById('dl-track');
 const dlBar    = document.getElementById('dl-bar');
 const dlText   = document.getElementById('dl-text');
-const status   = document.getElementById('nous-status');
-const insBtn   = document.getElementById('insert-btn');
-const genBtn   = document.getElementById('nous-transmit-btn');
+const output   = document.getElementById('nous-output');
 const promptIn = document.getElementById('nous-prompt');
+const sendBtn  = document.getElementById('nous-transmit-btn');
+const insBtn   = document.getElementById('insert-btn');
 
+let engine;                       // live WebLLM instance
+
+/* ----------  UI toggling  ---------- */
 toggle.onclick = () => panel.style.display = (panel.style.display === 'block' ? 'none' : 'block');
 
-btn.onclick = async () => {
+/* ----------  INITIALISE CORE  ---------- */
+loadBtn.onclick = async () => {
   try {
     if (!navigator.gpu) throw new Error("WebGPU unavailable");
 
-    btn.disabled = true;
-    btn.textContent = "ESTABLISHING LINK...";
+    loadBtn.disabled = true;
+    loadBtn.textContent = "ESTABLISHING...";
     dlTrack.style.display = 'block';
     dlText.style.display  = 'block';
-    output.textContent = "⟁ INITIATING HERMES PROTOCOL.\n⟁ ALLOCATING TENSORS (2.1 GB)...";
+    output.textContent = "⟁ INITIALISING HERMES PROTOCOL\n⟁ ALLOCATING 2.1 GB TENSORS";
 
-    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
-    if (adapter.info.vendor === "Google SW") throw new Error("SwiftShader fallback blocked");
+    const adapter = await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
+    if (adapter.info.vendor === "Google SW") throw new Error("SwiftShader blocked");
 
     engine = await webllm.CreateMLCEngine(modelId, {
-      initProgressCallback: (report) => {
-        const p = report.progress * 100;
+      initProgressCallback: (r) => {
+        const p = r.progress * 100;
         dlBar.style.width = p + '%';
-        dlText.textContent = `DOWNLOAD  ${Math.round(p)}%`;
+        dlText.textContent = `SYNC  ${Math.round(p)}%`;
         if (p === 100) {
-          output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
-          btn.style.display   = 'none';
+          output.textContent = "⟁ NOUS FIELD ONLINE\n⟁ AWAITING QUERY";
+          loadBtn.style.display = 'none';
           dlTrack.style.display = dlText.style.display = 'none';
           status.textContent = "ONLINE";
           status.style.color = "#ff0033";
-          genBtn.style.color = genBtn.style.borderColor = "#ccc";
-
-          // =====  ATTACH CONTROLS _AFTER_ ENGINE READY  =====
-          attachControls();   // <-- single call, keeps code tidy
+          sendBtn.style.borderColor = sendBtn.style.color = '#ccc';
+          attachControls();          // wire TX only after ready
         }
       },
 
-      context_window_size: 2048,
+      /* ======  special sauce  ====== */
+      context_window_size: 2048,        // mobile-safe
       shift_fill_factor: 0.25,
       conv_config: { use_gpu_memory: true, sync_interval: 4 },
       opt_config: {
         use_coop_matrix: adapter.features.has('shader-f16') && adapter.features.has('subgroups'),
-        prompt_batched: true
+        prompt_batched: true              // fastest prefill
       }
     });
 
-    // warm shader cache
-    await engine.chat.completions.create({
-      messages: [{role: "user", content: "Hi"}], stream: false, max_gen_len: 1
+    await engine.chat.completions.create({          // shader warm-up
+      messages: [{role:"user",content:"Hi"}], stream: false, max_gen_len: 1
     });
 
-  } catch (err) {
-    console.error(err);
-    btn.textContent = "FAILURE"; btn.style.borderColor = btn.style.color = "#ff0033";
-    output.textContent = "FATAL: " + err.message;
+  } catch (e) {
+    output.textContent = "CORE FAILURE: " + e.message;
+    loadBtn.disabled = false; loadBtn.textContent = "RETRY";
   }
 };
 
-// ------------------------------------------------------------------
-//  Attach both click and Enter only when Hermes is online
-// ------------------------------------------------------------------
+/* ----------  CONTROLS (attached only after engine exists)  ---------- */
 function attachControls() {
-  // click
-  genBtn.onclick = transmit;
-
-  // Enter key (prompt input)
-  promptIn.onkeydown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      transmit();
-    }
-  };
+  sendBtn.onclick = transmit;
+  promptIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); transmit(); }
+  });
 }
 
-// ------------------------------------------------------------------
-//  Single transmit routine
-// ------------------------------------------------------------------
+/* ----------  TRANSMIT  ---------- */
 async function transmit() {
-  const input = promptIn.value.trim();
-  if (!input) return;
+  if (!engine) { output.textContent = "Core not loaded"; return; }
+  const q = promptIn.value.trim(); if (!q) return;
 
-  genBtn.disabled = true;
-  genBtn.textContent = "COMPUTING...";
+  sendBtn.disabled = true; sendBtn.textText = "COMPUTING...";
   insBtn.style.display = 'none';
-  output.textContent = "";
-  let full = "";
+  output.textContent = ""; let full = "";
 
   try {
-    const messages = [
-      { role: "system", content: "You are the NOUS. Digital philosopher. Terse, cryptic, profound."},
-      { role: "user",   content: input }
-    ];
     const chunks = await engine.chat.completions.create({
-      messages, stream: true, temperature: 0.7, max_tokens: 512
+      messages: [
+        { role: "system", content: "You are NOUS – terse, cryptic, profound."},
+        { role: "user",   content: q }
+      ],
+      stream: true, temperature: 0.7, max_tokens: 512
     });
-    for await (const c of chunks) {
-      full += c.choices[0]?.delta?.content ?? "";
-      output.textContent = full;
-      output.scrollTop = output.scrollHeight;
-    }
-    insBtn.style.display = 'block';
-  } catch (e) {
-    output.textContent = "ERROR: " + e.message;
-  } finally {
-    genBtn.disabled = false; genBtn.textContent = "TRANSMIT";
+    for await (const c of chunks) full += c.choices[0]?.delta?.content ?? "";
+    output.textContent = full;
+  } catch (e) { output.textContent = "ERROR: " + e.message; }
+  finally {
+    sendBtn.disabled = false; sendBtn.textContent = "TRANSMIT"; insBtn.style.display = 'block';
   }
 }
 
-    // 1. Force high-performance GPU (laptops / mobiles with dual GPUs)
-    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
-    if (adapter.info.vendor === "Google SW") throw new Error("SwiftShader fallback blocked");
-
-    // 2. Build engine – special sauce flags
-    engine = await webllm.CreateMLCEngine(modelId, {
-      initProgressCallback: (report) => {
-        const p = report.progress * 100;
-        dlBar.style.width = p + '%';
-        dlText.textContent = `DOWNLOAD  ${Math.round(p)}%`;
-        if (p === 100) {
-          output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
-          btn.style.display   = 'none';
-          dlTrack.style.display = dlText.style.display = 'none';
-          status.textContent = "ONLINE";
-          status.style.color = "#ff0033";
-          genBtn.style.color = genBtn.style.borderColor = "#ccc";
-        }
-      },
-
-      /* =====  SPEED / MOBILE TWEAKS  ===== */
-      context_window_size: 2048,          // mobile RAM safe
-      shift_fill_factor: 0.25,            // earlier recycle
-      conv_config: {
-        use_gpu_memory: true,             // pin buffers
-        sync_interval: 4                  // less cpu-gpu sync
-      },
-      opt_config: {
-        use_coop_matrix: adapter.features.has('shader-f16') && adapter.features.has('subgroups'),
-        prompt_batched: true              // single-kernel prefill
-      }
-    });
-
-    // 3. Shader cache warm-up (removes first-dispatch stutter)
-    await engine.chat.completions.create({
-      messages: [{role: "user", content: "Hi"}], stream: false, max_gen_len: 1
-    });
-
-    // 4. Transmit button logic
-    genBtn.onclick = async () => {
-      const input = promptIn.value.trim(); if (!input) return;
-      genBtn.disabled = true;
-      genBtn.textContent = "COMPUTING...";
-      insBtn.style.display = 'none';
-      output.textContent = ""; let full = "";
-
-      try {
-        const messages = [
-          { role: "system", content: "You are the NOUS. Digital philosopher. Terse, cryptic, profound."},
-          { role: "user",   content: input }
-        ];
-        const chunks = await engine.chat.completions.create({
-          messages, stream: true, temperature: 0.7, max_tokens: 512
-        });
-        for await (const c of chunks) {
-          full += c.choices[0]?.delta?.content ?? "";
-          output.textContent = full;
-          output.scrollTop = output.scrollHeight;
-        }
-        insBtn.style.display = 'block';
-      } catch (e) {
-        output.textContent = "ERROR: " + e.message;
-      } finally {
-        genBtn.disabled = false; genBtn.textContent = "TRANSMIT";
-      }
-    };
-
-    insBtn.onclick = () => {
-      const ed = document.querySelector('textarea.editor, #main-editor, textarea');
-      if (!ed) { alert("No editor found"); return; }
-      const [s, e] = [ed.selectionStart, ed.selectionEnd];
-      ed.value = ed.value.slice(0, s) + output.textContent + ed.value.slice(e);
-      insBtn.style.display = 'none'; panel.style.display = 'none'; ed.focus();
-    };
-
-  } catch (err) {
-    console.error(err);
-    btn.textContent = "FAILURE"; btn.style.borderColor = btn.style.color = "#ff0033";
-    output.textContent = "FATAL: " + err.message;
-  }
+/* ----------  INSERT TO EDITOR  ---------- */
+insBtn.onclick = () => {
+  const ed = document.querySelector('textarea.editor, #main-editor, textarea');
+  if (!ed) { alert("No editor found"); return; }
+  const [s, e] = [ed.selectionStart, ed.selectionEnd];
+  ed.value = ed.value.slice(0, s) + output.textContent + ed.value.slice(e);
+  ed.focus(); insBtn.style.display = 'none'; panel.style.display = 'none';
 };
 </script>
 <!-- MAIN CONTAINER: Holds the 3 Columns -->
