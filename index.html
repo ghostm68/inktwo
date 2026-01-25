@@ -204,16 +204,8 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
 		<!-- NOUS INTERFACE CSS -->
 <!-- GLOBAL LINK FIX & NOUS STYLES -->
 <style>
-    /* 1. RID THE FOOTER OF BLUE */
-    footer a, a {
-        color: inherit; /* Takes the parent color (usually white/grey) */
-        text-decoration: none; /* Removes underline if desired */
-    }
-    footer a:hover {
-        color: #ff0033; /* Optional: Red hover effect */
-    }
 
-    /* 2. NOUS INTERFACE CSS */
+    /* NOUS INTERFACE CSS */
     #nous-interface {
         position: fixed;
         top: 88px;  /* Moved to TOP */
@@ -909,7 +901,155 @@ It has a throat like jazz that cradled and cuddled but always swallowed.
         </div>
     </div>
 </div>
+	<!-- INK REALM: LOCAL CORE UPGRADE -->
 
+<!-- LOGIC -->
+<!-- LOGIC -->
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
+let engine;
+
+// DOM Elements
+const toggle = document.getElementById('nous-toggle');
+const panel = document.getElementById('nous-panel');
+const btn = document.getElementById('loadCoreBtn');
+const output = document.getElementById('nous-output');
+const dlTrack = document.getElementById('dl-track');
+const dlBar = document.getElementById('dl-bar');
+const dlText = document.getElementById('dl-text');
+const statusLabel = document.getElementById('nous-status');
+const insBtn = document.getElementById('insert-btn');
+const genBtn = document.getElementById('nous-transmit-btn'); 
+const promptInput = document.getElementById('nous-prompt'); 
+
+// Toggle Panel
+toggle.onclick = () => {
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+};
+
+// Start Engine
+btn.onclick = async () => {
+    try {
+        if (!navigator.gpu) throw new Error("WebGPU not available.");
+
+        btn.disabled = true;
+        btn.textContent = "ESTABLISHING LINK...";
+        dlTrack.style.display = 'block';
+        dlText.style.display = 'block';
+        output.textContent = "⟁ INITIATING HERMES PROTOCOL.\n⟁ ALLOCATING TENSORS (2.1GB)...";
+
+        engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (report) => {
+                const p = report.progress * 100;
+                dlBar.style.width = p + '%';
+                dlText.textContent = `DOWNLOADING: ${Math.round(p)}%`;
+                
+                if (p === 100) {
+                    output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
+                    btn.style.display = 'none';
+                    dlTrack.style.display = dlText.style.display = 'none';
+                    statusLabel.textContent = "ONLINE";
+                    statusLabel.style.color = "#ff0033"; 
+                    
+                    genBtn.style.color = "#ccc";
+                    genBtn.style.borderColor = "#ccc";
+                    
+                    // Allow Enter key to submit
+                    promptInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            genBtn.click();
+                        }
+                    });
+                }
+            }
+        });
+
+        // Warmup (prevents lag on first real message)
+        await engine.chat.completions.create({ messages: [{role:"user",content:"hi"}], max_tokens: 1 });
+
+    } catch (err) {
+        console.error(err);
+        btn.textContent = "FAILURE";
+        btn.style.color = "#ff0033";
+        output.textContent = "FATAL: " + err.message;
+    }
+};
+
+// Generate Logic (Moved outside initialization to be cleaner)
+genBtn.onclick = async () => {
+    if (!engine) return;
+    const inputVal = promptInput.value.trim();
+    if (!inputVal) return;
+
+    genBtn.disabled = true;
+    genBtn.textContent = "COMPUTING...";
+    insBtn.style.display = 'none';
+    output.textContent = ""; 
+    let fullText = "";
+
+    try {
+        const messages = [
+            { role: "system", content: "You are NOUS. Terse, cryptic, profound." },
+            { role: "user", content: inputVal }
+        ];
+
+        const chunks = await engine.chat.completions.create({ 
+            messages, stream: true, temperature: 0.7, max_tokens: 512
+        });
+
+        for await (const chunk of chunks) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            fullText += content;
+            output.textContent = fullText; // <--- THE IMPORTANT PART
+            output.scrollTop = output.scrollHeight;
+        }
+
+        insBtn.style.display = 'block';
+
+    } catch (err) {
+        output.textContent = "ERROR: " + err.message;
+    } finally {
+        genBtn.disabled = false;
+        genBtn.textContent = "TRANSMIT";
+    }
+};
+
+// Insert Logic (Moved outside so it doesn't stack multiple listeners)
+/* ----------  INSERT TO EDITOR  ---------- */
+/* ----------  INSERT TO EDITOR  ---------- */
+insBtn.onclick = () => {
+    // 1. Explicitly find the 'notepad' ID
+    const destination = document.getElementById('notepad');
+    
+    // Safety check
+    if (!destination) { 
+        alert("Target textarea 'notepad' not found!"); 
+        return; 
+    }
+
+    // 2. Get the text generated by Hermes
+    const textToInsert = output.textContent; 
+
+    // 3. Insert at cursor position (Standard text insertion logic)
+    const startPos = destination.selectionStart;
+    const endPos = destination.selectionEnd;
+    
+    destination.value = destination.value.substring(0, startPos) 
+        + textToInsert 
+        + destination.value.substring(endPos, destination.value.length);
+
+    // 4. Close the Hermes Panel
+    panel.style.display = 'none';
+    insBtn.style.display = 'none';
+
+    // 5. Move focus back to notepad and place cursor at end of inserted text
+    destination.focus();
+    destination.selectionStart = destination.selectionEnd = startPos + textToInsert.length;
+};
+</script>
     <!-- BOTTOM SECTION: The Ticker (Logs) -->
     <div id="log-ticker" style="height: 80px; border-top: 1px solid #222; padding: 5px;">
         <div style="color: #222; margin-bottom: 2px; font-size: 9px;">// SYSTEM_TICKER</div>
@@ -1143,155 +1283,7 @@ It has a throat like jazz that cradled and cuddled but always swallowed.
 
 
 <script src="js/616.js"></script>
-	<!-- INK REALM: LOCAL CORE UPGRADE -->
 
-<!-- LOGIC -->
-<!-- LOGIC -->
-<script type="module">
-import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-
-const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
-let engine;
-
-// DOM Elements
-const toggle = document.getElementById('nous-toggle');
-const panel = document.getElementById('nous-panel');
-const btn = document.getElementById('loadCoreBtn');
-const output = document.getElementById('nous-output');
-const dlTrack = document.getElementById('dl-track');
-const dlBar = document.getElementById('dl-bar');
-const dlText = document.getElementById('dl-text');
-const statusLabel = document.getElementById('nous-status');
-const insBtn = document.getElementById('insert-btn');
-const genBtn = document.getElementById('nous-transmit-btn'); 
-const promptInput = document.getElementById('nous-prompt'); 
-
-// Toggle Panel
-toggle.onclick = () => {
-    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-};
-
-// Start Engine
-btn.onclick = async () => {
-    try {
-        if (!navigator.gpu) throw new Error("WebGPU not available.");
-
-        btn.disabled = true;
-        btn.textContent = "ESTABLISHING LINK...";
-        dlTrack.style.display = 'block';
-        dlText.style.display = 'block';
-        output.textContent = "⟁ INITIATING HERMES PROTOCOL.\n⟁ ALLOCATING TENSORS (2.1GB)...";
-
-        engine = await webllm.CreateMLCEngine(modelId, {
-            initProgressCallback: (report) => {
-                const p = report.progress * 100;
-                dlBar.style.width = p + '%';
-                dlText.textContent = `DOWNLOADING: ${Math.round(p)}%`;
-                
-                if (p === 100) {
-                    output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
-                    btn.style.display = 'none';
-                    dlTrack.style.display = dlText.style.display = 'none';
-                    statusLabel.textContent = "ONLINE";
-                    statusLabel.style.color = "#ff0033"; 
-                    
-                    genBtn.style.color = "#ccc";
-                    genBtn.style.borderColor = "#ccc";
-                    
-                    // Allow Enter key to submit
-                    promptInput.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            genBtn.click();
-                        }
-                    });
-                }
-            }
-        });
-
-        // Warmup (prevents lag on first real message)
-        await engine.chat.completions.create({ messages: [{role:"user",content:"hi"}], max_tokens: 1 });
-
-    } catch (err) {
-        console.error(err);
-        btn.textContent = "FAILURE";
-        btn.style.color = "#ff0033";
-        output.textContent = "FATAL: " + err.message;
-    }
-};
-
-// Generate Logic (Moved outside initialization to be cleaner)
-genBtn.onclick = async () => {
-    if (!engine) return;
-    const inputVal = promptInput.value.trim();
-    if (!inputVal) return;
-
-    genBtn.disabled = true;
-    genBtn.textContent = "COMPUTING...";
-    insBtn.style.display = 'none';
-    output.textContent = ""; 
-    let fullText = "";
-
-    try {
-        const messages = [
-            { role: "system", content: "You are NOUS. Terse, cryptic, profound." },
-            { role: "user", content: inputVal }
-        ];
-
-        const chunks = await engine.chat.completions.create({ 
-            messages, stream: true, temperature: 0.7, max_tokens: 512
-        });
-
-        for await (const chunk of chunks) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            fullText += content;
-            output.textContent = fullText; // <--- THE IMPORTANT PART
-            output.scrollTop = output.scrollHeight;
-        }
-
-        insBtn.style.display = 'block';
-
-    } catch (err) {
-        output.textContent = "ERROR: " + err.message;
-    } finally {
-        genBtn.disabled = false;
-        genBtn.textContent = "TRANSMIT";
-    }
-};
-
-// Insert Logic (Moved outside so it doesn't stack multiple listeners)
-/* ----------  INSERT TO EDITOR  ---------- */
-/* ----------  INSERT TO EDITOR  ---------- */
-insBtn.onclick = () => {
-    // 1. Explicitly find the 'notepad' ID
-    const destination = document.getElementById('notepad');
-    
-    // Safety check
-    if (!destination) { 
-        alert("Target textarea 'notepad' not found!"); 
-        return; 
-    }
-
-    // 2. Get the text generated by Hermes
-    const textToInsert = output.textContent; 
-
-    // 3. Insert at cursor position (Standard text insertion logic)
-    const startPos = destination.selectionStart;
-    const endPos = destination.selectionEnd;
-    
-    destination.value = destination.value.substring(0, startPos) 
-        + textToInsert 
-        + destination.value.substring(endPos, destination.value.length);
-
-    // 4. Close the Hermes Panel
-    panel.style.display = 'none';
-    insBtn.style.display = 'none';
-
-    // 5. Move focus back to notepad and place cursor at end of inserted text
-    destination.focus();
-    destination.selectionStart = destination.selectionEnd = startPos + textToInsert.length;
-};
-</script>
 	<script defer src="https://va.vercel-scripts.com/v1/speed-insights/script.js" 
         data-domain="inkrealm.info"></script>	
 	<script>
