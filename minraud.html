@@ -1263,6 +1263,98 @@ btn.onclick = async () => {
     dlText.style.display  = 'block';
     output.textContent = "⟁ INITIATING HERMES PROTOCOL.\n⟁ ALLOCATING TENSORS (2.1 GB)...";
 
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (adapter.info.vendor === "Google SW") throw new Error("SwiftShader fallback blocked");
+
+    engine = await webllm.CreateMLCEngine(modelId, {
+      initProgressCallback: (report) => {
+        const p = report.progress * 100;
+        dlBar.style.width = p + '%';
+        dlText.textContent = `DOWNLOAD  ${Math.round(p)}%`;
+        if (p === 100) {
+          output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
+          btn.style.display   = 'none';
+          dlTrack.style.display = dlText.style.display = 'none';
+          status.textContent = "ONLINE";
+          status.style.color = "#ff0033";
+          genBtn.style.color = genBtn.style.borderColor = "#ccc";
+
+          // =====  ATTACH CONTROLS _AFTER_ ENGINE READY  =====
+          attachControls();   // <-- single call, keeps code tidy
+        }
+      },
+
+      context_window_size: 2048,
+      shift_fill_factor: 0.25,
+      conv_config: { use_gpu_memory: true, sync_interval: 4 },
+      opt_config: {
+        use_coop_matrix: adapter.features.has('shader-f16') && adapter.features.has('subgroups'),
+        prompt_batched: true
+      }
+    });
+
+    // warm shader cache
+    await engine.chat.completions.create({
+      messages: [{role: "user", content: "Hi"}], stream: false, max_gen_len: 1
+    });
+
+  } catch (err) {
+    console.error(err);
+    btn.textContent = "FAILURE"; btn.style.borderColor = btn.style.color = "#ff0033";
+    output.textContent = "FATAL: " + err.message;
+  }
+};
+
+// ------------------------------------------------------------------
+//  Attach both click and Enter only when Hermes is online
+// ------------------------------------------------------------------
+function attachControls() {
+  // click
+  genBtn.onclick = transmit;
+
+  // Enter key (prompt input)
+  promptIn.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      transmit();
+    }
+  };
+}
+
+// ------------------------------------------------------------------
+//  Single transmit routine
+// ------------------------------------------------------------------
+async function transmit() {
+  const input = promptIn.value.trim();
+  if (!input) return;
+
+  genBtn.disabled = true;
+  genBtn.textContent = "COMPUTING...";
+  insBtn.style.display = 'none';
+  output.textContent = "";
+  let full = "";
+
+  try {
+    const messages = [
+      { role: "system", content: "You are the NOUS. Digital philosopher. Terse, cryptic, profound."},
+      { role: "user",   content: input }
+    ];
+    const chunks = await engine.chat.completions.create({
+      messages, stream: true, temperature: 0.7, max_tokens: 512
+    });
+    for await (const c of chunks) {
+      full += c.choices[0]?.delta?.content ?? "";
+      output.textContent = full;
+      output.scrollTop = output.scrollHeight;
+    }
+    insBtn.style.display = 'block';
+  } catch (e) {
+    output.textContent = "ERROR: " + e.message;
+  } finally {
+    genBtn.disabled = false; genBtn.textContent = "TRANSMIT";
+  }
+}
+
     // 1. Force high-performance GPU (laptops / mobiles with dual GPUs)
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
     if (adapter.info.vendor === "Google SW") throw new Error("SwiftShader fallback blocked");
