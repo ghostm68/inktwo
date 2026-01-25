@@ -1230,15 +1230,14 @@ option.nova2-opt { color: #ff0033; font-weight: bold; }
     </div>
 </div>
 <!-- LOGIC -->
+<!-- LOGIC -->
 <script type="module">
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-// HERMES 3 MODEL
 const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
-
 let engine;
 
-// === CHANGED IDs HERE TO AVOID CONFLICT ===
+// DOM Elements
 const toggle = document.getElementById('nous-toggle');
 const panel = document.getElementById('nous-panel');
 const btn = document.getElementById('loadCoreBtn');
@@ -1248,11 +1247,7 @@ const dlBar = document.getElementById('dl-bar');
 const dlText = document.getElementById('dl-text');
 const statusLabel = document.getElementById('nous-status');
 const insBtn = document.getElementById('insert-btn');
-
-// NEW UNIQUE IDs
-// We look for 'nous-transmit-btn' instead of 'generateButton'
 const genBtn = document.getElementById('nous-transmit-btn'); 
-// We look for 'nous-prompt' instead of 'prompt' so the main page doesn't get read
 const promptInput = document.getElementById('nous-prompt'); 
 
 // Toggle Panel
@@ -1271,7 +1266,6 @@ btn.onclick = async () => {
         dlText.style.display = 'block';
         output.textContent = "⟁ INITIATING HERMES PROTOCOL.\n⟁ ALLOCATING TENSORS (2.1GB)...";
 
-        // Initialize
         engine = await webllm.CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
                 const p = report.progress * 100;
@@ -1281,85 +1275,89 @@ btn.onclick = async () => {
                 if (p === 100) {
                     output.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
                     btn.style.display = 'none';
-                    dlTrack.style.display = 'none';
-                    dlText.style.display = 'none';
+                    dlTrack.style.display = dlText.style.display = 'none';
                     statusLabel.textContent = "ONLINE";
-                    statusLabel.style.color = "#ff0033"; // RED STATUS
+                    statusLabel.style.color = "#ff0033"; 
                     
-                    // Style the separate transmit button
                     genBtn.style.color = "#ccc";
                     genBtn.style.borderColor = "#ccc";
+                    
+                    // Allow Enter key to submit
+                    promptInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            genBtn.click();
+                        }
+                    });
                 }
             }
         });
 
-        // Generate Logic (Attached to the unique button)
-        genBtn.onclick = async () => {
-            // Read from the unique nous-prompt input
-            const inputVal = promptInput.value.trim();
-            if (!inputVal) return;
-
-            genBtn.disabled = true;
-            genBtn.textContent = "COMPUTING...";
-            insBtn.style.display = 'none';
-            output.textContent = ""; 
-            let fullText = "";
-
-            try {
-                const messages = [
-                    { 
-                        role: "system", 
-                        content: "You are the NOUS. A digital philosopher. You speak with high-level vocabulary, esoteric references, and concepts. You are unfiltered, objective, and precise. Style: terse, cryptic, profound." 
-                    },
-                    { role: "user", content: inputVal }
-                ];
-
-                const chunks = await engine.chat.completions.create({ 
-                    messages, 
-                    stream: true, 
-                    temperature: 0.7,
-                    max_tokens: 512
-                });
-
-                for await (const chunk of chunks) {
-                    const content = chunk.choices[0]?.delta?.content || "";
-                    fullText += content;
-                    output.textContent = fullText;
-                    output.scrollTop = output.scrollHeight;
-                }
-
-                insBtn.style.display = 'block';
-                
-                insBtn.onclick = () => {
-                    // This finds the main editor to insert text into
-                    const editor = document.querySelector('textarea.editor') || document.querySelector('#main-editor') || document.querySelector('textarea');
-                    
-                    if (editor) {
-                        const s = editor.selectionStart;
-                        const e = editor.selectionEnd;
-                        editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(e);
-                        insBtn.style.display = 'none';
-                        panel.style.display = 'none';
-                        editor.focus();
-                    } else {
-                        alert("No editor found.");
-                    }
-                };
-
-            } catch (err) {
-                output.textContent = "ERROR: " + err.message;
-            } finally {
-                genBtn.disabled = false;
-                genBtn.textContent = "TRANSMIT";
-            }
-        };
+        // Warmup (prevents lag on first real message)
+        await engine.chat.completions.create({ messages: [{role:"user",content:"hi"}], max_tokens: 1 });
 
     } catch (err) {
         console.error(err);
         btn.textContent = "FAILURE";
-        btn.style.borderColor = "#ff0033";
         btn.style.color = "#ff0033";
         output.textContent = "FATAL: " + err.message;
+    }
+};
+
+// Generate Logic (Moved outside initialization to be cleaner)
+genBtn.onclick = async () => {
+    if (!engine) return;
+    const inputVal = promptInput.value.trim();
+    if (!inputVal) return;
+
+    genBtn.disabled = true;
+    genBtn.textContent = "COMPUTING...";
+    insBtn.style.display = 'none';
+    output.textContent = ""; 
+    let fullText = "";
+
+    try {
+        const messages = [
+            { role: "system", content: "You are NOUS. Terse, cryptic, profound." },
+            { role: "user", content: inputVal }
+        ];
+
+        const chunks = await engine.chat.completions.create({ 
+            messages, stream: true, temperature: 0.7, max_tokens: 512
+        });
+
+        for await (const chunk of chunks) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            fullText += content;
+            output.textContent = fullText; // <--- THE IMPORTANT PART
+            output.scrollTop = output.scrollHeight;
+        }
+
+        insBtn.style.display = 'block';
+
+    } catch (err) {
+        output.textContent = "ERROR: " + err.message;
+    } finally {
+        genBtn.disabled = false;
+        genBtn.textContent = "TRANSMIT";
+    }
+};
+
+// Insert Logic (Moved outside so it doesn't stack multiple listeners)
+insBtn.onclick = () => {
+    const editor = document.querySelector('textarea.editor') || document.querySelector('#main-editor') || document.querySelector('textarea');
+    
+    if (editor) {
+        const textToInsert = output.textContent; // Get current output
+        const s = editor.selectionStart;
+        const e = editor.selectionEnd;
+        editor.value = editor.value.slice(0, s) + textToInsert + editor.value.slice(e);
+        
+        insBtn.style.display = 'none';
+        panel.style.display = 'none';
+        editor.focus();
+    } else {
+        alert("No editor found.");
     }
 };
 </script>
