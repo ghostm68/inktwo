@@ -7,201 +7,196 @@
     <!-- Library for Quantum Simulation -->
     <script src="https://unpkg.com/quantum-circuit@0.9.246/dist/quantum-circuit.min.js"></script>
 
-    <style>
-        :root {
-            /* CYBERPUNK PALETTE */
-            --bg-color: #050505;       /* Deep Black (Page Background) */
-            --term-red: #ff2a2a;       /* Bright Neon Red */
-            --term-dim: #8f0000;       /* Dark Red */
-            --text-white: #eeeeee;     /* Standard Off-White */
-            --glass: rgba(20, 0, 0, 0.8); /* Tinted Glass */
-            --border-grey: #333333;    /* Subtle borders */
-             --accent: #ff2a2a;        /* Match your existing red */
+  <style>
+:root {
+    /* CYBERPUNK PALETTE */
+    --bg-color: #050505;       /* Deep Black (Page Background) */
+    --term-red: #ff2a2a;       /* Bright Neon Red */
+    --term-dim: #8f0000;       /* Dark Red */
+    --text-white: #eeeeee;     /* Standard Off-White */
+    --glass: rgba(20, 0, 0, 0.8); /* Tinted Glass */
+    --border-grey: #333333;    /* Subtle borders */
+    --accent: #ff2a2a;        /* Match your existing red */
     --bg-secondary: #2a2a2a;  /* Grey background for canvas */
     --canvas-border: #444444; /* Grey border */
     --control-grey: #666666;  /* Grey for controls */
-        }
+}
 
-        /* --- RED HIGHLIGHTING --- */
-        ::selection {
-            background: var(--term-red);
-            color: #000;
-        }
-        ::-moz-selection {
-            background: var(--term-red);
-            color: #000;
-        }
+/* --- RED HIGHLIGHTING --- */
+::selection {
+    background: var(--term-red);
+    color: #000;
+}
+::-moz-selection {
+    background: var(--term-red);
+    color: #000;
+}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-white);
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            overflow: scroll;
-        }
+body {
+    background-color: var(--bg-color);
+    color: var(--text-white);
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    overflow: auto;
+    position: relative;
+}
 
-        .container {
-            width: 900px;
-            padding: 2rem;
-            border: 1px solid var(--term-dim);
-            background: var(--glass);
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.15);
-            position: relative;
-            z-index: 10;
-        }
+.container {
+    width: 700px; /* Reduced from 900px */
+    margin-right: 480px; /* Space for canvas */
+    padding: 2rem;
+    border: 1px solid var(--term-dim);
+    background: var(--glass);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.15);
+    position: relative;
+    z-index: 10;
+}
 
-        /* Scanline Overlay */
-        .container::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(255, 255, 255, 0.02), rgba(255, 0, 0, 0.03));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-        }
+/* Scanline Overlay */
+.container::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(255, 255, 255, 0.02), rgba(255, 0, 0, 0.03));
+    z-index: 2;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+}
 
-        h1 {
-            color: var(--term-red);
-            letter-spacing: 5px;
-            border-bottom: 2px solid var(--term-red);
-            padding-bottom: 10px;
-            text-shadow: 0 0 8px var(--term-dim);
-            margin-top: 0;
-        }
+h1 {
+    color: var(--term-red);
+    letter-spacing: 5px;
+    border-bottom: 2px solid var(--term-red);
+    padding-bottom: 10px;
+    text-shadow: 0 0 8px var(--term-dim);
+    margin-top: 0;
+}
 
-        .blink { animation: blinker 1s linear infinite; color: #fff; }
-        @keyframes blinker { 50% { opacity: 0; } }
+.blink { animation: blinker 1s linear infinite; color: #fff; }
+@keyframes blinker { 50% { opacity: 0; } }
 
-        /* --- LIVE EDITOR STYLING (UPDATED) --- */
-        .article-header {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-        }
+/* --- LIVE EDITOR STYLING --- */
+.article-header {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
 
-        article {
-            display: block;
-            width: 100%;
-            height: 120px;
-            
-            /* --- COLOR UPDATE START --- */
-            background-color: #2a2a2a; /* Grey Background */
-            color: #ffffff;            /* Bright White Text */
-            /* --- COLOR UPDATE END --- */
-            
-            border: 1px solid #444;
-            border-left: 2px solid var(--term-red);
-            padding: 15px;
-            box-sizing: border-box;
-            overflow-y: auto;
-            outline: none;
-            white-space: pre-wrap; 
-            font-size: 0.95rem;
-            line-height: 1.4;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
+article {
+    display: block;
+    width: 100%;
+    height: 120px;
+    background-color: #2a2a2a; /* Grey Background */
+    color: #ffffff;            /* Bright White Text */
+    border: 1px solid #444;
+    border-left: 2px solid var(--term-red);
+    padding: 15px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    outline: none;
+    white-space: pre-wrap; 
+    font-size: 0.95rem;
+    line-height: 1.4;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
 
-        article:focus {
-            border-color: var(--term-red);
-            /* Slightly lighter grey when active */
-            background-color: #333333; 
-            box-shadow: inset 0 0 15px rgba(255, 42, 42, 0.05);
-        }
+article:focus {
+    border-color: var(--term-red);
+    background-color: #333333; 
+    box-shadow: inset 0 0 15px rgba(255, 42, 42, 0.05);
+}
 
-        article::-webkit-scrollbar { width: 8px; }
-        article::-webkit-scrollbar-track { background: #222; }
-        article::-webkit-scrollbar-thumb { background: var(--term-dim); }
+article::-webkit-scrollbar { width: 8px; }
+article::-webkit-scrollbar-track { background: #222; }
+article::-webkit-scrollbar-thumb { background: var(--term-dim); }
 
-        /* --- OUTPUT AREA --- */
-        .split-display {
-            display: flex;
-            gap: 15px;
-            margin: 20px 0;
-            height: 180px;
-        }
+/* --- OUTPUT AREA --- */
+.split-display {
+    display: flex;
+    gap: 15px;
+    margin: 20px 0;
+    height: 180px;
+}
 
-        .output-screen {
-            flex: 2;
-            background: #000;
-            border: 1px solid var(--border-grey);
-            border-left: 3px solid var(--term-red);
-            padding: 20px;
-            font-size: 1.1rem;
-            line-height: 1.5;
-            color: var(--text-white);
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.9);
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
+.output-screen {
+    flex: 2;
+    background: #000;
+    border: 1px solid var(--border-grey);
+    border-left: 3px solid var(--term-red);
+    padding: 20px;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    color: var(--text-white);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.9);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
 
-        .qasm-screen {
-            flex: 1;
-            background: #080000;
-            border: 1px solid var(--term-dim);
-            padding: 10px;
-            font-size: 0.75rem;
-            color: #aa4444;
-            font-family: 'Consolas', monospace;
-            overflow-y: auto;
-            white-space: pre;
-            opacity: 0.8;
-        }
+.qasm-screen {
+    flex: 1;
+    background: #080000;
+    border: 1px solid var(--term-dim);
+    padding: 10px;
+    font-size: 0.75rem;
+    color: #aa4444;
+    font-family: 'Consolas', monospace;
+    overflow-y: auto;
+    white-space: pre;
+    opacity: 0.8;
+}
 
-        /* --- BUTTONS & STATUS --- */
-        button {
-            background: transparent;
-            border: 1px solid var(--term-red);
-            color: var(--term-red);
-            padding: 10px 30px;
-            font-family: inherit;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-weight: bold;
-        }
+/* --- BUTTONS & STATUS --- */
+button {
+    background: transparent;
+    border: 1px solid var(--term-red);
+    color: var(--term-red);
+    padding: 10px 30px;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: bold;
+}
 
-        button:hover {
-            background: var(--term-red);
-            color: #000;
-            box-shadow: 0 0 15px var(--term-red);
-        }
+button:hover {
+    background: var(--term-red);
+    color: #000;
+    box-shadow: 0 0 15px var(--term-red);
+}
 
-        .status {
-            font-size: 0.8rem;
-            color: #666; 
-            margin-top: 15px;
-            text-align: right;
-            border-top: 1px solid #333;
-            padding-top: 5px;
-    }    
-   /* --- ETCH-A-SKETCH INTEGRATION --- */
+.status {
+    font-size: 0.8rem;
+    color: #666; 
+    margin-top: 15px;
+    text-align: right;
+    border-top: 1px solid #333;
+    padding-top: 5px;
+}
 
-
-/* --- UPDATED ETCH-A-SKETCH INTEGRATION --- */
+/* --- ETCH-A-SKETCH INTEGRATION --- */
 .canvas-container {
     position: absolute;
-    top: 3.6rem;
-    right: 2rem;
-    width: 500px; /* Reduced from 600px */
+    top: 2rem; /* Reduced from 3.6rem */
+    right: 1rem; /* Reduced from 2rem */
+    width: 400px; /* Reduced from 500px */
     background: var(--glass);
     border: 1px solid var(--border-grey);
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
@@ -220,7 +215,7 @@
     align-items: center;
     border-bottom: 1px solid #333;
     padding-bottom: 0.5rem;
-    height: 25px; /* Added fixed height */
+    height: 25px;
 }
 
 .canvas-header::before {
@@ -235,9 +230,9 @@
     background-color: var(--bg-secondary) !important;
     cursor: crosshair;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-    width: 100%; /* Make responsive */
-    height: 400px; /* Reduced from 600px */
-    max-width: 460px; /* Prevent overflow */
+    width: 100%;
+    height: 300px; /* Reduced from 400px */
+    max-width: 380px; /* Reduced from 460px */
 }
 
 .canvas-controls {
@@ -248,16 +243,9 @@
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid #333;
-    height: 40px; /* Fixed height for controls */
+    height: 40px;
 }
 
-/* Adjust container to make room for smaller canvas */
-.container {
-    width: 900px;
-    margin-right: 550px; /* Reduced from 650px */
-}
-
-/* Export button styling */
 #export-sketch {
     background: transparent;
     border: 1px solid #4a4a4a;
@@ -276,27 +264,9 @@
     color: #000;
     box-shadow: 0 0 10px #4a4a4a;
 }
-/* Adjust container to make room for canvas */
-.container {
-    width: 900px;
-    margin-right: 650px; /* Make space for canvas */
-}
 
-/* Responsive adjustments */
-@media (max-width: 1600px) {
-    .canvas-container {
-        position: relative;
-        top: auto;
-        right: auto;
-        margin: 2rem auto;
-        width: fit-content;
-    }
-    
-    .container {
-        margin-right: 0;
-    }
-}     
-        #quantum-ticker-container {
+/* --- QUANTUM TICKER --- */
+#quantum-ticker-container {
     width: 100%;
     background: #111;
     border-top: 2px solid #ff0033;
@@ -308,7 +278,7 @@
     position: relative;
 }
 
-#-ticker-quantumheading {
+#quantum-ticker-heading {
     color: #fff;
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -329,7 +299,6 @@
     white-space: nowrap;
     animation: ticker-scroll 60s linear infinite;
     padding-left: 100%;
-    /* Animation will be controlled by JS */
 }
 
 #quantum-ticker.paused {
@@ -358,16 +327,11 @@
 
 /* Ticker scroll animation */
 @keyframes ticker-scroll {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
-} 
-    </style>
-    <style>
-        /* === MOBILE OPTIMIZATION === */
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+/* === RESPONSIVE ADJUSTMENTS === */
 
 /* Tablet (768px and below) */
 @media (max-width: 768px) {
@@ -376,6 +340,8 @@
         min-height: 100vh;
         padding: 1rem;
         overflow-y: auto;
+        flex-direction: column;
+        align-items: center;
     }
     
     .container {
@@ -390,13 +356,13 @@
         top: auto;
         right: auto;
         width: 100%;
-        margin: 2rem 0;
-        order: -1; /* Put canvas first on mobile */
+        max-width: 500px;
+        margin: 2rem auto;
     }
     
     #etch-a-sketch {
         width: 100%;
-        height: 300px; /* Smaller canvas for mobile */
+        height: 300px;
         max-width: 100%;
     }
     
@@ -475,21 +441,20 @@
         height: 250px;
     }
 }
-    input, textarea, select {
-    font-size: 16px; /* Prevents iOS zoom */
+
+/* Prevent iOS zoom */
+input, textarea, select {
+    font-size: 16px;
 }
- ::-webkit-scrollbar {
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
     width: 5px;
 }
 ::-webkit-scrollbar-thumb {
     background: var(--term-dim);
-}   
-        @media screen and (min-width: 900px) and (max-width: 1500px) {
-    body {
-        zoom: 0.8; 
-    }
 }
-    </style>
+</style>
 </head>
 <body>
 <div id="quantum-ticker-container">
