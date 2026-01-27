@@ -178,58 +178,59 @@ window.onload = initStaticViz;
   }
 
   // --- LOGS ---
+// --- LOGS ---
 const logFragments = [
-  "SIGILLUM authenticated",
-  "Cube navigation loaded",
-  "SIGNUM protocol active",
-  "Link geometry stable",
-  "2026 impression verified",
-  "Current reader healed of stress",
-  "Typography matrices aligned",
-  "DIMINUTIVE suffix applied",
-  "Inkrealm info online",
-  "Download paths verified",
-  "Intent compression: 87%",
-  "Your mind is clear and focused",
-  "Navigation runes encoded",
-  "Featured apps indexed",
-  "Medieval markers found",
-  "Cube faces rendered",
-  "Etymology trace complete",
-  "Anxiety dissolves into code",
-  "Small sign detected",
-  "APK verification complete",
-  "PDF bindings secure",
-  "Creative flow restored",
-  "AUTHENTICARE timestamp",
-  "Wax seal emulator online",
-  "You are exactly where you need to be",
-  "Chaos magic subroutine",
-  "Typecast link active",
-  "Symbol charge: nominal",
-  "Grimoire index updated",
-  "Rest is productive work",
-  "Old French parser engaged",
-  "Displaywriter mounted",
-  "Token verification loop",
-  "Breath deepens, tension releases",
-  "Ceremonial binding active",
-  "Citadelle routes mapped",
-  "Latin parse buffer full",
+  "Ink viscosity: Optimal",
+  "Your timeline is valid",
+  "Restoring baseline calm...",    
+  "Quantum entanglement: Stable",
+  "Banishment protocol: Ready",
+  "Third eye rendering...",
+  "Occult memory leakage fixed",
+  "Serif alignment perfect",
+  "Kerning magic applied",
+  "Ancient scripts decanted",
+  "Dopamine receptivity: High",
+  "Anxiety converted to energy",
+  "Focus restored to user",
+  "Imposter syndrome bypassed",
+  "Serotonin upload complete",
+  "Gentle notification: Drink water",
+  "Present moment anchored",
+  "Self-compassion initialized",
   "Your path forward is illuminated"
 ];
+
+function updateLogs() {
+  // 1. Target the correct div
+  const content = document.getElementById('log-content');
   
-  function updateLogs() {
-    const content = document.getElementById('log-content');
-    const p = document.createElement('p');
-    p.textContent = "> " + logFragments[Math.floor(Math.random() * logFragments.length)];
-    p.style.marginBottom = '5px';
-    content.appendChild(p);
-    document.getElementById('log-stream').scrollTop = document.getElementById('log-stream').scrollHeight;
-    if (content.children.length > 20) content.removeChild(content.children[0]);
+  // 2. Create the line
+  const row = document.createElement('div');
+  
+  // Optional: Add a timestamp for extra tech-vibe
+  // const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+  // row.textContent = `[${time}] ` + logFragments[Math.floor(Math.random() * logFragments.length)];
+  
+  row.textContent = "> " + logFragments[Math.floor(Math.random() * logFragments.length)];
+  
+  // Styling for the new line
+  row.style.marginBottom = '3px';
+  row.style.borderBottom = '1px solid #111'; // Faint line between logs
+  
+  content.appendChild(row);
+
+  // 3. FIX: Scroll 'content', not 'log-stream'
+  content.scrollTop = content.scrollHeight;
+
+  // 4. Keep it clean (limit to 20 lines)
+  if (content.children.length > 20) {
+    content.removeChild(content.children[0]);
   }
-  
-  setInterval(updateLogs, 3000);
+}
+
+// 3600ms = 3.6 seconds
+setInterval(updateLogs, 3600);
 
   // --- CHAT ---
  // ==== ENHANCED ASCII ART GENERATOR ====
