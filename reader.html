@@ -203,80 +203,6 @@
         </div>
     </div>
 </div>
-      <script type="module">
-    // Import the library directly from CDN
-    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.14.0';
-
-    // Global object to manage the memory
-    window.BrimBrain = {
-        model: null,
-        chunks: [],
-        ready: false,
-        
-        // 1. Initialize and Load
-        async init(txtUrl) {
-            console.log("🧠 BrimBrain: Loading Embedding Model...");
-            document.getElementById('nous-status').innerText = "SYSTEM: LOADING BRAIN...";
-            
-            // Load the small, fast embedding model (approx 30MB)
-            this.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-            
-            // Fetch the text file
-            const response = await fetch(txtUrl);
-            const text = await response.text();
-            
-            // 2. Intelligent Chunking (Using YOUR Regex)
-            // We split by your BRIM pattern so we capture full entries, not just random lines
-            const pattern = /(?=^(\d+\s*(?:0r|\/)\s*\d+\s*.{0,4}\s*(?:BRIM|brim)|(?:BRIM|brim)\s+\d+))/im;
-            const rawSegments = text.split(pattern);
-            
-            console.log(`🧠 BrimBrain: Found ${rawSegments.length} segments. Indexing...`);
-            
-            // 3. Create Vector Embeddings
-            this.chunks = [];
-            for (const segment of rawSegments) {
-                if (!segment || segment.length < 10) continue; // Skip noise
-                
-                // Convert text to numbers (Vector)
-                const output = await this.model(segment, { pooling: 'mean', normalize: true });
-                
-                this.chunks.push({
-                    text: segment.trim(),
-                    vector: output.data
-                });
-            }
-            
-            this.ready = true;
-            console.log("🧠 BrimBrain: Ready!");
-            document.getElementById('nous-status').innerText = "SYSTEM: MEMORY ONLINE";
-        },
-
-        // 4. The Search Function
-        async search(query, topK = 3) {
-            if (!this.ready) return [];
-            
-            // Embed the User's Query
-            const queryOutput = await this.model(query, { pooling: 'mean', normalize: true });
-            const queryVector = queryOutput.data;
-            
-            // Calculate Similarity (Dot Product)
-            const results = this.chunks.map(chunk => {
-                let score = 0;
-                for (let i = 0; i < queryVector.length; i++) {
-                    score += queryVector[i] * chunk.vector[i];
-                }
-                return { score, text: chunk.text };
-            });
-            
-            // Sort by best match and return top K
-            results.sort((a, b) => b.score - a.score);
-            return results.slice(0, topK);
-        }
-    };
-
-    // Auto-start loading when script runs
-    window.BrimBrain.init('brim.txt'); 
-</script>
 <script id="ai-script">
     // ==========================================
     // AI CONFIGURATION
@@ -321,7 +247,7 @@
         }
         if (!msg) return;
 
-        // 2. Ensure Reader Data exists (checks your original file loader)
+        // 2. Ensure Reader Data exists (links to the previous script)
         if (!window.readerEntries || window.readerEntries.length === 0) {
             aiResponseDiv.innerHTML = '<p class="text-red-500">Brim text not loaded yet. Please wait.</p>';
             return;
@@ -333,9 +259,7 @@
         aiResponseDiv.innerHTML = `<p class="animate-pulse" style="color: var(--red);">Consulting Llama...</p>`;
 
         try {
-            // =========================================================
-            // STEP A: GET LEGACY CONTEXT (Where the user is reading)
-            // =========================================================
+            // 4. Build Context
             let systemContext = '';
             
             if (aiContext === 'current') {
@@ -343,35 +267,16 @@
                 if (entry) {
                     // Limit characters to avoid token limits
                     const cleanContent = entry.content.substring(0, 4000); 
-                    systemContext = `CONTEXT (User is currently reading this section - ${entry.title}):\n${cleanContent}\n\n---\n`;
+                    systemContext = `CONTEXT (Current Section - ${entry.title}):\n${cleanContent}\n\n---\n`;
                 }
             } else if (aiContext === 'all') {
+                // Just send titles for the outline view to save tokens
                 const outline = window.readerEntries.map(e => `- ${e.title} (${e.tags.join(', ')})`).join('\n');
                 systemContext = `CONTEXT (Full Manuscript Outline):\n${outline}\n\n---\n`;
             }
 
-            // =========================================================
-            // STEP B: GET BRIM BRAIN CONTEXT (Semantic Search)
-            // =========================================================
-            let retrievedContext = "";
-            
-            // Check if the Brain script (above this one) is ready
-            if (window.BrimBrain && window.BrimBrain.ready) {
-                // Search for top 3 relevant chunks
-                const results = await window.BrimBrain.search(msg, 3);
-                
-                if (results.length > 0) {
-                    retrievedContext = "\n\n=== RELEVANT MEMORY (FROM DATABASE) ===\n" + 
-                                       results.map(r => r.text).join("\n---\n") + 
-                                       "\n=======================================\n";
-                }
-            }
-
-            // =========================================================
-            // STEP C: TRANSMIT TO NVIDIA
-            // =========================================================
-            
-            // Using corsproxy to bypass local browser restrictions.
+            // 5. Send Request
+            // Note: Using corsproxy to bypass local browser restrictions.
             const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://integrate.api.nvidia.com/v1/chat/completions');
             
             const response = await fetch(proxyUrl, {
@@ -383,15 +288,8 @@
                 body: JSON.stringify({
                     model: currentModel,
                     messages: [
-                        { 
-                            role: "system", 
-                            content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold, concise, and literary." 
-                        },
-                        { 
-                            role: "user", 
-                            // COMBINE EVERYTHING: Old Context + Brain Results + User Question
-                            content: systemContext + retrievedContext + "\nUser Question: " + msg 
-                        }
+                        { role: "system", content: "You are an editor for BRIM, a narrative where reality and dreams blur. Analyze via surrealism. Be bold, concise, and literary." },
+                        { role: "user", content: systemContext + "\nUser Question: " + msg }
                     ],
                     temperature: 0.6,
                     top_p: 1,
@@ -400,7 +298,10 @@
             });
 
             if (!response.ok) {
+                // Handle errors
                 if (response.status === 404) throw new Error("404 Switch");
+                
+                // Try to parse JSON error from NVIDIA for better readability
                 const errText = await response.text();
                 try {
                     const errJson = JSON.parse(errText);
@@ -412,7 +313,7 @@
 
             const data = await response.json();
             
-            // Format the output
+            // Format the output (simple markdown to html conversion for bolding)
             let aiText = data.choices[0].message.content;
             aiText = aiText.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--red)">$1</strong>');
             aiText = aiText.replace(/\n/g, '<br>');
@@ -434,19 +335,25 @@
     });
 
     // ==========================================
-    // UI HANDLERS (Context Toggle)
+    // UI HANDLERS
     // ==========================================
     document.addEventListener('click', e => {
         if (e.target.classList.contains('context-btn')) {
+            // Reset all buttons
             document.querySelectorAll('.context-btn').forEach(btn => {
                 btn.style.background = 'var(--dark-grey, #333)';
                 btn.style.color = '#888';
                 btn.style.borderColor = '#333';
             });
+            
+            // Activate clicked button
             e.target.style.background = 'var(--red)';
-            e.target.style.color = 'black'; 
+            e.target.style.color = 'black'; // Better contrast on red
             e.target.style.borderColor = 'var(--red)';
+            
             aiContext = e.target.dataset.context;
+            
+            // Update Helper Text
             const helpText = aiContext === 'current' ? 'Reading current entry' : 'Reading all titles';
             if(contextInfo) contextInfo.textContent = `Context: ${aiContext.toUpperCase()} (${helpText})`;
         }
