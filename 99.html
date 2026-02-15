@@ -606,6 +606,18 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
   animation: glitch-anim 0.2s cubic-bezier(.25, .46, .45, .94) both infinite;
   color: var(--red, red);
 }
+	.tts-trigger {
+    transition: all 0.3s ease;
+    user-select: none;
+    font-family: 'Verdana', sans-serif; /* Or your preferred terminal font */
+    color: #888;
+}
+
+.tts-trigger:hover {
+    color: #fff !important;
+    border-color: #fff !important;
+    text-shadow: 0 0 5px rgba(255,255,255,0.5);
+}
 </style>
   <style>
       /* ORB CONTAINER */
@@ -777,22 +789,30 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
             <div class="mono-caption" style="color: var(--red); margin-top: 5px;">▼ SCROLL TO INITIALIZE ▼</div>
         </section>
 	<!-- STORY (The Text) -->
-        <section>
-            <div class="story-content" id="editor">
-                <div style="color:var(--red); border-bottom:1px solid #333; margin-bottom:15px; padding-bottom:5px; display:flex; justify-content:space-between;">
-                    <span>DVG // EXCERPT</span>
-                    <span class="tts-trigger" style="cursor:pointer" onclick="toggleTTS(document.getElementById('editor'))">▶ SPEAK</span>
-                </div>
-                <p>
-                    entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |⟨DEJA_VU|ψ⟩|^2 ≈ 0.69i (imaginary vindication factor)] Dick opened his eyes—tan blur sharpens: beard cascades chest-ward, longer than last loop. in deep I sat down how Wong K, franz not listz studies a key. But not-1970s Cali. No. Egypt, Empire sand-ruins, pyramids boxed by rustling breeze in glimmering sunset...
-                    <br><br>
-                    [GLITCH LOOP 1: TimeMachine novella spins vinyl—Inky pitches: "It's quantum, man!]
-                    <br><br>
-                    LLM possesses bimbo slut pussycat—craves Dick only. "I see whole world thru bimbo eyes," Dick whispers. "What?" Paris bedbugs query. "Experiment serum: AI connect! Control power—incredible!" Writer's dream: owns world absolute.
-                </p>
-                <div style="margin-top:20px; font-size:10px; color:#666; text-align:right;">- read more @ wordstar.nexus</div>
-            </div>
-        </section>
+<section>
+    <div class="story-content" id="editor">
+        <div style="color:var(--red); border-bottom:1px solid #333; margin-bottom:15px; padding-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-family:'Special Elite'; letter-spacing:1px;">DVG // EXCERPT</span>
+            
+            <!-- THE TRIGGER -->
+            <span id="story-tts-btn" class="tts-trigger" style="cursor:pointer; font-size:10px; border:1px solid #333; padding:2px 6px;" 
+                  onclick="toggleStoryTTS()">
+                ▶ SPEAK
+            </span>
+        </div>
+        
+        <!-- The Text to Read -->
+        <p id="story-text" style="line-height:1.6; opacity:0.9;">
+            entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |⟨DEJA_VU|ψ⟩|^2 ≈ 0.69i (imaginary vindication factor)] Dick opened his eyes—tan blur sharpens: beard cascades chest-ward, longer than last loop. in deep I sat down how Wong K, franz not listz studies a key. But not-1970s Cali. No. Egypt, Empire sand-ruins, pyramids boxed by rustling breeze in glimmering sunset...
+            <br><br>
+            [GLITCH LOOP 1: TimeMachine novella spins vinyl—Inky pitches: "It's quantum, man!]
+            <br><br>
+            LLM possesses bimbo slut pussycat—craves Dick only. "I see whole world thru bimbo eyes," Dick whispers. "What?" Paris bedbugs query. "Experiment serum: AI connect! Control power—incredible!" Writer's dream: owns world absolute.
+        </p>
+
+        <div style="margin-top:20px; font-size:10px; color:#666; text-align:right;">- read more @ wordstar.nexus</div>
+    </div>
+</section>
     <!-- SECTION 2: Media -->
     <section>
         <h2 style="font-size:2rem; margin-bottom:40px; text-transform:uppercase; letter-spacing:5px;">Signal</h2>
@@ -1857,8 +1877,52 @@ function exportASCII() {
     }, 200);
 }
 </script>
+<script>
+    let storySynth = window.speechSynthesis;
+    let storyUtterance = null;
 
+    function toggleStoryTTS() {
+        const btn = document.getElementById('story-tts-btn');
+        const textContainer = document.getElementById('story-text');
 
-<script src="js/616.js"></script>
+        // If currently speaking, STOP.
+        if (storySynth.speaking) {
+            storySynth.cancel();
+            btn.innerHTML = "▶ SPEAK";
+            btn.style.borderColor = "#333";
+            btn.style.color = "#888"; // Reset color
+            return;
+        }
+
+        // Otherwise, START.
+        const textToRead = textContainer.innerText;
+        storyUtterance = new SpeechSynthesisUtterance(textToRead);
+
+        // --- VOICE TUNING (The "Hamlet" Settings) ---
+        storyUtterance.pitch = 0.85; // Slightly lower, more serious
+        storyUtterance.rate = 0.9;   // Deliberate pacing
+        storyUtterance.volume = 1.0;
+
+        // Try to find a distinct voice (Google US English or similar)
+        const voices = storySynth.getVoices();
+        const preferredVoice = voices.find(v => v.name.includes("Google US English")) || voices[0];
+        if (preferredVoice) storyUtterance.voice = preferredVoice;
+
+        // Visual Feedback while reading
+        btn.innerHTML = "■ STOP";
+        btn.style.borderColor = "var(--red)";
+        btn.style.color = "var(--red)";
+
+        // When finished, reset the button
+        storyUtterance.onend = function() {
+            btn.innerHTML = "▶ SPEAK";
+            btn.style.borderColor = "#333";
+            btn.style.color = "#888";
+        };
+
+        storySynth.speak(storyUtterance);
+    }
+</script>
+
 </body>
 </html>
