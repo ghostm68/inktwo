@@ -872,7 +872,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
     </div>
 </section>
 	<!-- SECTION: MOZART'S DICE GAME (K. 516f) -->
-<section style="align-items: center;">
+<section style="align-items: flex-start; max-width: 65%;">
     
     <div style="text-align: center; margin-bottom: 30px;">
         <h1 class="headline" style="font-size: 3rem; margin-bottom: 10px;">K.516f<br><span style="color: var(--red);">GENESIS</span></h1>
@@ -1027,18 +1027,41 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
         playBtn.onclick = async () => {
             await Tone.start();
             
-            // Create a Synth that sounds like a dirty harpsichord/8-bit hybrid
-            const synth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "sawtooth" },
-                envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
-            }).toDestination();
-            
-            // Add some "Void" effects
-            const chorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
-            synth.connect(chorus);
-            
-            const now = Tone.now();
-            let time = 0;
+// 1. The Reverb (The "Cathedral/Void" Space)
+const reverb = new Tone.Reverb({
+    decay: 6,       // Long decay for that "ghost" feel
+    wet: 0.5,       // 50% mix
+    preDelay: 0.2   // Slight delay before echo for clarity
+}).toDestination();
+
+// 2. The Chorus (The "VHS/Tape" Wobble)
+// We slow the frequency down to 1.5Hz so it drifts slowly instead of shaking fast
+const chorus = new Tone.Chorus(1.5, 2.5, 0.5).connect(reverb).start();
+
+// 3. The Synth (The "Glass" Instrument)
+const synth = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3,         // 3:1 ratio = Bell-like
+    modulationIndex: 10,    // High modulation = Metallic
+    oscillator: { type: "sine" },
+    envelope: {
+        attack: 0.05,
+        decay: 0.3,
+        sustain: 0.1,
+        release: 2
+    },
+    modulation: { type: "square" },
+    modulationEnvelope: {
+        attack: 0.002,
+        decay: 0.2,
+        sustain: 0,
+        release: 0.2
+    }
+}).connect(chorus); // <--- CONNECT TO CHORUS, NOT DESTINATION
+
+// 4. The Logic (KEEP THIS!)
+// You absolutely need this part because it calculates *when* to play the notes.
+const now = Tone.now();
+let time = 0;
 
             // Play the sequence
             // Since we don't have the 176 MP3s, we procedurally generate a waltz
