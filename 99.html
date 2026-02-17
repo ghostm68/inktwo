@@ -723,89 +723,74 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
   </style>
 	<style>	
 	/* --- VHS RED JUMP/BOUNCE EFFECT --- */
+/* --- 1. THE RED FLASH (Global Tint) --- */
+/* Keeps the screen flash, but slightly more subtle to let lines pop */
 body::before {
   content: "";
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  
-  /* Solid red, but we use blend modes to make it 'burn' the image */
   background: #ff0000;
-  
-  /* overlay or hard-light makes it look like a light leak, not paint */
   mix-blend-mode: hard-light; 
-  
   opacity: 0;
-  z-index: 9999;
+  z-index: 9998;
   pointer-events: none;
-  
-  /* The timing: 8s loop */
   animation: vhs-red-bloom 8s infinite linear;
 }
 
-/* --- THE TRACKING BAR (The "Bounce") --- */
+/* --- 2. THE BROKEN TRACKING LINES (The "Bounce") --- */
 body::after {
   content: "";
   position: fixed;
   left: 0;
   width: 100%;
-  height: 15vh; /* A horizontal strip */
+  height: 5vh; /* Much thinner container */
   
-  /* A bright "static" bar that slides down */
-  background: linear-gradient(
-    180deg, 
-    transparent 0%, 
-    rgba(255, 0, 0, 0.4) 20%, 
-    rgba(255, 255, 255, 0.9) 50%, /* White-hot center */
-    rgba(255, 0, 0, 0.4) 80%, 
-    transparent 100%
-  );
-  
-  top: -20vh; /* Start off screen */
-  z-index: 10000;
+  /* 
+     We paint 3 distinct lines using multiple background gradients.
+     Format: linear-gradient(...) Position / Size No-Repeat 
+  */
+  background: 
+    /* A. Main Center Line: White-hot, spans 80% of width, 2px thick */
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.95) 40%, rgba(255, 255, 255, 0.95) 60%, transparent 100%) 
+    center center / 80% 2px no-repeat,
+    
+    /* B. Top Adornment: Sharp Red, Left side, Short (200px), 1px thick */
+    linear-gradient(90deg, transparent, #ff0000, transparent) 
+    20% 10% / 200px 1px no-repeat,
+    
+    /* C. Bottom Adornment: Faint Red, Right side, Medium (350px), 1px thick */
+    linear-gradient(90deg, transparent, rgba(255, 0, 0, 0.6), transparent) 
+    70% 90% / 350px 1px no-repeat;
+
+  top: -10vh; /* Start off screen */
+  z-index: 9999;
   pointer-events: none;
-  mix-blend-mode: screen; /* Adds brightness/glow */
+  mix-blend-mode: screen; /* Makes the lines glow */
   opacity: 0;
   
-  /* Synced with the red bloom */
+  /* 8s loop, same as the flash */
   animation: vhs-tracking-bounce 8s infinite linear;
 }
 
 /* --- KEYFRAMES --- */
 
-/* 1. The Red Flash (Exposure Bloom) */
 @keyframes vhs-red-bloom {
-  0%, 90% { 
-    opacity: 0; 
-  }
-  91% { 
-    opacity: 0.6; /* Sudden bright red flash */
-    filter: contrast(1.5) brightness(1.2);
-  }
-  92% { 
-    opacity: 0.1; 
-  }
-  93% { 
-    opacity: 0.4; /* Secondary flicker */
-  }
-  95% { 
-    opacity: 0; 
-  }
-  100% { 
-    opacity: 0; 
-  }
+  0%, 90% { opacity: 0; }
+  91% { opacity: 0.4; } /* Quick red flash */
+  93% { opacity: 0; }
+  100% { opacity: 0; }
 }
 
-/* 2. The Tracking Bar (The Vertical "Bounce") */
 @keyframes vhs-tracking-bounce {
   0%, 90% { 
-    top: -20vh;
+    top: -10vh;
     opacity: 0;
   }
   91% { 
     opacity: 1;
   }
-  /* The bar rapidly slides down the screen (The "Roll") */
+  /* The lines slide rapidly down */
   96% { 
     top: 110vh; 
     opacity: 1;
@@ -814,7 +799,7 @@ body::after {
     top: 110vh;
     opacity: 0;
   }
-}	
+}
 		  /* ----------  CRT overlay  ---------- */
         #crt-overlay {
   position: fixed;
