@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WORDSTAR // VERTICAL_NEXUS</title>
+    
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Almendra:wght@400;700&family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css" rel="stylesheet">
+
+    <style>
+       :root {
+    /* --- 1. DEFAULT THEME (CITADELLE RED) --- */
+    --bg-color: #050505;        /* Void Black */
+    --primary: #ff0000;         /* Laser Red */
+    --secondary: #550000;       /* Dark Red */
+    --text-main: #ffffff;
+    --text-dim: #666666;
+    --scanline-tint: rgba(255, 0, 0, 0.06);
+    --video-blend: hard-light;  /* Harsh blending for Red */
+}
+
+/* --- 2. CLASSIC THEME (WORDSTAR BLUE) --- */
+body.classic-mode {
+    --bg-color: #0000AA;        /* DOS Blue */
+    --primary: #FFFF00;         /* High-Vis Yellow */
+    --secondary: #00FFFF;       /* Cyan (CGA Style) */
+    --text-main: #FFFFFF;       /* Pure White */
+    --text-dim: #00FFFF;        /* Dim is actually Cyan in this mode */
+    --scanline-tint: rgba(255, 255, 255, 0.1);
+    --video-blend: luminosity;  /* Grayscale/Ghostly for Blue */
+}
+
+/* APPLYING THE VARIABLES */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    transition: background-color 0.5s ease, color 0.3s ease; /* Smooth Fade */
+}
+
+/* Update Elements to use new variables */
+.mega-title, h1, h2 { color: var(--primary); text-shadow: 0 0 10px var(--primary); }
+.triangle-frame { background: var(--primary); }
+.term-trigger, .module-link:hover { border-color: var(--primary); color: var(--primary); }
+.term-trigger:hover { background: var(--primary); color: var(--bg-color); }
+
+/* specific tweak for the blue mode links */
+body.classic-mode a:hover {
+    color: var(--secondary);
+    text-shadow: 0 0 8px var(--secondary);
+}
+
+/* Update Scanlines to match theme */
+body::after {
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, var(--scanline-tint), rgba(0, 0, 0, 0.02), var(--scanline-tint));
+}
+
+        a { text-decoration: none; color: inherit; transition: 0.3s; }
+        a:hover { color: var(--primary); text-shadow: 0 0 8px var(--primary); letter-spacing: 1px; }
+
+        /* FIXED LEFT RAIL (The Anchor) */
+        .fixed-rail {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .anchor-logo {
+            width: 40px;
+            height: 40px;
+            filter: drop-shadow(0 0 5px var(--primary));
+            animation: spin 20s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* FIXED RIGHT RAIL (The Terminal Trigger) */
+        .term-trigger {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            font-family: var(--font-tech);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .term-trigger:hover { background: var(--primary); color: #000; }
+
+        /* HIDDEN DRAWER */
+        #terminal-drawer {
+            position: fixed; top: 0; left: -100%; width: 100%; height: 100vh;
+            background: #000; z-index: 900; border-right: 2px solid var(--primary);
+            transition: 0.4s ease; padding: 60px 20px; box-sizing: border-box;
+            display: flex; flex-direction: column;
+        }
+
+        /* SECTIONS - The Vertical Stack */
+        section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 40px 20px; /* Mobile Padding */
+            box-sizing: border-box;
+            border-bottom: 1px solid #1a1a1a;
+            position: relative;
+        }
+        
+        /* Desktop Padding */
+        @media(min-width: 800px) {
+            section { padding: 40px 100px; }
+        }
+
+        /* SECTION 1: HERO */
+        .mega-title {
+            font-family: var(--font-seg);
+            font-size: clamp(3rem, 10vw, 8rem);
+            line-height: 0.8;
+            color: var(--white);
+            margin: 0;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .triangle-frame {
+            width: 200px;
+            height: 200px;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            background: var(--primary);
+            padding: 2px;
+            margin-bottom: 20px;
+            animation: float 4s ease-in-out infinite;
+        }
+        .triangle-video {
+            width: 100%; height: 100%;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            background: #000; overflow: hidden;
+        }
+        .triangle-video video {
+            width: 160%; height: 160%;
+            object-fit: cover;
+            transform: translate(-20%, -20%);
+            mix-blend-mode: hard-light;
+            filter: grayscale(1) contrast(1.2);
+        }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* SECTION 2: THE APPLIANCES */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2px;
+            background: #222; /* Creates the border lines */
+            border: 1px solid #222;
+        }
+
+        .grid-item {
+            background: var(--black);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 150px;
+        }
+        
+        .grid-item:hover { background: #0a0000; }
+        .grid-item:hover .grid-title { color: var(--primary); }
+        
+        .grid-title { font-family: var(--font-seg); font-size: 1.2rem; color: #fff; margin-bottom: 10px; }
+        .grid-meta { font-size: 0.7rem; color: #666; text-transform: uppercase; }
+
+        /* SECTION 3: SIGIL HASH */
+        .sigil-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 40px;
+        }
+        @media(min-width: 800px) { .sigil-layout { grid-template-columns: 1fr 1fr; align-items: center; } }
+
+        #sigilCanvas {
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 1/1;
+            background: #000;
+            border: 1px solid #333;
+            box-shadow: 0 0 20px rgba(255,0,0,0.1);
+        }
+
+        .sigil-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--primary);
+            color: var(--white);
+            font-family: var(--font-seg);
+            font-size: 2rem;
+            width: 100%;
+            margin-top: 20px;
+            outline: none;
+        }
+
+        /* SECTION 4: MANIFEST */
+        .manifest-list {
+            list-style: none;
+            padding: 0;
+            font-family: var(--font-seg);
+            font-size: 1.5rem;
+        }
+        .manifest-list li {
+            border-bottom: 1px solid #222;
+            padding: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .manifest-tag { font-family: var(--font-tech); font-size: 0.8rem; color: #666; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. FIXED ELEMENTS -->
+    <div class="fixed-rail">
+        <!-- Reusing your Wordstar SVG or a placeholder -->
+        <img src="https://wordstar.nexus/svg/favicon.svg" class="anchor-logo" alt="*">
+        <div style="writing-mode: vertical-rl; font-size: 10px; color: #444;">SYS.ROOT // V7.0</div>
+    </div>
+<!-- THEME TOGGLE (Top Right, next to Terminal) -->
+<div style="position: fixed; top: 20px; right: 140px; z-index: 101;">
+    <button onclick="toggleTheme()" id="themeBtn" 
+            style="border: 1px solid var(--text-dim); background: var(--bg-color); color: var(--text-dim); padding: 10px 15px; font-family: 'Share Tech Mono'; cursor: pointer; font-size: 0.8rem;">
+        [COLOR_MODE]
+    </button>
+</div>
+    <button class="term-trigger" onclick="toggleDrawer()">TERMINAL</button>
+
+    <!-- 2. HIDDEN DRAWER (Hermes) -->
+    <div id="terminal-drawer">
+        <div style="color: var(--primary); font-family: var(--font-seg); margin-bottom: 20px;">HERMES_NODE</div>
+        <div style="flex-grow: 1; font-family: 'VT323'; color: #888; font-size: 1.2rem;">
+            SYSTEM INITIALIZED...<br>
+            AWAITING INPUT.<br><br>
+            >_
+        </div>
+        <input type="text" placeholder="ENTER COMMAND..." style="background: #111; border: 1px solid #333; padding: 15px; color: var(--primary); font-family: var(--font-tech);">
+    </div>
+
+    <!-- 3. MAIN SCROLL -->
+    <main>
+
+        <!-- SECTION 1: HERO -->
+        <section>
+            <div class="triangle-frame">
+                <div class="triangle-video">
+                    <video autoplay muted loop playsinline>
+                        <source src="https://github.com/ghostm68/666/raw/refs/heads/main/210644747.mp4" type="video/mp4">
+                    </video>
+                </div>
+            </div>
+            <h1 class="mega-title">
+                WORD<br>
+                <span style="color: var(--primary); text-shadow: 0 0 15px var(--primary);">STAR</span>
+            </h1>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 20px;">
+                INKREALM SYSTEM ROOT V.7.0 <span style="color:var(--primary)">//</span> SCROLL TO INITIALIZE
+            </div>
+        </section>
+
+        <!-- SECTION 2: THE DECK (Appliances) -->
+        <section>
+            <div style="margin-bottom: 40px; border-bottom: 1px solid var(--primary); display: inline-block;">
+                <h2 style="font-family: var(--font-seg); color: var(--primary); margin: 0;">MODULE_DECK</h2>
+            </div>
+            
+            <div class="grid-container">
+                <a href="/sitemap" class="grid-item">
+                    <span class="grid-title">NEXUS_MAP</span>
+                    <span class="grid-meta">MODERNIZED CLI [ACTIVE]</span>
+                </a>
+                <a href="/directory" class="grid-item">
+                    <span class="grid-title">DIRECTORY</span>
+                    <span class="grid-meta">NETWORK UPLINKS</span>
+                </a>
+                <a href="/cut+rune" class="grid-item">
+                    <span class="grid-title">TEXT_SURGERY</span>
+                    <span class="grid-meta">TOOL / PERMUTATOR</span>
+                </a>
+                <a href="/q" class="grid-item">
+                    <span class="grid-title">PROJECT_Q</span>
+                    <span class="grid-meta">AI NODE [GEN]</span>
+                </a>
+                <a href="https://inkrealm.info/minraud" class="grid-item">
+                    <span class="grid-title">MINRAUD</span>
+                    <span class="grid-meta">WEB_LLM [NOVA]</span>
+                </a>
+                <a href="#" class="grid-item" style="cursor: default;">
+                    <span class="grid-title" style="color:#333;">LOCKED</span>
+                    <span class="grid-meta">ACCESS DENIED</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- SECTION 3: SIGIL HASH -->
+        <section>
+            <div class="sigil-layout">
+                <div>
+                    <h2 style="font-family: var(--font-seg); font-size: 3rem; margin: 0; color: var(--primary); line-height: 1;">
+                        SIGIL<br>HASH
+                    </h2>
+                    <p style="color: #888; max-width: 300px; margin: 20px 0;">
+                        Visual cryptography engine. Enter text to generate a unique geometry.
+                    </p>
+                    <input type="text" class="sigil-input" placeholder="TYPE_HERE..." oninput="generateSigil(this.value)">
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: #444;">
+                        HASH: <span id="hashDisplay">NULL</span>
+                    </div>
+                </div>
+                
+                <div style="display:flex; justify-content:center;">
+                    <canvas id="sigilCanvas" width="500" height="500"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: MANIFEST (Footer) -->
+        <section style="justify-content: flex-start; padding-top: 100px;">
+            <div style="font-family: var(--font-tech); color: #666; margin-bottom: 20px;">
+                PRIMARY_OUTPUT // MANIFEST
+            </div>
+            
+            <ul class="manifest-list">
+                <li>
+                    <a href="/dejavuglitches">DEJAVU_GLITCHES</a>
+                    <span class="manifest-tag">TXT</span>
+                </li>
+                <li>
+                    <a href="/dreamweaver">DREAMWEAVER</a>
+                    <span class="manifest-tag">TXT</span>
+                </li>
+                <li>
+                    <a href="/90263">FILE_90263</a>
+                    <span class="manifest-tag">MOV</span>
+                </li>
+                <li>
+                    <a href="https://inkrealm.medium.com/">MEDIUM_ARCHIVE</a>
+                    <span class="manifest-tag">EXT</span>
+                </li>
+            </ul>
+
+            <div style="margin-top: 100px; padding-top: 20px; border-top: 1px solid #333; font-size: 0.8rem; color: #444;">
+                <details>
+                    <summary style="cursor: pointer; color: var(--primary);">SYSTEM_LOGS [EXPAND]</summary>
+                    <p style="font-family: var(--font-magic); font-size: 1.2rem; color: #888; margin-top: 20px;">
+                        "I see whole world thru bimbo eyes," Dick whispers. "Experiment serum: AI connect!" 
+                        Writer's dream: owns world absolute.
+                    </p>
+                </details>
+                <br>
+                LOC: DOMINICAN_REPUBLIC // INKY © 2026
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SCRIPT (Sigil Logic + Toggle) -->
+    <script>
+        function toggleDrawer() {
+            const d = document.getElementById('terminal-drawer');
+            d.style.left = d.style.left === '0px' ? '-100%' : '0px';
+        }
+
+        /* SIGIL LOGIC (Red Protocol) */
+        const canvas = document.getElementById('sigilCanvas');
+        const ctx = canvas.getContext('2d');
+        const hashDisplay = document.getElementById('hashDisplay');
+
+        function stringToSeed(str) {
+            let hash = 0;
+            if (str.length === 0) return hash;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+
+        function generateSigil(text) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(!text) return;
+
+            const seed = stringToSeed(text);
+            hashDisplay.innerText = "0x" + seed.toString(16).toUpperCase();
+
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff0000';
+            ctx.lineCap = 'square';
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radius = 100 + (seed % 80); 
+            const points = 3 + (seed % 10); 
+            const step = (Math.PI * 2) / points;
+
+            ctx.beginPath();
+            for (let i = 0; i <= points; i++) {
+                const angle = i * step;
+                const mod = (seed >> (i % 8)) & 1 ? 40 : 0; 
+                const r = radius - mod;
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                
+                if (i % 2 === 0) {
+                    ctx.lineTo(cx, cy);
+                    ctx.moveTo(x, y);
+                }
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Tech Ring
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius + 20, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.2)';
+            ctx.setLineDash([5, 10]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Init
+        generateSigil("WORDSTAR");
+    </script>
+	<script>
+		// 1. THEME TOGGLE LOGIC
+function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('classic-mode');
+    
+    // Save preference
+    const isClassic = body.classList.contains('classic-mode');
+    localStorage.setItem('wordstar-theme', isClassic ? 'classic' : 'default');
+    
+    // Update Button Text (Optional)
+    const btn = document.getElementById('themeBtn');
+    btn.innerHTML = isClassic ? "[SYSTEM: DOS]" : "[SYSTEM: RED]";
+    
+    // REDRAW SIGIL (Critical Step)
+    // We need to re-run the generate function with the current text
+    const currentInput = document.getElementById('sigilInput').value || "WORDSTAR";
+    generateSigil(currentInput);
+}
+
+// 2. CHECK STORAGE ON LOAD
+window.onload = function() {
+    if(localStorage.getItem('wordstar-theme') === 'classic') {
+        toggleTheme(); // Apply it immediately
+    }
+    // Initialize Sigil
+    generateSigil("WORDSTAR");
+}
+
+// 3. UPDATE SIGIL GENERATOR COLORS
+// Modify your existing generateSigil function:
+function generateSigil(text) {
+    // ... clear canvas ...
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // CHECK THEME STATE
+    const isClassic = document.body.classList.contains('classic-mode');
+    
+    // DEFINE COLORS BASED ON THEME
+    const mainColor = isClassic ? '#FFFF00' : '#ff0000'; // Yellow vs Red
+    const glowColor = isClassic ? '#FFFF00' : '#ff0000';
+    const ringColor = isClassic ? 'rgba(0, 255, 255, 0.3)' : 'rgba(255, 0, 0, 0.3)'; // Cyan vs Red
+
+    // APPLY COLORS
+    ctx.strokeStyle = mainColor;
+    ctx.shadowColor = glowColor;
+    
+    // ... rest of your drawing logic ...
+    
+    // When drawing the ring:
+    ctx.strokeStyle = ringColor;
+}
+	</script>
+</body>
+</html>
