@@ -773,4 +773,201 @@ function closeAllSelects(exceptThis) {
         }
     });
 }
+			// --- AUDIO CORE ---
+// --- AUDIO CORE ---
+// --- AUDIO CORE ---
+// --- AUDIO CORE ---
+// --- AUDIO CORE ---
+// --- AUDIO CORE ---
+let audioCtx, humOsc, isPowered = false;
 
+function togglePower() {
+  const powerBtn = document.getElementById('power-toggle');
+  
+  if(!audioCtx) {
+    // First click - create and start audio
+    audioCtx = new AudioContext();
+    humOsc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    humOsc.type = 'sawtooth'; 
+    humOsc.frequency.value = 55;
+    gain.gain.value = 0.02;
+    
+    humOsc.connect(gain); 
+    gain.connect(audioCtx.destination);
+    humOsc.start();
+    
+    // Set state to ON
+    isPowered = true;
+  } else {
+    // Toggle existing audio
+    if(isPowered) {
+      audioCtx.suspend();
+      isPowered = false;
+    } else {
+      audioCtx.resume();
+      isPowered = true;
+    }
+  }
+  // ALWAYS update button text and color based on isPowered
+  if(isPowered) {
+    powerBtn.innerText = "POWER: ON";
+    powerBtn.classList.add('power-on');
+  } else {
+    powerBtn.innerText = "POWER: OFF";
+    powerBtn.classList.remove('power-on');
+  }
+}
+    <!-- LOGIC -->
+        import * as Tone from 'https://esm.run/tone';
+
+        // 1. THE DATA: Mozart's Actual Lookup Table (First 8 Measures)
+        // Rows = Dice Sum (2-12), Cols = Measure Index (1-8)
+        const mozartTable = {
+            2:  [96, 22, 141, 41, 105, 122, 11, 30],
+            3:  [32, 6, 128, 63, 146, 46, 134, 81],
+            4:  [69, 95, 158, 13, 153, 55, 110, 24],
+            5:  [40, 17, 113, 85, 161, 2, 159, 100],
+            6:  [148, 74, 163, 45, 80, 97, 36, 107],
+            7:  [104, 157, 27, 167, 154, 68, 118, 91],
+            8:  [152, 60, 171, 53, 99, 133, 21, 127],
+            9:  [119, 84, 114, 50, 140, 86, 169, 94],
+            10: [98, 142, 42, 156, 75, 129, 62, 123],
+            11: [3, 87, 165, 61, 135, 47, 147, 33],
+            12: [54, 130, 10, 103, 28, 37, 106, 5]
+        };
+
+        // DOM Elements
+        const grid = document.getElementById('mozart-grid');
+        const rollBtn = document.getElementById('rollBtn');
+        const playBtn = document.getElementById('playBtn');
+        const codeDisplay = document.getElementById('composition-code');
+        
+        let currentSequence = []; // Will hold the selected measures
+
+        // 2. BUILD THE GRID UI
+        function buildGrid() {
+            grid.innerHTML = '';
+            for(let row=2; row<=12; row++) {
+                mozartTable[row].forEach((val, index) => {
+                    const cell = document.createElement('div');
+                    cell.textContent = val;
+                    cell.style.border = '1px solid #333';
+                    cell.style.padding = '5px';
+                    cell.style.textAlign = 'center';
+                    cell.style.color = '#555';
+                    cell.id = `m-${row}-${index}`; // Unique ID for highlighting
+                    grid.appendChild(cell);
+                });
+            }
+        }
+        buildGrid();
+
+        // 3. GENERATE (Roll Dice)
+        rollBtn.onclick = () => {
+            // Reset UI
+            document.querySelectorAll('#mozart-grid div').forEach(d => {
+                d.style.background = 'transparent'; 
+                d.style.color = '#555';
+                d.style.borderColor = '#333';
+            });
+
+            currentSequence = [];
+            let sequenceIds = [];
+
+            // For each of the 8 measures...
+            for(let i=0; i<8; i++) {
+                // Roll 2 Dice
+                const d1 = Math.floor(Math.random() * 6) + 1;
+                const d2 = Math.floor(Math.random() * 6) + 1;
+                const sum = d1 + d2;
+                
+                // Get the Mozart Number
+                const measureID = mozartTable[sum][i];
+                currentSequence.push({ note: sum, id: measureID }); // We use 'sum' to determine pitch height
+                sequenceIds.push(measureID);
+
+                // Highlight the Grid
+                const cell = document.getElementById(`m-${sum}-${i}`);
+                if(cell) {
+                    cell.style.background = 'var(--red)';
+                    cell.style.color = 'black';
+                    cell.style.borderColor = 'var(--red)';
+                }
+            }
+
+            codeDisplay.textContent = `SEQ: [ ${sequenceIds.join(' - ')} ]`;
+            playBtn.disabled = false;
+            playBtn.style.opacity = '1';
+        };
+
+        // 4. PLAY (The Cyber-Harpsichord)
+        playBtn.onclick = async () => {
+            await Tone.start();
+            
+// 1. The Reverb (The "Cathedral/Void" Space)
+const reverb = new Tone.Reverb({
+    decay: 6,       // Long decay for that "ghost" feel
+    wet: 0.5,       // 50% mix
+    preDelay: 0.2   // Slight delay before echo for clarity
+}).toDestination();
+
+// 2. The Chorus (The "VHS/Tape" Wobble)
+// We slow the frequency down to 1.5Hz so it drifts slowly instead of shaking fast
+const chorus = new Tone.Chorus(1.5, 2.5, 0.5).connect(reverb).start();
+
+// 3. The Synth (The "Glass" Instrument)
+const synth = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 3,         // 3:1 ratio = Bell-like
+    modulationIndex: 10,    // High modulation = Metallic
+    oscillator: { type: "sine" },
+    envelope: {
+        attack: 0.05,
+        decay: 0.3,
+        sustain: 0.1,
+        release: 2
+    },
+    modulation: { type: "square" },
+    modulationEnvelope: {
+        attack: 0.002,
+        decay: 0.2,
+        sustain: 0,
+        release: 0.2
+    }
+}).connect(chorus); // <--- CONNECT TO CHORUS, NOT DESTINATION
+
+// 4. The Logic (KEEP THIS!)
+// You absolutely need this part because it calculates *when* to play the notes.
+const now = Tone.now();
+let time = 0;
+
+            // Play the sequence
+            // Since we don't have the 176 MP3s, we procedurally generate a waltz
+            // based on the dice rolls. 
+            // Higher Dice Roll = Higher Pitch.
+            
+            currentSequence.forEach((step, index) => {
+                // Map dice sum (2-12) to a C Major Scale
+                // 2=C3, 12=E4 roughly
+                const scale = ['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4'];
+                const rootNote = scale[step.note - 2] || 'C3';
+                
+                // Play a Waltz pattern (ONE-two-three)
+                synth.triggerAttackRelease(rootNote, "8n", now + time);
+                synth.triggerAttackRelease(rootNote, "8n", now + time + 0.25); // Chord element
+                synth.triggerAttackRelease(rootNote, "8n", now + time + 0.5);  // Chord element
+                
+                time += 0.75; // Next measure
+            });
+        };
+
+				 function exportDraft() {
+    const content = document.getElementById('editor').innerText;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inkrealm-dossier.txt';
+    a.click();
+  
