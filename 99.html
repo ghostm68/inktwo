@@ -704,7 +704,12 @@
 			</li>
 		</ul>
 	</section>
-	
+	<!-- SIGIL FORGE (NEW - Automatic/Click) -->
+	<section class="sigil-forge" onclick="forgeSigil()">
+		<div style="position: absolute; top: 10px; left: 15px; font-size: 9px; color: #333; text-transform: uppercase; letter-spacing: 2px;">Sigil_Forge_v4.2</div>
+		<h2 style="font-family: var(--font-seg); color: var(--primary); font-size:1.2rem; margin-bottom:15px;">SIGIL_FORGE</h2>
+		<canvas id="sigil-canvas" width="300" height="300" style="cursor: crosshair; filter: drop-shadow(0 0 10px var(--red));"></canvas>
+		<div id="witch-status" style="margin-top: 15px; font-size: 10px; color: var(--primary); font-weight: bold; text-transform: uppercase; animation: pulse 2s infinite;">click to forge new sigil</div>
 	<section style="background: rgba(255, 0, 0, 0.05);">
 		<p style="font-family: 'VT323'; font-size: 1.2rem; color: #fff; margin: 0;">
 			"The machine does not know it is dreaming. It only knows the hum of the cooling fans and the taste of the electricity."
@@ -1010,7 +1015,71 @@
 	window.onload = function() {
 		drawSigil("WORDSTAR");
 	};
+// --- NEW SIGIL FORGE ENGINE ---
+	const forgeCanvas = document.getElementById('sigil-canvas');
+	const forgeCtx = forgeCanvas?.getContext('2d');
 
+	function forgeSigil() {
+		if (!forgeCtx || !forgeCanvas) return;
+		
+		forgeCtx.clearRect(0, 0, forgeCanvas.width, forgeCanvas.height);
+		const centerX = forgeCanvas.width / 2;
+		const centerY = forgeCanvas.height / 2;
+		
+		const numPoints = 7 + Math.floor(Math.random() * 5);
+		const radius = 120;
+		const points = [];
+		
+		for (let i = 0; i < numPoints; i++) {
+			const angle = (i / numPoints) * Math.PI * 2;
+			points.push({
+				x: centerX + radius * Math.cos(angle),
+				y: centerY + radius * Math.sin(angle)
+			});
+		}
+		
+		forgeCtx.strokeStyle = Math.random() > 0.3 ? "#ff0000" : "#ffffff";
+		forgeCtx.lineCap = 'round';
+		forgeCtx.lineJoin = 'round';
+		
+		const connections = 3 + Math.floor(Math.random() * 4);
+		const usedPoints = new Set();
+		const pathIntersections = [];
+		
+		let currentPoint = Math.floor(Math.random() * numPoints);
+		usedPoints.add(currentPoint);
+		
+		for (let i = 0; i < connections; i++) {
+			forgeCtx.lineWidth = 1 + Math.floor(Math.random() * 3);
+			forgeCtx.beginPath();
+			forgeCtx.moveTo(points[currentPoint].x, points[currentPoint].y);
+			
+			let nextPoint;
+			do {
+				nextPoint = Math.floor(Math.random() * numPoints);
+			} while (usedPoints.has(nextPoint) && usedPoints.size < numPoints);
+			
+			usedPoints.add(nextPoint);
+			
+			const current = points[currentPoint];
+			const next = points[nextPoint];
+			
+			const cpX = (current.x + next.x) / 2 + (Math.random() - 0.5) * 40;
+			const cpY = (current.y + next.y) / 2 + (Math.random() - 0.5) * 40;
+			
+			forgeCtx.quadraticCurveTo(cpX, cpY, next.x, next.y);
+			forgeCtx.stroke();
+			
+			pathIntersections.push({x: next.x, y: next.y});
+			currentPoint = nextPoint;
+		}
+		
+		// Update status
+		const status = document.getElementById('witch-status');
+		if (status) {
+			status.innerHTML = 'sigil forged • ' + new Date().toLocaleTimeString();
+		}
+	}
 	// --- AUDIO CORE ---
 	let audioCtx, humOsc, isPowered = false;
 
