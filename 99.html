@@ -176,20 +176,7 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
       crossorigin="anonymous"
     />
 	<title>INKREALM</title>
-    <style>
-/* === DEFINE VARIABLES FIRST === */
-:root {
-    --red: #ff0033;
-    --black: #0a0a0a;
-}
 
-/* === NOW selection can use them === */
-::selection {
-    background: var(--red);
-    color: var(--black);
-    text-shadow: none;
-}
-</style>
 	<style>
   /* CUSTOM SELECTION HIGHLIGHT */
     ::selection {
@@ -732,7 +719,97 @@ Private personal information, ព័ត៌មានផ្ទាល់ខ្ល�
     80% { transform: translate(2px, -2px) rotate(5deg); }
     100% { transform: translate(0) rotate(0deg); }
 }
+/* ======================================================
+   UNIVERSAL CUSTOM DROPDOWN (RED THEME)
+   ====================================================== */
 
+.custom-select-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0.8rem;
+}
+
+/* Hide the original select but keep it functional */
+.custom-select-container select {
+    display: none;
+}
+
+/* The custom display button */
+.select-selected {
+    background-color: #0a0a0a;
+    border: 1px solid #333;
+    color: #ff0033;
+    padding: 10px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+}
+
+/* Arrow */
+.select-selected:after {
+    position: absolute;
+    content: "▼";
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #ff0033;
+}
+
+/* Active/Open state */
+.select-selected.select-arrow-active:after {
+    content: "▲";
+}
+
+.select-selected:hover {
+    border-color: #ff0033;
+    box-shadow: 0 0 10px rgba(255, 0, 51, 0.2);
+}
+
+/* Options container */
+.select-items {
+    position: absolute;
+    background-color: #000;
+    border: 1px solid #333;
+    border-top: none;
+    z-index: 9999;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Individual options */
+.select-items div {
+    color: #aaa;
+    padding: 10px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-bottom: 1px solid #222;
+    transition: all 0.2s;
+}
+
+/* Hover state (RED) */
+.select-items div:hover {
+    background-color: #ff0033;
+    color: #000;
+}
+
+/* Currently selected item */
+.select-items div.same-as-selected {
+    background-color: #ff0033;
+    color: #000;
+}
+
+/* Hide the options by default */
+.select-hide {
+    display: none;
+}
   </style>
 	<style>	
 	/* --- VHS RED JUMP/BOUNCE EFFECT --- */
@@ -1548,15 +1625,15 @@ let time = 0;
                        placeholder="INPUT_DATA..." value="INK" 
                        onkeypress="if(event.key==='Enter') generateASCII()">
                 
-                <div class="select-wrapper">
-                    <select id="ascii-style" class="tech-select">
-                        <option value="runes">ᚠᚢ RUNES</option>
-                        <option value="block">■ BLOCK</option>
-                        <option value="simple">░ SIMPLE</option>
-                        <option value="matrix">アイ MATRIX</option>
-                        <option value="witch">☾✧ WITCH</option>
-                    </select>
-                </div>
+               <div class="custom-select-container">
+    <select id="ascii-style">
+        <option value="runes">ᚠᚢ RUNES</option>
+        <option value="block">■ BLOCK</option>
+        <option value="simple">░ SIMPLE</option>
+        <option value="matrix">アイ MATRIX</option>
+        <option value="witch">☾✧ WITCH</option>
+    </select>
+</div>
             </div>
 
             <!-- Button Row -->
@@ -2772,6 +2849,68 @@ function exportAll() {
         storySynth.speak(storyUtterance);
     }
 </script>
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+    initCustomSelects();
+});
 
+function initCustomSelects() {
+    const containers = document.querySelectorAll('.custom-select-container');
+    
+    containers.forEach(container => {
+        const originalSelect = container.querySelector('select');
+        if (!originalSelect) return;
+        
+        const selectedDiv = document.createElement('div');
+        selectedDiv.className = 'select-selected';
+        selectedDiv.innerHTML = originalSelect.options[originalSelect.selectedIndex].innerHTML;
+        container.appendChild(selectedDiv);
+        
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'select-items select-hide';
+        
+        Array.from(originalSelect.options).forEach((option, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.innerHTML = option.innerHTML;
+            
+            optionDiv.addEventListener('click', function() {
+                originalSelect.selectedIndex = index;
+                selectedDiv.innerHTML = this.innerHTML;
+                
+                const siblings = this.parentNode.querySelectorAll('div');
+                siblings.forEach(sib => sib.classList.remove('same-as-selected'));
+                this.classList.add('same-as-selected');
+                
+                originalSelect.dispatchEvent(new Event('change'));
+            });
+            
+            optionsDiv.appendChild(optionDiv);
+        });
+        
+        container.appendChild(optionsDiv);
+        
+        selectedDiv.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeAllSelects(this);
+            this.nextSibling.classList.toggle('select-hide');
+            this.classList.toggle('select-arrow-active');
+        });
+    });
+    
+    document.addEventListener('click', closeAllSelects);
+}
+
+function closeAllSelects(exceptThis) {
+    const items = document.querySelectorAll('.select-items');
+    const selected = document.querySelectorAll('.select-selected');
+    
+    items.forEach((item, index) => {
+        if (exceptThis !== selected[index]) {
+            item.classList.add('select-hide');
+            selected[index].classList.remove('select-arrow-active');
+        }
+    });
+}
+</script>
 </body>
 </html>
