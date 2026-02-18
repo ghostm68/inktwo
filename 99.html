@@ -223,7 +223,72 @@ body::after {
             align-items: center;
         }
         .manifest-tag { font-family: var(--font-tech); font-size: 0.8rem; color: #666; }
+/* --- BACKGROUND ANCHOR (The Rotating Triangle) --- */
+.anchor-triangle {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 80vh;
+    height: 80vh;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.15;
+    animation: rotateTriangle 60s linear infinite;
+}
 
+/* The SVG Triangle Styling */
+.anchor-triangle path {
+    fill: none;
+    stroke: var(--primary); /* Uses current theme color */
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+@keyframes rotateTriangle {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* --- HERMES DRAWER (Slide Out) --- */
+#hermes-drawer {
+    position: fixed;
+    top: 0;
+    right: -100%; /* Hidden by default */
+    width: 100%;
+    max-width: 400px; /* Desktop limit */
+    height: 100vh;
+    background: var(--bg-color);
+    border-left: 2px solid var(--primary);
+    z-index: 2000;
+    transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1); /* "Expo" ease */
+    display: flex;
+    flex-direction: column;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+}
+
+#hermes-drawer.open {
+    right: 0;
+}
+
+/* --- TIGHTER SIGIL SECTION --- */
+.sigil-console {
+    max-width: 600px; /* Constrain width on desktop */
+    margin: 0 auto;   /* Center it */
+    border: 1px solid #333;
+    background: rgba(0,0,0,0.3);
+    padding: 20px;
+    position: relative;
+}
+
+/* Ensure canvas doesn't overflow */
+canvas#sigilCanvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    background: #050505;
+    border: 1px solid #222;
+}
     </style>
 </head>
 <body>
@@ -235,24 +300,55 @@ body::after {
         <div style="writing-mode: vertical-rl; font-size: 10px; color: #444;">SYS.ROOT // V7.0</div>
     </div>
 <!-- THEME TOGGLE (Top Right, next to Terminal) -->
-<div style="position: fixed; top: 20px; right: 140px; z-index: 101;">
-    <button onclick="toggleTheme()" id="themeBtn" 
-            style="border: 1px solid var(--text-dim); background: var(--bg-color); color: var(--text-dim); padding: 10px 15px; font-family: 'Share Tech Mono'; cursor: pointer; font-size: 0.8rem;">
-        [COLOR_MODE]
-    </button>
-</div>
-    <button class="term-trigger" onclick="toggleDrawer()">TERMINAL</button>
+<!-- 1. BACKGROUND ANCHOR (The Wireframe Triangle) -->
+<svg class="anchor-triangle" viewBox="0 0 100 100">
+    <!-- A perfect equilateral triangle -->
+    <path d="M50 15 L90 85 L10 85 Z" />
+    <!-- An inner inverted triangle for complexity -->
+    <path d="M50 85 L70 50 L30 50 Z" opacity="0.5" />
+</svg>
 
-    <!-- 2. HIDDEN DRAWER (Hermes) -->
-    <div id="terminal-drawer">
-        <div style="color: var(--primary); font-family: var(--font-seg); margin-bottom: 20px;">HERMES_NODE</div>
-        <div style="flex-grow: 1; font-family: 'VT323'; color: #888; font-size: 1.2rem;">
-            SYSTEM INITIALIZED...<br>
-            AWAITING INPUT.<br><br>
-            >_
-        </div>
-        <input type="text" placeholder="ENTER COMMAND..." style="background: #111; border: 1px solid #333; padding: 15px; color: var(--primary); font-family: var(--font-tech);">
+<!-- 2. NAV TRIGGERS (Fixed Top Right) -->
+<div style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px;">
+    <!-- Theme Toggle -->
+    <button onclick="toggleTheme()" class="term-trigger" style="font-size: 0.7rem;">[COLOR]</button>
+    <!-- Hermes Toggle -->
+    <button onclick="toggleHermes()" class="term-trigger" style="background: var(--primary); color: var(--bg-color); font-weight: bold;">[>_] HERMES</button>
+</div>
+
+<!-- 3. HERMES DRAWER (The Intelligence) -->
+<div id="hermes-drawer">
+    <!-- Header -->
+    <div style="padding: 20px; border-bottom: 1px solid var(--primary); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-family: var(--font-seg); color: var(--primary);">HERMES_NODE</span>
+        <button onclick="toggleHermes()" style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-family: var(--font-tech);">[X] CLOSE</button>
     </div>
+
+    <!-- State 1: Standby (The "Initialize" Button) -->
+    <div id="hermes-standby" style="padding: 40px 20px; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 20px; color: var(--text-dim);">?</div>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 30px;">
+            AI CORE IS OFFLINE.<br>
+            INITIALIZE NEURAL LINK?
+        </p>
+        <button onclick="initHermes()" style="width: 100%; padding: 15px; background: var(--primary); color: var(--bg-color); border: none; font-family: var(--font-tech); cursor: pointer; font-weight: bold;">
+            INITIALIZE SYSTEM
+        </button>
+        <div style="margin-top: 10px; font-size: 0.7rem; color: #555;">~2GB VRAM REQUIRED</div>
+    </div>
+
+    <!-- State 2: Active (Hidden until Init) -->
+    <div id="hermes-active" style="display: none; flex-direction: column; flex-grow: 1;">
+        <div id="chat-output" style="flex-grow: 1; padding: 20px; overflow-y: auto; font-family: 'VT323'; font-size: 1.1rem; color: #ccc;">
+            <span style="color: var(--primary);">SYSTEM:</span> LINK ESTABLISHED.<br>
+            <span style="color: var(--primary);">SYSTEM:</span> AWAITING INPUT...
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #333;">
+            <textarea id="chat-input" placeholder=">> ENTER QUERY..." style="width: 100%; height: 60px; background: #111; border: 1px solid #333; color: var(--primary); font-family: var(--font-tech); padding: 10px; resize: none;"></textarea>
+            <button style="width: 100%; margin-top: 5px; padding: 5px; background: #222; color: #888; border: 1px solid #333; cursor: pointer;">TRANSMIT</button>
+        </div>
+    </div>
+</div>
 
     <!-- 3. MAIN SCROLL -->
     <main>
@@ -310,26 +406,19 @@ body::after {
         </section>
 
         <!-- SECTION 3: SIGIL HASH -->
-        <section>
-            <div class="sigil-layout">
-                <div>
-                    <h2 style="font-family: var(--font-seg); font-size: 3rem; margin: 0; color: var(--primary); line-height: 1;">
-                        SIGIL<br>HASH
-                    </h2>
-                    <p style="color: #888; max-width: 300px; margin: 20px 0;">
-                        Visual cryptography engine. Enter text to generate a unique geometry.
-                    </p>
-                    <input type="text" class="sigil-input" placeholder="TYPE_HERE..." oninput="generateSigil(this.value)">
-                    <div style="margin-top: 10px; font-size: 0.8rem; color: #444;">
-                        HASH: <span id="hashDisplay">NULL</span>
-                    </div>
-                </div>
-                
-                <div style="display:flex; justify-content:center;">
-                    <canvas id="sigilCanvas" width="500" height="500"></canvas>
-                </div>
+   <section>
+        <div class="sigil-console">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span class="grid-title" style="font-size: 1rem;">SIGIL_HASH_v2</span>
+                <span class="grid-meta" id="hashDisplay">IDLE</span>
             </div>
-        </section>
+            
+            <canvas id="sigilCanvas" width="500" height="500"></canvas>
+            
+            <input type="text" id="sigilInput" oninput="generateSigil(this.value)" placeholder="ENTER_DATA..." 
+                   style="width: 100%; background: transparent; border: none; border-bottom: 2px solid var(--primary); color: var(--white); font-family: var(--font-seg); font-size: 1.5rem; margin-top: 20px; outline: none; text-transform: uppercase;">
+        </div>
+    </section>
 
         <!-- SECTION 4: MANIFEST (Footer) -->
         <section style="justify-content: flex-start; padding-top: 100px;">
@@ -365,7 +454,7 @@ body::after {
                     </p>
                 </details>
                 <br>
-                LOC: DOMINICAN_REPUBLIC // INKY © 2026
+                LOC: HQ // INKY © 2026
             </div>
         </section>
 
@@ -373,75 +462,160 @@ body::after {
 
     <!-- SCRIPT (Sigil Logic + Toggle) -->
     <script>
-        function toggleDrawer() {
-            const d = document.getElementById('terminal-drawer');
-            d.style.left = d.style.left === '0px' ? '-100%' : '0px';
+		function initHermes() {
+    // 1. UI Switch
+    document.getElementById('hermes-standby').style.display = 'none';
+    document.getElementById('hermes-active').style.display = 'flex';
+    
+    // 2. Add "Loading" Text (Simulated)
+    const output = document.getElementById('chat-output');
+    output.innerHTML += `<br><span style="color:var(--text-dim)">> LOADING WEIGHTS...</span>`;
+    
+    // This is where you would hook in the actual WebLLM logic later
+    setTimeout(() => {
+        output.innerHTML += `<br><span style="color:var(--primary)">> READY.</span><br><br>`;
+    }, 1500);
+}
+ /* --- SIGIL ENGINE: IDLE + ACTIVE STATES --- */
+const canvas = document.getElementById('sigilCanvas');
+const ctx = canvas.getContext('2d');
+const input = document.getElementById('sigilInput');
+const hashDisplay = document.getElementById('hashDisplay');
+
+let animationFrame; // To track the spinning loop
+let rotation = 0;   // Current angle of the idle triangle
+
+// 1. THE MAIN CONTROLLER
+function updateSigil() {
+    const text = input.value;
+    
+    // Get current theme color (Red vs Yellow)
+    const style = getComputedStyle(document.body);
+    const primary = style.getPropertyValue('--primary').trim();
+
+    if (!text) {
+        // STATE A: IDLE (The Spinning Triangle)
+        hashDisplay.innerText = "STATUS: STANDBY";
+        hashDisplay.style.color = "#666";
+        
+        // Start the loop
+        drawIdle(primary);
+    } else {
+        // STATE B: ACTIVE (The Sigil Generator)
+        // Stop the spinning
+        cancelAnimationFrame(animationFrame);
+        
+        // Draw the static Sigil based on text
+        const seed = stringToSeed(text);
+        hashDisplay.innerText = "HASH: 0x" + seed.toString(16).toUpperCase();
+        hashDisplay.style.color = primary;
+        
+        drawActiveSigil(seed, primary);
+    }
+}
+
+// 2. IDLE STATE: The Rotating Triangle (Mirrors your Video)
+function drawIdle(color) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const size = 100; // Size of the triangle
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation); // Spin!
+    
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = color;
+    
+    // Draw Triangle
+    ctx.beginPath();
+    ctx.moveTo(0, -size);       // Top
+    ctx.lineTo(size, size/2);   // Bottom Right
+    ctx.lineTo(-size, size/2);  // Bottom Left
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Draw Inner Inverted Triangle (Ghostly)
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.moveTo(0, size/2);      // Bottom Tip
+    ctx.lineTo(size/2, -size/2); // Top Right
+    ctx.lineTo(-size/2, -size/2);// Top Left
+    ctx.closePath();
+    ctx.stroke();
+    
+    ctx.restore();
+
+    // Increment rotation and loop
+    rotation += 0.01; 
+    animationFrame = requestAnimationFrame(() => drawIdle(color));
+}
+
+// 3. ACTIVE STATE: The Complex Sigil (Your Original Logic)
+function drawActiveSigil(seed, color) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = color;
+    ctx.lineCap = 'square';
+
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = 100 + (seed % 60); 
+    const points = 3 + (seed % 12); 
+    const step = (Math.PI * 2) / points;
+
+    // Draw the "Circuit"
+    ctx.beginPath();
+    for (let i = 0; i <= points; i++) {
+        const angle = i * step;
+        const mod = (seed >> (i % 8)) & 1 ? 40 : 0; 
+        const r = radius - mod;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        
+        // The Web Connections
+        if (i % 2 === 0) {
+            ctx.lineTo(cx, cy);
+            ctx.moveTo(x, y);
         }
+    }
+    ctx.closePath();
+    ctx.stroke();
 
-        /* SIGIL LOGIC (Red Protocol) */
-        const canvas = document.getElementById('sigilCanvas');
-        const ctx = canvas.getContext('2d');
-        const hashDisplay = document.getElementById('hashDisplay');
+    // The Tech Ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 20, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.3;
+    ctx.setLineDash([5, 10]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
+}
 
-        function stringToSeed(str) {
-            let hash = 0;
-            if (str.length === 0) return hash;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash = hash & hash;
-            }
-            return Math.abs(hash);
-        }
+// 4. UTILITY: String to Number
+function stringToSeed(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+    }
+    return Math.abs(hash);
+}
 
-        function generateSigil(text) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if(!text) return;
-
-            const seed = stringToSeed(text);
-            hashDisplay.innerText = "0x" + seed.toString(16).toUpperCase();
-
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff0000';
-            ctx.lineCap = 'square';
-
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            const radius = 100 + (seed % 80); 
-            const points = 3 + (seed % 10); 
-            const step = (Math.PI * 2) / points;
-
-            ctx.beginPath();
-            for (let i = 0; i <= points; i++) {
-                const angle = i * step;
-                const mod = (seed >> (i % 8)) & 1 ? 40 : 0; 
-                const r = radius - mod;
-                const x = cx + Math.cos(angle) * r;
-                const y = cy + Math.sin(angle) * r;
-
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-                
-                if (i % 2 === 0) {
-                    ctx.lineTo(cx, cy);
-                    ctx.moveTo(x, y);
-                }
-            }
-            ctx.closePath();
-            ctx.stroke();
-
-            // Tech Ring
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius + 20, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.2)';
-            ctx.setLineDash([5, 10]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-
-        // Init
-        generateSigil("WORDSTAR");
+// INITIALIZE
+updateSigil();
     </script>
 	<script>
 		// 1. THEME TOGGLE LOGIC
