@@ -1,5 +1,4 @@
 <!-- LOGIC -->
-<script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
     const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
     let engine;
@@ -54,9 +53,7 @@
         } catch (e) { output.textContent = "ERR"; } 
         finally { genBtn.disabled = false; }
     };
-</script>
 
-<script>
     function toggleMenu() {
         const m = document.getElementById('menuOverlay');
         m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
@@ -86,8 +83,7 @@
         requestAnimationFrame(anim);
     }
     anim();
-</script>
-<script type="module">
+
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
     const container = document.getElementById('three-footer');
@@ -196,9 +192,7 @@
 
         renderer.render(scene, camera);
     }
-</script>
-	<script>
-		<script type="module">
+
     // Import Three.js from a CDN (No local files needed)
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
@@ -315,8 +309,7 @@
 
         renderer.render(scene, camera);
     }
-</script>
-<script>
+
  // --- CHAT ---
  // ==== ENHANCED ASCII ART GENERATOR ====
 // ==== ASCII ART GENERATOR (FIXED WITH THEME COLORS) ====
@@ -590,8 +583,7 @@ function exportAll() {
   window.onload = () => {
     forgeSigil();
   };
-</script>
-	<script>
+
 		// ===== FOOTER MESSAGE ROTATOR =====
 (function() {
   // Wait for DOM to be ready
@@ -719,8 +711,7 @@ function exportAll() {
 
         storySynth.speak(storyUtterance);
     }
-</script>
-<script>
+
 	document.addEventListener('DOMContentLoaded', function() {
     initCustomSelects();
 });
@@ -782,4 +773,4 @@ function closeAllSelects(exceptThis) {
         }
     });
 }
-</script>
+
