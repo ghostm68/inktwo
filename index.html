@@ -795,6 +795,7 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
 
     // 4. PLAY (The Cyber-Harpsichord)
 // 4. PLAY (The Cyber-Harpsichord V2)
+// 4. PLAY (The Cyber-Orchestrator V3)
     playBtn.onclick = async () => {
         if (!window.currentSequence.length) {
             alert('Generate a sequence first!');
@@ -814,32 +815,61 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
         
         const now = Tone.now();
         let time = 0;
-        const scale = ['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4'];
+
+        // DEFINING THE VOICINGS (The "Guitar Fretboard")
+        // Mapping dice sums (2-12) to specific chord tones relative to C3
+        const chordMap = {
+            2:  ['C3', 'E3', 'G3'],         // C Major
+            3:  ['D3', 'F3', 'A3'],         // D Minor
+            4:  ['E3', 'G3', 'B3'],         // E Minor
+            5:  ['F3', 'A3', 'C4'],         // F Major
+            6:  ['G3', 'B3', 'D4'],         // G Major
+            7:  ['A3', 'C4', 'E4'],         // A Minor
+            8:  ['B3', 'D4', 'F4'],         // B Dim
+            9:  ['C3', 'E3', 'A#3'],        // C7 (Dominant)
+            10: ['D3', 'F#3', 'C4'],        // D7
+            11: ['E3', 'G#3', 'D4'],        // E7
+            12: ['F#3', 'A3', 'C4', 'E4']   // F#m7b5 (The "Ghost" Chord)
+        };
         
         window.currentSequence.forEach((step, index) => {
-            // 1. Get the Root Note (The Bass)
-            const rootNote = scale[step.note - 2] || 'C3';
+            // 1. Get the base notes for this roll
+            let notes = [...(chordMap[step.note] || ['C3', 'E3', 'G3'])];
             
-            // 2. Calculate a "Ghost Harmony" (Perfect 5th up) for the waltz chord feel
-            // This makes it sound like: Dum - Ching - Ching
-            const highNote = Tone.Frequency(rootNote).transpose(7); 
+            // 2. Extract the Bass Note (The "One")
+            const bassNote = notes[0];
+            
+            // 3. Extract the Chord Tones (The "Two-Three")
+            let chordTones = notes.slice(1);
 
-            // 3. Humanization (Rubato)
-            // diverse timing to prevent "Machine Gun" effect
-            const humanize = () => (Math.random() * 0.02) - 0.01;
+            // 4. THE "10th FRET" LOGIC (Octave Shifting)
+            // 50% chance to shift the upper chord up an octave for "air"
+            if (Math.random() > 0.5) {
+                chordTones = chordTones.map(n => Tone.Frequency(n).transpose(12));
+            }
+
+            // 5. HUMANIZATION (Rubato)
+            const humanize = () => (Math.random() * 0.03) - 0.015;
             
-            // BEAT 1: The Root (Louder, on time)
-            synth.triggerAttackRelease(rootNote, "8n", now + time + humanize(), 0.8);
+            // --- BEAT 1: The Bass (Heavy, Sustained) ---
+            // We drop the bass note an octave occasionally for depth
+            const finalBass = Math.random() > 0.7 ? Tone.Frequency(bassNote).transpose(-12) : bassNote;
+            synth.triggerAttackRelease(finalBass, "2n", now + time + humanize(), 0.9);
             
-            // BEAT 2: The Ghost Chord (Softer, slightly delayed)
-            synth.triggerAttackRelease(highNote, "8n", now + time + 0.25 + humanize(), 0.5);
+            // --- BEAT 2: The Chord (Strummed Up) ---
+            chordTones.forEach((note, i) => {
+                // The 'i * 0.05' creates the guitar strum effect
+                synth.triggerAttackRelease(note, "8n", now + time + 0.3 + (i * 0.05) + humanize(), 0.6);
+            });
+
+            // --- BEAT 3: The Chord (Strummed Down or Softer) ---
+            chordTones.forEach((note, i) => {
+                synth.triggerAttackRelease(note, "8n", now + time + 0.6 + (i * 0.05) + humanize(), 0.5);
+            });
             
-            // BEAT 3: The Ghost Chord (Softest, trailing off)
-            synth.triggerAttackRelease(highNote, "8n", now + time + 0.5 + humanize(), 0.4);
-            
-            // Measure spacing (Fixed 0.75 is okay, but let's add a breath every 4 bars)
-            let measureGap = 0.75;
-            if ((index + 1) % 4 === 0) measureGap += 0.1; // A slight pause after 4 bars
+            // Measure spacing with a slight "breath" every 4 bars
+            let measureGap = 0.85; // Slightly slower tempo for waltz feel
+            if ((index + 1) % 4 === 0) measureGap += 0.2; 
             
             time += measureGap;
         });
@@ -853,7 +883,7 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
                 currentPlaybackTimeout = null;
             }
         }, totalDuration + 500); 
-    };;
+    };
 
     // Clean up on page unload
     window.addEventListener('beforeunload', () => {
