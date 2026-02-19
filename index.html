@@ -794,6 +794,7 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
     };
 
     // 4. PLAY (The Cyber-Harpsichord)
+// 4. PLAY (The Cyber-Harpsichord V2)
     playBtn.onclick = async () => {
         if (!window.currentSequence.length) {
             alert('Generate a sequence first!');
@@ -805,10 +806,7 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
             return;
         }
         
-        // Initialize audio if needed
         await initAudio();
-        
-        // Stop any existing playback
         stopPlayback();
         
         isPlaying = true;
@@ -818,28 +816,44 @@ entangled across t=1970s → Roman Egypt → 2023 LA | Prob(RealityCollapse) = |
         let time = 0;
         const scale = ['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4'];
         
-        // Schedule all notes
         window.currentSequence.forEach((step, index) => {
+            // 1. Get the Root Note (The Bass)
             const rootNote = scale[step.note - 2] || 'C3';
             
-            // Schedule the three notes of the waltz pattern
-            synth.triggerAttackRelease(rootNote, "8n", now + time);
-            synth.triggerAttackRelease(rootNote, "8n", now + time + 0.25);
-            synth.triggerAttackRelease(rootNote, "8n", now + time + 0.5);
+            // 2. Calculate a "Ghost Harmony" (Perfect 5th up) for the waltz chord feel
+            // This makes it sound like: Dum - Ching - Ching
+            const highNote = Tone.Frequency(rootNote).transpose(7); 
+
+            // 3. Humanization (Rubato)
+            // diverse timing to prevent "Machine Gun" effect
+            const humanize = () => (Math.random() * 0.02) - 0.01;
             
-            time += 0.75;
+            // BEAT 1: The Root (Louder, on time)
+            synth.triggerAttackRelease(rootNote, "8n", now + time + humanize(), 0.8);
+            
+            // BEAT 2: The Ghost Chord (Softer, slightly delayed)
+            synth.triggerAttackRelease(highNote, "8n", now + time + 0.25 + humanize(), 0.5);
+            
+            // BEAT 3: The Ghost Chord (Softest, trailing off)
+            synth.triggerAttackRelease(highNote, "8n", now + time + 0.5 + humanize(), 0.4);
+            
+            // Measure spacing (Fixed 0.75 is okay, but let's add a breath every 4 bars)
+            let measureGap = 0.75;
+            if ((index + 1) % 4 === 0) measureGap += 0.1; // A slight pause after 4 bars
+            
+            time += measureGap;
         });
         
-        // Set a timeout to reset the play button when finished
-        const totalDuration = time * 1000; // Convert to milliseconds
+        // Reset timeout
+        const totalDuration = time * 1000; 
         currentPlaybackTimeout = setTimeout(() => {
             if (isPlaying) {
                 isPlaying = false;
                 playBtn.innerHTML = '▶ PLAY COMPOSITION';
                 currentPlaybackTimeout = null;
             }
-        }, totalDuration + 500); // Add a little buffer
-    };
+        }, totalDuration + 500); 
+    };;
 
     // Clean up on page unload
     window.addEventListener('beforeunload', () => {
