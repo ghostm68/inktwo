@@ -789,6 +789,35 @@ body::after {
   50% { opacity: 0.4; }
   100% { opacity: 0.3; }
 }		
+#toq-qr {
+  width: 188px;
+  border: 1px solid var(--white);
+  padding: 2px;
+  background: #000;
+  cursor: zoom-in;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 10001;
+}
+
+#toq-qr:hover,
+#toq-qr:active {  /* ← Fixed: changed #to-qr to #toq-qr */
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+  border-color: var(--red);
+}
+
+#toq-qr.expanded {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(3.5);
+  z-index: 999999;
+  border-color: var(--white);
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.9), 0 0 50px rgba(255, 255, 255, 0.8);
+  cursor: zoom-out;
+}
+		
 	</style>
 </head>
 <body>
@@ -1150,14 +1179,13 @@ body::after {
       <path d="M 512 25 L 519 25 L 519 55 Q 519 63 526 63 Q 537 63 537 51 L 537 25 L 544 25 L 544 68 L 537 68 L 537 62 Q 533 68 524 68 Q 512 68 512 56 Z"/>
       <path d="M 559 25 Q 574 25 574 35 L 567 35 Q 567 30 559 30 Q 554 30 554 33.5 Q 554 37 559 38 L 567 40 Q 576 42 576 51 Q 576 68 562 68 Q 547 68 547 57 L 554 57 Q 554 63 562 63 Q 568 63 568 59 Q 568 56 563 54.5 L 555 52.5 Q 547 50.5 547 42 Q 547 25 559 25 Z"/>
     </g>
-  </svg>
-</div>    <img id="ton-qr" 
+  </svg> <img id="toq-qr" 
            src="https://raw.githubusercontent.com/ghostm68/pantheon/main/inkrealm.ton03.jpeg" 
            alt="TON WALLET"
            onclick="this.classList.toggle('expanded')"
            title="$$$$$$$$$">
-      <div class="text-[8px] text-zinc-700 mt-1"></div>
     </div>
+</div>    
 	<div class="footer-white">      
 		<div style="font-size: 9px; color: #eb1c1c; letter-spacing: 2px;">
 			<span>Concept: InkRealm.info</span>
@@ -1508,61 +1536,62 @@ body::after {
 
 <!-- HERMES AI (WebLLM) -->
 <script type="module">
-	import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-	const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
-	let engine;
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+    const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC"; 
+    let engine;
 
-	const btn = document.getElementById('loadCoreBtn');
-	const sendBtn = document.getElementById('transmitBtn');
-	const out = document.getElementById('hermes-output');
-	const inp = document.getElementById('hermes-input');
-	const status = document.getElementById('nous-status');
+    const btn = document.getElementById('loadCoreBtn');
+    const output = document.getElementById('nous-output');
+    const dlText = document.getElementById('dl-text');
+    const genBtn = document.getElementById('nous-transmit-btn'); 
+    const promptInput = document.getElementById('nous-prompt'); 
 
-	if (btn) {
-		btn.onclick = async () => {
-			if(!navigator.gpu) { 
-				if (out) out.textContent = "NO GPU DETECTED."; 
-				return; 
-			}
-			if (out) out.textContent = "DOWNLOADING MODEL...";
-			try {
-				engine = await webllm.CreateMLCEngine(modelId, {
-					initProgressCallback: (r) => {
-						if (out) out.textContent = `LOAD: ${Math.round(r.progress*100)}%`;
-					}
-				});
-				if (out) out.textContent = "HERMES ONLINE. AWAITING INPUT.";
-				if (status) {
-					status.textContent = "ONLINE";
-					status.style.color = "#00FF00";
-				}
-			} catch (e) {
-				if (out) out.textContent = "ERROR: " + e.message;
-			}
-		};
-	}
+    btn.onclick = async () => {
+        try {
+            if (!navigator.gpu) throw new Error("GPU MISSING");
+            btn.disabled = true; btn.textContent = "SYNCING...";
+            document.getElementById('dl-track').style.display = 'block';
+            dlText.style.display = 'block';
+            output.textContent = "INITIALIZING...";
+            
+            engine = await webllm.CreateMLCEngine(modelId, {
+                initProgressCallback: (report) => {
+                    const p = report.progress * 100;
+                    document.getElementById('dl-bar').style.width = p + '%';
+                    dlText.textContent = `LOADING: ${Math.round(p)}%`;
+                    if (p === 100) {
+                        output.textContent = "HERMES ONLINE.";
+                        btn.style.display = 'none';
+                        dlText.style.display = 'none';
+                        document.getElementById('nous-status').textContent = "ONLINE"; 
+                        document.getElementById('nous-status').style.color = "#ff0033"; 
+                    }
+                }
+            });
+        } catch (err) { output.textContent = "ERR: " + err.message; }
+    };
 
-	if (sendBtn) {
-		sendBtn.onclick = async () => {
-			if(!engine) return;
-			const txt = inp ? inp.value : "";
-			if (out) out.textContent = "THINKING...";
-			try {
-				const chunks = await engine.chat.completions.create({
-					messages: [{role:"user", content:txt}],
-					stream: true
-				});
-				let reply = "";
-				for await (const chunk of chunks) {
-					reply += chunk.choices[0]?.delta?.content || "";
-					if (out) out.textContent = reply;
-				}
-			} catch (e) {
-				if (out) out.textContent = "ERROR: " + e.message;
-			}
-		};
-	}
+    genBtn.onclick = async () => {
+        if (!engine) return;
+        const val = promptInput.value.trim();
+        if (!val) return;
+        genBtn.disabled = true;
+        output.textContent = ""; let fullText = "";
+        try {
+            const chunks = await engine.chat.completions.create({ 
+                messages: [{ role: "system", content: "You are NOUS." }, { role: "user", content: val }],
+                stream: true, temperature: 0.7, max_tokens: 512
+            });
+            for await (const chunk of chunks) {
+                fullText += chunk.choices[0]?.delta?.content || "";
+                output.textContent = fullText; 
+                output.scrollTop = output.scrollHeight;
+            }
+        } catch (e) { output.textContent = "ERR"; } 
+        finally { genBtn.disabled = false; }
+    };
 </script>
+
 
 <!-- THREE.JS FOOTER -->
 <script type="module">
