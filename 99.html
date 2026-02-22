@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<meta charset="utf-8"/>  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RUNWAY | NEXUS_MANIFEST</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<style>
+/* === NEXUS CORE VARIABLES === */
+:root {
+    --red: #ff0033;
+    --black: #0a0a0a;
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --text-primary: #e0e0e0;
+    --text-secondary: #888888;
+    --border-color: #333333;
+}
+
+.light-mode {
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
+    --text-primary: #111111;
+    --text-secondary: #666666;
+    --border-color: #cccccc;
+    --black: #ffffff;
+}
+
+/* === BASE === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* === HEADER === */
+.nexus-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--black);
+    border-bottom: 1px solid var(--red);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.nexus-brand {
+    font-family: 'Courier Prime', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--red);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.nexus-brand span {
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    display: block;
+    letter-spacing: 1px;
+    margin-top: 0.25rem;
+}
+
+/* === THEME SWITCH === */
+.theme-switch {
+    position: relative;
+    width: 60px;
+    height: 30px;
+    background: var(--border-color);
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.theme-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    background: var(--red);
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.light-mode .theme-switch::after {
+    transform: translateX(30px);
+}
+
+.theme-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.theme-icon.dark { left: 8px; color: var(--text-secondary); }
+.theme-icon.light { right: 8px; color: var(--text-secondary); }
+
+/* === TOOLBAR - VERTICAL STACK === */
+.editor-toolbar {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.toolbar-row:first-child {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+/* === CONTROLS === */
+select {
+    background: var(--black);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    min-width: 140px;
+}
+
+.format-button {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.format-button:hover, .format-button.active {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255, 0, 51, 0.1);
+}
+
+#save-pdf {
+    background: var(--red);
+    color: var(--black);
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+/* === MAIN LAYOUT === */
+.nexus-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.editor-frame {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.editor-main {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+/* === SIDEBAR === */
+.editor-sidebar {
+    background: var(--black);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    order: 2;
+}
+
+/* === CONTENT/EDITOR === */
+.editor-content {
+    position: relative;
+    background: transparent;
+    order: 1;
+    min-height: 400px;
+}
+
+.video-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.video-bg iframe {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#main-editor {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    background: rgba(10, 10, 10, 0.9);
+    border: none;
+    color: var(--text-primary);
+    padding: 1.5rem;
+    font-size: 1rem;
+    line-height: 1.8;
+    resize: vertical;
+    outline: none;
+    font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.light-mode #main-editor {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* === WORD COUNTER === */
+.word-counter {
+    margin-bottom: 1.5rem;
+}
+
+.counter-display {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.progress-bar {
+    height: 3px;
+    background: var(--border-color);
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--red);
+    transition: width 0.3s;
+    width: 0%;
+}
+
+/* === DICTIONARY === */
+.dictionary-section h3 {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    color: var(--red);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.dictionary-search {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    border-radius: 4px;
+}
+
+.dictionary-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dictionary-term {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    border-radius: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.dictionary-term:hover {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255, 0, 51, 0.1);
+}
+
+/* === RESOURCES === */
+.resources-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.resources-section h3 {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    color: var(--red);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.resource-link {
+    display: block;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.resource-link:hover {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+/* === RELATED TERMS === */
+#related-terms {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(10, 10, 10, 0.9);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    z-index: 2;
+    flex-wrap: wrap;
+    max-width: 90%;
+}
+
+.light-mode #related-terms {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* === COLOR PALETTE TOOL (REPLACING MERMAID) === */
+.palette-tool {
+    margin: 2rem 1rem;
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.palette-tool h3 {
+    font-family: 'Courier Prime', monospace;
+    font-size: 1rem;
+    color: var(--red);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.color-swatch {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.color-swatch:hover {
+    transform: scale(1.05);
+    border-color: var(--text-primary);
+}
+
+.color-swatch::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 0.65rem;
+    padding: 0.25rem;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.color-swatch:hover::after {
+    opacity: 1;
+}
+
+.palette-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.palette-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.palette-btn:hover {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.palette-btn.primary {
+    background: var(--red);
+    color: var(--black);
+    border-color: var(--red);
+}
+
+.palette-btn.primary:hover {
+    background: #ff3355;
+}
+
+/* === AI PANEL === */
+.ai-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--black);
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.ai-toggle:hover {
+    background: var(--red);
+    color: var(--black);
+}
+
+.ai-panel {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: calc(100vw - 40px);
+    max-width: 350px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--black);
+    border: 1px solid var(--red);
+    padding: 1.5rem;
+    z-index: 999;
+    display: none;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+}
+
+/* === FOOTER === */
+.nexus-footer {
+    background: var(--black);
+    border-top: 1px solid var(--border-color);
+    padding: 2rem 1rem;
+    margin-top: 2rem;
+    text-align: center;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--red);
+    border-radius: 3px;
+}
+
+/* === DESKTOP LAYOUT === */
+@media (min-width: 1024px) {
+    .editor-toolbar {
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .toolbar-row:first-child {
+        border-bottom: none;
+        border-right: 1px solid var(--border-color);
+        padding-bottom: 0;
+        padding-right: 1rem;
+        flex: 1;
+    }
+    
+    .toolbar-row:last-child {
+        padding-left: 1rem;
+    }
+    
+    .editor-main {
+        grid-template-columns: 280px 1fr;
+    }
+    
+    .editor-sidebar {
+        border-bottom: none;
+        border-right: 1px solid var(--border-color);
+        order: 1;
+    }
+    
+    .editor-content {
+        order: 2;
+        min-height: 600px;
+    }
+    
+    #main-editor {
+        min-height: 600px;
+    }
+    
+    .color-grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+    
+    .palette-tool {
+        margin: 2rem;
+    }
+}
+
+/* === UTILITY === */
+.hidden { display: none !important; }
+.text-red { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="nexus-header">
+    <div class="nexus-brand">
+        RUNWAY
+        <span>NEXUS_MANIFEST // FASHION_INTERFACE</span>
+    </div>
+    
+    <div class="theme-switch" onclick="toggleTheme()" title="Toggle Theme">
+        <span class="theme-icon dark">🌙</span>
+        <span class="theme-icon light">☀️</span>
+    </div>
+</header>
+
+<!-- TOOLBAR -->
+<div class="editor-toolbar">
+    <div class="toolbar-row">
+        <select id="font-select">
+            <option value="Be Vietnam Pro">Be Vietnam Pro</option>
+            <option value="Courier Prime">Courier Prime</option>
+            <option value="Inter">Inter</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Montserrat">Montserrat</option>
+        </select>
+        
+        <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 0.5rem;"></div>
+        
+        <button class="format-button" id="bold-btn" title="Bold (Ctrl+B)">
+            <span class="material-symbols-outlined">format_bold</span>
+        </button>
+        <button class="format-button" id="italic-btn" title="Italic (Ctrl+I)">
+            <span class="material-symbols-outlined">format_italic</span>
+        </button>
+        <button class="format-button" id="underline-btn" title="Underline (Ctrl+U)">
+            <span class="material-symbols-outlined">format_underlined</span>
+        </button>
+    </div>
+    
+    <div class="toolbar-row">
+        <div style="font-family: 'Courier Prime', monospace; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
+            ROME: <span id="rome-time">--:--</span>
+        </div>
+        
+        <div style="flex: 1;"></div>
+        
+        <div class="auto-save-indicator" style="display: flex; align-items: center; gap: 0.5rem; opacity: 0; transition: opacity 0.3s; font-family: 'Courier Prime', monospace; font-size: 0.7rem; color: var(--text-secondary);">
+            <span class="material-symbols-outlined" style="font-size: 1rem;">cloud_done</span>
+            <span>SAVED</span>
+        </div>
+        
+        <button id="save-pdf">
+            <span class="material-symbols-outlined" style="font-size: 1rem;">file_download</span>
+            EXPORT_PDF
+        </button>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="nexus-container">
+    <div class="editor-frame">
+        <div class="editor-main">
+            <!-- SIDEBAR -->
+            <div class="editor-sidebar">
+                <div class="word-counter">
+                    <div class="counter-display">
+                        <span>Word Count</span>
+                        <span id="word-count">0 / 500</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="word-progress" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="dictionary-section">
+                    <h3>Design Terms</h3>
+                    <input type="search" class="dictionary-search" id="dictionary-search" placeholder="Filter terms...">
+                    <div class="dictionary-list" id="dictionary-list">
+                        <span class="dictionary-term" data-term="a-line">A-line</span>
+                        <span class="dictionary-term" data-term="applique">Appliqué</span>
+                        <span class="dictionary-term" data-term="avant-garde">Avant-garde</span>
+                        <span class="dictionary-term" data-term="bias-cut">Bias cut</span>
+                        <span class="dictionary-term" data-term="bespoke">Bespoke</span>
+                        <span class="dictionary-term" data-term="bustier">Bustier</span>
+                        <span class="dictionary-term" data-term="chiffon">Chiffon</span>
+                        <span class="dictionary-term" data-term="dart">Dart</span>
+                        <span class="dictionary-term" data-term="draping">Draping</span>
+                        <span class="dictionary-term" data-term="embroidery">Embroidery</span>
+                        <span class="dictionary-term" data-term="empire-waist">Empire waist</span>
+                        <span class="dictionary-term" data-term="haute-couture">Haute Couture</span>
+                        <span class="dictionary-term" data-term="peplum">Peplum</span>
+                        <span class="dictionary-term" data-term="corset">Corset</span>
+                        <span class="dictionary-term" data-term="bodice">Bodice</span>
+                        <span class="dictionary-term" data-term="satin">Satin</span>
+                        <span class="dictionary-term" data-term="silhouette">Silhouette</span>
+                        <span class="dictionary-term" data-term="texture">Texture</span>
+                    </div>
+                </div>
+
+                <div class="resources-section">
+                    <h3>Resources</h3>
+                    <a href="https://fashionmuseum.fitnyc.edu/collections" target="_blank" class="resource-link">FIT Collections →</a>
+                    <a href="https://www.palaisgalliera.paris.fr/en/palais-galliera/ressources-en-ligne" target="_blank" class="resource-link">Galliera →</a>
+                    <a href="https://digimuse.westphal.drexel.edu/ddm/" target="_blank" class="resource-link">Drexel →</a>
+                </div>
+            </div>
+
+            <!-- EDITOR -->
+            <div class="editor-content">
+                <div class="video-bg" id="video-background">
+                    <iframe id="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen frameborder="0" src="https://www.youtube.com/embed/Q7kGgb4Ja9Y?autoplay=1&mute=1&loop=1&playlist=Q7kGgb4Ja9Y&controls=0"></iframe>
+                </div>
+                
+                <textarea id="main-editor" placeholder="Describe your collection's story, key silhouettes, and fabric choices...">Type your text and word structures here...</textarea>
+                
+                <div id="related-terms">
+                    <span class="material-symbols-outlined" style="color: var(--red); font-size: 1rem;">lightbulb</span>
+                    <span style="color: var(--text-secondary);">Related:</span>
+                    <span style="color: var(--text-primary); cursor: pointer; text-decoration: underline;" data-term="corset">Corset</span>
+                    <span style="color: var(--text-primary); cursor: pointer; text-decoration: underline;" data-term="bodice">Bodice</span>
+                    <span style="color: var(--text-primary); cursor: pointer; text-decoration: underline;" data-term="satin">Satin</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLOR PALETTE TOOL (REPLACING MERMAID) -->
+    <div class="palette-tool">
+        <h3>Fashion Palette Generator</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Click colors to insert hex codes into your editor. Useful for documenting collection colorways.
+        </p>
+        
+        <div class="color-grid" id="color-grid">
+            <!-- Generated by JS -->
+        </div>
+        
+        <div class="palette-actions">
+            <button class="palette-btn primary" onclick="insertRandomPalette()">Insert Random Palette</button>
+            <button class="palette-btn" onclick="copyLastColor()">Copy Last Color</button>
+            <button class="palette-btn" onclick="clearPalette()">Clear</button>
+        </div>
+        
+        <div id="palette-output" style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border-color); font-family: 'Courier Prime', monospace; font-size: 0.8rem; color: var(--text-secondary); min-height: 40px; border-radius: 4px;">
+            Selected colors will appear here...
+        </div>
+    </div>
+</div>
+
+<!-- AI -->
+<button class="ai-toggle" onclick="toggleAI()">AI [QWEN_LOCAL]</button>
+
+<div id="ai-panel" class="ai-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <h4 style="color: var(--red); font-size: 0.75rem; letter-spacing: 2px; font-family: 'Courier Prime', monospace;">LOCAL_CORE // 0.5B</h4>
+        <span id="node-status" style="font-size: 0.7rem; color: var(--text-secondary);">STANDBY</span>
+    </div>
+
+    <div id="boot-zone">
+        <button id="loadCoreBtn" style="width: 100%; padding: 0.75rem; background: var(--red); color: var(--black); border: none; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; font-family: 'Courier Prime', monospace; border-radius: 4px;">
+            Initialize Neural Link
+        </button>
+    </div>
+
+    <div id="download-status" style="display: none; margin: 1rem 0;">
+        <div style="width: 100%; height: 2px; background: var(--border-color); border-radius: 1px;">
+            <div id="progress-bar" style="width: 0%; height: 100%; background: var(--red); border-radius: 1px;"></div>
+        </div>
+        <div style="font-size: 0.7rem; color: var(--red); margin-top: 0.25rem; text-align: right; font-family: 'Courier Prime', monospace;"><span id="progress-percent">0</span>%</div>
+    </div>
+
+    <div id="output" style="height: 150px; border: 1px solid var(--border-color); padding: 0.75rem; overflow-y: auto; margin-bottom: 1rem; font-size: 0.8rem; background: var(--bg-secondary); color: var(--text-primary); line-height: 1.4; white-space: pre-wrap; font-family: 'Courier Prime', monospace; border-radius: 4px;">OFFLINE: CORE NOT SYNCED</div>
+    
+    <textarea id="prompt" placeholder="DESCRIBE THE SILHOUETTE..." style="width: 100%; height: 60px; padding: 0.5rem; margin-bottom: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.8rem; resize: none; font-family: 'Courier Prime', monospace; border-radius: 4px;"></textarea>
+    
+    <div style="display: flex; gap: 0.5rem;">
+        <button id="generateButton" style="flex: 2; padding: 0.5rem; background: var(--border-color); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; font-family: 'Courier Prime', monospace; border-radius: 4px;">Transmit</button>
+        <button id="insert-btn" style="flex: 1; padding: 0.5rem; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--red); cursor: pointer; display: none; text-transform: uppercase; font-size: 0.7rem; font-family: 'Courier Prime', monospace; border-radius: 4px;">Insert</button>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="nexus-footer">
+    <p>© 2025 INK_REALM // NEXUS_MANIFEST</p>
+    <p style="margin-top: 0.5rem;">
+        <a href="mailto:inkrealm@wordstar.nexus" style="color: var(--red); text-decoration: none;">inkrealm@wordstar.nexus ↗</a>
+    </p>
+    <p style="margin-top: 1rem; font-size: 0.65rem; opacity: 0.7;">
+        SEPT_13_2025 // MOBILE_APP_OCT_25_2024
+    </p>
+</footer>
+
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
+let engine;
+
+const btn = document.getElementById('loadCoreBtn');
+const status = document.getElementById('download-status');
+const bar = document.getElementById('progress-bar');
+const percent = document.getElementById('progress-percent');
+const output = document.getElementById('output');
+const generateBtn = document.getElementById('generateButton');
+
+btn.onclick = async () => {
+    try {
+        if (!navigator.gpu) throw new Error("WebGPU API not found.");
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error("GPU refused handshake.");
+
+        btn.disabled = true;
+        btn.textContent = "SYNCING CORE...";
+        status.style.display = 'block';
+        output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
+
+        engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (report) => {
+                const p = Math.round(report.progress * 100);
+                bar.style.width = p + '%';
+                percent.textContent = p;
+                
+                if (p < 100) {
+                    output.textContent = "⟁ SYNCING: " + report.text;
+                } else {
+                    btn.style.display = 'none';
+                    output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                    generateBtn.style.background = "var(--red)";
+                    generateBtn.style.color = "var(--black)";
+                    generateBtn.style.borderColor = "var(--red)";
+                    document.getElementById('node-status').textContent = "ACTIVE";
+                    document.getElementById('node-status').style.color = "var(--red)";
+                }
+            }
+        });
+
+        generateBtn.onclick = async () => {
+            const promptInput = document.getElementById('prompt');
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+            
+            generateBtn.disabled = true;
+            generateBtn.textContent = "PROCESSING...";
+            output.textContent = ""; 
+            
+            try {
+                const messages = [
+                    { 
+                        role: "system", 
+                        content: "You are the INK REALM Fashion Interface. Write with haute couture precision. AVOID generic filler like 'sophistication' or 'beauty.' Focus on technical materiality: the grain of the fabric, the tension of the seams, and the sharp geometry of the silhouette. Be terse, luxurious, and incisive." 
+                    },
+                    { role: "user", content: prompt }
+                ];
+
+                const chunks = await engine.chat.completions.create({ 
+                    messages, 
+                    stream: true,
+                    temperature: 0.6, 
+                    top_p: 0.9,
+                    max_tokens: 512   
+                });
+
+                let fullText = "";
+                output.textContent = "";
+
+                for await (const chunk of chunks) {
+                    fullText += chunk.choices[0]?.delta?.content || "";
+                    output.textContent = fullText;
+                    output.scrollTop = output.scrollHeight;
+                }
+
+                const insBtn = document.getElementById('insert-btn');
+                insBtn.style.display = 'block';
+                
+                insBtn.onclick = () => {
+                    const editor = document.getElementById('main-editor');
+                    const s = editor.selectionStart;
+                    editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(s);
+                    insBtn.style.display = 'none';
+                    editor.focus();
+                };
+
+            } catch (genErr) {
+                output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = "Transmit";
+            }
+        };
+
+    } catch (err) {
+        status.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = "CORE UNAVAILABLE";
+        output.textContent = `[SIGNAL INTERRUPTED]: ${err.message}`;
+    }
+};
+</script>
+
+<script>
+// THEME
+function toggleTheme() {
+    document.documentElement.classList.toggle('light-mode');
+    localStorage.setItem('runway-theme', document.documentElement.classList.contains('light-mode') ? 'light' : 'dark');
+}
+
+// Restore theme
+if (localStorage.getItem('runway-theme') === 'light') {
+    document.documentElement.classList.add('light-mode');
+}
+
+// AI TOGGLE
+function toggleAI() {
+    const panel = document.getElementById('ai-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// EDITOR FUNCTIONS
+const fashionDictionary = {
+    'a-line': 'A garment fitted at hips, widening toward hem.',
+    'applique': 'Decorative design cut from one material applied to another.',
+    'avant-garde': 'Experimental, unconventional fashion ideas.',
+    'bias-cut': 'Cutting fabric diagonally across grain for drape.',
+    'bespoke': 'Custom-made for individual customer.',
+    'bustier': 'Form-fitting, pushes up bust, defines waist.',
+    'chiffon': 'Lightweight, sheer fabric with rough texture.',
+    'dart': 'Tapered seam shaping fabric to body curves.',
+    'draping': 'Positioning/pinning fabric on dress form.',
+    'embroidery': 'Decorative needlework stitching threads.',
+    'empire-waist': 'Waistline raised just below bust.',
+    'haute-couture': 'High-end fashion constructed by hand.',
+    'peplum': 'Short overskirt attached at waist.',
+    'corset': 'Close-fitting, shapes torso.',
+    'bodice': 'Upper part of dress.',
+    'satin': 'Smooth, glossy fabric with lustrous surface.',
+    'silhouette': 'Overall shape/outline of garment worn.',
+    'texture': 'Surface quality or feel of fabric.'
+};
+
+// Formatting
+function formatText(command) {
+    const editor = document.getElementById('main-editor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end);
+    
+    if (selectedText) {
+        let formattedText = selectedText;
+        switch(command) {
+            case 'bold': formattedText = `**${selectedText}**`; break;
+            case 'italic': formattedText = `*${selectedText}*`; break;
+            case 'underline': formattedText = `__${selectedText}__`; break;
+        }
+        editor.value = editor.value.substring(0, start) + formattedText + editor.value.substring(end);
+        editor.focus();
+        editor.setSelectionRange(start + formattedText.length, start + formattedText.length);
+        triggerAutoSave();
+        updateWordCount();
+    }
+}
+
+document.getElementById('bold-btn').addEventListener('click', () => formatText('bold'));
+document.getElementById('italic-btn').addEventListener('click', () => formatText('italic'));
+document.getElementById('underline-btn').addEventListener('click', () => formatText('underline'));
+
+// Font selector
+document.getElementById('font-select').addEventListener('change', function(e) {
+    document.getElementById('main-editor').style.fontFamily = e.target.value;
+    localStorage.setItem('runway-font', e.target.value);
+});
+
+// Word counter
+function updateWordCount() {
+    const text = document.getElementById('main-editor').value.trim();
+    const wordCount = text === '' ? 0 : text.split(/\s+/).length;
+    const maxWords = 500;
+    const percentage = Math.min((wordCount / maxWords) * 100, 100);
+
+    document.getElementById('word-count').textContent = `${wordCount} / ${maxWords}`;
+    document.getElementById('word-progress').style.width = `${percentage}%`;
+}
+
+document.getElementById('main-editor').addEventListener('input', function() {
+    updateWordCount();
+    triggerAutoSave();
+});
+
+// Auto-save
+let autoSaveTimeout;
+function triggerAutoSave() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        localStorage.setItem('runway-content', document.getElementById('main-editor').value);
+        const indicator = document.querySelector('.auto-save-indicator');
+        indicator.style.opacity = '1';
+        setTimeout(() => indicator.style.opacity = '0', 2000);
+    }, 2000);
+}
+
+// Dictionary search
+document.getElementById('dictionary-search').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const terms = document.querySelectorAll('.dictionary-term');
+    
+    terms.forEach(term => {
+        const text = term.textContent.toLowerCase();
+        term.style.display = text.includes(searchTerm) ? 'inline-block' : 'none';
+    });
+});
+
+// Insert terms
+document.querySelectorAll('.dictionary-term').forEach(term => {
+    term.addEventListener('click', function() {
+        const text = this.textContent;
+        const editor = document.getElementById('main-editor');
+        const start = editor.selectionStart;
+        editor.value = editor.value.substring(0, start) + ' ' + text + ' ' + editor.value.substring(start);
+        editor.focus();
+        updateWordCount();
+        triggerAutoSave();
+    });
+});
+
+// Related terms
+document.querySelectorAll('#related-terms span[data-term]').forEach(term => {
+    term.addEventListener('click', function() {
+        const text = this.textContent;
+        const editor = document.getElementById('main-editor');
+        const start = editor.selectionStart;
+        editor.value = editor.value.substring(0, start) + ' ' + text + ' ' + editor.value.substring(start);
+        editor.focus();
+        updateWordCount();
+    });
+});
+
+// Clock
+function updateClocks() {
+    const now = new Date();
+    document.getElementById('rome-time').textContent = now.toLocaleTimeString('en-US', {
+        timeZone: 'Europe/Rome',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+setInterval(updateClocks, 1000);
+updateClocks();
+
+// PDF Export
+document.getElementById('save-pdf').addEventListener('click', function() {
+    if (!window.jspdf) {
+        alert("PDF Library missing.");
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const content = document.getElementById('main-editor').value;
+    
+    doc.setFontSize(20);
+    doc.text("RUNWAY // NEXUS_MANIFEST", 20, 30);
+    doc.setFontSize(12);
+    const splitContent = doc.splitTextToSize(content, 170);
+    doc.text(splitContent, 20, 50);
+    doc.save('runway-manifest.pdf');
+    
+    const btn = this;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined">check</span> EXPORTED';
+    setTimeout(() => btn.innerHTML = orig, 2000);
+});
+
+// COLOR PALETTE TOOL
+const fashionColors = [
+    { name: 'Midnight', hex: '#191970' },
+    { name: 'Crimson', hex: '#DC143C' },
+    { name: 'Champagne', hex: '#F7E7CE' },
+    { name: 'Emerald', hex: '#50C878' },
+    { name: 'Charcoal', hex: '#36454F' },
+    { name: 'Burgundy', hex: '#800020' },
+    { name: 'Ivory', hex: '#FFFFF0' },
+    { name: 'Navy', hex: '#000080' },
+    { name: 'Blush', hex: '#DE5D83' },
+    { name: 'Ochre', hex: '#CC7722' },
+    { name: 'Slate', hex: '#708090' },
+    { name: 'Plum', hex: '#8E4585' },
+    { name: 'Sand', hex: '#C2B280' },
+    { name: 'Indigo', hex: '#4B0082' },
+    { name: 'Rust', hex: '#B7410E' },
+    { name: 'Sage', hex: '#9DC183' }
+];
+
+let selectedColors = [];
+let lastColor = '';
+
+function initColorPalette() {
+    const grid = document.getElementById('color-grid');
+    fashionColors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = color.hex;
+        swatch.setAttribute('data-name', color.name);
+        swatch.setAttribute('data-hex', color.hex);
+        swatch.onclick = () => selectColor(color);
+        grid.appendChild(swatch);
+    });
+}
+
+function selectColor(color) {
+    selectedColors.push(color);
+    lastColor = color.hex;
+    updatePaletteOutput();
+    
+    // Insert into editor
+    const editor = document.getElementById('main-editor');
+    const start = editor.selectionStart;
+    const text = ` [${color.name}: ${color.hex}] `;
+    editor.value = editor.value.substring(0, start) + text + editor.value.substring(start);
+    editor.focus();
+    updateWordCount();
+}
+
+function updatePaletteOutput() {
+    const output = document.getElementById('palette-output');
+    if (selectedColors.length === 0) {
+        output.textContent = 'Selected colors will appear here...';
+    } else {
+        output.innerHTML = selectedColors.map(c => `<span style="color:${c.hex}">■</span> ${c.name} (${c.hex})`).join(' • ');
+    }
+}
+
+function insertRandomPalette() {
+    const shuffled = [...fashionColors].sort(() => 0.5 - Math.random());
+    const palette = shuffled.slice(0, 5);
+    const editor = document.getElementById('main-editor');
+    const start = editor.selectionStart;
+    const text = '\n\nPALETTE: ' + palette.map(c => `${c.name} (${c.hex})`).join(' / ') + '\n';
+    editor.value = editor.value.substring(0, start) + text + editor.value.substring(start);
+    editor.focus();
+    
+    selectedColors = [...palette];
+    updatePaletteOutput();
+}
+
+function copyLastColor() {
+    if (lastColor) {
+        navigator.clipboard.writeText(lastColor);
+        const output = document.getElementById('palette-output');
+        output.textContent = `Copied ${lastColor} to clipboard`;
+        setTimeout(updatePaletteOutput, 2000);
+    }
+}
+
+function clearPalette() {
+    selectedColors = [];
+    updatePaletteOutput();
+}
+
+// Load saved content
+window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('runway-content');
+    if (saved) document.getElementById('main-editor').value = saved;
+    
+    const savedFont = localStorage.getItem('runway-font');
+    if (savedFont) {
+        document.getElementById('font-select').value = savedFont;
+        document.getElementById('main-editor').style.fontFamily = savedFont;
+    }
+    
+    initColorPalette();
+    updateWordCount();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'b': e.preventDefault(); formatText('bold'); break;
+            case 'i': e.preventDefault(); formatText('italic'); break;
+            case 'u': e.preventDefault(); formatText('underline'); break;
+            case 's': e.preventDefault(); triggerAutoSave(); break;
+        }
+    }
+});
+</script>
+</body>
+</html>
