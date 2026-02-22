@@ -13,6 +13,8 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <!-- Mermaid JS -->
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<!-- Axios for dictionary -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
 
 <style>
 :root {
@@ -512,6 +514,38 @@ select {
     border-color: var(--red);
 }
 
+/* === MERMAID WIDGET STYLES === */
+.mermaid-example {
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.mermaid-example pre {
+    background: var(--black);
+    padding: 8px;
+    border-radius: 4px;
+    overflow-x: auto;
+    color: var(--text-secondary);
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+#mermaid-code {
+    width: 100%;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace;
+    margin: 10px 0;
+    resize: vertical;
+    min-height: 100px;
+}
+
 /* === ANCHORED BUTTONS (BOTTOM RIGHT STACK) === */
 .anchored-stack {
     position: fixed;
@@ -556,10 +590,10 @@ select {
     background: var(--black);
 }
 
-/* === AI PANEL === */
+/* === AI PANELS === */
 .ai-panel {
     position: fixed;
-    bottom: 160px;
+    bottom: 250px;
     right: 20px;
     width: calc(100vw - 40px);
     max-width: 350px;
@@ -572,6 +606,10 @@ select {
     display: none;
     border-radius: 4px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+}
+
+#nvidia-panel {
+    bottom: 320px;
 }
 
 /* === DICTIONARY FLOAT (BOTTOM LEFT) === */
@@ -613,6 +651,48 @@ select {
     color: var(--text-secondary);
     max-height: 150px;
     overflow-y: auto;
+}
+
+/* === EXPANDED DICTIONARY IN FOOTER === */
+.expanded-dictionary {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.expanded-dictionary input {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.expanded-dictionary button {
+    background: var(--red);
+    color: var(--black);
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.expanded-dictionary button:hover {
+    opacity: 0.9;
+}
+
+.dictionary-results {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.8rem;
 }
 
 /* === FOOTER === */
@@ -686,81 +766,6 @@ select {
     .widget-container {
         margin: 1.5rem;
     }
-}
-
-/* === MERMAID STYLES === */
-.mermaid-section {
-    margin: 1rem;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.mermaid-header {
-    background: var(--black);
-    padding: 0.75rem 1rem;
-    font-family: 'Courier Prime', monospace;
-    font-size: 0.8rem;
-    color: var(--red);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-}
-
-.mermaid-content {
-    padding: 1rem;
-}
-
-.mermaid-example {
-    margin: 15px 0;
-    padding: 10px;
-    background: var(--bg-primary);
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
-}
-
-.mermaid-example pre {
-    background: var(--black);
-    padding: 10px;
-    border-radius: 4px;
-    overflow-x: auto;
-    color: var(--text-secondary);
-    font-family: monospace;
-    font-size: 0.8rem;
-}
-
-#mermaid-code {
-    width: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 10px;
-    font-family: monospace;
-    margin: 10px 0;
-    resize: vertical;
-}
-
-.mermaid-content button {
-    background: var(--red);
-    color: var(--black);
-    border: none;
-    padding: 0.5rem 1rem;
-    margin: 0.25rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Courier Prime', monospace;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    font-weight: bold;
-}
-
-.mermaid-content button:hover {
-    opacity: 0.9;
 }
 
 .hidden { display: none !important; }
@@ -843,7 +848,9 @@ select {
                 <div class="dictionary-section">
                     <h3>Design Terms</h3>
                     <input type="search" class="dictionary-search" id="dictionary-search" placeholder="Filter terms...">
-                    <div class="dictionary-list" id="dictionary-list"></div>
+                    <div class="dictionary-list" id="dictionary-list">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
 
                 <div class="resources-section">
@@ -930,7 +937,7 @@ select {
         </div>
     </div>
 
-    <!-- WIDGET: Mermaid Chart Creator -->
+    <!-- WIDGET: Mermaid Chart Creator (NEW) -->
     <div class="widget-container" id="mermaid-widget">
         <div class="widget-header" onclick="toggleWidget('mermaid-widget')">
             <span>Mermaid Chart Creator</span>
@@ -938,18 +945,18 @@ select {
         </div>
         <div class="widget-content">
             <details style="margin-bottom: 1rem;">
-                <summary style="color: var(--red); cursor: pointer; font-size: 0.8rem;">Mermaid Cheat Sheet & Fashion Examples</summary>
+                <summary style="color: var(--red); cursor: pointer; font-size: 0.8rem; font-family: 'Courier Prime', monospace;">Mermaid Cheat Sheet & Examples</summary>
                 <div style="margin-top: 1rem;">
                     <div class="mermaid-example">
-                        <h4 style="color: var(--text-primary); font-size: 0.8rem; margin-bottom: 0.5rem;">Dior Collection Workflow (Flowchart)</h4>
+                        <h4 style="color: var(--text-primary); font-size: 0.8rem; margin-bottom: 0.5rem;">Dior Collection Workflow</h4>
                         <pre><code>graph TD
-    A[Concept] --> B{Sketching};
-    B -- Approved --> C[Fabric];
-    B -- Rejected --> A;
-    C --> D[Pattern];
-    D --> E[Sample];
-    E --> F{Final};
-    F -- Approved --> G[Production];</code></pre>
+    A[Concept] --> B{Sketching}
+    B -- Approved --> C[Fabric]
+    B -- Rejected --> A
+    C --> D[Pattern]
+    D --> E[Sample]
+    E --> F{Final}
+    F -- Approved --> G[Production]</code></pre>
                     </div>
                     <div class="mermaid-example">
                         <h4 style="color: var(--text-primary); font-size: 0.8rem; margin-bottom: 0.5rem;">Chanel Show Sequence</h4>
@@ -960,55 +967,71 @@ select {
                     </div>
                 </div>
                 <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    <a href="https://mermaid.js.org/" target="_blank" style="color: var(--red);">Mermaid Documentation →</a>
+                    <a href="https://mermaid.js.org/" target="_blank" style="color: var(--red);">Documentation →</a>
                 </p>
             </details>
 
-            <textarea id="mermaid-code" placeholder="Enter Mermaid code here..." rows="6"></textarea>
+            <textarea id="mermaid-code" placeholder="Enter Mermaid code here..." rows="4"></textarea>
             
             <div style="display: flex; gap: 0.5rem; margin: 1rem 0;">
-                <button onclick="insertMermaidChart()">Insert Chart</button>
-                <button onclick="downloadMermaidCode()">Download Code</button>
+                <button class="palette-btn primary" onclick="insertMermaidChart()">Insert Chart</button>
+                <button class="palette-btn" onclick="downloadMermaidCode()">Download Code</button>
             </div>
             
-            <div style="text-align: center;">
-                <img width="200" height="138" src="https://github.com/ghostm68/pantheon/raw/main/inkrealm.info.runway.mermaid2.gif" style="border-radius: 4px;"><br>
-                <span style="font-size: 0.6rem; color: var(--text-secondary);">inkrealm.info/runway est. Sept 13, 2025</span>
+            <div style="text-align: center; margin-top: 0.5rem;">
+                <img width="200" height="138" src="https://github.com/ghostm68/pantheon/raw/main/inkrealm.info.runway.mermaid2.gif" style="border-radius: 4px; max-width: 100%;">
             </div>
         </div>
     </div>
 </div>
 
-<!-- ANCHORED BUTTONS (BOTTOM RIGHT) -->
+<!-- ANCHORED BUTTONS (BOTTOM RIGHT STACK - NVIDIA NOW ABOVE WEBLLM) -->
 <div class="anchored-stack">
-    <!-- BYOK PLACEHOLDER -->
-    <button class="anchored-btn secondary" id="byok-toggle" onclick="toggleBYOK()" title="Bring Your Own Key">
-        AI [BYOK]
+    <!-- NVIDIA AI (NOW TOP OF STACK) -->
+    <button class="anchored-btn" id="nvidia-toggle" onclick="toggleNVIDIA()">
+        AI [NVIDIA]
     </button>
     
     <!-- QWEN LOCAL -->
     <button class="anchored-btn" id="qwen-toggle" onclick="toggleAI()">
         AI [QWEN_LOCAL]
     </button>
+    
+    <!-- BYOK PLACEHOLDER (BOTTOM) -->
+    <button class="anchored-btn secondary" id="byok-toggle" onclick="toggleBYOK()" title="Bring Your Own Key">
+        AI [BYOK]
+    </button>
 </div>
 
-<!-- BYOK PANEL (PLACEHOLDER) -->
-<div id="byok-panel" class="ai-panel" style="bottom: 220px; border-color: var(--border-color);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
-        <h4 style="color: var(--text-secondary); font-size: 0.75rem; letter-spacing: 2px; font-family: 'Courier Prime', monospace;">BYOK // PLACEHOLDER</h4>
-        <span style="font-size: 0.7rem; color: var(--text-secondary);">OFFLINE</span>
+<!-- NVIDIA AI PANEL (NEW - STACKED ABOVE QWEN) -->
+<div id="nvidia-panel" class="ai-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--red); padding-bottom: 0.5rem;">
+        <h4 style="color: var(--red); font-size: 0.75rem; letter-spacing: 2px; font-family: 'Courier Prime', monospace;">NVIDIA NIM // TERMINAL</h4>
+        <span id="nvidia-status" style="font-size: 0.7rem; color: var(--text-secondary);">OFFLINE</span>
     </div>
-    
-    <div style="padding: 1rem; background: var(--bg-secondary); border: 1px dashed var(--border-color); text-align: center; font-family: 'Courier Prime', monospace; font-size: 0.8rem; color: var(--text-secondary);">
-        <p>Bring Your Own Key Model</p>
-        <p style="margin-top: 0.5rem; font-size: 0.7rem;">[ INSERT API LOGIC HERE ]</p>
+
+    <div style="margin-bottom: 15px;">
+        <input type="password" id="nvidia-api-key" placeholder="NVAPI- KEY REQUIRED..." style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-family: 'Courier Prime', monospace; font-size: 0.7rem; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div id="nvidia-key-status" style="font-size: 0.6rem; color: var(--text-secondary);">Status: Offline</div>
+            <button id="nvidia-save-key" class="palette-btn" style="padding: 0.25rem 0.5rem; font-size: 0.6rem;">Authorize</button>
+        </div>
     </div>
+
+    <select id="nvidia-model-select" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; background: var(--bg-primary); border: 1px solid var(--red); color: var(--text-primary); border-radius: 4px; font-size: 0.7rem;">
+        <option value="nvidia/nvidia-nemotron-nano-9b-v2">Nemotron Nano 9B</option>
+        <option value="nvidia/llama-3.1-nemotron-70b-instruct">Nemotron 70B</option>
+        <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+    </select>
+
+    <div id="nvidia-chat-history" style="height: 150px; border: 1px solid var(--border-color); padding: 0.5rem; overflow-y: auto; margin-bottom: 1rem; font-size: 0.7rem; background: var(--bg-secondary); color: var(--text-primary); font-family: 'Courier Prime', monospace; border-radius: 4px;"></div>
     
-    <input type="password" placeholder="API KEY..." style="width: 100%; margin-top: 1rem; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-family: 'Courier Prime', monospace;">
+    <textarea id="nvidia-user-input" placeholder="Enter prompt..." style="width: 100%; height: 50px; padding: 0.5rem; margin-bottom: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.7rem; resize: none; font-family: 'Courier Prime', monospace; border-radius: 4px;"></textarea>
     
-    <button style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; background: var(--border-color); color: var(--text-secondary); border: none; cursor: not-allowed; font-family: 'Courier Prime', monospace; font-size: 0.7rem; text-transform: uppercase;" disabled>
-        Connect [DISABLED]
-    </button>
+    <div style="display: flex; gap: 0.5rem;">
+        <button id="nvidia-send-btn" class="palette-btn primary" style="flex: 2;">Transmit</button>
+        <button id="nvidia-insert-btn" class="palette-btn" style="flex: 1; display: none;">Insert</button>
+    </div>
 </div>
 
 <!-- QWEN AI PANEL -->
@@ -1019,7 +1042,7 @@ select {
     </div>
 
     <div id="boot-zone">
-        <button id="loadCoreBtn" style="width: 100%; padding: 0.75rem; background: var(--red); color: var(--black); border: none; cursor: pointer; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; font-family: 'Courier Prime', monospace; border-radius: 4px;">
+        <button id="loadCoreBtn" class="palette-btn primary" style="width: 100%; padding: 0.75rem;">
             Initialize Neural Link
         </button>
     </div>
@@ -1036,22 +1059,48 @@ select {
     <textarea id="prompt" placeholder="DESCRIBE THE SILHOUETTE..." style="width: 100%; height: 60px; padding: 0.5rem; margin-bottom: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.8rem; resize: none; font-family: 'Courier Prime', monospace; border-radius: 4px;"></textarea>
     
     <div style="display: flex; gap: 0.5rem;">
-        <button id="generateButton" style="flex: 2; padding: 0.5rem; background: var(--border-color); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; font-family: 'Courier Prime', monospace; border-radius: 4px;">Transmit</button>
-        <button id="insert-btn" style="flex: 1; padding: 0.5rem; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--red); cursor: pointer; display: none; text-transform: uppercase; font-size: 0.7rem; font-family: 'Courier Prime', monospace; border-radius: 4px;">Insert</button>
+        <button id="generateButton" class="palette-btn" style="flex: 2; background: var(--border-color); color: var(--text-secondary);">Transmit</button>
+        <button id="insert-btn" class="palette-btn" style="flex: 1; display: none; border-color: var(--red);">Insert</button>
     </div>
+</div>
+
+<!-- BYOK PANEL (PLACEHOLDER) -->
+<div id="byok-panel" class="ai-panel" style="border-color: var(--border-color);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <h4 style="color: var(--text-secondary); font-size: 0.75rem; letter-spacing: 2px; font-family: 'Courier Prime', monospace;">BYOK // PLACEHOLDER</h4>
+        <span style="font-size: 0.7rem; color: var(--text-secondary);">OFFLINE</span>
+    </div>
+    
+    <div style="padding: 1rem; background: var(--bg-secondary); border: 1px dashed var(--border-color); text-align: center; font-family: 'Courier Prime', monospace; font-size: 0.8rem; color: var(--text-secondary);">
+        <p>Bring Your Own Key Model</p>
+        <p style="margin-top: 0.5rem; font-size: 0.7rem;">[ INSERT API LOGIC HERE ]</p>
+    </div>
+    
+    <input type="password" placeholder="API KEY..." style="width: 100%; margin-top: 1rem; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); font-family: 'Courier Prime', monospace; border-radius: 4px;">
+    
+    <button style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; background: var(--border-color); color: var(--text-secondary); border: none; cursor: not-allowed; font-family: 'Courier Prime', monospace; font-size: 0.7rem; text-transform: uppercase; border-radius: 4px;" disabled>
+        Connect [DISABLED]
+    </button>
 </div>
 
 <!-- DICTIONARY FLOAT (BOTTOM LEFT) -->
 <div class="dict-float" id="dict-float">
     <h4>Dictionary</h4>
     <input type="text" id="dict-search-input" placeholder="Enter word to look up..." onkeypress="if(event.key==='Enter')searchDict()">
-    <button onclick="searchDict()" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background: var(--red); color: var(--black); border: none; cursor: pointer; font-family: 'Courier Prime', monospace; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; border-radius: 4px;">Search</button>
+    <button onclick="searchDict()" class="palette-btn primary" style="width: 100%; margin-top: 0.5rem;">Search</button>
     <div id="dict-result" class="dict-result" style="margin-top: 0.5rem;"></div>
 </div>
 
-<!-- FOOTER -->
+<!-- FOOTER with Expanded Dictionary (German/English) -->
 <footer class="nexus-footer">
-    <p>© 2025 INK_REALM // NEXUS_MANIFEST</p>
+    <div class="expanded-dictionary">
+        <h4 style="color: var(--red); font-family: 'Courier Prime', monospace; margin-bottom: 0.5rem;">MULTI-DICTIONARY (EN/DE)</h4>
+        <input type="text" id="expanded-dict-input" placeholder="Enter word to look up...">
+        <button id="expanded-dict-search">Search Dictionaries (with German)</button>
+        <div id="expanded-dict-results" class="dictionary-results"></div>
+    </div>
+
+    <p style="margin-top: 1rem;">© 2025 INK_REALM // NEXUS_MANIFEST</p>
     <p style="margin-top: 0.5rem;">
         <a href="mailto:inkrealm@wordstar.nexus" style="color: var(--red); text-decoration: none;">inkrealm@wordstar.nexus ↗</a>
     </p>
@@ -1189,13 +1238,23 @@ const fashionDictionary = {
     'satin': 'Smooth, glossy fabric with lustrous surface.',
     'silhouette': 'Overall shape or outline of a garment.',
     'texture': 'Surface quality or feel of fabric.',
-    'couture': 'High-quality custom-fitted clothing.'
+    'couture': 'High-quality custom-fitted clothing.',
+    'minimalism': 'A design approach characterized by simplicity, clean lines.',
+    'sustainable-fashion': 'Prioritizes environmental and social responsibility.',
+    'upcycling': 'Transforming waste materials into new products.',
+    'gender-neutral': 'Clothing designed to be non-specific to gender.',
+    'streetwear': 'Casual clothing style from urban youth culture.',
+    'tech-wear': 'Fashion that integrates technological elements.',
+    'circular-fashion': 'Materials are reused and recycled continuously.',
+    'capsule-wardrobe': 'Compact collection of versatile pieces.',
+    'zero-waste-design': 'Pattern cutting that eliminates textile waste.'
 };
 
 let selectedColors = [];
 let lastColor = '';
 let lastFabricCalc = '';
 let autoSaveTimeout;
+let lastNvidiaResponse = '';
 
 // ==================== THEME ====================
 function toggleTheme() {
@@ -1203,7 +1262,6 @@ function toggleTheme() {
     localStorage.setItem('runway-theme', document.documentElement.classList.contains('light-mode') ? 'light' : 'dark');
 }
 
-// Load saved theme
 if (localStorage.getItem('runway-theme') === 'light') {
     document.documentElement.classList.add('light-mode');
 }
@@ -1211,7 +1269,18 @@ if (localStorage.getItem('runway-theme') === 'light') {
 // ==================== TOGGLES ====================
 function toggleAI() {
     const panel = document.getElementById('ai-panel');
+    const nvidia = document.getElementById('nvidia-panel');
     const byok = document.getElementById('byok-panel');
+    if (nvidia) nvidia.style.display = 'none';
+    if (byok) byok.style.display = 'none';
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleNVIDIA() {
+    const panel = document.getElementById('nvidia-panel');
+    const qwen = document.getElementById('ai-panel');
+    const byok = document.getElementById('byok-panel');
+    if (qwen) qwen.style.display = 'none';
     if (byok) byok.style.display = 'none';
     if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
@@ -1219,13 +1288,14 @@ function toggleAI() {
 function toggleBYOK() {
     const panel = document.getElementById('byok-panel');
     const qwen = document.getElementById('ai-panel');
+    const nvidia = document.getElementById('nvidia-panel');
     if (qwen) qwen.style.display = 'none';
+    if (nvidia) nvidia.style.display = 'none';
     if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
 function toggleWidget(id) {
-    const widget = document.getElementById(id);
-    if (widget) widget.classList.toggle('collapsed');
+    document.getElementById(id).classList.toggle('collapsed');
 }
 
 // ==================== TEXT FORMATTING ====================
@@ -1262,7 +1332,8 @@ document.getElementById('font-select').addEventListener('change', function(e) {
 
 // ==================== WORD COUNT ====================
 function updateWordCount() {
-    const text = document.getElementById('main-editor').value.trim();
+    const editor = document.getElementById('main-editor');
+    const text = editor.value.trim();
     const wordCount = text === '' ? 0 : text.split(/\s+/).length;
     const maxWords = 500;
     const percentage = Math.min((wordCount / maxWords) * 100, 100);
@@ -1522,29 +1593,199 @@ function downloadMermaidCode() {
     URL.revokeObjectURL(url);
 }
 
-// ==================== VIDEO CONTROLS ====================
-function setupVideoControls() {
-    const videoInput = document.getElementById('video-url');
-    if (videoInput) {
-        videoInput.addEventListener('change', function(e) {
-            const url = e.target.value.trim();
-            if (!url) return;
+// ==================== NVIDIA AI ====================
+function setupNvidiaAI() {
+    const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+    
+    const savedKey = localStorage.getItem('nvidia_nim_key');
+    if (savedKey) {
+        document.getElementById('nvidia-api-key').value = savedKey;
+        document.getElementById('nvidia-key-status').innerHTML = '<span style="color: var(--red);">✓ KEY AUTHORIZED</span>';
+    }
 
-            let videoId = '';
+    document.getElementById('nvidia-save-key').addEventListener('click', () => {
+        const key = document.getElementById('nvidia-api-key').value.trim();
+        if (key && key.startsWith('nvapi-')) {
+            localStorage.setItem('nvidia_nim_key', key);
+            document.getElementById('nvidia-key-status').innerHTML = '<span style="color: var(--red);">✓ KEY SAVED</span>';
+        } else {
+            alert('Error: Key must start with nvapi-');
+        }
+    });
+
+    document.getElementById('nvidia-send-btn').addEventListener('click', sendNvidiaMessage);
+    
+    document.getElementById('nvidia-user-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendNvidiaMessage(); 
+        }
+    });
+
+    document.getElementById('nvidia-insert-btn').addEventListener('click', () => {
+        const editor = document.getElementById('main-editor');
+        if (!editor) return;
+        
+        const start = editor.selectionStart;
+        editor.value = editor.value.substring(0, start) + lastNvidiaResponse + editor.value.substring(start);
+        editor.focus();
+        document.getElementById('nvidia-insert-btn').style.display = 'none';
+    });
+
+    async function sendNvidiaMessage() {
+        const msg = document.getElementById('nvidia-user-input').value.trim();
+        const key = document.getElementById('nvidia-api-key').value.trim();
+        const selectedModel = document.getElementById('nvidia-model-select').value;
+        
+        if (!msg) return;
+        if (!key) { alert('ENTER API KEY'); return; }
+
+        addNvidiaMessage('user', msg);
+        document.getElementById('nvidia-user-input').value = '';
+        
+        const btn = document.getElementById('nvidia-send-btn');
+        btn.disabled = true; 
+        btn.textContent = 'PROCESSING...';
+
+        try {
+            const proxyUrl = 'https://lively-limitless.inkrealm.workers.dev/?url=' +  encodeURIComponent(NVIDIA_URL);
             
-            if (url.includes('v=')) {
-                videoId = url.split('v=')[1].split('&')[0];
-            } else if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1].split('?')[0];
-            } else if (url.includes('embed/')) {
-                videoId = url.split('embed/')[1].split('?')[0];
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': 'Bearer ' + key 
+                },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    messages: [{ role: "user", content: msg }],
+                    temperature: 0.5, 
+                    top_p: 1, 
+                    max_tokens: 1024, 
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}`);
             }
 
-            if (videoId) {
-                const iframe = document.getElementById('video-iframe');
-                iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0&playlist=${videoId}`;
+            const data = await response.json();
+            
+            if (data.choices && data.choices[0]) {
+                lastNvidiaResponse = data.choices[0].message.content;
+                addNvidiaMessage('assistant', lastNvidiaResponse);
+                document.getElementById('nvidia-insert-btn').style.display = 'block';
             } else {
-                alert("Could not recognize YouTube URL format.");
+                throw new Error("Empty response");
+            }
+
+        } catch (error) {
+            addNvidiaMessage('system', 'ERROR: ' + error.message);
+        } finally {
+            btn.disabled = false; 
+            btn.textContent = 'Transmit';
+        }
+    }
+
+    function addNvidiaMessage(role, text) {
+        const chat = document.getElementById('nvidia-chat-history');
+        const div = document.createElement('div');
+        const config = {
+            user: { color: '#fff', bg: '#111', border: '#444', label: 'USER' },
+            assistant: { color: '#fff', bg: '#000', border: '#ff0033', label: 'NVIDIA' },
+            system: { color: '#ff0033', bg: '#1a0000', border: '#ff0033', label: 'ERROR' }
+        }[role];
+
+        div.innerHTML = `
+            <div style="margin-bottom:8px; padding:8px; background:${config.bg}; border:1px solid ${config.border};">
+                <div style="font-size:8px; color:${config.border}; text-transform:uppercase;">${config.label}</div>
+                <div style="white-space:pre-wrap; color:${config.color}; font-size:11px;">${text}</div>
+            </div>`;
+        
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+}
+
+// ==================== EXPANDED DICTIONARY (with German) ====================
+function setupExpandedDictionary() {
+    const dictionaryUrls = [
+        'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+        'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+        'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+        'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json'
+    ];
+
+    async function searchExpandedDictionary(word) {
+        const resultsDiv = document.getElementById('expanded-dict-results');
+        resultsDiv.innerHTML = '<p style="color: var(--text-secondary);">Searching...</p>';
+        
+        try {
+            const responses = await Promise.all(dictionaryUrls.map(url => axios.get(url)));
+            const dictionaries = responses.map(response => response.data);
+            
+            let definitionsFound = false;
+            let resultHTML = '';
+
+            dictionaries.forEach((dictionary, index) => {
+                if (index < 3) {
+                    if (dictionary[word.toLowerCase()]) {
+                        definitionsFound = true;
+                        const definition = dictionary[word.toLowerCase()];
+                        resultHTML += `
+                            <div style="margin-bottom:10px; padding:8px; background:var(--bg-primary); border-left:2px solid var(--red);">
+                                <div style="color:var(--red); font-size:0.7rem;">ENGLISH (Source ${index + 1})</div>
+                                <div style="font-size:0.75rem;">${definition}</div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const germanTranslations = Object.entries(dictionary).filter(([key, value]) => 
+                        value.toLowerCase().includes(word.toLowerCase()) || key.toLowerCase() === word.toLowerCase()
+                    );
+                    if (germanTranslations.length > 0) {
+                        definitionsFound = true;
+                        resultHTML += `<div style="color:var(--red); font-size:0.7rem; margin-top:5px;">GERMAN TRANSLATIONS:</div>`;
+                        germanTranslations.slice(0, 5).forEach(([german, english]) => {
+                            resultHTML += `<div style="font-size:0.75rem; margin-left:10px;"><span style="color:var(--red);">${german}</span> - ${english}</div>`;
+                        });
+                    }
+                }
+            });
+
+            if (definitionsFound) {
+                resultsDiv.innerHTML = resultHTML;
+            } else {
+                resultsDiv.innerHTML = '<p style="color: var(--text-secondary);">No definition found</p>';
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = '<p style="color: var(--red);">Error searching dictionaries</p>';
+        }
+    }
+
+    document.getElementById('expanded-dict-search').addEventListener('click', () => {
+        const word = document.getElementById('expanded-dict-input').value.trim();
+        if (word) searchExpandedDictionary(word);
+    });
+
+    document.getElementById('expanded-dict-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const word = e.target.value.trim();
+            if (word) searchExpandedDictionary(word);
+        }
+    });
+}
+
+// ==================== VIDEO CONTROLS ====================
+function setupVideoControls() {
+    const videoToggle = document.getElementById('video-bg');
+    if (videoToggle) {
+        videoToggle.addEventListener('change', function(e) {
+            const videoBg = document.getElementById('video-background');
+            if (videoBg) {
+                videoBg.style.opacity = e.target.checked ? 'var(--video-opacity)' : '0';
             }
         });
     }
@@ -1579,14 +1820,10 @@ window.addEventListener('DOMContentLoaded', () => {
     populateDictionary();
     initColorPalette();
     setupVideoControls();
+    setupNvidiaAI();
+    setupExpandedDictionary();
     updateWordCount();
 });
 </script>
-
-<!-- Optional: Add video URL input in sidebar if desired -->
-<div style="display: none;">
-    <input id="video-url" type="text">
-</div>
-
 </body>
 </html>
