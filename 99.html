@@ -36,11 +36,32 @@
     --text-secondary: #555555;
     --border-color: #bbbbbb;
     --black: #ffffff;
-    --video-opacity: 0.15;
+    --video-opacity: 0.25; /* Increased from 0.15 for better visibility */
     --editor-bg: rgba(255, 255, 255, 0.92);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* === RED SELECTION HIGHLIGHT (instead of blue) === */
+::selection {
+    background: var(--red) !important;
+    color: var(--black) !important;
+    text-shadow: none;
+}
+
+::-moz-selection {
+    background: var(--red) !important;
+    color: var(--black) !important;
+    text-shadow: none;
+}
+
+/* For input fields and textareas */
+input::selection,
+textarea::selection {
+    background: var(--red) !important;
+    color: var(--black) !important;
+}
+
 body {
     font-family: 'Be Vietnam Pro', sans-serif;
     background-color: var(--bg-primary);
@@ -245,6 +266,11 @@ select {
 
 .light-mode .video-bg iframe {
     filter: contrast(0.9) saturate(0.8) brightness(1.1);
+}
+
+/* Force video visibility in light mode */
+.light-mode .video-bg {
+    opacity: 0.25 !important;
 }
 
 /* === EDITOR - FIXED THEME VISIBILITY === */
@@ -546,6 +572,65 @@ select {
     min-height: 100px;
 }
 
+/* === AUTO-SAVE NOTEPAD (Replaces floating dictionary) === */
+.auto-save-notepad {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: var(--black);
+    border: 1px solid var(--red);
+    padding: 1rem;
+    border-radius: 4px;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.auto-save-notepad h4 {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    color: var(--red);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notepad-content {
+    width: 100%;
+    min-height: 100px;
+    max-height: 200px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    font-family: 'Courier Prime', monospace;
+    resize: vertical;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.notepad-content:focus {
+    outline: none;
+    border-color: var(--red);
+}
+
+.notepad-status {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    font-family: 'Courier Prime', monospace;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notepad-status .saved {
+    color: var(--red);
+}
+
 /* === ANCHORED BUTTONS (BOTTOM RIGHT STACK) === */
 .anchored-stack {
     position: fixed;
@@ -612,53 +697,22 @@ select {
     bottom: 320px;
 }
 
-/* === DICTIONARY FLOAT (BOTTOM LEFT) === */
-.dict-float {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    z-index: 1000;
-    background: var(--black);
-    border: 1px solid var(--border-color);
-    padding: 1rem;
-    border-radius: 4px;
-    max-width: 300px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-.dict-float h4 {
-    font-family: 'Courier Prime', monospace;
-    font-size: 0.75rem;
-    color: var(--red);
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.dict-float input {
-    width: 100%;
-    padding: 0.5rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-}
-
-.dict-result {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    max-height: 150px;
-    overflow-y: auto;
-}
-
-/* === EXPANDED DICTIONARY IN FOOTER === */
+/* === EXPANDED DICTIONARY IN FOOTER (KEPT) === */
 .expanded-dictionary {
     margin-top: 1rem;
     padding: 1rem;
     background: var(--bg-secondary);
     border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.expanded-dictionary h4 {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    color: var(--red);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .expanded-dictionary input {
@@ -669,6 +723,7 @@ select {
     color: var(--text-primary);
     border-radius: 4px;
     margin-bottom: 0.5rem;
+    font-size: 0.85rem;
 }
 
 .expanded-dictionary button {
@@ -683,6 +738,7 @@ select {
     font-weight: bold;
     border-radius: 4px;
     margin-bottom: 0.5rem;
+    width: 100%;
 }
 
 .expanded-dictionary button:hover {
@@ -693,6 +749,10 @@ select {
     max-height: 200px;
     overflow-y: auto;
     font-size: 0.8rem;
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
 }
 
 /* === FOOTER === */
@@ -937,7 +997,7 @@ select {
         </div>
     </div>
 
-    <!-- WIDGET: Mermaid Chart Creator (NEW) -->
+    <!-- WIDGET: Mermaid Chart Creator -->
     <div class="widget-container" id="mermaid-widget">
         <div class="widget-header" onclick="toggleWidget('mermaid-widget')">
             <span>Mermaid Chart Creator</span>
@@ -985,14 +1045,14 @@ select {
     </div>
 </div>
 
-<!-- ANCHORED BUTTONS (BOTTOM RIGHT STACK - NVIDIA NOW ABOVE WEBLLM) -->
+<!-- ANCHORED BUTTONS (BOTTOM RIGHT STACK) -->
 <div class="anchored-stack">
-    <!-- NVIDIA AI (NOW TOP OF STACK) -->
+    <!-- NVIDIA AI (TOP) -->
     <button class="anchored-btn" id="nvidia-toggle" onclick="toggleNVIDIA()">
         AI [NVIDIA]
     </button>
     
-    <!-- QWEN LOCAL -->
+    <!-- QWEN LOCAL (MIDDLE) -->
     <button class="anchored-btn" id="qwen-toggle" onclick="toggleAI()">
         AI [QWEN_LOCAL]
     </button>
@@ -1003,7 +1063,7 @@ select {
     </button>
 </div>
 
-<!-- NVIDIA AI PANEL (NEW - STACKED ABOVE QWEN) -->
+<!-- NVIDIA AI PANEL -->
 <div id="nvidia-panel" class="ai-panel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--red); padding-bottom: 0.5rem;">
         <h4 style="color: var(--red); font-size: 0.75rem; letter-spacing: 2px; font-family: 'Courier Prime', monospace;">NVIDIA NIM // TERMINAL</h4>
@@ -1083,18 +1143,23 @@ select {
     </button>
 </div>
 
-<!-- DICTIONARY FLOAT (BOTTOM LEFT) -->
-<div class="dict-float" id="dict-float">
-    <h4>Dictionary</h4>
-    <input type="text" id="dict-search-input" placeholder="Enter word to look up..." onkeypress="if(event.key==='Enter')searchDict()">
-    <button onclick="searchDict()" class="palette-btn primary" style="width: 100%; margin-top: 0.5rem;">Search</button>
-    <div id="dict-result" class="dict-result" style="margin-top: 0.5rem;"></div>
+<!-- AUTO-SAVE NOTEPAD (Replaces floating dictionary) -->
+<div class="auto-save-notepad" id="auto-save-notepad">
+    <h4>
+        <span>QUICK NOTES</span>
+        <span class="material-symbols-outlined" style="font-size: 1rem; color: var(--red);">edit_note</span>
+    </h4>
+    <textarea class="notepad-content" id="notepad-content" placeholder="Jot down quick notes... They auto-save to URL..."></textarea>
+    <div class="notepad-status">
+        <span id="notepad-status-text">Ready</span>
+        <span id="notepad-word-count" style="color: var(--text-secondary);">0 words</span>
+    </div>
 </div>
 
-<!-- FOOTER with Expanded Dictionary (German/English) -->
+<!-- FOOTER with Expanded Dictionary (KEPT) -->
 <footer class="nexus-footer">
     <div class="expanded-dictionary">
-        <h4 style="color: var(--red); font-family: 'Courier Prime', monospace; margin-bottom: 0.5rem;">MULTI-DICTIONARY (EN/DE)</h4>
+        <h4>MULTI-DICTIONARY (EN/DE)</h4>
         <input type="text" id="expanded-dict-input" placeholder="Enter word to look up...">
         <button id="expanded-dict-search">Search Dictionaries (with German)</button>
         <div id="expanded-dict-results" class="dictionary-results"></div>
@@ -1390,34 +1455,6 @@ document.addEventListener('click', function(e) {
     triggerAutoSave();
 });
 
-// ==================== FLOATING DICTIONARY ====================
-async function searchDict() {
-    const word = document.getElementById('dict-search-input').value.trim();
-    const resultDiv = document.getElementById('dict-result');
-    
-    if (!word) return;
-    resultDiv.innerHTML = '<span style="color: var(--text-secondary);">SEARCHING...</span>';
-    
-    if (fashionDictionary[word.toLowerCase()]) {
-        resultDiv.innerHTML = `<strong style="color: var(--red);">${word}</strong><br><span style="color: var(--text-primary);">${fashionDictionary[word.toLowerCase()]}</span>`;
-        return;
-    }
-    
-    try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-        const data = await response.json();
-        
-        if (data[0]) {
-            const meaning = data[0].meanings[0];
-            resultDiv.innerHTML = `<strong style="color: var(--red);">${word}</strong> <span style="color: var(--text-secondary);">(${meaning.partOfSpeech})</span><br><span style="color: var(--text-primary);">${meaning.definitions[0].definition}</span>`;
-        } else {
-            resultDiv.innerHTML = '<span style="color: var(--text-secondary);">NO DEFINITION FOUND</span>';
-        }
-    } catch (e) {
-        resultDiv.innerHTML = '<span style="color: var(--text-secondary);">ERROR: SIGNAL LOST</span>';
-    }
-}
-
 // ==================== RELATED TERMS ====================
 document.querySelectorAll('#related-terms span[data-term]').forEach(term => {
     term.addEventListener('click', function() {
@@ -1709,6 +1746,119 @@ function setupNvidiaAI() {
     }
 }
 
+// ==================== AUTO-SAVE NOTEPAD (ARTICLE SAVE TO URL) ====================
+function setupAutoSaveNotepad() {
+    const notepad = document.getElementById('notepad-content');
+    if (!notepad) return;
+
+    // Load from URL or localStorage
+    async function loadNotepad() {
+        try {
+            if (location.hash !== '') {
+                await setNotepadContent(location.hash);
+            } else {
+                const saved = localStorage.getItem('notepad-hash');
+                if (saved) await setNotepadContent(saved);
+            }
+            updateNotepadStatus();
+        } catch (e) {
+            console.log('No notepad content loaded');
+        }
+    }
+
+    // Save to URL and localStorage
+    async function saveNotepad() {
+        const hash = await getNotepadHash();
+        if (location.hash !== hash) {
+            history.replaceState({}, '', hash);
+        }
+        try { 
+            localStorage.setItem('notepad-hash', hash);
+        } catch (e) {}
+        updateNotepadStatus();
+        updateNotepadWordCount();
+    }
+
+    // Set content from hash
+    async function setNotepadContent(hash) {
+        const content = await decompressNotepad(hash.slice(1));
+        notepad.value = content;
+    }
+
+    // Get hash from content
+    async function getNotepadHash() {
+        const content = notepad.value;
+        return '#' + await compressNotepad(content);
+    }
+
+    // Compress content
+    async function compressNotepad(string) {
+        const byteArray = new TextEncoder().encode(string);
+        const stream = new CompressionStream('deflate-raw');
+        const writer = stream.writable.getWriter();
+        writer.write(byteArray);
+        writer.close();
+        const buffer = await new Response(stream.readable).arrayBuffer();
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    }
+
+    // Decompress content
+    async function decompressNotepad(b64) {
+        const byteArray = Uint8Array.from(
+            atob(b64.replace(/-/g, "+").replace(/_/g, "/")), 
+            c => c.charCodeAt(0)
+        );
+        const stream = new DecompressionStream('deflate-raw');
+        const writer = stream.writable.getWriter();
+        writer.write(byteArray);
+        writer.close();
+        const buffer = await new Response(stream.readable).arrayBuffer();
+        return new TextDecoder().decode(buffer);
+    }
+
+    // Update status
+    function updateNotepadStatus() {
+        const status = document.getElementById('notepad-status-text');
+        if (status) {
+            status.textContent = 'Saved to URL';
+            status.style.color = 'var(--red)';
+            setTimeout(() => {
+                status.textContent = 'Ready';
+                status.style.color = 'var(--text-secondary)';
+            }, 2000);
+        }
+    }
+
+    // Update word count
+    function updateNotepadWordCount() {
+        const text = notepad.value.trim();
+        const wordCount = text === '' ? 0 : text.split(/\s+/).length;
+        const countEl = document.getElementById('notepad-word-count');
+        if (countEl) {
+            countEl.textContent = `${wordCount} words`;
+        }
+    }
+
+    // Event listeners
+    notepad.addEventListener('input', debounce(500, saveNotepad));
+    window.addEventListener('DOMContentLoaded', loadNotepad);
+    window.addEventListener('hashchange', loadNotepad);
+    
+    // Initial word count
+    updateNotepadWordCount();
+    notepad.addEventListener('input', updateNotepadWordCount);
+}
+
+// Debounce helper
+function debounce(ms, fn) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+    };
+}
+
 // ==================== EXPANDED DICTIONARY (with German) ====================
 function setupExpandedDictionary() {
     const dictionaryUrls = [
@@ -1821,7 +1971,8 @@ window.addEventListener('DOMContentLoaded', () => {
     initColorPalette();
     setupVideoControls();
     setupNvidiaAI();
-    setupExpandedDictionary();
+    setupAutoSaveNotepad(); // New auto-save notepad
+    setupExpandedDictionary(); // Kept in footer
     updateWordCount();
 });
 </script>
