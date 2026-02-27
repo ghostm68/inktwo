@@ -2693,6 +2693,52 @@ function toggleStoryTTS(spanElement) {
 }
 </script>
 <script>
+    let storySynth = window.speechSynthesis;
+    let storyUtterance = null;
+
+    function toggleStoryTTS() {
+        const btn = document.getElementById('story-tts-btn');
+        const textContainer = document.getElementById('story-text');
+
+        // If currently speaking, STOP.
+        if (storySynth.speaking) {
+            storySynth.cancel();
+            btn.innerHTML = "▶ SPEAK";
+            btn.style.borderColor = "#333";
+            btn.style.color = "#888"; // Reset color
+            return;
+        }
+
+        // Otherwise, START.
+        const textToRead = textContainer.innerText;
+        storyUtterance = new SpeechSynthesisUtterance(textToRead);
+
+        // --- VOICE TUNING (The "Hamlet" Settings) ---
+        storyUtterance.pitch = 0.85; // Slightly lower, more serious
+        storyUtterance.rate = 0.9;   // Deliberate pacing
+        storyUtterance.volume = 1.0;
+
+        // Try to find a distinct voice (Google US English or similar)
+        const voices = storySynth.getVoices();
+        const preferredVoice = voices.find(v => v.name.includes("Google US English")) || voices[0];
+        if (preferredVoice) storyUtterance.voice = preferredVoice;
+
+        // Visual Feedback while reading
+        btn.innerHTML = "■ STOP";
+        btn.style.borderColor = "var(--red)";
+        btn.style.color = "var(--red)";
+
+        // When finished, reset the button
+        storyUtterance.onend = function() {
+            btn.innerHTML = "▶ SPEAK";
+            btn.style.borderColor = "#333";
+            btn.style.color = "#888";
+        };
+
+        storySynth.speak(storyUtterance);
+    }
+</script>
+<script>
 	document.addEventListener('DOMContentLoaded', function() {
     initCustomSelects();
 });
