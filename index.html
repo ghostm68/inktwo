@@ -439,6 +439,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         }
 
         ::selection { background: var(--red); color: var(--bg); }
+		/* Dynamic Bottom Close Action */
+        .modal-bottom-close {
+            text-align: center;
+            margin-top: 5rem;
+            padding-top: 2rem;
+            border-top: 1px dashed #1a1a1a;
+        }
+
+        .modal-bottom-close-btn {
+            color: var(--dim);
+            text-decoration: none;
+            font-size: 0.8em;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.3s ease, letter-spacing 0.3s ease;
+            display: inline-block;
+            font-family: Georgia, serif;
+        }
+
+        .modal-bottom-close-btn:hover {
+            color: var(--red);
+            letter-spacing: 0.18em;
+        }
     </style>
 <base target="_blank">
 </head>
@@ -1107,30 +1131,62 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     </div>
 
     <!-- Consolidated Modal Window Handler -->
+<!-- Consolidated Modal Window Handler + Dynamic Bottom Closer -->
     <script>
         function openModal(id) {
             document.getElementById(id).classList.add('active');
             document.body.style.overflow = 'hidden';
         }
+        
         function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
+            const modal = document.getElementById(id);
+            modal.classList.remove('active');
             document.body.style.overflow = '';
+            // Resets scroll position to the top of the chapter for the next reading
+            modal.scrollTop = 0;
         }
+
         // Close on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.active').forEach(function(m) {
-                    m.classList.remove('active');
+                    closeModal(m.getAttribute('id'));
                 });
-                document.body.style.overflow = '';
             }
         });
+
         // Close on click outside content window
         document.querySelectorAll('.modal').forEach(function(modal) {
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) {
-                    modal.classList.remove('active');
-                    document.body.style.overflow = '';
+                    closeModal(modal.getAttribute('id'));
+                }
+            });
+        });
+
+        // DYNAMIC BOTTOM CLOSE INJECTOR
+        // Automatically appends a thematic close link to the bottom of every chapter modal
+        window.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.modal').forEach(modal => {
+                const modalId = modal.getAttribute('id');
+                const modalContent = modal.querySelector('.modal-content');
+                
+                if (modalContent) {
+                    const closeWrapper = document.createElement('div');
+                    closeWrapper.className = 'modal-bottom-close';
+                    
+                    const closeLink = document.createElement('a');
+                    closeLink.className = 'modal-bottom-close-btn';
+                    closeLink.textContent = 'CLOSE DOSSIER ×';
+                    
+                    // Simple click event to trigger the close
+                    closeLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        closeModal(modalId);
+                    });
+                    
+                    closeWrapper.appendChild(closeLink);
+                    modalContent.appendChild(closeWrapper);
                 }
             });
         });
