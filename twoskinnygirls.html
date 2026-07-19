@@ -567,6 +567,51 @@ footer p {
     80% { transform: translate(2px, -2px) rotate(5deg); }
     100% { transform: translate(0) rotate(0deg); }
 }	
+/* ===== SPLASH SCREEN ===== */
+#splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--black);
+  z-index: 10005; /* Placed above the CRT overlay (9999) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 1s ease, visibility 1s ease;
+}
+#splash-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#splash-skip {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--white);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  z-index: 10006;
+  transition: all 0.3s ease;
+}
+#splash-skip:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--white);
+}
+#splash-screen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}	
 </style>
 <!-- Open Graph Metadata -->
 <meta property="og:title" content="Two Skinny Girls | official site">
@@ -576,7 +621,15 @@ footer p {
 <meta property="og:type" content="website">
 </head>
 <body>
-
+<!-- SPLASH SCREEN OVERLAY -->
+<div id="splash-screen">
+  <video id="splash-video" autoplay muted playsinline>
+    <!-- Using the direct raw CDN link to ensure smooth loading and Safari support -->
+    <source src="https://raw.githubusercontent.com/ghostm68/666/main/twoskinnygirls_magritte9_095359778.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <div id="splash-skip">SKIP [⚡]</div>
+</div>
     <div id="crt-overlay"><div class="scanline"></div></div>
 <nav>
   <div class="logo-text">Two Skinny Girls</div>
@@ -1157,6 +1210,40 @@ function tuneRandomTrack() {
     console.warn("Playback prevented or error loading track:", e);
   });
 }
+// ===== SPLASH SCREEN DISMISSAL =====
+document.addEventListener("DOMContentLoaded", () => {
+  const splash = document.getElementById('splash-screen');
+  const video = document.getElementById('splash-video');
+  const skipBtn = document.getElementById('splash-skip');
+
+  function dismissSplash() {
+    if (splash && !splash.classList.contains('fade-out')) {
+      splash.classList.add('fade-out');
+      // Completely remove the element from the page after the 1s CSS transition is complete
+      setTimeout(() => {
+        splash.remove();
+      }, 1000);
+    }
+  }
+
+  if (video) {
+    // Automatically dismiss the splash when the video finishes playing
+    video.addEventListener('ended', dismissSplash);
+
+    // Fallback: allow dismissing the splash by clicking anywhere on the video
+    video.addEventListener('click', dismissSplash);
+  }
+  
+  if (skipBtn) {
+    skipBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevents duplicate triggers from bubbling up
+      dismissSplash();
+    });
+  }
+
+  // Safety net: automatically dismiss after 6 seconds in case of slow loading or browser play blocks
+  setTimeout(dismissSplash, 6000);
+});	
 </script>
 </body>
 </html>
