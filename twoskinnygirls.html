@@ -686,7 +686,7 @@ footer p {
       <h2 style="color: var(--white);"><em>"UNTITLED<br>TRACK"</em></h2>
       <p class="body" style="color: rgba(255,255,255,0.85);" data-i18n="smoke_throne_desc">Six tracking sessions recorded over one week in June 2026. special thanks to Keira, Emilee, Alivia,& Murphy the cat.</p>
       <div class="audio-list">
-        <div class="audio-row" data-src="https://github.com/ghostm68/eg/raw/refs/heads/main/keira%27scountRYTWOSKINNYGIRLS06222026.mp3">
+        <div class="audio-row" data-src="https://github.com/ghostm68/eg/raw/refs/heads/main/keira'scountryTWOSKINNYGIRLS06222026.mp3">
           <span class="t-num">01</span><span class="t-name">The Sunrise Cut — 06.22</span><span class="t-time">0:00</span><div class="play-btn">▶</div>
         </div>
         <div class="audio-row" data-src="https://github.com/ghostm68/eg/raw/refs/heads/main/keira%20evening2.mp3">
@@ -1094,28 +1094,45 @@ function toggleSection(headerElement) {
   // List of random archive tracks (e.g. Artemis or older cuts)
 // Swap these URLs and names with your actual archive tracks
 const artemisArchive = [
-  { name: "Artemis Session - Cut A", url: "https://github.com/ghostm68/inktwo/raw/refs/heads/travelin'%20man.mp3" },
+  // Fixed the URL path to include the 'main' branch
+  { name: "Artemis Session - Cut A", url: "https://github.com/ghostm68/inktwo/raw/refs/heads/main/travelin'%20man.mp3" },
   { name: "Artemis Session - Cut B", url: "https://github.com/ghostm68/inktwo/raw/refs/heads/main/walk%20the%20line.mp3" },
   { name: "Artemis Session - Cut C", url: "https://github.com/ghostm68/inktwo/raw/refs/heads/main/sweet16twoskinnygirls.mp3" }
 ];
+
+// Keep track of the last played index to prevent consecutive repeats
+let lastRandomIndex = -1;
 
 function tuneRandomTrack() {
   const player = document.getElementById('random-audio-element');
   const titleDisplay = document.getElementById('random-track-title');
   const tuneBtn = document.getElementById('tune-btn');
 
-  // Pick a random track from the list
-  const randomIndex = Math.floor(Math.random() * artemisArchive.length);
+  if (!player || !titleDisplay || !tuneBtn) {
+    console.error("Required DOM elements for the random player were not found.");
+    return;
+  }
+
+  // Pick a random track, ensuring it doesn't repeat the previous one
+  let randomIndex;
+  do {
+    randomIndex = Math.floor(Math.random() * artemisArchive.length);
+  } while (randomIndex === lastRandomIndex && artemisArchive.length > 1);
+  
+  lastRandomIndex = randomIndex;
   const selectedTrack = artemisArchive[randomIndex];
 
-  // If a track from the main list is currently playing, pause it and reset its UI
-  if (currentAudio) {
+  // Safeguard global variables to avoid ReferenceErrors
+  if (typeof currentAudio !== 'undefined' && currentAudio) {
     currentAudio.pause();
-    currentPlayBtn.textContent = '▶';
     
-    const prevRow = currentPlayBtn.closest('.audio-row');
-    if (prevRow) {
-      prevRow.querySelector('.t-time').textContent = '0:00';
+    if (typeof currentPlayBtn !== 'undefined' && currentPlayBtn) {
+      currentPlayBtn.textContent = '▶';
+      const prevRow = currentPlayBtn.closest('.audio-row');
+      if (prevRow) {
+        const timeDisplay = prevRow.querySelector('.t-time');
+        if (timeDisplay) timeDisplay.textContent = '0:00';
+      }
     }
   }
 
@@ -1126,8 +1143,9 @@ function tuneRandomTrack() {
   titleDisplay.textContent = `[ ACTIVE TRANSMISSION ] // ${selectedTrack.name}`;
   tuneBtn.textContent = "⚡ TUNE ANOTHER";
 
-  player.play().catch(e => console.log("Auto-play blocked or loading error:", e));
+  player.play().catch(e => {
+    console.warn("Playback prevented or error loading track:", e);
+  });
 }
-</script>
 </body>
 </html>
