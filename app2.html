@@ -461,11 +461,9 @@
     <span>wordstar.nexus // secure sandboxed instance</span>
     <span id="hardware-tag">Acceleration Check...</span>
   </footer>
-
 <script type="module">
-    // 1. Importing from jsDelivr for correct WebAssembly MIME types and CORS compliance
+    // 1. Shifting to official jsDelivr CDN for robust ES Modules and proper MIME types
     import { Wllama } from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/index.js';
-    import WasmFromCDN from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/wasm-from-cdn.js';
 
     // Model target registry with direct, public download links to bypass the HF API handshake
     const MODELS = {
@@ -485,6 +483,12 @@
         name: "SmolLM2 360M Instruct - Tiny Fallback (it Q4_K_M)",
         url: "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf"
       }
+    };
+
+    // Explicit path configuration for Wllama's WASM runtime engine.
+    // This direct approach bypasses import wrappers and prevents "default is missing" crashes.
+    const CONFIG_PATHS = {
+      "default": "https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/wasm/wllama.wasm"
     };
 
     let wllama = null;
@@ -615,7 +619,8 @@
           isModelLoaded = false;
         }
 
-        wllama = new Wllama(WasmFromCDN);
+        // Utilizing the explicit path configuration object to guarantee clean instantiations
+        wllama = new Wllama(CONFIG_PATHS);
         wllama.setCompat('default');
 
         const webGpuSupport = await wllama.isSupportWebGPU();
@@ -640,7 +645,7 @@
 
         addLog(`Acquiring model file directly: ${targetModel.url}`, 'info');
         
-        // Switched back to loadModelFromUrl to bypass Hugging Face Hub metadata API limits entirely
+        // Directly download from public HF resolves to prevent authentication checks
         await wllama.loadModelFromUrl(targetModel.url, loadParams);
 
         isModelLoaded = true;
@@ -865,5 +870,6 @@
       }
     });
   </script>
+
 </body>
 </html>
