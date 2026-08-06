@@ -463,30 +463,27 @@
   </footer>
 
 <script type="module">
+    // 1. Importing from jsDelivr for correct WebAssembly MIME types and CORS compliance
     import { Wllama } from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/index.js';
     import WasmFromCDN from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/wasm-from-cdn.js';
 
-    // Model target registry with lightweight fallback profiles
+    // Model target registry with direct, public download links to bypass the HF API handshake
     const MODELS = {
       gemma4_e2b_standard: {
         name: "Gemma 4 E2B Standard (it Q4_K_M)",
-        repo: "unsloth/gemma-4-E2B-it-GGUF",
-        file: "gemma-4-E2B-it-Q4_K_M.gguf"
+        url: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf"
       },
       gemma4_e2b_uncensored: {
         name: "Gemma 4 E2B Abliterated (it Q4_K_M)",
-        repo: "mradermacher/gemma-4-E2B-it-abliterated-i1-GGUF",
-        file: "gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+        url: "https://huggingface.co/mradermacher/gemma-4-E2B-it-abliterated-i1-GGUF/resolve/main/gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
       },
       qwen2_5_0_5b: {
         name: "Qwen 2.5 0.5B Instruct - Fallback (it Q4_K_M)",
-        repo: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-        file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        url: "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
       },
       smollm2_360m: {
         name: "SmolLM2 360M Instruct - Tiny Fallback (it Q4_K_M)",
-        repo: "HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
-        file: "smollm2-360m-instruct-q4_k_m.gguf"
+        url: "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf"
       }
     };
 
@@ -600,7 +597,7 @@
       }, 500);
     }
 
-    // 2. MODEL INITIALIZATION WITH ROBUST AUTOMATIC FALLBACK CASCADE
+    // 2. MODEL INITIALIZATION AND WEB_GPU/CPU AUTO-CASCADE RECOVERY
     async function initializeEngine(forceCPUFallback = false) {
       const selectedKey = modelSelect.value;
       const targetModel = MODELS[selectedKey];
@@ -641,30 +638,32 @@
           addLog("WebGPU Acceleration detected. Offloading layers to VRAM.", "info");
         }
 
-        addLog(`Acquiring model from Hugging Face: ${targetModel.repo}/${targetModel.file}`, 'info');
-        await wllama.loadModelFromHF(targetModel.repo, targetModel.file, loadParams);
+        addLog(`Acquiring model file directly: ${targetModel.url}`, 'info');
+        
+        // Switched back to loadModelFromUrl to bypass Hugging Face Hub metadata API limits entirely
+        await wllama.loadModelFromUrl(targetModel.url, loadParams);
 
         isModelLoaded = true;
         setEngineStatus('active', 'Engine Loaded');
-        addLog(`Model ${targetModel.name} loaded and responsive.`, "info");
+        addLog(`Model ${targetModel.name} initialized successfully.`, "info");
         updateProgress(100, "Loaded Successfully");
       } catch (err) {
         addLog(`Initialization Error: ${err.message}`, 'err');
         setEngineStatus('error', 'Init Failed');
         
-        // CASCADING FALLBACK RECOVERY LOGIC
+        // Cascaded auto-recovery logic to drop down to lighter profiles or WASM mode
         if (selectedKey.startsWith('gemma4') && !forceCPUFallback) {
-          addLog("Heavier model failed on WebGPU. Attempting CPU (WASM) fallback for the same model...", "warn");
+          addLog("Heavier model failed on WebGPU. Retrying with CPU WASM fallback...", "warn");
           await initializeEngine(true);
         } else if (selectedKey.startsWith('gemma4') && forceCPUFallback) {
-          addLog("System memory limits exceeded for Gemma 4. Swapping automatically to Qwen 2.5 0.5B fallback...", "warn");
+          addLog("Gemma 4 failed on CPU. Downscaling automatically to lightweight Qwen 2.5 0.5B...", "warn");
           modelSelect.value = "qwen2_5_0_5b";
           await initializeEngine(false);
         } else if (selectedKey === 'qwen2_5_0_5b' && !forceCPUFallback) {
-          addLog("Qwen failed on WebGPU. Swapping to CPU WASM mode...", "warn");
+          addLog("Qwen failed on WebGPU. Attempting CPU fallback...", "warn");
           await initializeEngine(true);
         } else {
-          addLog("Engine could not recover. Clear cache or test the lighter SmolLM2 360M.", "err");
+          addLog("Load failed. Check browser allocations or clear local site storage.", "err");
           updateProgress(0, "Error");
         }
       } finally {
