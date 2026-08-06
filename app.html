@@ -1086,6 +1086,7 @@
             }
 
             // === 1. MANUAL CONNECTION LOGIC ===
+      // === 1. MANUAL CONNECTION LOGIC ===
             async connectEngine() {
                 const btn = document.getElementById("connect-btn");
                 const statusDot = document.getElementById("status-dot");
@@ -1105,25 +1106,24 @@
                     this.addLog(`Handshake initiated with model: ${this.modelId}`, "info");
                     
                     this.engine = await webllm.CreateMLCEngine(this.modelId, {
-    initProgressCallback: (report) => {
-        const p = Math.round(report.progress * 100);
-        if (p < 100) {
-            if (statusText) statusText.textContent = `SYNCING: ${p}%`;
-            if (btn) btn.textContent = `${p}%`;
-        }
-        this.addLog(`Loading: ${p}% - ${report.text}`, "info");
-    }
-}, {
-    context_window_size: 2048,   // <-- Hard cap the KV cache memory
-    max_gen_len: 512,            // <-- Don't let it ramble forever
-});
+                        initProgressCallback: (report) => {
+                            const p = Math.round(report.progress * 100);
+                            if (p < 100) {
+                                if (statusText) statusText.textContent = `SYNCING: ${p}%`;
+                                if (btn) btn.textContent = `${p}%`;
+                            }
+                            this.addLog(`Loading: ${p}% - ${report.text}`, "info");
+                        }
+                    }, {
+                        context_window_size: 2048,   // Hard cap the KV cache memory
+                    });
 
                     this.engine.currentModelId = this.modelId;
                     this.isOnline = true;
-                           try {
+
+                    try {
                         const adapter = await navigator.gpu.requestAdapter();
-                        const device = adapter ? await adapter.requestDevice() : null;
-                        const limits = device ? device.limits : null;
+                        const limits = adapter ? adapter.limits : null; // Safe: Direct probe
                         const maxBuf = limits?.maxBufferSize;
                         this.addLog(`GPU maxBufferSize: ${maxBuf ? (maxBuf / 1024 / 1024).toFixed(0) + ' MB' : 'N/A'}`, "info");
                         if (!maxBuf || maxBuf < 512 * 1024 * 1024) {
@@ -1132,6 +1132,7 @@
                     } catch (gpuErr) {
                         this.addLog("Could not query GPU limits: " + gpuErr.message, "warn");
                     }
+
                     this.addSystemMessage("⟁ LINK ESTABLISHED. READY FOR INPUT.");
                     this.addLog(`Engine loaded successfully. Model target: ${this.modelId}`, "info");
                     if (statusText) statusText.textContent = "ONLINE";
@@ -1193,7 +1194,7 @@
                         messages,
                         stream: true,
                         temperature: 0.7,
-                        max_tokens: 256,
+                        max_tokens: 256, // Enforces generation length limits cleanly here
                     });
 
                     this.removeLoading(loadingId);
