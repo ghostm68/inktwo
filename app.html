@@ -1105,19 +1105,33 @@
                     this.addLog(`Handshake initiated with model: ${this.modelId}`, "info");
                     
                     this.engine = await webllm.CreateMLCEngine(this.modelId, {
-                        initProgressCallback: (report) => {
-                            const p = Math.round(report.progress * 100);
-                            if (p < 100) {
-                                if (statusText) statusText.textContent = `SYNCING: ${p}%`;
-                                if (btn) btn.textContent = `${p}%`;
-                            }
-                            this.addLog(`Loading: ${p}% - ${report.text}`, "info");
-                        }
-                    });
+    initProgressCallback: (report) => {
+        const p = Math.round(report.progress * 100);
+        if (p < 100) {
+            if (statusText) statusText.textContent = `SYNCING: ${p}%`;
+            if (btn) btn.textContent = `${p}%`;
+        }
+        this.addLog(`Loading: ${p}% - ${report.text}`, "info");
+    }
+}, {
+    context_window_size: 2048,   // <-- Hard cap the KV cache memory
+    max_gen_len: 512,            // <-- Don't let it ramble forever
+});
 
                     this.engine.currentModelId = this.modelId;
                     this.isOnline = true;
-                    
+                           try {
+                        const adapter = await navigator.gpu.requestAdapter();
+                        const device = adapter ? await adapter.requestDevice() : null;
+                        const limits = device ? device.limits : null;
+                        const maxBuf = limits?.maxBufferSize;
+                        this.addLog(`GPU maxBufferSize: ${maxBuf ? (maxBuf / 1024 / 1024).toFixed(0) + ' MB' : 'N/A'}`, "info");
+                        if (!maxBuf || maxBuf < 512 * 1024 * 1024) {
+                            this.addLog("WARNING: GPU memory limit is very low. May fallback to CPU.", "warn");
+                        }
+                    } catch (gpuErr) {
+                        this.addLog("Could not query GPU limits: " + gpuErr.message, "warn");
+                    }
                     this.addSystemMessage("⟁ LINK ESTABLISHED. READY FOR INPUT.");
                     this.addLog(`Engine loaded successfully. Model target: ${this.modelId}`, "info");
                     if (statusText) statusText.textContent = "ONLINE";
@@ -1179,6 +1193,7 @@
                         messages,
                         stream: true,
                         temperature: 0.7,
+                        max_tokens: 256,
                     });
 
                     this.removeLoading(loadingId);
