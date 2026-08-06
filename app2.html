@@ -405,11 +405,12 @@
         <!-- Target Model Selector -->
         <div class="control-group">
           <label for="model-select">Target Local Model (.gguf)</label>
-          <select id="model-select">
-            <option value="gemma4_e2b_standard">Gemma 4 E2B Standard (Q4_K_M)</option>
-            <option value="gemma4_e2b_uncensored">Gemma 4 E2B Abliterated (Q4_K_M)</option>
-          </select>
-        </div>
+         <select id="model-select">
+  <option value="gemma4_e2b_standard">Gemma 4 E2B Standard (Q4_K_M)</option>
+  <option value="gemma4_e2b_uncensored">Gemma 4 E2B Abliterated (Q4_K_M)</option>
+  <option value="qwen2_5_0_5b">Qwen 2.5 0.5B Instruct (Lightweight Fallback)</option>
+  <option value="smollm2_360m">SmolLM2 360M Instruct (Tiny Fallback)</option>
+</select>
 
         <button id="init-btn" class="btn btn-red">Initialize Link</button>
 
@@ -461,35 +462,39 @@
     <span id="hardware-tag">Acceleration Check...</span>
   </footer>
 
-  <script type="module">
-    // ESM CDN Import of Wllama
-    import { Wllama } from 'https://cdn.npm.im/@wllama/wllama@latest/esm/index.js';
+<script type="module">
+    import { Wllama } from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/index.js';
+    import WasmFromCDN from 'https://cdn.jsdelivr.net/npm/@wllama/wllama@latest/esm/wasm-from-cdn.js';
 
-    // Model target registry. 
-    // These standard paths can easily be self-hosted on custom Cloudflare R2 Buckets as required.
+    // Model target registry with lightweight fallback profiles
     const MODELS = {
       gemma4_e2b_standard: {
         name: "Gemma 4 E2B Standard (it Q4_K_M)",
-        url: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf"
+        repo: "unsloth/gemma-4-E2B-it-GGUF",
+        file: "gemma-4-E2B-it-Q4_K_M.gguf"
       },
       gemma4_e2b_uncensored: {
         name: "Gemma 4 E2B Abliterated (it Q4_K_M)",
-        url: "https://huggingface.co/mradermacher/gemma-4-E2B-it-abliterated-i1-GGUF/resolve/main/gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+        repo: "mradermacher/gemma-4-E2B-it-abliterated-i1-GGUF",
+        file: "gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+      },
+      qwen2_5_0_5b: {
+        name: "Qwen 2.5 0.5B Instruct - Fallback (it Q4_K_M)",
+        repo: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+      },
+      smollm2_360m: {
+        name: "SmolLM2 360M Instruct - Tiny Fallback (it Q4_K_M)",
+        repo: "HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
+        file: "smollm2-360m-instruct-q4_k_m.gguf"
       }
     };
 
-    // Configuration assets path for the unified Wllama compiled engine
-    const CONFIG_PATHS = {
-      default: 'https://cdn.npm.im/@wllama/wllama@latest/esm/wasm/wllama.wasm'
-    };
-
-    // App state flags
     let wllama = null;
     let isModelLoaded = false;
     let abortController = null;
     let autoSaveTimeout = null;
 
-    // DOM Elements
     const notepad = document.getElementById('notepad');
     const fontSelect = document.getElementById('font-select');
     const modelSelect = document.getElementById('model-select');
@@ -509,7 +514,6 @@
     const statusText = document.getElementById('status-text');
     const hardwareTag = document.getElementById('hardware-tag');
 
-    // Terminal Logging Engine
     function addLog(msg, type = 'info') {
       const entry = document.createElement('div');
       entry.className = `log-${type}`;
@@ -519,7 +523,6 @@
       console.log(`[Diagnostic - ${type.toUpperCase()}] ${msg}`);
     }
 
-    // Set engine state visual indicators
     function setEngineStatus(state, message) {
       statusText.textContent = message;
       statusDot.className = 'status-dot';
@@ -528,14 +531,12 @@
       else if (state === 'error') statusDot.classList.add('error');
     }
 
-    // Update load bar values
     function updateProgress(percent, label = null) {
       const fixedPct = parseFloat(percent).toFixed(2);
       progressBar.style.width = `${percent}%`;
       progressText.textContent = label ? label : `${fixedPct}%`;
     }
 
-    // UI Buttons Toggle control
     function setControlStates(loading) {
       initBtn.disabled = loading;
       modelSelect.disabled = loading;
@@ -549,8 +550,6 @@
       }
     }
 
-    // 1. DYNAMIC COMPRESSED AUTOSAVE TO URL HASH
-    // Uses native browser CompressionStream (Deflate) to compress writing into a short Base64url safe URL hash
     async function compressToHash(text) {
       if (!text.trim()) {
         history.replaceState(null, null, ' ');
@@ -562,7 +561,6 @@
         const response = new Response(compressedStream);
         const buffer = await response.arrayBuffer();
         
-        // Base64Url conversion (Safe characters inside dynamic URL hashes)
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
@@ -573,7 +571,6 @@
       }
     }
 
-    // Decompresses text on window load
     async function decompressFromHash(hash) {
       try {
         if (!hash || hash === '#') return '';
@@ -600,10 +597,10 @@
       autoSaveTimeout = setTimeout(async () => {
         const text = notepad.innerText || notepad.textContent || "";
         await compressToHash(text);
-      }, 500); // 500ms debounce buffer
+      }, 500);
     }
 
-    // 2. MODEL INITIALIZATION AND WLLAMA EXECUTION
+    // 2. MODEL INITIALIZATION WITH ROBUST AUTOMATIC FALLBACK CASCADE
     async function initializeEngine(forceCPUFallback = false) {
       const selectedKey = modelSelect.value;
       const targetModel = MODELS[selectedKey];
@@ -614,7 +611,6 @@
       updateProgress(0, "Preparing WASM");
 
       try {
-        // Safe exit of any active previous memory allocations
         if (wllama) {
           addLog("Purging previous engine instances...", "info");
           await wllama.exit();
@@ -622,16 +618,15 @@
           isModelLoaded = false;
         }
 
-        wllama = new Wllama(CONFIG_PATHS);
+        wllama = new Wllama(WasmFromCDN);
+        wllama.setCompat('default');
 
-        // Hardware evaluation
         const webGpuSupport = await wllama.isSupportWebGPU();
         addLog(`WebGPU hardware layer capability: ${webGpuSupport ? 'SUPPORTED' : 'UNSUPPORTED'}`, webGpuSupport ? 'info' : 'warn');
 
-        // Safe Memory allocation variables to prevent paging / TDR crashes
         const loadParams = {
-          n_ctx: 1024,   // Optimized context window size
-          n_batch: 512,  // Constrained batch sizes to safe levels
+          n_ctx: 1024,
+          n_batch: 512,
           n_ubatch: 512,
           progressCallback: ({ loaded, total }) => {
             const pct = total > 0 ? (loaded / total) * 100 : 0;
@@ -641,28 +636,35 @@
 
         if (forceCPUFallback || !webGpuSupport) {
           addLog("Running on multi-threaded CPU Fallback (WASM)", "warn");
-          loadParams.n_gpu_layers = 0; // Prevent WebGPU execution
+          loadParams.n_gpu_layers = 0; 
         } else {
           addLog("WebGPU Acceleration detected. Offloading layers to VRAM.", "info");
-          // Wllama auto-allocates gpu layers dynamically.
         }
 
-        addLog(`Acquiring model file: ${targetModel.url}`, 'info');
-        await wllama.loadModelFromUrl(targetModel.url, loadParams);
+        addLog(`Acquiring model from Hugging Face: ${targetModel.repo}/${targetModel.file}`, 'info');
+        await wllama.loadModelFromHF(targetModel.repo, targetModel.file, loadParams);
 
         isModelLoaded = true;
         setEngineStatus('active', 'Engine Loaded');
-        addLog("Local engine loaded and responsive. Ready to write.", "info");
+        addLog(`Model ${targetModel.name} loaded and responsive.`, "info");
         updateProgress(100, "Loaded Successfully");
       } catch (err) {
         addLog(`Initialization Error: ${err.message}`, 'err');
         setEngineStatus('error', 'Init Failed');
         
-        if (!forceCPUFallback) {
-          addLog("Fatal compilation or VRAM execution error. Retrying with WASM CPU fallback...", "warn");
+        // CASCADING FALLBACK RECOVERY LOGIC
+        if (selectedKey.startsWith('gemma4') && !forceCPUFallback) {
+          addLog("Heavier model failed on WebGPU. Attempting CPU (WASM) fallback for the same model...", "warn");
+          await initializeEngine(true);
+        } else if (selectedKey.startsWith('gemma4') && forceCPUFallback) {
+          addLog("System memory limits exceeded for Gemma 4. Swapping automatically to Qwen 2.5 0.5B fallback...", "warn");
+          modelSelect.value = "qwen2_5_0_5b";
+          await initializeEngine(false);
+        } else if (selectedKey === 'qwen2_5_0_5b' && !forceCPUFallback) {
+          addLog("Qwen failed on WebGPU. Swapping to CPU WASM mode...", "warn");
           await initializeEngine(true);
         } else {
-          addLog("Loading failed. Clear browser memory or use a smaller quant model.", "err");
+          addLog("Engine could not recover. Clear cache or test the lighter SmolLM2 360M.", "err");
           updateProgress(0, "Error");
         }
       } finally {
@@ -679,8 +681,6 @@
 
       const instructionText = promptInput.value.trim();
       const content = notepad.innerText || notepad.textContent || "";
-      
-      // Determine context and slice to prevent context overflows
       const notepadContext = content.length > 2500 ? content.slice(-2500) : content;
 
       let messages = [];
@@ -697,7 +697,6 @@
           { role: 'user', content: `Story Context:\n\n${notepadContext}\n\nTask: Continue writing the scene seamlessly.` }
         ];
       } else {
-        // Direct directive execution mode
         if (!instructionText) {
           addLog("Provide a prompt directive instructions first.", "warn");
           return;
@@ -716,7 +715,6 @@
         }
       }
 
-      // Prepare streaming views
       streamContainer.textContent = "";
       streamContainer.classList.add('generating');
       stopBtn.style.display = 'block';
@@ -758,7 +756,6 @@
       }
     }
 
-    // Append streamed text into current notepad content
     function insertAtCaret(text) {
       notepad.focus();
       const selection = window.getSelection();
@@ -770,7 +767,6 @@
       const node = document.createTextNode(text);
       range.insertNode(node);
       
-      // Advance Cursor to the end of inserted text
       range.setStartAfter(node);
       range.setEndAfter(node);
       selection.removeAllRanges();
@@ -779,37 +775,27 @@
       triggerAutoSave();
     }
 
-    // 4. ACTION TRIGGERS & LISTENERS
-    
-    // Notepad Changes auto-save
     notepad.addEventListener('input', triggerAutoSave);
 
-    // Dynamic selection model trigger
     modelSelect.addEventListener('change', () => {
       addLog("Model changed. Click 'Initialize Link' to load the new instance.", "info");
     });
 
-    // Font select change listener
     fontSelect.addEventListener('change', (e) => {
       notepad.className = '';
       notepad.classList.add(e.target.value);
     });
 
-    // Initialize Wllama Link
     initBtn.addEventListener('click', () => initializeEngine(false));
-
-    // Generation triggers
     continueBtn.addEventListener('click', () => executeStoryInference('continue'));
     generateBtn.addEventListener('click', () => executeStoryInference('instruct'));
 
-    // Abort controller
     stopBtn.addEventListener('click', () => {
       if (abortController) {
         abortController.abort();
       }
     });
 
-    // Copy stream to notepad editor
     copyBtn.addEventListener('click', () => {
       const generatedText = streamContainer.textContent;
       if (!generatedText.trim()) return;
@@ -817,14 +803,12 @@
       if (document.activeElement === notepad) {
         insertAtCaret(generatedText);
       } else {
-        // Fallback: Append text to end
         notepad.textContent += (notepad.textContent ? "\n" : "") + generatedText;
         triggerAutoSave();
       }
       addLog("Stream appended smoothly to notepad.", "info");
     });
 
-    // Export notepad to simple TXT
     exportBtn.addEventListener('click', () => {
       const draftText = notepad.innerText || notepad.textContent || "";
       if (!draftText.trim()) {
@@ -842,7 +826,6 @@
       addLog("Story draft exported.", "info");
     });
 
-    // Clear notepad editor
     clearBtn.addEventListener('click', () => {
       if (confirm("Are you sure you want to clear your current document?")) {
         notepad.innerHTML = "";
@@ -851,11 +834,9 @@
       }
     });
 
-    // App Initialization Routine
     window.addEventListener('DOMContentLoaded', async () => {
       addLog("INK REALM node online. Checking secure resources.", "info");
       
-      // Restore text from URL hash state if available
       const existingHash = window.location.hash;
       if (existingHash && existingHash.length > 1) {
         const text = await decompressFromHash(existingHash);
@@ -865,7 +846,6 @@
         }
       }
 
-      // Check for hardware acceleration availability
       if (navigator.gpu) {
         try {
           const adapter = await navigator.gpu.requestAdapter();
