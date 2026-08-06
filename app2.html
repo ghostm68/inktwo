@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INK REALM // wordstar.nexus // Terminal II</title>
+  <style>
+    /* Strict, High-Contrast Red, White, and Black Aesthetic */
+    :root {
+      --bg-color: #000000;
+      --panel-bg: #0c0c0c;
+      --border-color: #ff0033;
+      --text-color: #ffffff;
+      --text-muted: #888888;
+      --accent-color: #ff0033;
+      --accent-hover: #ff4466;
+      --console-green: #00ff66;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'DejaVu Sans Mono', Consolas, Monaco, 'Courier New', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: #000000;
+      border-bottom: 2px solid var(--border-color);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      color: var(--accent-color);
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    header .subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    /* 3-Column Split Panel Grid */
+    .column {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-right: 1px solid #222222;
+      overflow: hidden;
+    }
+
+    /* Left Column: Notepad Writer */
+    #col-left {
+      flex: 1.2;
+      min-width: 320px;
+    }
+
+    /* Middle Column: AI Control Center */
+    #col-middle {
+      flex: 0.9;
+      min-width: 280px;
+      background-color: var(--panel-bg);
+    }
+
+    /* Right Column: AI Output Panel */
+    #col-right {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .column-header {
+      background-color: #000000;
+      border-bottom: 2px solid var(--border-color);
+      padding: 12px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+      color: var(--text-color);
+    }
+
+    .column-content {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    /* Left Column Elements (Notepad) */
+    #notepad {
+      flex: 1;
+      width: 100%;
+      background-color: #040404;
+      color: #ffffff;
+      border: 1px solid #333333;
+      padding: 20px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      outline: none;
+      overflow-y: auto;
+      resize: none;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      transition: border-color 0.2s;
+    }
+
+    #notepad:focus {
+      border-color: var(--border-color);
+    }
+
+    #notepad[placeholder]:empty:before {
+      content: attr(placeholder);
+      color: #555555;
+    }
+
+    /* Notepad Font Customizer Classes */
+    .font-dejavu { font-family: 'DejaVu Sans Mono', monospace; }
+    .font-courier { font-family: 'Courier New', Courier, monospace; }
+    .font-consolas { font-family: Consolas, Monaco, monospace; }
+    .font-typewriter { font-family: Courier, Georgia, serif; }
+
+    /* Middle Column UI Controls */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    select, textarea {
+      background-color: #000000;
+      border: 1px solid #333333;
+      color: #ffffff;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, textarea:focus {
+      border-color: var(--border-color);
+    }
+
+    /* Red/Black High-Contrast Progress Bar */
+    .progress-container {
+      width: 100%;
+      background-color: #000000;
+      border: 2px solid #222222;
+      height: 25px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: var(--accent-color);
+      transition: width 0.1s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #ffffff;
+      pointer-events: none;
+    }
+
+    /* Buttons Design */
+    .btn {
+      background-color: #000000;
+      color: #ffffff;
+      border: 2px solid var(--border-color);
+      padding: 10px 15px;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: var(--accent-color);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 0, 51, 0.4);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      border-color: #222222;
+      color: #444444;
+      cursor: not-allowed;
+    }
+
+    .btn-red {
+      background-color: var(--accent-color);
+      border-color: var(--accent-color);
+    }
+
+    .btn-red:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    /* Right Column: AI Output Panel */
+    #stream-container {
+      flex: 1;
+      background-color: #040404;
+      border: 1px solid #333333;
+      padding: 15px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: #ffffff;
+      transition: border-color 0.2s;
+    }
+
+    #stream-container.generating {
+      border-color: var(--border-color);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Console Diagnostics Logs */
+    #console-log {
+      height: 110px;
+      background-color: #000000;
+      border: 1px solid #222222;
+      padding: 10px;
+      font-size: 0.7rem;
+      overflow-y: auto;
+      color: var(--console-green);
+      font-family: monospace;
+      line-height: 1.4;
+    }
+
+    .log-err { color: #ff3333; }
+    .log-warn { color: #ffcc00; }
+    .log-info { color: var(--console-green); }
+
+    /* Bottom Status Bar */
+    footer {
+      background-color: #000000;
+      border-top: 1px solid #222222;
+      padding: 6px 20px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #333333;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .status-dot.active {
+      background-color: var(--console-green);
+      box-shadow: 0 0 5px var(--console-green);
+    }
+
+    .status-dot.loading {
+      background-color: #ffcc00;
+      box-shadow: 0 0 5px #ffcc00;
+    }
+
+    .status-dot.error {
+      background-color: #ff3333;
+      box-shadow: 0 0 5px #ff3333;
+    }
+
+    /* Scrollbars Customization */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #333333;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-color);
+    }
+
+    /* Responsive Adaptation for mobile/smaller screens */
+    @media (max-width: 900px) {
+      main {
+        flex-direction: column;
+        overflow-y: auto;
+      }
+      .column {
+        height: auto;
+        border-right: none;
+        border-bottom: 2px solid #222222;
+        min-height: 450px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>INK REALM // wordstar.nexus</h1>
+    <div class="subtitle">PRIVATE LITERARY WRITING TERMINAL</div>
+  </header>
+  
+  <main>
+    <!-- LEFT COLUMN: EDITOR WRITER -->
+    <section class="column" id="col-left">
+      <div class="column-header">
+        <span>Notepad Document</span>
+        <select id="font-select" style="width: 140px; padding: 2px 5px; font-size: 0.7rem; border-color: #222222;">
+          <option value="font-dejavu">DejaVu Sans Mono</option>
+          <option value="font-courier">Courier New</option>
+          <option value="font-consolas">Consolas</option>
+          <option value="font-typewriter">Classic Typewriter</option>
+        </select>
+      </div>
+      <div class="column-content" style="padding-bottom: 10px;">
+        <article contenteditable="true" id="notepad" class="font-dejavu" placeholder="Start typing your draft here..."></article>
+        <div class="toolbar" style="margin-top: 10px;">
+          <button id="export-btn" class="btn" style="flex: 1;">Export as TXT</button>
+          <button id="clear-btn" class="btn" style="flex: 1; border-color: #444444;">Clear</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MIDDLE COLUMN: AI ENGINE CONTROL & CONFIG -->
+    <section class="column" id="col-middle">
+      <div class="column-header">
+        <span>Engine Link Control</span>
+        <span style="display: flex; align-items: center;">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text" style="font-size: 0.65rem;">Engine Offline</span>
+        </span>
+      </div>
+      <div class="column-content">
+        <!-- Target Model Selector -->
+        <div class="control-group">
+          <label for="model-select">Target Local Model (.gguf)</label>
+          <select id="model-select">
+            <option value="gemma4_e2b_standard">Gemma 4 E2B Standard (Q4_K_M)</option>
+            <option value="gemma4_e2b_uncensored">Gemma 4 E2B Abliterated (Q4_K_M)</option>
+          </select>
+        </div>
+
+        <button id="init-btn" class="btn btn-red">Initialize Link</button>
+
+        <!-- High contrast red & black progress bar -->
+        <div class="control-group">
+          <label>WASM / GGUF Download Progress</label>
+          <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+            <div id="progress-text" class="progress-text">0.00%</div>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #222; margin: 5px 0;" />
+
+        <!-- Direct prompt input option -->
+        <div class="control-group">
+          <label for="prompt-input">Optional Writing Instruction / Direction</label>
+          <textarea id="prompt-input" rows="4" placeholder="Optional directive (e.g. 'Write a dark scene where we meet the protagonist' or leave blank to auto-continue story text exactly)."></textarea>
+        </div>
+
+        <div class="toolbar" style="display: flex; gap: 10px;">
+          <button id="continue-btn" class="btn btn-red" style="flex: 1;" disabled>Continue Story</button>
+          <button id="generate-btn" class="btn" style="flex: 1;" disabled>Write Instruction</button>
+        </div>
+
+        <!-- Matrix/Terminal Diagnostics log box -->
+        <div class="control-group" style="flex: 1; display: flex; flex-direction: column; min-height: 120px;">
+          <label>System Node Diagnostics</label>
+          <div id="console-log" style="flex: 1;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: AI STREAM STREAMING -->
+    <section class="column" id="col-right">
+      <div class="column-header">
+        <span>AI Generated Output</span>
+        <button id="stop-btn" class="btn" style="padding: 1px 8px; font-size: 0.65rem; border-color: var(--accent-color); display: none;">Stop</button>
+      </div>
+      <div class="column-content" style="padding-bottom: 10px;">
+        <div id="stream-container" placeholder="Streaming generation updates will output here in real-time..."></div>
+        <button id="copy-btn" class="btn btn-red" style="margin-top: 10px; width: 100%;" disabled>Copy to Notepad</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>wordstar.nexus // secure sandboxed instance</span>
+    <span id="hardware-tag">Acceleration Check...</span>
+  </footer>
+
+  <script type="module">
+    // ESM CDN Import of Wllama
+    import { Wllama } from 'https://cdn.npm.im/@wllama/wllama@latest/esm/index.js';
+
+    // Model target registry. 
+    // These standard paths can easily be self-hosted on custom Cloudflare R2 Buckets as required.
+    const MODELS = {
+      gemma4_e2b_standard: {
+        name: "Gemma 4 E2B Standard (it Q4_K_M)",
+        url: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf"
+      },
+      gemma4_e2b_uncensored: {
+        name: "Gemma 4 E2B Abliterated (it Q4_K_M)",
+        url: "https://huggingface.co/mradermacher/gemma-4-E2B-it-abliterated-i1-GGUF/resolve/main/gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+      }
+    };
+
+    // Configuration assets path for the unified Wllama compiled engine
+    const CONFIG_PATHS = {
+      default: 'https://cdn.npm.im/@wllama/wllama@latest/esm/wasm/wllama.wasm'
+    };
+
+    // App state flags
+    let wllama = null;
+    let isModelLoaded = false;
+    let abortController = null;
+    let autoSaveTimeout = null;
+
+    // DOM Elements
+    const notepad = document.getElementById('notepad');
+    const fontSelect = document.getElementById('font-select');
+    const modelSelect = document.getElementById('model-select');
+    const initBtn = document.getElementById('init-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const promptInput = document.getElementById('prompt-input');
+    const continueBtn = document.getElementById('continue-btn');
+    const generateBtn = document.getElementById('generate-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const exportBtn = document.getElementById('export-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const streamContainer = document.getElementById('stream-container');
+    const consoleLog = document.getElementById('console-log');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const hardwareTag = document.getElementById('hardware-tag');
+
+    // Terminal Logging Engine
+    function addLog(msg, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      consoleLog.appendChild(entry);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+      console.log(`[Diagnostic - ${type.toUpperCase()}] ${msg}`);
+    }
+
+    // Set engine state visual indicators
+    function setEngineStatus(state, message) {
+      statusText.textContent = message;
+      statusDot.className = 'status-dot';
+      if (state === 'active') statusDot.classList.add('active');
+      else if (state === 'loading') statusDot.classList.add('loading');
+      else if (state === 'error') statusDot.classList.add('error');
+    }
+
+    // Update load bar values
+    function updateProgress(percent, label = null) {
+      const fixedPct = parseFloat(percent).toFixed(2);
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = label ? label : `${fixedPct}%`;
+    }
+
+    // UI Buttons Toggle control
+    function setControlStates(loading) {
+      initBtn.disabled = loading;
+      modelSelect.disabled = loading;
+      if (!loading && isModelLoaded) {
+        continueBtn.disabled = false;
+        generateBtn.disabled = false;
+        copyBtn.disabled = false;
+      } else {
+        continueBtn.disabled = true;
+        generateBtn.disabled = true;
+      }
+    }
+
+    // 1. DYNAMIC COMPRESSED AUTOSAVE TO URL HASH
+    // Uses native browser CompressionStream (Deflate) to compress writing into a short Base64url safe URL hash
+    async function compressToHash(text) {
+      if (!text.trim()) {
+        history.replaceState(null, null, ' ');
+        return;
+      }
+      try {
+        const stream = new Blob([text]).stream();
+        const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
+        const response = new Response(compressedStream);
+        const buffer = await response.arrayBuffer();
+        
+        // Base64Url conversion (Safe characters inside dynamic URL hashes)
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        history.replaceState(null, null, '#' + base64);
+      } catch (err) {
+        addLog(`Autosave compression error: ${err.message}`, 'err');
+      }
+    }
+
+    // Decompresses text on window load
+    async function decompressFromHash(hash) {
+      try {
+        if (!hash || hash === '#') return '';
+        let base64 = hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        
+        const decompressedStream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+        const response = new Response(decompressedStream);
+        return await response.text();
+      } catch (err) {
+        addLog(`Document restoration failed (bad hash URL structure)`, 'warn');
+        return '';
+      }
+    }
+
+    function triggerAutoSave() {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(async () => {
+        const text = notepad.innerText || notepad.textContent || "";
+        await compressToHash(text);
+      }, 500); // 500ms debounce buffer
+    }
+
+    // 2. MODEL INITIALIZATION AND WLLAMA EXECUTION
+    async function initializeEngine(forceCPUFallback = false) {
+      const selectedKey = modelSelect.value;
+      const targetModel = MODELS[selectedKey];
+
+      addLog(`Initializing engine link for ${targetModel.name}...`, 'info');
+      setEngineStatus('loading', 'Initializing');
+      setControlStates(true);
+      updateProgress(0, "Preparing WASM");
+
+      try {
+        // Safe exit of any active previous memory allocations
+        if (wllama) {
+          addLog("Purging previous engine instances...", "info");
+          await wllama.exit();
+          wllama = null;
+          isModelLoaded = false;
+        }
+
+        wllama = new Wllama(CONFIG_PATHS);
+
+        // Hardware evaluation
+        const webGpuSupport = await wllama.isSupportWebGPU();
+        addLog(`WebGPU hardware layer capability: ${webGpuSupport ? 'SUPPORTED' : 'UNSUPPORTED'}`, webGpuSupport ? 'info' : 'warn');
+
+        // Safe Memory allocation variables to prevent paging / TDR crashes
+        const loadParams = {
+          n_ctx: 1024,   // Optimized context window size
+          n_batch: 512,  // Constrained batch sizes to safe levels
+          n_ubatch: 512,
+          progressCallback: ({ loaded, total }) => {
+            const pct = total > 0 ? (loaded / total) * 100 : 0;
+            updateProgress(pct);
+          }
+        };
+
+        if (forceCPUFallback || !webGpuSupport) {
+          addLog("Running on multi-threaded CPU Fallback (WASM)", "warn");
+          loadParams.n_gpu_layers = 0; // Prevent WebGPU execution
+        } else {
+          addLog("WebGPU Acceleration detected. Offloading layers to VRAM.", "info");
+          // Wllama auto-allocates gpu layers dynamically.
+        }
+
+        addLog(`Acquiring model file: ${targetModel.url}`, 'info');
+        await wllama.loadModelFromUrl(targetModel.url, loadParams);
+
+        isModelLoaded = true;
+        setEngineStatus('active', 'Engine Loaded');
+        addLog("Local engine loaded and responsive. Ready to write.", "info");
+        updateProgress(100, "Loaded Successfully");
+      } catch (err) {
+        addLog(`Initialization Error: ${err.message}`, 'err');
+        setEngineStatus('error', 'Init Failed');
+        
+        if (!forceCPUFallback) {
+          addLog("Fatal compilation or VRAM execution error. Retrying with WASM CPU fallback...", "warn");
+          await initializeEngine(true);
+        } else {
+          addLog("Loading failed. Clear browser memory or use a smaller quant model.", "err");
+          updateProgress(0, "Error");
+        }
+      } finally {
+        setControlStates(false);
+      }
+    }
+
+    // 3. STORY INFERENCE LOGIC (STREAMS GENERATION CHUNKS)
+    async function executeStoryInference(mode) {
+      if (!isModelLoaded || !wllama) {
+        addLog("Engine not running. Click 'Initialize Link' first.", "warn");
+        return;
+      }
+
+      const instructionText = promptInput.value.trim();
+      const content = notepad.innerText || notepad.textContent || "";
+      
+      // Determine context and slice to prevent context overflows
+      const notepadContext = content.length > 2500 ? content.slice(-2500) : content;
+
+      let messages = [];
+      const continuousPrompt = "Continue the user story naturally without breaks or introductions. Adopt and match the style, vocabulary, tone, and formatting constraints exactly. Generate only the next chapter/lines of text with absolutely no meta-commentary, introductory text, or conversational filler.";
+
+      if (mode === 'continue') {
+        if (!content.trim()) {
+          addLog("Write something first or provide a direction.", "warn");
+          return;
+        }
+        addLog("Analyzing writing pattern to continue story...", "info");
+        messages = [
+          { role: 'system', content: continuousPrompt },
+          { role: 'user', content: `Story Context:\n\n${notepadContext}\n\nTask: Continue writing the scene seamlessly.` }
+        ];
+      } else {
+        // Direct directive execution mode
+        if (!instructionText) {
+          addLog("Provide a prompt directive instructions first.", "warn");
+          return;
+        }
+        addLog("Injecting structural directive into current writing text...", "info");
+        if (content.trim()) {
+          messages = [
+            { role: 'system', content: "You are a professional assistant author. Integrate your creative output smoothly with the background context provided." },
+            { role: 'user', content: `Story Background Context:\n\n${notepadContext}\n\nCreative Writing Directive: ${instructionText}` }
+          ];
+        } else {
+          messages = [
+            { role: 'system', content: "You are a creative author. Write a high quality literary scene based on the user prompt." },
+            { role: 'user', content: instructionText }
+          ];
+        }
+      }
+
+      // Prepare streaming views
+      streamContainer.textContent = "";
+      streamContainer.classList.add('generating');
+      stopBtn.style.display = 'block';
+      generateBtn.disabled = true;
+      continueBtn.disabled = true;
+
+      abortController = new AbortController();
+
+      try {
+        const stream = await wllama.createChatCompletion({
+          messages: messages,
+          max_tokens: 512,
+          temperature: 0.8,
+          stream: true,
+          abortSignal: abortController.signal
+        });
+
+        let accumulatedOutput = "";
+        for await (const chunk of stream) {
+          const choice = chunk.choices[0];
+          if (choice && choice.delta && choice.delta.content) {
+            accumulatedOutput += choice.delta.content;
+            streamContainer.textContent = accumulatedOutput;
+            streamContainer.scrollTop = streamContainer.scrollHeight;
+          }
+        }
+        addLog("AI drafting segment successfully streaming complete.", "info");
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          addLog("AI generation stopped manually.", "warn");
+        } else {
+          addLog(`Inference execution error: ${err.message}`, "err");
+        }
+      } finally {
+        streamContainer.classList.remove('generating');
+        stopBtn.style.display = 'none';
+        generateBtn.disabled = false;
+        continueBtn.disabled = false;
+      }
+    }
+
+    // Append streamed text into current notepad content
+    function insertAtCaret(text) {
+      notepad.focus();
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      
+      const node = document.createTextNode(text);
+      range.insertNode(node);
+      
+      // Advance Cursor to the end of inserted text
+      range.setStartAfter(node);
+      range.setEndAfter(node);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      triggerAutoSave();
+    }
+
+    // 4. ACTION TRIGGERS & LISTENERS
+    
+    // Notepad Changes auto-save
+    notepad.addEventListener('input', triggerAutoSave);
+
+    // Dynamic selection model trigger
+    modelSelect.addEventListener('change', () => {
+      addLog("Model changed. Click 'Initialize Link' to load the new instance.", "info");
+    });
+
+    // Font select change listener
+    fontSelect.addEventListener('change', (e) => {
+      notepad.className = '';
+      notepad.classList.add(e.target.value);
+    });
+
+    // Initialize Wllama Link
+    initBtn.addEventListener('click', () => initializeEngine(false));
+
+    // Generation triggers
+    continueBtn.addEventListener('click', () => executeStoryInference('continue'));
+    generateBtn.addEventListener('click', () => executeStoryInference('instruct'));
+
+    // Abort controller
+    stopBtn.addEventListener('click', () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    });
+
+    // Copy stream to notepad editor
+    copyBtn.addEventListener('click', () => {
+      const generatedText = streamContainer.textContent;
+      if (!generatedText.trim()) return;
+
+      if (document.activeElement === notepad) {
+        insertAtCaret(generatedText);
+      } else {
+        // Fallback: Append text to end
+        notepad.textContent += (notepad.textContent ? "\n" : "") + generatedText;
+        triggerAutoSave();
+      }
+      addLog("Stream appended smoothly to notepad.", "info");
+    });
+
+    // Export notepad to simple TXT
+    exportBtn.addEventListener('click', () => {
+      const draftText = notepad.innerText || notepad.textContent || "";
+      if (!draftText.trim()) {
+        addLog("Nothing to export. Notepad is empty.", "warn");
+        return;
+      }
+      const blob = new Blob([draftText], { type: 'text/plain;charset=utf-8' });
+      const dlLink = document.createElement('a');
+      dlLink.href = URL.createObjectURL(blob);
+      dlLink.download = `ink_realm_${new Date().toISOString().slice(0,10)}.txt`;
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      document.body.removeChild(dlLink);
+      URL.revokeObjectURL(dlLink.href);
+      addLog("Story draft exported.", "info");
+    });
+
+    // Clear notepad editor
+    clearBtn.addEventListener('click', () => {
+      if (confirm("Are you sure you want to clear your current document?")) {
+        notepad.innerHTML = "";
+        triggerAutoSave();
+        addLog("Notepad document cleared.", "info");
+      }
+    });
+
+    // App Initialization Routine
+    window.addEventListener('DOMContentLoaded', async () => {
+      addLog("INK REALM node online. Checking secure resources.", "info");
+      
+      // Restore text from URL hash state if available
+      const existingHash = window.location.hash;
+      if (existingHash && existingHash.length > 1) {
+        const text = await decompressFromHash(existingHash);
+        if (text) {
+          notepad.innerText = text;
+          addLog("Document successfully restored from encrypted URL hash state.", "info");
+        }
+      }
+
+      // Check for hardware acceleration availability
+      if (navigator.gpu) {
+        try {
+          const adapter = await navigator.gpu.requestAdapter();
+          if (adapter) {
+            hardwareTag.textContent = "WebGPU Acceleration: ACTIVE";
+            addLog("System hardware supports WebGPU rendering.", "info");
+          } else {
+            hardwareTag.textContent = "WebGPU: UNAVAILABLE (WASM CPU fallback)";
+            addLog("WebGPU adapter failed. Operating under WASM fallback.", "warn");
+          }
+        } catch (e) {
+          hardwareTag.textContent = "WebGPU: BLOCKED (WASM Fallback)";
+          addLog("System blocked early WebGPU adapter request.", "warn");
+        }
+      } else {
+        hardwareTag.textContent = "WebGPU: UNSUPPORTED (CPU-ONLY)";
+        addLog("WebGPU is unsupported on this browser engine.", "warn");
+      }
+    });
+  </script>
+</body>
+</html>
