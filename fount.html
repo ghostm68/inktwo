@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CITADELLE // RESERVE</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Almendra:ital,wght@0,400;0,700;1,400&family=VT323&display=swap" rel="stylesheet">
+    <title>CITADELLE // RESERVE // SYNTHESIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Almendra:ital,wght@0,400;0,700;1,400&family=VT323&family=Cinzel:wght@400;700&family=Courier+Prime&family=Great+Vibes&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <style>
@@ -50,7 +50,7 @@
         .detection-box.selected { box-shadow: 0 0 10px var(--primary); border-width: 2px; z-index: 10; }
         
         #specimen { font-family: var(--font-seg); }
-        input[type="range"] { accent-color: var(--primary); }
+        input[type="range"], select { accent-color: var(--primary); }
         button { text-transform: uppercase; letter-spacing: 0.1em; transition: all 0.2s; }
         button:hover { box-shadow: 0 0 15px var(--primary); }
     </style>
@@ -63,7 +63,7 @@
         <header class="flex justify-between items-end border-b border-red-900 pb-4">
             <div>
                 <h1 class="text-4xl font-bold italic tracking-tighter text-[var(--primary)]" style="font-family: var(--font-seg);">Citadelle Reserve</h1>
-                <p class="text-[10px] opacity-60">STATION_ID: WRITER_STUDIO_V3 // STATUS: OPERATIONAL</p>
+                <p class="text-[10px] opacity-60">STATION_ID: WRITER_STUDIO_V4 // STATUS: SYNTHESIS_ENABLED</p>
             </div>
             <div class="flex gap-4 items-center">
                 <button onclick="document.body.classList.toggle('classic-mode')" class="text-[10px] border border-[var(--secondary)] px-3 py-1 rounded">Toggle Classic Mode</button>
@@ -74,6 +74,43 @@
         <div class="grid grid-cols-12 gap-6">
             <!-- SIDEBAR -->
             <aside class="col-span-3 space-y-6">
+                <!-- Source Mode Selector -->
+                <div class="panel p-6">
+                    <h2 class="text-xs font-bold mb-4">INPUT_SOURCE</h2>
+                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                        <button id="srcManuscript" onclick="setSourceMode('manuscript')" class="border border-[var(--primary)] p-2 rounded text-[var(--primary)]">Manuscript</button>
+                        <button id="srcSynthesis" onclick="setSourceMode('synthesis')" class="border border-[var(--secondary)] p-2 rounded opacity-50">Synthesis</button>
+                    </div>
+                </div>
+
+                <!-- Live Synthesis Controls (Conditional) -->
+                <div id="synthesisControls" class="panel p-6 hidden">
+                    <h2 class="text-xs font-bold mb-4">DNA_BLENDER</h2>
+                    <div class="space-y-4 text-xs">
+                        <div>
+                            <label class="block mb-1 opacity-70">Font Skeleton A</label>
+                            <select id="fontA" class="w-full bg-black border border-red-900 p-2 text-red-500" onchange="runSynthesis()">
+                                <option value="serif">Times New Roman (Serif)</option>
+                                <option value="sans-serif">Arial (Clean)</option>
+                                <option value="'Courier Prime', monospace">Courier (Machine)</option>
+                                <option value="'Cinzel', serif">Cinzel (Roman Monument)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1 opacity-70">Font Skeleton B</label>
+                            <select id="fontB" class="w-full bg-black border border-red-900 p-2 text-red-500" onchange="runSynthesis()">
+                                <option value="'Great Vibes', cursive">Great Vibes (Cursive/Script)</option>
+                                <option value="'Almendra', serif">Almendra (Medieval)</option>
+                                <option value="fantasy">Impact (Heavy Block)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="flex justify-between mb-1 opacity-70"><span>Blend Ratio (A vs B)</span><span id="ratioVal">50%</span></label>
+                            <input type="range" id="blendRatio" min="0" max="100" value="50" oninput="document.getElementById('ratioVal').innerText = this.value + '%'; runSynthesis();" class="w-full h-1 bg-red-900 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="panel p-6">
                     <h2 class="text-xs font-bold mb-4 flex justify-between"><span>SENSORS</span><span id="threshVal">140</span></h2>
                     <input type="range" id="threshold" min="30" max="220" value="140" class="w-full h-1 bg-red-900 rounded-lg appearance-none cursor-pointer mb-6">
@@ -87,10 +124,10 @@
 
                 <div class="panel p-6">
                     <h2 class="text-xs font-bold mb-2">TARGET_DNA</h2>
-                    <textarea id="charset" class="w-full bg-black border border-red-900 p-2 text-xs font-mono h-24 text-red-500 outline-none">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?</textarea>
+                    <textarea id="charset" class="w-full bg-black border border-red-900 p-2 text-xs font-mono h-24 text-red-500 outline-none" oninput="if(sourceMode==='synthesis') runSynthesis()">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789</textarea>
                 </div>
 
-                <div class="panel p-6">
+                <div id="filePanel" class="panel p-6">
                     <input type="file" id="imageInput" class="hidden" accept="image/*">
                     <button onclick="document.getElementById('imageInput').click()" class="w-full py-4 border border-[var(--primary)] text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all">
                         Load Manuscript
@@ -102,7 +139,6 @@
             <main class="col-span-9 space-y-6">
                 <div id="wrapper" class="panel canvas-container min-h-[500px] flex items-center justify-center">
                     <div id="dropZone" class="font-mono text-xs opacity-40 italic">Waiting for writer input...</div>
-                    <!-- Fixed: Contained the canvas and absolute overlay inside a relative wrapper -->
                     <div class="relative">
                         <canvas id="mainCanvas" class="hidden"></canvas>
                         <div id="overlay" class="absolute inset-0 pointer-events-none"></div>
@@ -126,6 +162,7 @@
         const specimen = document.getElementById('specimen');
         let blobs = [];
         let traceMode = 'raw';
+        let sourceMode = 'manuscript';
         let font = null;
 
         document.getElementById('imageInput').onchange = e => handleImage(e.target.files[0]);
@@ -141,6 +178,25 @@
             analyze();
         }
 
+        function setSourceMode(mode) {
+            sourceMode = mode;
+            document.getElementById('srcManuscript').classList.toggle('border-[var(--primary)]', mode==='manuscript');
+            document.getElementById('srcSynthesis').classList.toggle('border-[var(--primary)]', mode==='synthesis');
+            
+            document.getElementById('synthesisControls').classList.toggle('hidden', mode==='manuscript');
+            document.getElementById('filePanel').classList.toggle('hidden', mode==='synthesis');
+
+            if (mode === 'synthesis') {
+                document.getElementById('dropZone').classList.add('hidden');
+                canvas.classList.remove('hidden');
+                runSynthesis();
+            } else {
+                canvas.classList.add('hidden');
+                document.getElementById('dropZone').classList.remove('hidden');
+                overlay.innerHTML = '';
+            }
+        }
+
         function handleImage(file) {
             const reader = new FileReader();
             reader.onload = event => {
@@ -150,11 +206,56 @@
                     ctx.drawImage(img, 0, 0);
                     canvas.classList.remove('hidden');
                     document.getElementById('dropZone').classList.add('hidden');
-                    analyze(); // Automatically runs detection on upload
+                    analyze();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        /**
+         * SYNTHESIS GENERATOR
+         * Creates a virtual manuscript sheet by drawing the blended letters in a grid
+         */
+        function runSynthesis() {
+            const chars = document.getElementById('charset').value.split('');
+            const fontA = document.getElementById('fontA').value;
+            const fontB = document.getElementById('fontB').value;
+            const ratio = parseInt(document.getElementById('blendRatio').value) / 100;
+
+            // Define grid structure on our canvas
+            const colCount = 10;
+            const rowCount = Math.ceil(chars.length / colCount);
+            const cellSize = 120;
+
+            canvas.width = colCount * cellSize;
+            canvas.height = rowCount * cellSize;
+
+            // Clear to solid white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            chars.forEach((c, idx) => {
+                const col = idx % colCount;
+                const row = Math.floor(idx / colCount);
+                const cx = col * cellSize + cellSize / 2;
+                const cy = row * cellSize + cellSize / 2;
+
+                // Draw Font A
+                ctx.fillStyle = `rgba(0, 0, 0, ${1 - ratio})`;
+                ctx.font = `80px ${fontA}`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(c, cx, cy);
+
+                // Draw Font B (Overlay)
+                ctx.fillStyle = `rgba(0, 0, 0, ${ratio})`;
+                ctx.font = `80px ${fontB}`;
+                ctx.fillText(c, cx, cy);
+            });
+
+            // Automatically analyze the synthesized sheet
+            analyze();
         }
 
         function analyze() {
@@ -163,19 +264,19 @@
             const visited = new Uint8Array(canvas.width * canvas.height);
             blobs = [];
 
-            // Fast scan
             for (let y = 0; y < canvas.height; y += 4) {
                 for (let x = 0; x < canvas.width; x += 4) {
                     const i = y * canvas.width + x;
                     if (((data[i*4]+data[i*4+1]+data[i*4+2])/3) < threshold && !visited[i]) {
-                        const blob = floodFill(x, y, visited, data, canvas.width, canvas.height, threshold);
-                        if (blob.w > 4) blobs.push(blob);
+                        const initialBlob = floodFill(x, y, visited, data, canvas.width, canvas.height, threshold);
+                        if (initialBlob.w > 4) {
+                            const segments = segmentScriptBlob(initialBlob);
+                            segments.forEach(seg => blobs.push(seg));
+                        }
                     }
                 }
             }
             
-            // AUTOMATIC MAPPING Logic:
-            // Sort by rows, then map characters in order.
             const rowH = canvas.height / 10;
             blobs.sort((a, b) => (Math.abs(a.y - b.y) < rowH) ? a.x - b.x : a.y - b.y);
             
@@ -206,6 +307,56 @@
             return { x: minX, y: minY, w: maxX-minX, h: maxY-minY, points: pixels };
         }
 
+        function segmentScriptBlob(blob) {
+            if (blob.w < blob.h * 1.5) return [blob];
+            const colCounts = new Array(blob.w).fill(0);
+            blob.points.forEach(p => { colCounts[p[0] - blob.x]++; });
+
+            const smoothCounts = [];
+            const kSize = 3;
+            for (let i = 0; i < colCounts.length; i++) {
+                let sum = 0, count = 0;
+                for (let j = -kSize; j <= kSize; j++) {
+                    if (i + j >= 0 && i + j < colCounts.length) { sum += colCounts[i + j]; count++; }
+                }
+                smoothCounts.push(sum / count);
+            }
+
+            const cuts = [];
+            const minCharWidth = blob.h * 0.4;
+            let lastCut = 0;
+
+            for (let i = 1; i < smoothCounts.length - 1; i++) {
+                if (smoothCounts[i] < smoothCounts[i - 1] && smoothCounts[i] <= smoothCounts[i + 1]) {
+                    if (smoothCounts[i] < blob.h * 0.5) {
+                        if (i - lastCut > minCharWidth && (smoothCounts.length - i) > minCharWidth) {
+                            cuts.push(blob.x + i); lastCut = i;
+                        }
+                    }
+                }
+            }
+
+            if (cuts.length === 0) return [blob];
+
+            const subBlobs = [];
+            let currentX = blob.x;
+            const boundaries = [...cuts, blob.x + blob.w];
+
+            boundaries.forEach(cutX => {
+                const subPoints = blob.points.filter(p => p[0] >= currentX && p[0] < cutX);
+                if (subPoints.length > 5) {
+                    let minX = cutX, maxX = currentX, minY = blob.y + blob.h, maxY = blob.y;
+                    subPoints.forEach(p => {
+                        minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+                        minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+                    });
+                    subBlobs.push({ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, points: subPoints, char: null });
+                }
+                currentX = cutX;
+            });
+            return subBlobs;
+        }
+
         function updateOverlay() {
             overlay.innerHTML = '';
             const ratio = canvas.clientWidth / canvas.width;
@@ -219,60 +370,38 @@
             });
         }
 
-        // Fixed: Extract sequential outer contour points using Moore-Neighbor Tracing (scaled to 4px spacing)
         function getContour(bPoints) {
             if (bPoints.length === 0) return [];
             const pointSet = new Set(bPoints.map(p => `${p[0]},${p[1]}`));
-            
-            // Find topmost, leftmost point
             let start = bPoints[0];
             for (let p of bPoints) {
-                if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) {
-                    start = p;
-                }
+                if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) start = p;
             }
-            
-            // 8 Directions scaled by 4 to match the downsampled flood-fill grid
             const dirs = [[0,-4], [4,-4], [4,0], [4,4], [0,4], [-4,4], [-4,0], [-4,-4]];
             let current = start;
-            let prevDir = 6; // Start searching from West
+            let prevDir = 6; 
             const path = [];
-            
             for (let iter = 0; iter < bPoints.length * 2; iter++) {
                 path.push(current);
-                let found = false;
-                let nextPixel = null;
-                
+                let found = false, nextPixel = null;
                 for (let i = 0; i < 8; i++) {
                     let testDir = (prevDir + i) % 8;
                     let dx = dirs[testDir][0], dy = dirs[testDir][1];
                     let nx = current[0] + dx, ny = current[1] + dy;
-                    
                     if (pointSet.has(`${nx},${ny}`)) {
                         nextPixel = [nx, ny];
-                        
-                        // Last scanned background/white pixel direction relative to nextPixel
                         let lastWhiteIdx = (testDir - 1 + 8) % 8;
-                        let lwx = current[0] + dirs[lastWhiteIdx][0];
-                        let lwy = current[1] + dirs[lastWhiteIdx][1];
-                        
-                        let wx = lwx - nx, wy = lwy - ny;
+                        let lastW = current[0] + dirs[lastWhiteIdx][0];
+                        let lastWY = current[1] + dirs[lastWhiteIdx][1];
+                        let wx = lastW - nx, wy = lastWY - ny;
                         for (let dIdx = 0; dIdx < 8; dIdx++) {
-                            if (dirs[dIdx][0] === wx && dirs[dIdx][1] === wy) {
-                                prevDir = dIdx;
-                                break;
-                            }
+                            if (dirs[dIdx][0] === wx && dirs[dIdx][1] === wy) { prevDir = dIdx; break; }
                         }
-                        found = true;
-                        break;
+                        found = true; break;
                     }
                 }
-                
                 if (!found) break;
-                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) {
-                    path.push(start);
-                    break;
-                }
+                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) { path.push(start); break; }
                 current = nextPixel;
             }
             return path;
@@ -285,22 +414,17 @@
             mappedBlobs.forEach(b => {
                 const path = new opentype.Path();
                 const scale = 800 / Math.max(b.h, 1);
-                
-                // Fixed: Use outer-boundary contour points instead of raw interior pixels
                 const contourPoints = getContour(b.points);
                 if (contourPoints.length === 0) return;
 
                 const step = (traceMode === 'raw') ? 2 : 10;
                 path.moveTo((contourPoints[0][0] - b.x) * scale, 800 - ((contourPoints[0][1] - b.y) * scale));
-                
                 for (let i = 0; i < contourPoints.length; i += step) {
                     let px = (contourPoints[i][0] - b.x) * scale, py = 800 - ((contourPoints[i][1] - b.y) * scale);
                     if (traceMode === 'smooth') {
                         let next = contourPoints[i+step] || contourPoints[i];
                         path.quadraticCurveTo(px, py, (next[0]-b.x)*scale, 800-((next[1]-b.y)*scale));
-                    } else {
-                        path.lineTo(px, py);
-                    }
+                    } else path.lineTo(px, py);
                 }
                 path.close();
                 glyphs.push(new opentype.Glyph({ name: b.char, unicode: b.char.charCodeAt(0), advanceWidth: (b.w * scale) + 120, path }));
