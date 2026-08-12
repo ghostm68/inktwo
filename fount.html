@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CITADELLE // RESERVE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Almendra:ital,wght@0,400;0,700;1,400&family=VT323&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --bg-card: rgba(5, 5, 5, 0.85);
+            --primary: #ff0000;
+            --secondary: #550000;
+            --text-main: #ffffff;
+            --scanline-tint: rgba(255, 0, 0, 0.06);
+            --font-tech: 'Share Tech Mono', monospace;
+            --font-seg: 'Almendra', serif;
+            --font-mono: 'VT323', monospace;
+            --selection-bg: #ff0033;  
+            --selection-color: #0a0a0a; 
+        }
+
+        body.classic-mode {
+            --bg-color: #0000AA;
+            --bg-card: rgba(0, 0, 170, 0.85);
+            --primary: #FFFF00;
+            --secondary: #00FFFF;
+            --text-main: #FFFFFF;
+            --scanline-tint: rgba(255, 255, 255, 0.1);
+            --selection-bg: #FFFF00;  
+            --selection-color: #0000AA; 
+        }
+
+        body { background: var(--bg-color); color: var(--text-main); font-family: var(--font-tech); }
+        ::selection { background: var(--selection-bg); color: var(--selection-color); }
+        
+        .panel { background: var(--bg-card); border: 1px solid var(--secondary); border-radius: 4px; position: relative; overflow: hidden; }
+        .panel::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--primary); opacity: 0.3; }
+
+        /* Scanline Effect */
+        .scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 50;
+            background: linear-gradient(var(--scanline-tint) 50%, rgba(0,0,0,0.1) 50%);
+            background-size: 100% 4px;
+        }
+
+        .canvas-container { background: #000; border: 1px solid var(--secondary); position: relative; }
+        .detection-box { position: absolute; border: 1px solid var(--primary); opacity: 0.4; }
+        .detection-box.mapped { border-color: var(--primary); opacity: 1; background: rgba(255,0,0,0.1); }
+        .detection-box.selected { box-shadow: 0 0 10px var(--primary); border-width: 2px; z-index: 10; }
+        
+        #specimen { font-family: var(--font-seg); }
+        input[type="range"] { accent-color: var(--primary); }
+        button { text-transform: uppercase; letter-spacing: 0.1em; transition: all 0.2s; }
+        button:hover { box-shadow: 0 0 15px var(--primary); }
+    </style>
+</head>
+<body class="p-6">
+    <div class="scanlines"></div>
+
+    <div class="max-w-[1400px] mx-auto space-y-6 relative z-10">
+        <!-- TOP NAV -->
+        <header class="flex justify-between items-end border-b border-red-900 pb-4">
+            <div>
+                <h1 class="text-4xl font-bold italic tracking-tighter text-[var(--primary)]" style="font-family: var(--font-seg);">Citadelle Reserve</h1>
+                <p class="text-[10px] opacity-60">STATION_ID: WRITER_STUDIO_V3 // STATUS: OPERATIONAL</p>
+            </div>
+            <div class="flex gap-4 items-center">
+                <button onclick="document.body.classList.toggle('classic-mode')" class="text-[10px] border border-[var(--secondary)] px-3 py-1 rounded">Toggle Classic Mode</button>
+                <button onclick="downloadFont()" id="dlBtn" disabled class="bg-[var(--primary)] text-[var(--bg-color)] px-6 py-2 font-bold rounded shadow-lg opacity-30">Export .TTF</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-12 gap-6">
+            <!-- SIDEBAR -->
+            <aside class="col-span-3 space-y-6">
+                <div class="panel p-6">
+                    <h2 class="text-xs font-bold mb-4 flex justify-between"><span>SENSORS</span><span id="threshVal">140</span></h2>
+                    <input type="range" id="threshold" min="30" max="220" value="140" class="w-full h-1 bg-red-900 rounded-lg appearance-none cursor-pointer mb-6">
+                    
+                    <h2 class="text-xs font-bold mb-4">ALGORITHM</h2>
+                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                        <button id="modeRaw" onclick="setMode('raw')" class="border border-[var(--primary)] p-2 rounded text-[var(--primary)]">RAW_GRIT</button>
+                        <button id="modeSmooth" onclick="setMode('smooth')" class="border border-[var(--secondary)] p-2 rounded opacity-50">REFINE</button>
+                    </div>
+                </div>
+
+                <div class="panel p-6">
+                    <h2 class="text-xs font-bold mb-2">TARGET_DNA</h2>
+                    <textarea id="charset" class="w-full bg-black border border-red-900 p-2 text-xs font-mono h-24 text-red-500 outline-none">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?</textarea>
+                </div>
+
+                <div class="panel p-6">
+                    <input type="file" id="imageInput" class="hidden" accept="image/*">
+                    <button onclick="document.getElementById('imageInput').click()" class="w-full py-4 border border-[var(--primary)] text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all">
+                        Load Manuscript
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MAIN WORKSPACE -->
+            <main class="col-span-9 space-y-6">
+                <div id="wrapper" class="panel canvas-container min-h-[500px] flex items-center justify-center">
+                    <div id="dropZone" class="font-mono text-xs opacity-40 italic">Waiting for writer input...</div>
+                    <canvas id="mainCanvas" class="hidden"></canvas>
+                    <div id="overlay" class="absolute inset-0"></div>
+                </div>
+
+                <div class="panel p-8">
+                    <h2 class="text-[10px] font-bold text-[var(--primary)] mb-4">SPECIMEN_OUTPUT</h2>
+                    <div id="specimen" contenteditable="true" class="outline-none text-6xl leading-tight min-h-[120px]">
+                        The quick brown fox jumps over the lazy dog.
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const specimen = document.getElementById('specimen');
+        let blobs = [];
+        let traceMode = 'raw';
+        let font = null;
+
+        document.getElementById('imageInput').onchange = e => handleImage(e.target.files[0]);
+        document.getElementById('threshold').oninput = e => {
+            document.getElementById('threshVal').innerText = e.target.value;
+            analyze();
+        };
+
+        function setMode(m) {
+            traceMode = m;
+            document.getElementById('modeRaw').classList.toggle('border-[var(--primary)]', m==='raw');
+            document.getElementById('modeSmooth').classList.toggle('border-[var(--primary)]', m==='smooth');
+            analyze();
+        }
+
+        function handleImage(file) {
+            const reader = new FileReader();
+            reader.onload = event => {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width; canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    canvas.classList.remove('hidden');
+                    document.getElementById('dropZone').classList.add('hidden');
+                    analyze(); // Automatically runs detection on upload
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function analyze() {
+            const threshold = parseInt(document.getElementById('threshold').value);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const visited = new Uint8Array(canvas.width * canvas.height);
+            blobs = [];
+
+            // Fast scan
+            for (let y = 0; y < canvas.height; y += 4) {
+                for (let x = 0; x < canvas.width; x += 4) {
+                    const i = y * canvas.width + x;
+                    if (((data[i*4]+data[i*4+1]+data[i*4+2])/3) < threshold && !visited[i]) {
+                        const blob = floodFill(x, y, visited, data, canvas.width, canvas.height, threshold);
+                        if (blob.w > 4) blobs.push(blob);
+                    }
+                }
+            }
+            
+            // AUTOMATIC MAPPING Logic:
+            // Sort by rows, then map characters in order.
+            const rowH = canvas.height / 10;
+            blobs.sort((a, b) => (Math.abs(a.y - b.y) < rowH) ? a.x - b.x : a.y - b.y);
+            
+            const chars = document.getElementById('charset').value.split('');
+            blobs.forEach((b, i) => { b.char = chars[i] || null; });
+
+            updateOverlay();
+            generateFont();
+        }
+
+        function floodFill(startX, startY, visited, data, w, h, thresh) {
+            let minX = startX, maxX = startX, minY = startY, maxY = startY, stack = [[startX, startY]], pixels = [];
+            while(stack.length) {
+                let [cx, cy] = stack.pop();
+                let idx = cy * w + cx;
+                if (visited[idx]) continue;
+                visited[idx] = 1; pixels.push([cx, cy]);
+                minX = Math.min(minX, cx); maxX = Math.max(maxX, cx);
+                minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
+                [[0,4],[4,0],[0,-4],[-4,0]].forEach(([dx, dy]) => {
+                    let nx = cx+dx, ny = cy+dy;
+                    if(nx>=0 && nx<w && ny>=0 && ny<h) {
+                        let ni = ny * w + nx;
+                        if(((data[ni*4]+data[ni*4+1]+data[ni*4+2])/3) < thresh && !visited[ni]) stack.push([nx, ny]);
+                    }
+                });
+            }
+            return { x: minX, y: minY, w: maxX-minX, h: maxY-minY, points: pixels };
+        }
+
+        function updateOverlay() {
+            overlay.innerHTML = '';
+            const ratio = canvas.clientWidth / canvas.width;
+            blobs.forEach((b) => {
+                const box = document.createElement('div');
+                box.className = `detection-box ${b.char ? 'mapped' : ''}`;
+                box.style.left = (b.x * ratio) + 'px'; box.style.top = (b.y * ratio) + 'px';
+                box.style.width = (b.w * ratio) + 'px'; box.style.height = (b.h * ratio) + 'px';
+                if (b.char) box.innerHTML = `<span class="text-[9px] font-bold bg-[var(--primary)] text-[var(--bg-color)] px-0.5 absolute -top-3 left-0">${b.char}</span>`;
+                overlay.appendChild(box);
+            });
+        }
+
+        function generateFont() {
+            const mappedBlobs = blobs.filter(b => b.char);
+            const glyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: new opentype.Path() })];
+            
+            mappedBlobs.forEach(b => {
+                const path = new opentype.Path();
+                const scale = 800 / Math.max(b.h, 1);
+                const step = (traceMode === 'raw') ? 2 : 10;
+                path.moveTo((b.points[0][0] - b.x) * scale, 800 - ((b.points[0][1] - b.y) * scale));
+                for (let i = 0; i < b.points.length; i += step) {
+                    let px = (b.points[i][0] - b.x) * scale, py = 800 - ((b.points[i][1] - b.y) * scale);
+                    if (traceMode === 'smooth') {
+                        let next = b.points[i+step] || b.points[i];
+                        path.quadraticCurveTo(px, py, (next[0]-b.x)*scale, 800-((next[1]-b.y)*scale));
+                    } else path.lineTo(px, py);
+                }
+                path.close();
+                glyphs.push(new opentype.Glyph({ name: b.char, unicode: b.char.charCodeAt(0), advanceWidth: (b.w * scale) + 120, path }));
+            });
+
+            font = new opentype.Font({ familyName: 'Citadelle', styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200, glyphs });
+            const fontUrl = URL.createObjectURL(new Blob([font.toArrayBuffer()], {type:'font/ttf'}));
+            const fontFace = new FontFace('ArchiveFont', `url(${fontUrl})`);
+            fontFace.load().then(f => { document.fonts.add(f); specimen.style.fontFamily = 'ArchiveFont'; document.getElementById('dlBtn').disabled = false; document.getElementById('dlBtn').style.opacity = 1; });
+        }
+
+        function downloadFont() { if(font) font.download('Archive_Export.ttf'); }
+    </script>
+</body>
+</html>
