@@ -102,8 +102,11 @@
             <main class="col-span-9 space-y-6">
                 <div id="wrapper" class="panel canvas-container min-h-[500px] flex items-center justify-center">
                     <div id="dropZone" class="font-mono text-xs opacity-40 italic">Waiting for writer input...</div>
-                    <canvas id="mainCanvas" class="hidden"></canvas>
-                    <div id="overlay" class="absolute inset-0"></div>
+                    <!-- Fixed: Contained the canvas and absolute overlay inside a relative wrapper -->
+                    <div class="relative">
+                        <canvas id="mainCanvas" class="hidden"></canvas>
+                        <div id="overlay" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
                 </div>
 
                 <div class="panel p-8">
@@ -216,6 +219,65 @@
             });
         }
 
+        // Fixed: Extract sequential outer contour points using Moore-Neighbor Tracing (scaled to 4px spacing)
+        function getContour(bPoints) {
+            if (bPoints.length === 0) return [];
+            const pointSet = new Set(bPoints.map(p => `${p[0]},${p[1]}`));
+            
+            // Find topmost, leftmost point
+            let start = bPoints[0];
+            for (let p of bPoints) {
+                if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) {
+                    start = p;
+                }
+            }
+            
+            // 8 Directions scaled by 4 to match the downsampled flood-fill grid
+            const dirs = [[0,-4], [4,-4], [4,0], [4,4], [0,4], [-4,4], [-4,0], [-4,-4]];
+            let current = start;
+            let prevDir = 6; // Start searching from West
+            const path = [];
+            
+            for (let iter = 0; iter < bPoints.length * 2; iter++) {
+                path.push(current);
+                let found = false;
+                let nextPixel = null;
+                
+                for (let i = 0; i < 8; i++) {
+                    let testDir = (prevDir + i) % 8;
+                    let dx = dirs[testDir][0], dy = dirs[testDir][1];
+                    let nx = current[0] + dx, ny = current[1] + dy;
+                    
+                    if (pointSet.has(`${nx},${ny}`)) {
+                        nextPixel = [nx, ny];
+                        
+                        // Last scanned background/white pixel direction relative to nextPixel
+                        let lastWhiteIdx = (testDir - 1 + 8) % 8;
+                        let lwx = current[0] + dirs[lastWhiteIdx][0];
+                        let lwy = current[1] + dirs[lastWhiteIdx][1];
+                        
+                        let wx = lwx - nx, wy = lwy - ny;
+                        for (let dIdx = 0; dIdx < 8; dIdx++) {
+                            if (dirs[dIdx][0] === wx && dirs[dIdx][1] === wy) {
+                                prevDir = dIdx;
+                                break;
+                            }
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found) break;
+                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) {
+                    path.push(start);
+                    break;
+                }
+                current = nextPixel;
+            }
+            return path;
+        }
+
         function generateFont() {
             const mappedBlobs = blobs.filter(b => b.char);
             const glyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: new opentype.Path() })];
@@ -223,14 +285,22 @@
             mappedBlobs.forEach(b => {
                 const path = new opentype.Path();
                 const scale = 800 / Math.max(b.h, 1);
+                
+                // Fixed: Use outer-boundary contour points instead of raw interior pixels
+                const contourPoints = getContour(b.points);
+                if (contourPoints.length === 0) return;
+
                 const step = (traceMode === 'raw') ? 2 : 10;
-                path.moveTo((b.points[0][0] - b.x) * scale, 800 - ((b.points[0][1] - b.y) * scale));
-                for (let i = 0; i < b.points.length; i += step) {
-                    let px = (b.points[i][0] - b.x) * scale, py = 800 - ((b.points[i][1] - b.y) * scale);
+                path.moveTo((contourPoints[0][0] - b.x) * scale, 800 - ((contourPoints[0][1] - b.y) * scale));
+                
+                for (let i = 0; i < contourPoints.length; i += step) {
+                    let px = (contourPoints[i][0] - b.x) * scale, py = 800 - ((contourPoints[i][1] - b.y) * scale);
                     if (traceMode === 'smooth') {
-                        let next = b.points[i+step] || b.points[i];
+                        let next = contourPoints[i+step] || contourPoints[i];
                         path.quadraticCurveTo(px, py, (next[0]-b.x)*scale, 800-((next[1]-b.y)*scale));
-                    } else path.lineTo(px, py);
+                    } else {
+                        path.lineTo(px, py);
+                    }
                 }
                 path.close();
                 glyphs.push(new opentype.Glyph({ name: b.char, unicode: b.char.charCodeAt(0), advanceWidth: (b.w * scale) + 120, path }));
