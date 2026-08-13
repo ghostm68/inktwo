@@ -1,0 +1,267 @@
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inkrealm // Nexus TTS</title>
+    
+    <!-- Transformers.js: The 'Simple Path' to Hugging Face models -->
+    <script type="module">
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+        window.pipeline = pipeline;
+    </script>
+
+    <style>
+        :root {
+            --red: #ff0000;
+            --white: #ffffff;
+            --black: #000000;
+            --dark: #0a0a0a;
+            --gray: #444444;
+        }
+
+        body {
+            background-color: var(--black);
+            color: var(--white);
+            font-family: "Georgia", serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #nexus-module {
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            border: 1px solid #111;
+            background: var(--dark);
+            box-shadow: 0 10px 30px rgba(0,0,0,1);
+        }
+
+        h1 {
+            color: var(--red);
+            font-size: 0.9rem;
+            letter-spacing: 0.5rem;
+            text-transform: uppercase;
+            border-bottom: 1px dashed var(--red);
+            padding-bottom: 15px;
+            margin: 0 0 30px 0;
+            font-weight: normal;
+        }
+
+        .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            color: var(--gray);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: transparent;
+            border: 1px solid #222;
+            color: var(--white);
+            font-family: "Georgia", serif;
+            padding: 15px;
+            box-sizing: border-box;
+            outline: none;
+            margin-bottom: 20px;
+            transition: 0.3s;
+            resize: none;
+        }
+
+        textarea:focus { border-color: var(--red); }
+
+        /* Progress Bar Styling */
+        #download-container {
+            margin-bottom: 25px;
+            display: none;
+        }
+        #progress-wrapper {
+            width: 100%;
+            height: 2px;
+            background: #111;
+            position: relative;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--red);
+            width: 0%;
+            transition: width 0.2s;
+        }
+        #progress-text {
+            font-size: 0.6rem;
+            color: var(--red);
+            text-transform: uppercase;
+            margin-top: 8px;
+            display: block;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid #333;
+            color: #888;
+            padding: 12px;
+            font-family: "Georgia";
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.3s;
+        }
+        .action-btn:hover { border-color: var(--red); color: var(--red); }
+
+        button#execute {
+            width: 100%;
+            padding: 18px;
+            background: transparent;
+            border: 1px solid var(--white);
+            color: var(--white);
+            text-transform: uppercase;
+            letter-spacing: 0.3rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button#execute:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
+        button#execute:disabled { border-color: #222; color: #222; cursor: wait; }
+
+        .fine-print {
+            margin-top: 35px;
+            font-size: 0.68rem;
+            color: #333;
+            line-height: 1.6;
+            text-align: justify;
+            border-top: 1px solid #111;
+            padding-top: 20px;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 25px;
+            filter: invert(1) hue-rotate(180deg) brightness(1.4);
+        }
+
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="nexus-module">
+    <h1>Nexus // TTS Protocol</h1>
+    
+    <!-- Progress Indicator -->
+    <div id="download-container">
+        <span class="label">Downloading Neural Weights</span>
+        <div id="progress-wrapper">
+            <div id="progress-fill"></div>
+        </div>
+        <span id="progress-text">Initializing...</span>
+    </div>
+
+    <span class="label">Input Text</span>
+    <textarea id="text-input" placeholder="Type to manifest..."></textarea>
+
+    <div class="controls">
+        <select class="action-btn" id="voice-select">
+            <option value="marius">Marius (Id_01)</option>
+            <option value="cosette">Cosette (Id_02)</option>
+            <option value="javert">Javert (Id_03)</option>
+            <option value="alba">Alba (Id_04)</option>
+        </select>
+        <label class="action-btn">
+            <input type="file" id="clone-file" accept=".wav,.mp3,.ogg,.flac">
+            Clone Audio
+        </label>
+    </div>
+
+    <button id="execute" disabled>Awaiting Model</button>
+    
+    <audio id="audio-player" controls style="display:none;"></audio>
+
+    <div class="fine-print">
+        PROCESS DETAIL: Neural waveform synthesis is performed client-side using the ONNX Runtime (v1.20.0). Upon initialization, a 150MB model bundle is retrieved and stored in the browser's persistent cache. CLONE REQUIREMENTS: The Nexus accepts high-bitrate reference files in .WAV, .MP3, .OGG, or .FLAC formats. For optimal cloning, 5–10 seconds of clear, monophonic speech is recommended. No data is transmitted to external servers.
+    </div>
+</div>
+
+<script type="module">
+    let tts;
+    const btn = document.getElementById('execute');
+    const progContainer = document.getElementById('download-container');
+    const progFill = document.getElementById('progress-fill');
+    const progText = document.getElementById('progress-text');
+
+    async function init() {
+        progContainer.style.display = 'block';
+        
+        try {
+            tts = await window.pipeline('text-to-speech', 'onnx-community/pocket-tts-v0.1', {
+                progress_callback: (data) => {
+                    if (data.status === 'progress') {
+                        const p = Math.round(data.progress);
+                        progFill.style.width = p + '%';
+                        progText.innerText = `Caching Neural weights: ${p}%`;
+                    }
+                    if (data.status === 'ready') {
+                        progContainer.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerText = "Execute Synthesis";
+                    }
+                },
+                device: 'webgpu',
+            });
+        } catch (e) {
+            // Fallback for non-WebGPU browsers
+            tts = await window.pipeline('text-to-speech', 'onnx-community/pocket-tts-v0.1');
+        }
+    }
+
+    btn.onclick = async () => {
+        const text = document.getElementById('text-input').value;
+        if (!text) return;
+
+        btn.disabled = true;
+        btn.innerText = "Synthesizing...";
+
+        try {
+            const output = await tts(text);
+            const blob = new Blob([output.audio], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            
+            const player = document.getElementById('audio-player');
+            player.src = url;
+            player.style.display = "block";
+            player.play();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Execute Synthesis";
+        }
+    };
+
+    init();
+</script>
+</body>
+</html>
+
+   
+
+
+ 
+
+
+
+			
+	
