@@ -64,6 +64,7 @@
             justify-content: center;
             white-space: pre-wrap;
             word-break: break-word;
+            overflow: hidden;
         }
     </style>
 <base target="_blank">
@@ -262,6 +263,13 @@
             analyze();
         };
 
+        // Update live preview when user types in specimen
+        specimen.addEventListener('input', () => {
+            if (sourceMode === 'synthesis') {
+                runSynthesis();
+            }
+        });
+
         function setMode(m) {
             traceMode = m;
             document.getElementById('modeRaw').classList.toggle('border-[var(--primary)]', m==='raw');
@@ -290,6 +298,9 @@
                 canvas.classList.remove('hidden');
                 specimenPreview.classList.remove('hidden');
                 previewLabel.innerText = 'LIVE BLEND PREVIEW';
+                // Hide specimen text completely, show preview layers instead
+                specimen.style.opacity = '0';
+                specimen.style.pointerEvents = 'none';
                 runSynthesis();
             } else {
                 canvas.classList.add('hidden');
@@ -297,6 +308,9 @@
                 specimenPreview.classList.add('hidden');
                 previewLabel.innerText = 'GENERATED FONT';
                 overlay.innerHTML = '';
+                // Restore specimen visibility
+                specimen.style.opacity = '1';
+                specimen.style.pointerEvents = 'auto';
                 specimen.style.fontFamily = 'var(--font-seg)';
             }
         }
@@ -330,7 +344,7 @@
             const fontSize = parseInt(document.getElementById('fontSize').value);
 
             // Update live CSS preview
-            updateLivePreview(chars, fontA, fontB, ratio, blendMode);
+            updateLivePreview(fontA, fontB, ratio, blendMode, fontSize);
 
             // Define grid structure on our canvas
             const colCount = 10;
@@ -376,11 +390,16 @@
             analyze();
         }
 
-        function updateLivePreview(chars, fontA, fontB, ratio, blendMode) {
+        function updateLivePreview(fontA, fontB, ratio, blendMode, fontSize) {
             const text = specimen.innerText || 'The quick brown fox jumps over the lazy dog.';
 
             previewLayerA.innerText = text;
             previewLayerB.innerText = text;
+
+            // Scale preview text size based on slider (map 40-140 to 2rem-6rem)
+            const previewSize = Math.max(1.5, fontSize / 20);
+            previewLayerA.style.fontSize = previewSize + 'rem';
+            previewLayerB.style.fontSize = previewSize + 'rem';
 
             previewLayerA.style.fontFamily = fontA.replace(/'/g, "").split(',')[0];
             previewLayerA.style.color = 'var(--text-main)';
@@ -390,9 +409,6 @@
             previewLayerB.style.color = 'var(--primary)';
             previewLayerB.style.opacity = ratio;
             previewLayerB.style.mixBlendMode = blendMode === 'source-over' ? 'normal' : blendMode;
-
-            // Hide the generated font specimen while showing live preview
-            specimen.style.opacity = '0.15';
         }
 
         function analyze() {
