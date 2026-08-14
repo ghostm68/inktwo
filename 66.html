@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus // TTS Protocol</title>
     <script type="module">
-        import { pipeline, env, Tensor } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+        import { pipeline, env, Tensor } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
         window.transformers = { pipeline, env, Tensor };
         env.allowLocalModels = false;
         env.allowRemoteModels = true;
@@ -89,7 +89,6 @@
         .status-dot.error { background: var(--accent); }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        /* Progress */
         .progress-container { margin-bottom: 25px; display: none; }
         .progress-container.active { display: block; }
         .progress-label {
@@ -123,7 +122,6 @@
             letter-spacing: 1px;
         }
 
-        /* Init section */
         .init-section {
             border: 1px solid var(--border);
             padding: 30px;
@@ -152,7 +150,6 @@
         .init-section .model-list li:last-child { border-bottom: none; }
         .init-section .model-list .size { float: right; color: var(--text-secondary); }
 
-        /* Controls */
         .control-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -166,7 +163,7 @@
             letter-spacing: 0.15rem;
             color: var(--text-muted);
         }
-        select, .file-label {
+        select {
             background: transparent;
             border: 1px solid var(--border);
             color: var(--text-secondary);
@@ -181,40 +178,30 @@
             -webkit-appearance: none;
             border-radius: 0;
         }
-        select:hover, .file-label:hover { border-color: var(--accent); color: var(--accent); }
+        select:hover { border-color: var(--accent); color: var(--accent); }
         select:focus { border-color: var(--accent); color: var(--text); }
-        select:disabled, .file-label.disabled { border-color: var(--surface-raised); color: var(--text-muted); cursor: not-allowed; }
+        select:disabled { border-color: var(--surface-raised); color: var(--text-muted); cursor: not-allowed; }
         select option { background: var(--surface); color: var(--text); }
-        .file-label { display: flex; align-items: center; justify-content: center; text-align: center; }
-        .file-label.has-file { border-color: var(--accent); color: var(--accent); }
-        input[type="file"] { display: none; }
-        .clone-meta {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-            margin-bottom: 15px;
-        }
-        .clone-name {
-            font-family: var(--font-mono);
-            font-size: 0.6rem;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.05rem;
-        }
-        .clone-clear {
-            font-family: var(--font-mono);
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            background: none;
+
+        .clone-notice {
             border: 1px solid var(--border);
-            padding: 2px 8px;
-            cursor: pointer;
-            transition: 0.3s;
-            text-transform: uppercase;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
         }
-        .clone-clear:hover { border-color: var(--accent); color: var(--accent); }
-        .clone-clear.hidden { display: none; }
+        .clone-notice.active { display: block; }
+        .clone-notice p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.6;
+        }
+        .clone-notice code {
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            font-size: 0.6rem;
+        }
+
         .char-counter {
             font-family: var(--font-mono);
             font-size: 0.65rem;
@@ -373,13 +360,16 @@
         }
     </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
 <div class="nexus-card">
     <div class="header">
         <h1>Nexus // TTS Protocol</h1>
-        <p class="subtitle">Transformers.js<span class="divider">//</span>Client-side neural synthesis</p>
+        <p class="subtitle">
+            Neural Synthesis<span class="divider">/</span>Client-Side<span class="divider">/</span>16 kHz Mono
+        </p>
     </div>
 
     <div class="status-badge" id="status-badge">
@@ -387,17 +377,6 @@
         <span id="status-badge-text">Models not loaded</span>
     </div>
 
-    <!-- INIT SECTION: user must click to load -->
-    <div class="init-section" id="init-section">
-        <p>Neural models are required before synthesis can begin. This will download approximately <strong>300 MB</strong> of model weights from the HF Hub and cache them locally.</p>
-        <ul class="model-list">
-            <li>Speaker Encoder <span class="size">~1 GB</span></li>
-            <li>SpeechT5 TTS <span class="size">~300 MB</span></li>
-        </ul>
-        <button class="execute-btn" id="init-btn">Initialize Nexus</button>
-    </div>
-
-    <!-- PROGRESS: shown during load -->
     <div class="progress-container" id="progress-container">
         <span class="progress-label">Model Download</span>
         <div class="progress-track">
@@ -406,81 +385,79 @@
         <span class="progress-text" id="progress-text">Waiting...</span>
     </div>
 
-    <!-- MAIN UI: hidden until loaded -->
-    <div id="main-ui" style="display:none;">
+    <div class="init-section" id="init-section">
+        <p>Neural models are required before synthesis can begin. This will download approximately <strong>300 MB</strong> of model weights from the HF Hub and cache them locally.</p>
+        <ul class="model-list">
+            <li>SpeechT5 TTS + HiFi-GAN Vocoder<span class="size">~300 MB</span></li>
+        </ul>
+        <button class="execute-btn" id="init-btn">Initialize Models</button>
+    </div>
+
+    <div id="main-ui" style="display: none;">
         <div class="control-row">
             <div class="control-group">
                 <span class="control-label">Voice Profile</span>
-                <select id="voice-select" disabled>
+                <select id="voice-select">
                     <option value="default">Default Identity</option>
                     <option value="alt">Alt Identity</option>
-                    <option value="clone" disabled>-- Cloned --</option>
                 </select>
-            </div>
-            <div class="control-group">
-                <span class="control-label">Clone Audio</span>
-                <label class="file-label" id="clone-label">
-                    <input type="file" id="clone-file" accept="audio/*">
-                    <span id="clone-status">Upload Sample</span>
-                </label>
             </div>
         </div>
 
-        <div class="clone-meta" id="clone-meta" style="display:none;">
-            <span class="clone-name" id="clone-name"></span>
-            <button class="clone-clear hidden" id="clear-clone">Clear</button>
+        <div class="clone-notice" id="clone-notice">
+            <p>
+                <strong>Voice cloning is not available in-browser.</strong><br><br>
+                SpeechT5 requires 512-dimensional x-vector speaker embeddings produced by a dedicated speaker-recognition model (e.g., SpeechBrain ECAPA-TDNN). These cannot be extracted client-side from an audio file using general-purpose wav2vec2 feature extractors — the embedding spaces are incompatible.<br><br>
+                True cloning requires server-side x-vector extraction or a pre-computed embedding. The two presets above are official CMU ARCTIC x-vectors cached from the HF Hub.
+            </p>
+        </div>
+
+        <div class="samples-label">Sample phrases</div>
+        <div class="samples">
+            <button class="sample-chip" data-text="The quick brown fox jumps over the lazy dog.">Fox</button>
+            <button class="sample-chip" data-text="In the beginning, the universe was created. This has made a lot of people very angry and been widely regarded as a bad move.">Hitchhiker</button>
+            <button class="sample-chip" data-text="It was the best of times, it was the worst of times.">Dickens</button>
+            <button class="sample-chip" data-text="To be, or not to be, that is the question.">Hamlet</button>
         </div>
 
         <div class="char-counter" id="char-counter">0 / 200</div>
-
-        <div class="samples-label">Try:</div>
-        <div class="samples" id="samples">
-            <button class="sample-chip" data-text="The quick brown fox jumps over the lazy dog.">Quick brown fox</button>
-            <button class="sample-chip" data-text="Hello world. This is a test of neural speech synthesis.">Hello world</button>
-            <button class="sample-chip" data-text="In the depths of the digital realm, voices emerge from silence.">Digital realm</button>
-            <button class="sample-chip" data-text="All human beings are born free and equal in dignity and rights.">Universal</button>
-        </div>
-
-        <textarea id="text-input" maxlength="200" placeholder="Enter text to synthesize (max 200 characters)..." disabled></textarea>
-
-        <div class="audio-section" id="audio-section">
-            <div class="audio-header">
-                <h3 class="audio-title">Audio Output</h3>
-                <a class="audio-download" id="audio-download" href="#" download="nexus-tts.wav">Download WAV</a>
-            </div>
-            <audio id="audio-player" controls></audio>
-        </div>
+        <textarea id="text-input" placeholder="Enter text to synthesize..." maxlength="200"></textarea>
 
         <div class="metrics">
             <div class="metric">
                 <div class="metric-label">Time to First Byte</div>
-                <div class="metric-value" id="ttfb">--</div>
-                <div class="metric-note">seconds</div>
+                <div class="metric-value" id="ttfb">—</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Real-Time Factor</div>
-                <div class="metric-value" id="rtf">--</div>
-                <div class="metric-note">&gt;1x = faster than real-time</div>
+                <div class="metric-value" id="rtf">—</div>
+                <div class="metric-note">Higher is faster</div>
             </div>
         </div>
 
         <button class="execute-btn" id="execute" disabled>Execute Synthesis</button>
+
+        <div class="audio-section" id="audio-section">
+            <div class="audio-header">
+                <span class="audio-title">Synthesized Output</span>
+                <a class="audio-download" id="audio-download" download="nexus-tts.wav">Download WAV</a>
+            </div>
+            <audio id="audio-player" controls></audio>
+        </div>
     </div>
 
     <div class="error-msg" id="error-msg"></div>
 
     <div class="fine-print">
-        <strong>PROCESS:</strong> Client-side synthesis using <code>microsoft/speecht5_tts</code> (16kHz) via Transformers.js.
-        <strong>CLONING:</strong> Uploaded audio is decoded via the Web Audio API and analyzed through a Wav2Vec2 speaker encoder to produce a 512-dimensional identity vector.
-        <strong>PRESETS:</strong> Pre-computed speaker embeddings fetched from the HF Hub, for the contained, alternate app please visit https://inky9.lovable.app/
-        All operations remain within the local browser nexus. No data is transmitted to external servers.
+        <p><strong>PROCESS:</strong> Client-side synthesis using <code>Xenova/speecht5_tts</code> (16 kHz) via <code>@huggingface/transformers</code>. Speaker embeddings are pre-computed 512-dim x-vectors from the CMU ARCTIC dataset.</p>
+        <p><strong>VOICE CLONING:</strong> Not supported client-side. Requires a dedicated x-vector/ECAPA speaker encoder whose output distribution matches SpeechT5's training data. General-purpose wav2vec2 feature extractors produce incompatible embeddings.</p>
+        <p>All operations remain within the local browser nexus. No data is transmitted to external servers.</p>
     </div>
 </div>
 
-<script type="module">
+<script>
     const State = {
         tts: null,
-        encoder: null,
         embedding: null,
         isReady: false,
         audioBlob: null,
@@ -557,7 +534,6 @@
         $('execute').disabled = enabled;
         $('text-input').disabled = enabled;
         $('voice-select').disabled = enabled;
-        $('clone-file').disabled = enabled;
         document.querySelectorAll('.sample-chip').forEach(btn => btn.disabled = enabled);
     }
 
@@ -568,60 +544,6 @@
         return new window.transformers.Tensor('float32', new Float32Array(buffer), [1, 512]);
     }
 
-    async function extractEmbeddingFromAudio(audioData) {
-        const output = await State.encoder(audioData);
-        let data, shape;
-
-        if (output instanceof window.transformers.Tensor) {
-            data = output.data;
-            shape = output.dims || output.shape;
-        } else if (output.data) {
-            data = output.data;
-            shape = output.dims || output.shape;
-        } else if (Array.isArray(output) && output.length > 0) {
-            const first = output[0];
-            if (Array.isArray(first) && Array.isArray(first[0])) {
-                const seqLen = first.length;
-                const hidden = first[0].length;
-                data = new Float32Array(seqLen * hidden);
-                for (let s = 0; s < seqLen; s++) {
-                    for (let h = 0; h < hidden; h++) {
-                        data[s * hidden + h] = first[s][h];
-                    }
-                }
-                shape = [1, seqLen, hidden];
-            } else {
-                data = new Float32Array(first);
-                shape = [1, first.length];
-            }
-        } else {
-            data = new Float32Array(output);
-            shape = [1, output.length];
-        }
-
-        let embedding;
-        if (shape && shape.length === 3) {
-            const [, seqLen, hiddenSize] = shape;
-            embedding = new Float32Array(hiddenSize);
-            for (let h = 0; h < hiddenSize; h++) {
-                let sum = 0;
-                for (let s = 0; s < seqLen; s++) {
-                    sum += data[s * hiddenSize + h];
-                }
-                embedding[h] = sum / seqLen;
-            }
-        } else {
-            embedding = data;
-        }
-
-        const final = new Float32Array(512);
-        const srcLen = embedding.length;
-        for (let i = 0; i < 512; i++) {
-            final[i] = embedding[i % srcLen];
-        }
-        return new window.transformers.Tensor('float32', final, [1, 512]);
-    }
-
     // --- INIT: user clicks to start loading ---
     $('init-btn').addEventListener('click', async () => {
         $('init-section').style.display = 'none';
@@ -629,15 +551,13 @@
         setStatus('Downloading neural weights...', 'loading');
 
         try {
-            setProgress('Loading speaker encoder...', 5);
-            State.encoder = await window.transformers.pipeline('feature-extraction', 'Xenova/wav2vec2-large-xlsr-53-fbank');
-
-            setProgress('Loading synthesis engine...', 20);
+            setProgress('Loading synthesis engine...', 10);
             State.tts = await window.transformers.pipeline('text-to-speech', 'Xenova/speecht5_tts', {
+                dtype: 'fp32',
                 progress_callback: (data) => {
                     if (data.status === 'progress') {
                         const p = Math.round(data.progress);
-                        setProgress(`Caching neural weights: ${p}%`, 20 + p * 0.7);
+                        setProgress(`Caching neural weights: ${p}%`, 10 + p * 0.8);
                     }
                 }
             });
@@ -665,13 +585,15 @@
     // --- Voice select ---
     $('voice-select').addEventListener('change', async (e) => {
         const val = e.target.value;
-        if (val === 'clone') return;
+        const notice = $('clone-notice');
 
-        State.embedding = null;
-        $('clone-meta').style.display = 'none';
-        $('clone-label').classList.remove('has-file');
-        $('clone-status').textContent = 'Upload Sample';
-        $('clear-clone').classList.add('hidden');
+        if (val === 'clone') {
+            notice.classList.add('active');
+            State.embedding = null;
+            return;
+        }
+
+        notice.classList.remove('active');
 
         if (Presets[val]) {
             setLoadingUI(true);
@@ -686,71 +608,10 @@
         }
     });
 
-    // --- Clone upload ---
-    $('clone-file').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setLoadingUI(true);
-        $('clone-label').classList.add('has-file');
-        $('clone-status').textContent = 'Analyzing...';
-        $('progress-container').classList.add('active');
-        setProgress('Decoding audio...', 10);
-
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const audioCtx = new AudioContext({ sampleRate: 16000 });
-            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-            const audioData = audioBuffer.getChannelData(0);
-
-            setProgress('Extracting identity vector...', 50);
-            State.embedding = await extractEmbeddingFromAudio(audioData);
-
-            $('voice-select').value = 'clone';
-            $('clone-status').textContent = 'Identity Captured';
-            $('clone-name').textContent = file.name;
-            $('clone-meta').style.display = 'flex';
-            $('clear-clone').classList.remove('hidden');
-            setProgress('Ready', 100);
-
-        } catch (err) {
-            console.error('Clone error:', err);
-            showError('Voice analysis failed. Use WAV, MP3, or OGG (5-10s of clear speech).');
-            $('clone-status').textContent = 'Upload Sample';
-            $('clone-label').classList.remove('has-file');
-        } finally {
-            setLoadingUI(false);
-            $('execute').textContent = 'Execute Synthesis';
-            setTimeout(() => { $('progress-container').classList.remove('active'); }, 800);
-        }
-    });
-
-    // --- Clear clone ---
-    $('clear-clone').addEventListener('click', () => {
-        State.embedding = null;
-        $('clone-file').value = '';
-        $('clone-meta').style.display = 'none';
-        $('clone-label').classList.remove('has-file');
-        $('clone-status').textContent = 'Upload Sample';
-        $('clear-clone').classList.add('hidden');
-        $('voice-select').value = 'default';
-        setLoadingUI(true);
-        loadPresetEmbedding(Presets.default.url).then(emb => {
-            State.embedding = emb;
-            setLoadingUI(false);
-        });
-    });
-
     // --- Sample chips ---
     document.querySelectorAll('.sample-chip').forEach(btn => {
         btn.addEventListener('click', () => {
-            const text = btn.dataset.text;
-            const input = $('text-input');
-            if (input.value.length + text.length <= State.maxChars) {
-                input.value = text;
-            } else {
-                input.value = text.substring(0, State.maxChars);
-            }
+            $('text-input').value = btn.dataset.text;
             updateCharCount();
         });
     });
@@ -762,7 +623,7 @@
     $('execute').addEventListener('click', async () => {
         const text = $('text-input').value.trim();
         if (!text) { showError('Enter text to synthesize.'); return; }
-        if (!State.embedding) { showError('Select a voice profile or upload a clone sample.'); return; }
+        if (!State.embedding) { showError('Select a voice profile.'); return; }
 
         const startTime = performance.now();
         setLoadingUI(true);
@@ -805,5 +666,6 @@
         }
     });
 </script>
+
 </body>
 </html>
