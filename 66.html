@@ -2,208 +2,808 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Inkrealm // Nexus TTS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus // TTS Protocol</title>
     <script type="module">
-        // Using Transformers.js v2 for stability with SpeechT5
         import { pipeline, env, Tensor } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
         window.transformers = { pipeline, env, Tensor };
-        // Disable local models to ensure it pulls from the hub
         env.allowLocalModels = false;
+        env.allowRemoteModels = true;
     </script>
-
     <style>
-        :root { --red: #ff0000; --white: #ffffff; --black: #000000; --dark: #070707; --gray: #333; }
-        body { background: var(--black); color: var(--white); font-family: "Georgia", serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        #nexus-module { width: 100%; max-width: 500px; padding: 40px; border: 1px solid #111; background: var(--dark); position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        h1 { color: var(--red); font-size: 0.9rem; letter-spacing: 0.5rem; text-transform: uppercase; border-bottom: 1px dashed var(--red); padding-bottom: 15px; margin: 0 0 30px 0; font-weight: normal; }
-        .label-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15rem; color: #666; }
-        textarea { width: 100%; height: 100px; background: transparent; border: 1px solid #222; color: var(--white); font-family: "Georgia", serif; padding: 15px; box-sizing: border-box; outline: none; margin-bottom: 20px; resize: none; transition: 0.3s; }
-        textarea:focus { border-color: var(--red); }
-        #progress-container { margin-bottom: 25px; display: none; }
-        #progress-bar { width: 100%; height: 2px; background: #111; }
-        #progress-fill { height: 100%; background: var(--red); width: 0%; transition: width 0.2s; }
-        #status-text { font-size: 0.6rem; color: var(--red); text-transform: uppercase; margin-top: 8px; display: block; letter-spacing: 1px; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
-        .ui-element { background: transparent; border: 1px solid #222; color: #888; padding: 12px; font-family: "Georgia"; font-size: 0.75rem; cursor: pointer; transition: 0.3s; outline: none; }
-        .ui-element:hover { border-color: var(--red); color: var(--red); }
-        button#execute { width: 100%; padding: 18px; background: transparent; border: 1px solid var(--white); color: var(--white); text-transform: uppercase; letter-spacing: 0.3rem; cursor: pointer; transition: 0.3s; }
-        button#execute:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
-        button#execute:disabled { border-color: #222; color: #222; cursor: wait; }
-        .fine-print { margin-top: 35px; font-size: 0.65rem; color: #222; line-height: 1.6; text-align: justify; border-top: 1px solid #111; padding-top: 20px; }
-        audio { width: 100%; margin-top: 25px; filter: invert(1) hue-rotate(180deg) brightness(1.5); }
-        #error-msg { color: var(--red); font-size: 0.65rem; text-transform: uppercase; text-align: center; margin-top: 10px; display: none; }
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --surface-raised: #111111;
+            --border: #1a1a1a;
+            --border-hover: #333333;
+            --text: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #444444;
+            --accent: #ff0000;
+            --accent-dim: #330000;
+            --font-serif: "Georgia", "Times New Roman", serif;
+            --font-mono: "Courier New", "Lucida Console", monospace;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-serif);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            line-height: 1.5;
+        }
+        .nexus-card {
+            width: 100%;
+            max-width: 540px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 40px;
+            position: relative;
+        }
+        .header { margin-bottom: 30px; }
+        h1 {
+            color: var(--accent);
+            font-size: 0.85rem;
+            letter-spacing: 0.45rem;
+            text-transform: uppercase;
+            border-bottom: 1px dashed var(--accent);
+            padding-bottom: 14px;
+            margin: 0 0 10px 0;
+            font-weight: normal;
+        }
+        .subtitle {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            margin: 0;
+        }
+        .subtitle .divider { margin: 0 8px; color: var(--border-hover); }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1rem;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            margin-bottom: 25px;
+        }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.loading { background: var(--accent); animation: pulse 1.5s ease-in-out infinite; }
+        .status-dot.ready { background: #00aa00; }
+        .status-dot.error { background: var(--accent); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Progress */
+        .progress-container { margin-bottom: 25px; display: none; }
+        .progress-container.active { display: block; }
+        .progress-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .progress-track {
+            width: 100%;
+            height: 2px;
+            background: var(--surface-raised);
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-top: 8px;
+            display: block;
+            letter-spacing: 1px;
+        }
+
+        /* Init section */
+        .init-section {
+            border: 1px solid var(--border);
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .init-section p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin: 0 0 20px 0;
+            line-height: 1.6;
+        }
+        .init-section .model-list {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-align: left;
+            margin: 0 0 20px 0;
+            padding: 0;
+            list-style: none;
+        }
+        .init-section .model-list li {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--surface-raised);
+        }
+        .init-section .model-list li:last-child { border-bottom: none; }
+        .init-section .model-list .size { float: right; color: var(--text-secondary); }
+
+        /* Controls */
+        .control-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        .control-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            color: var(--text-muted);
+        }
+        select, .file-label {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 12px;
+            font-family: var(--font-serif);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.3s;
+            outline: none;
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 0;
+        }
+        select:hover, .file-label:hover { border-color: var(--accent); color: var(--accent); }
+        select:focus { border-color: var(--accent); color: var(--text); }
+        select:disabled, .file-label.disabled { border-color: var(--surface-raised); color: var(--text-muted); cursor: not-allowed; }
+        select option { background: var(--surface); color: var(--text); }
+        .file-label { display: flex; align-items: center; justify-content: center; text-align: center; }
+        .file-label.has-file { border-color: var(--accent); color: var(--accent); }
         input[type="file"] { display: none; }
+        .clone-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            margin-bottom: 15px;
+        }
+        .clone-name {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05rem;
+        }
+        .clone-clear {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            background: none;
+            border: 1px solid var(--border);
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .clone-clear:hover { border-color: var(--accent); color: var(--accent); }
+        .clone-clear.hidden { display: none; }
+        .char-counter {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: right;
+            margin-bottom: 12px;
+        }
+        .char-counter.warn { color: var(--accent); }
+        .samples-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        .sample-chip {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            font-family: var(--font-serif);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .sample-chip:hover { border-color: var(--accent); color: var(--accent); }
+        .sample-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--font-serif);
+            font-size: 0.85rem;
+            padding: 15px;
+            outline: none;
+            resize: none;
+            transition: 0.3s;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        textarea:focus { border-color: var(--accent); }
+        textarea::placeholder { color: var(--text-muted); }
+        textarea:disabled { border-color: var(--surface-raised); color: var(--text-muted); }
+        .audio-section {
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .audio-section.active { display: block; }
+        .audio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .audio-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .audio-download {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            background: none;
+            border: 1px solid var(--border);
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05rem;
+            text-decoration: none;
+        }
+        .audio-download:hover { border-color: var(--accent); color: var(--accent); }
+        audio { width: 100%; filter: invert(1) hue-rotate(180deg) brightness(1.4); }
+        .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .metric { border: 1px solid var(--border); padding: 12px; }
+        .metric-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .metric-note { font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; }
+        .execute-btn {
+            width: 100%;
+            padding: 18px;
+            background: transparent;
+            border: 1px solid var(--text);
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.3rem;
+            font-family: var(--font-serif);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .execute-btn:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+        }
+        .execute-btn:disabled {
+            border-color: var(--surface-raised);
+            color: var(--text-muted);
+            cursor: wait;
+        }
+        .error-msg {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid var(--accent-dim);
+            display: none;
+            letter-spacing: 0.05rem;
+            line-height: 1.4;
+        }
+        .fine-print {
+            margin-top: 35px;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            text-align: justify;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+        .fine-print code {
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            background: var(--surface-raised);
+            padding: 1px 4px;
+            font-size: 0.6rem;
+        }
+        @media (max-width: 600px) {
+            body { padding: 20px 15px; }
+            .nexus-card { padding: 25px; }
+            .control-row { grid-template-columns: 1fr; }
+            h1 { font-size: 0.75rem; letter-spacing: 0.3rem; }
+        }
     </style>
+<base target="_blank">
 </head>
 <body>
 
-<div id="nexus-module">
-    <h1>Nexus // TTS Protocol</h1>
-    
-    <div id="progress-container">
-        <div id="progress-bar"><div id="progress-fill"></div></div>
-        <span id="status-text">Synchronizing...</span>
+<div class="nexus-card">
+    <div class="header">
+        <h1>Nexus // TTS Protocol</h1>
+        <p class="subtitle">Transformers.js<span class="divider">//</span>Client-side neural synthesis</p>
     </div>
 
-    <div class="label-group">
-        <span class="label">Input Manifest</span>
-    </div>
-    <textarea id="text-input" maxlength="200" placeholder="Enter text (max 200 chars)..."></textarea>
-
-    <div class="controls">
-        <select class="ui-element" id="voice-select">
-            <option value="https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin">Default Identity</option>
-            <option value="https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings_2.bin">Alt Identity</option>
-        </select>
-        <label class="ui-element" id="clone-label">
-            <input type="file" id="clone-file" accept="audio/*">
-            <span id="clone-status">Clone Audio</span>
-        </label>
+    <div class="status-badge" id="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-badge-text">Models not loaded</span>
     </div>
 
-    <button id="execute" disabled>Loading Nexus...</button>
-    <div id="error-msg">Protocol Breach: Synthesis Failed</div>
-    <audio id="audio-player" controls style="display:none;"></audio>
+    <!-- INIT SECTION: user must click to load -->
+    <div class="init-section" id="init-section">
+        <p>Neural models are required before synthesis can begin. This will download approximately <strong>300 MB</strong> of model weights from the HF Hub and cache them locally.</p>
+        <ul class="model-list">
+            <li>Speaker Encoder <span class="size">~1 GB</span></li>
+            <li>SpeechT5 TTS <span class="size">~300 MB</span></li>
+        </ul>
+        <button class="execute-btn" id="init-btn">Initialize Nexus</button>
+    </div>
+
+    <!-- PROGRESS: shown during load -->
+    <div class="progress-container" id="progress-container">
+        <span class="progress-label">Model Download</span>
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-text" id="progress-text">Waiting...</span>
+    </div>
+
+    <!-- MAIN UI: hidden until loaded -->
+    <div id="main-ui" style="display:none;">
+        <div class="control-row">
+            <div class="control-group">
+                <span class="control-label">Voice Profile</span>
+                <select id="voice-select" disabled>
+                    <option value="default">Default Identity</option>
+                    <option value="alt">Alt Identity</option>
+                    <option value="clone" disabled>-- Cloned --</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <span class="control-label">Clone Audio</span>
+                <label class="file-label" id="clone-label">
+                    <input type="file" id="clone-file" accept="audio/*">
+                    <span id="clone-status">Upload Sample</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="clone-meta" id="clone-meta" style="display:none;">
+            <span class="clone-name" id="clone-name"></span>
+            <button class="clone-clear hidden" id="clear-clone">Clear</button>
+        </div>
+
+        <div class="char-counter" id="char-counter">0 / 200</div>
+
+        <div class="samples-label">Try:</div>
+        <div class="samples" id="samples">
+            <button class="sample-chip" data-text="The quick brown fox jumps over the lazy dog.">Quick brown fox</button>
+            <button class="sample-chip" data-text="Hello world. This is a test of neural speech synthesis.">Hello world</button>
+            <button class="sample-chip" data-text="In the depths of the digital realm, voices emerge from silence.">Digital realm</button>
+            <button class="sample-chip" data-text="All human beings are born free and equal in dignity and rights.">Universal</button>
+        </div>
+
+        <textarea id="text-input" maxlength="200" placeholder="Enter text to synthesize (max 200 characters)..." disabled></textarea>
+
+        <div class="audio-section" id="audio-section">
+            <div class="audio-header">
+                <h3 class="audio-title">Audio Output</h3>
+                <a class="audio-download" id="audio-download" href="#" download="nexus-tts.wav">Download WAV</a>
+            </div>
+            <audio id="audio-player" controls></audio>
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">Time to First Byte</div>
+                <div class="metric-value" id="ttfb">--</div>
+                <div class="metric-note">seconds</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Real-Time Factor</div>
+                <div class="metric-value" id="rtf">--</div>
+                <div class="metric-note">&gt;1x = faster than real-time</div>
+            </div>
+        </div>
+
+        <button class="execute-btn" id="execute" disabled>Execute Synthesis</button>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
 
     <div class="fine-print">
-        PROCESS: Client-side synthesis using SpeechT5 (16kHz). CLONING: Audio is analyzed via an encoder model to generate a 512-dim identity vector. All operations remain within the local nexus.
+        <strong>PROCESS:</strong> Client-side synthesis using <code>microsoft/speecht5_tts</code> (16kHz) via Transformers.js.
+        <strong>CLONING:</strong> Uploaded audio is decoded via the Web Audio API and analyzed through a Wav2Vec2 speaker encoder to produce a 512-dimensional identity vector.
+        <strong>PRESETS:</strong> Pre-computed speaker embeddings fetched from the HF Hub, for the contained, alternate app please visit https://inky9.lovable.app/
+        All operations remain within the local browser nexus. No data is transmitted to external servers.
     </div>
 </div>
 
 <script type="module">
-    let ttsPipeline, encoderPipeline;
-    let uploadedEmbedding = null;
+    const State = {
+        tts: null,
+        encoder: null,
+        embedding: null,
+        isReady: false,
+        audioBlob: null,
+        maxChars: 200
+    };
 
-    const btn = document.getElementById('execute');
-    const statusText = document.getElementById('status-text');
-    const progFill = document.getElementById('progress-fill');
-    const progContainer = document.getElementById('download-container');
-    const errorMsg = document.getElementById('error-msg');
-    const player = document.getElementById('audio-player');
+    const Presets = {
+        default: {
+            label: 'Default Identity',
+            url: 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings.bin'
+        },
+        alt: {
+            label: 'Alt Identity',
+            url: 'https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/speaker_embeddings_2.bin'
+        }
+    };
 
-    // 1. WAV Encoder (Crucial for playback)
-    function encodeWAV(samples) {
+    const $ = id => document.getElementById(id);
+
+    function encodeWAV(samples, sampleRate = 16000) {
         const buffer = new ArrayBuffer(44 + samples.length * 2);
         const view = new DataView(buffer);
-        const writeString = (o, s) => { for (let i=0; i<s.length; i++) view.setUint8(o+i, s.charCodeAt(i)); };
-        writeString(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true);
-        writeString(8, 'WAVE'); writeString(12, 'fmt '); view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-        view.setUint32(24, 16000, true); view.setUint32(28, 32000, true);
-        view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-        writeString(36, 'data'); view.setUint32(40, samples.length * 2, true);
-        for (let i=0, o=44; i<samples.length; i++, o+=2) {
+        const writeString = (offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, 'data');
+        view.setUint32(40, samples.length * 2, true);
+        for (let i = 0, offset = 44; i < samples.length; i++, offset += 2) {
             let s = Math.max(-1, Math.min(1, samples[i]));
-            view.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
         }
         return new Blob([buffer], { type: 'audio/wav' });
     }
 
-    // 2. Initialize Models
-    async function init() {
-        document.getElementById('progress-container').style.display = 'block';
+    function setStatus(text, type = 'loading') {
+        $('status-badge-text').textContent = text;
+        const dot = $('status-dot');
+        dot.className = 'status-dot ' + type;
+    }
+
+    function setProgress(text, percent) {
+        $('progress-text').textContent = text;
+        $('progress-fill').style.width = percent + '%';
+    }
+
+    function showError(msg) {
+        const el = $('error-msg');
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 6000);
+    }
+
+    function updateCharCount() {
+        const len = $('text-input').value.length;
+        const el = $('char-counter');
+        el.textContent = len + ' / ' + State.maxChars;
+        el.classList.toggle('warn', len > State.maxChars * 0.9);
+    }
+
+    function setLoadingUI(enabled) {
+        $('execute').disabled = enabled;
+        $('text-input').disabled = enabled;
+        $('voice-select').disabled = enabled;
+        $('clone-file').disabled = enabled;
+        document.querySelectorAll('.sample-chip').forEach(btn => btn.disabled = enabled);
+    }
+
+    async function loadPresetEmbedding(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch voice profile');
+        const buffer = await response.arrayBuffer();
+        return new window.transformers.Tensor('float32', new Float32Array(buffer), [1, 512]);
+    }
+
+    async function extractEmbeddingFromAudio(audioData) {
+        const output = await State.encoder(audioData);
+        let data, shape;
+
+        if (output instanceof window.transformers.Tensor) {
+            data = output.data;
+            shape = output.dims || output.shape;
+        } else if (output.data) {
+            data = output.data;
+            shape = output.dims || output.shape;
+        } else if (Array.isArray(output) && output.length > 0) {
+            const first = output[0];
+            if (Array.isArray(first) && Array.isArray(first[0])) {
+                const seqLen = first.length;
+                const hidden = first[0].length;
+                data = new Float32Array(seqLen * hidden);
+                for (let s = 0; s < seqLen; s++) {
+                    for (let h = 0; h < hidden; h++) {
+                        data[s * hidden + h] = first[s][h];
+                    }
+                }
+                shape = [1, seqLen, hidden];
+            } else {
+                data = new Float32Array(first);
+                shape = [1, first.length];
+            }
+        } else {
+            data = new Float32Array(output);
+            shape = [1, output.length];
+        }
+
+        let embedding;
+        if (shape && shape.length === 3) {
+            const [, seqLen, hiddenSize] = shape;
+            embedding = new Float32Array(hiddenSize);
+            for (let h = 0; h < hiddenSize; h++) {
+                let sum = 0;
+                for (let s = 0; s < seqLen; s++) {
+                    sum += data[s * hiddenSize + h];
+                }
+                embedding[h] = sum / seqLen;
+            }
+        } else {
+            embedding = data;
+        }
+
+        const final = new Float32Array(512);
+        const srcLen = embedding.length;
+        for (let i = 0; i < 512; i++) {
+            final[i] = embedding[i % srcLen];
+        }
+        return new window.transformers.Tensor('float32', final, [1, 512]);
+    }
+
+    // --- INIT: user clicks to start loading ---
+    $('init-btn').addEventListener('click', async () => {
+        $('init-section').style.display = 'none';
+        $('progress-container').classList.add('active');
+        setStatus('Downloading neural weights...', 'loading');
+
         try {
-            // Loading SpeechT5 and the Speaker Encoder for cloning
-            statusText.innerText = "Loading Identity Encoder...";
-            encoderPipeline = await window.transformers.pipeline('feature-extraction', 'Xenova/wav2vec2-large-xlsr-53-fbank');
-            
-            statusText.innerText = "Loading Synthesis Engine...";
-            ttsPipeline = await window.transformers.pipeline('text-to-speech', 'Xenova/speecht5_tts', {
-                progress_callback: (d) => {
-                    if (d.status === 'progress') {
-                        progFill.style.width = d.progress + '%';
-                        statusText.innerText = `Caching Neural Weights: ${Math.round(d.progress)}%`;
+            setProgress('Loading speaker encoder...', 5);
+            State.encoder = await window.transformers.pipeline('feature-extraction', 'Xenova/wav2vec2-large-xlsr-53-fbank');
+
+            setProgress('Loading synthesis engine...', 20);
+            State.tts = await window.transformers.pipeline('text-to-speech', 'Xenova/speecht5_tts', {
+                progress_callback: (data) => {
+                    if (data.status === 'progress') {
+                        const p = Math.round(data.progress);
+                        setProgress(`Caching neural weights: ${p}%`, 20 + p * 0.7);
                     }
                 }
             });
 
-            document.getElementById('progress-container').style.display = 'none';
-            btn.disabled = false;
-            btn.innerText = "Execute Synthesis";
-        } catch (e) {
-            statusText.innerText = "Load Failed.";
-            console.error(e);
-        }
-    }
+            setProgress('Loading default voice...', 95);
+            State.embedding = await loadPresetEmbedding(Presets.default.url);
 
-    // 3. Handle Cloning (Generating the 512-dim vector)
-    document.getElementById('clone-file').onchange = async (e) => {
+            $('progress-container').classList.remove('active');
+            $('main-ui').style.display = 'block';
+            setStatus('Ready', 'ready');
+            State.isReady = true;
+            setLoadingUI(false);
+            $('execute').textContent = 'Execute Synthesis';
+
+        } catch (err) {
+            console.error('Init error:', err);
+            setProgress('Initialization failed', 0);
+            setStatus('Load Failed', 'error');
+            showError('Model initialization failed. Check console for details.');
+            $('init-section').style.display = 'block';
+            $('init-btn').textContent = 'Retry Initialization';
+        }
+    });
+
+    // --- Voice select ---
+    $('voice-select').addEventListener('change', async (e) => {
+        const val = e.target.value;
+        if (val === 'clone') return;
+
+        State.embedding = null;
+        $('clone-meta').style.display = 'none';
+        $('clone-label').classList.remove('has-file');
+        $('clone-status').textContent = 'Upload Sample';
+        $('clear-clone').classList.add('hidden');
+
+        if (Presets[val]) {
+            setLoadingUI(true);
+            $('execute').textContent = 'Loading Voice...';
+            try {
+                State.embedding = await loadPresetEmbedding(Presets[val].url);
+            } catch (err) {
+                showError('Failed to load voice profile');
+            }
+            setLoadingUI(false);
+            $('execute').textContent = 'Execute Synthesis';
+        }
+    });
+
+    // --- Clone upload ---
+    $('clone-file').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
-        btn.disabled = true;
-        statusText.innerText = "Extracting Identity...";
-        document.getElementById('progress-container').style.display = 'block';
-        
-        try {
-            const ctx = new AudioContext({ sampleRate: 16000 });
-            const decoded = await ctx.decodeAudioData(await file.arrayBuffer());
-            const audioData = decoded.getChannelData(0);
 
-            // Generate the embedding vector from audio
-            const output = await encoderPipeline(audioData);
-            // SpeechT5 needs exactly [1, 512], so we average the output
-            uploadedEmbedding = output.mean(1); 
-            
-            document.getElementById('clone-status').innerText = "Identity Captured";
-            statusText.innerText = "Ready to Clone";
+        setLoadingUI(true);
+        $('clone-label').classList.add('has-file');
+        $('clone-status').textContent = 'Analyzing...';
+        $('progress-container').classList.add('active');
+        setProgress('Decoding audio...', 10);
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioCtx = new AudioContext({ sampleRate: 16000 });
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            const audioData = audioBuffer.getChannelData(0);
+
+            setProgress('Extracting identity vector...', 50);
+            State.embedding = await extractEmbeddingFromAudio(audioData);
+
+            $('voice-select').value = 'clone';
+            $('clone-status').textContent = 'Identity Captured';
+            $('clone-name').textContent = file.name;
+            $('clone-meta').style.display = 'flex';
+            $('clear-clone').classList.remove('hidden');
+            setProgress('Ready', 100);
+
         } catch (err) {
-            alert("Analysis Failed: Use a clean 16kHz WAV if possible.");
+            console.error('Clone error:', err);
+            showError('Voice analysis failed. Use WAV, MP3, or OGG (5-10s of clear speech).');
+            $('clone-status').textContent = 'Upload Sample';
+            $('clone-label').classList.remove('has-file');
         } finally {
-            btn.disabled = false;
-            setTimeout(() => document.getElementById('progress-container').style.display = 'none', 1000);
+            setLoadingUI(false);
+            $('execute').textContent = 'Execute Synthesis';
+            setTimeout(() => { $('progress-container').classList.remove('active'); }, 800);
         }
-    };
+    });
 
-    // 4. Synthesis Execution
-    btn.onclick = async () => {
-        const text = document.getElementById('text-input').value;
-        if (!text) return;
+    // --- Clear clone ---
+    $('clear-clone').addEventListener('click', () => {
+        State.embedding = null;
+        $('clone-file').value = '';
+        $('clone-meta').style.display = 'none';
+        $('clone-label').classList.remove('has-file');
+        $('clone-status').textContent = 'Upload Sample';
+        $('clear-clone').classList.add('hidden');
+        $('voice-select').value = 'default';
+        setLoadingUI(true);
+        loadPresetEmbedding(Presets.default.url).then(emb => {
+            State.embedding = emb;
+            setLoadingUI(false);
+        });
+    });
 
-        btn.disabled = true;
-        btn.innerText = "Manifesting...";
-        errorMsg.style.display = 'none';
-
-        try {
-            let speaker_embeddings;
-
-            if (uploadedEmbedding) {
-                speaker_embeddings = uploadedEmbedding;
+    // --- Sample chips ---
+    document.querySelectorAll('.sample-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const text = btn.dataset.text;
+            const input = $('text-input');
+            if (input.value.length + text.length <= State.maxChars) {
+                input.value = text;
             } else {
-                // Fetch the .bin embedding for the selected preset
-                const url = document.getElementById('voice-select').value;
-                const buffer = await (await fetch(url)).arrayBuffer();
-                speaker_embeddings = new window.transformers.Tensor('float32', new Float32Array(buffer), [1, 512]);
+                input.value = text.substring(0, State.maxChars);
             }
+            updateCharCount();
+        });
+    });
 
-            const result = await ttsPipeline(text, { speaker_embeddings });
-            
-            const blob = encodeWAV(result.audio);
-            player.src = URL.createObjectURL(blob);
-            player.style.display = "block";
-            player.play();
-            
-            btn.innerText = "Synthesis Complete";
+    // --- Text input ---
+    $('text-input').addEventListener('input', updateCharCount);
+
+    // --- Synthesize ---
+    $('execute').addEventListener('click', async () => {
+        const text = $('text-input').value.trim();
+        if (!text) { showError('Enter text to synthesize.'); return; }
+        if (!State.embedding) { showError('Select a voice profile or upload a clone sample.'); return; }
+
+        const startTime = performance.now();
+        setLoadingUI(true);
+        $('execute').textContent = 'Synthesizing...';
+        $('error-msg').style.display = 'none';
+        $('audio-section').classList.remove('active');
+
+        try {
+            const result = await State.tts(text, { speaker_embeddings: State.embedding });
+            const elapsed = (performance.now() - startTime) / 1000;
+            const audioDuration = result.audio.length / result.sampling_rate;
+
+            State.audioBlob = encodeWAV(result.audio, result.sampling_rate);
+            const url = URL.createObjectURL(State.audioBlob);
+
+            const player = $('audio-player');
+            player.src = url;
+            player.load();
+
+            $('audio-download').href = url;
+            $('audio-section').classList.add('active');
+
+            $('ttfb').textContent = elapsed.toFixed(2) + 's';
+            $('rtf').textContent = (audioDuration / elapsed).toFixed(2) + 'x';
+
+            player.play().catch(() => {});
+            $('execute').textContent = 'Synthesis Complete';
+
         } catch (err) {
-            errorMsg.style.display = 'block';
-            console.error(err);
+            console.error('Synthesis error:', err);
+            showError('Synthesis failed. Try shorter text or a different voice.');
+            $('execute').textContent = 'Execute Synthesis';
         } finally {
-            setTimeout(() => { btn.disabled = false; btn.innerText = "Execute Synthesis"; }, 2000);
+            setLoadingUI(false);
+            setTimeout(() => {
+                if ($('execute').textContent === 'Synthesis Complete') {
+                    $('execute').textContent = 'Execute Synthesis';
+                }
+            }, 2500);
         }
-    };
-
-    init();
+    });
 </script>
 </body>
 </html>
-
-   
-
-
- 
-
-
-
-			
-	
