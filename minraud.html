@@ -426,7 +426,8 @@
             letter-spacing: 1px;
         }
         
-        #generateButton:hover { \n            background: #ff0033; 
+        #generateButton:hover {
+            background: #ff0033; 
             color: #000;
             box-shadow: 0 0 15px #ff0033;
         }
@@ -575,7 +576,11 @@
         }
 
         .api-status { 
-            margin-top: 0.8rem; \n            font-size: 0.75rem; \n            color: #666; \n            text-align: center; \n        }
+            margin-top: 0.8rem; 
+            font-size: 0.75rem; 
+            color: #666; 
+            text-align: center; 
+        }
         
         .generating { 
             animation: pulse 1.5s infinite; 
@@ -673,7 +678,8 @@
 
         .mini-btn {
             font-size: 0.65rem; 
-            padding: 4px; \n            background: #1a1a1a; 
+            padding: 4px; 
+            background: #1a1a1a; 
             border: 1px solid #333; 
             color: #666;
         }
@@ -872,7 +878,9 @@
 
         option.nova2-opt { color: #ff0033; font-weight: bold; }
 
-        /* ======================================================\n           CUSTOM DROPDOWN (RED THEME)\n        ====================================================== */
+        /* ======================================================
+           CUSTOM DROPDOWN (RED THEME)
+        ====================================================== */
         .custom-select-container {
             position: relative;
             width: 100%;
@@ -1402,7 +1410,7 @@
                 <div class="dictionary-result" id="dictionary-result">
                     <div class="no-results">
                         Ready.<br>
-                        <small>4 lexical sources + thesaurus</small>
+                        <small>6 lexical sources + thesaurus</small>
                     </div>
                 </div>
                 
@@ -1487,8 +1495,10 @@
     }
 
     /* ======================================================
-       APP FUNCTIONALITY
+       APP FUNCTIONALITY & DICTIONARY PIPELINE
     ====================================================== */
+    let dictionaryData = [];
+
     function initAppCore() {
         const apiKeyInput = document.getElementById("novaApiKey");
         const saveKeyBtn = document.getElementById("saveKeyBtn");
@@ -1542,7 +1552,6 @@
             outputDiv.innerHTML = "<span class='generating'>TRANSMITTING VIA CHANNELS... CONNECTING TO AMAZON NOVA GATEWAY...</span>";
 
             try {
-                // Standalone Developer Endpoint Compatibility
                 const response = await fetch("https://api.nova.amazon.com/v1/chat/completions", {
                     method: "POST",
                     headers: {
@@ -1660,27 +1669,149 @@
             });
         });
 
-        // Dictionary Actions
+        // Dictionary Sync Pipeline
+        const dictionaryUrls = [
+            'https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json',
+            'https://gist.githubusercontent.com/BideoWego/60fbd40d5d1f0f1beca11ba95221dd38/raw/58fb4cce910fbf5fa67a2f0f1f619c09d7b1b373/dictionary.json',
+            'https://raw.githubusercontent.com/adambom/dictionary/master/dictionary.json',
+            'https://raw.githubusercontent.com/hathibelagal/German-English-JSON-Dictionary/master/german_english.json', 
+            'https://raw.githubusercontent.com/egorkaru/synonym_dictionary/master/dictionary.json', 
+            'https://raw.githubusercontent.com/letiantian/mini-pinyin/master/pinyin.json' 
+        ];
+
         const dictInput = document.getElementById("dictionary-search");
         const dictResult = document.getElementById("dictionary-result");
+        const statusEl = document.getElementById("dictionary-status");
 
-        document.getElementById("search-button").addEventListener("click", async () => {
-            const word = dictInput.value.trim();
-            if (!word) return;
-            dictResult.innerHTML = "<div class='loading'>Consulting archives...</div>";
+        async function loadAllDictionaries() {
+            if (statusEl) statusEl.textContent = "SYNCING METRIC LEXICON...";
             try {
-                const res = await axios.get(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-                const definitions = res.data[0]?.meanings?.[0]?.definitions?.[0]?.definition || "No definition found.";
-                dictResult.innerHTML = `<div><span class='word-title'>${word}</span><br><p>${definitions}</p></div>`;
+                const promises = dictionaryUrls.map(url => axios.get(url).then(res => res.data));
+                dictionaryData = await Promise.all(promises);
+                if (statusEl) statusEl.textContent = "6 Source Lexicon + Live Thesaurus Online";
             } catch (err) {
-                dictResult.innerHTML = `<div class='no-results'>Archive failure: definition unavailable.</div>`;
+                console.error("Dictionary load failure:", err);
+                if (statusEl) statusEl.textContent = "OFFLINE - SOME REGISTRIES FAILED TO SYNC";
             }
+        }
+
+        // Trigger immediate parallel fetch on load
+        loadAllDictionaries();
+
+        function searchLocalDictionaries(word) {
+            const query = word.trim();
+            if (!query || dictionaryData.length === 0) return;
+
+            let html = "";
+            let found = false;
+
+            // Registry 1: Matthew Reagan (Webster's Flat Key Map)
+            if (dictionaryData[0]) {
+                const key = query.toLowerCase();
+                const def = dictionaryData[0][key];
+                if (def) {
+                    html += `<div style="margin-bottom: 0.8rem;">
+                        <span class="part-of-speech">[ Webster's I ]</span>
+                        <span class="word-title">${key}</span>
+                        <p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;">${def}</p>
+                    </div>`;
+                    found = true;
+                }
+            }
+
+            // Registry 2: Gist
+            if (dictionaryData[1]) {
+                const key = query.toLowerCase();
+                const def = dictionaryData[1][key] || dictionaryData[1][query];
+                if (def) {
+                    html += `<div style="margin-bottom: 0.8rem;">
+                        <span class="part-of-speech">[ Webster's II ]</span>
+                        <span class="word-title">${query}</span>
+                        <p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;">${typeof def === 'string' ? def : JSON.stringify(def)}</p>
+                    </div>`;
+                    found = true;
+                }
+            }
+
+            // Registry 3: Adambom (Webster's Uppercase Map)
+            if (dictionaryData[2]) {
+                const key = query.toUpperCase();
+                const def = dictionaryData[2][key] || dictionaryData[2][query.toLowerCase()];
+                if (def) {
+                    html += `<div style="margin-bottom: 0.8rem;">
+                        <span class="part-of-speech">[ Webster's III ]</span>
+                        <span class="word-title">${key}</span>
+                        <p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;">${def}</p>
+                    </div>`;
+                    found = true;
+                }
+            }
+
+            // Registry 4: German-English Dictionary
+            if (dictionaryData[3]) {
+                const matches = [];
+                for (const [ger, eng] of Object.entries(dictionaryData[3])) {
+                    if (ger.toLowerCase() === query.toLowerCase()) {
+                        matches.push(`German "${ger}" translates to English: "${eng}"`);
+                    } else if (eng.toLowerCase() === query.toLowerCase()) {
+                        matches.push(`English "${eng}" translates to German: "${ger}"`);
+                    }
+                }
+                if (matches.length > 0) {
+                    html += `<div style="margin-bottom: 0.8rem;">
+                        <span class="part-of-speech">[ German-English ]</span>
+                        <span class="word-title">${query}</span>
+                        ${matches.map(m => `<p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;">${m}</p>`).join("")}
+                    </div>`;
+                    found = true;
+                }
+            }
+
+            // Registry 5: Russian Abramov Synonym
+            if (dictionaryData[4]) {
+                const list = dictionaryData[4].wordlist;
+                if (Array.isArray(list)) {
+                    const matches = list.filter(item => item.name && item.name.toLowerCase() === query.toLowerCase());
+                    if (matches.length > 0) {
+                        html += `<div style="margin-bottom: 0.8rem;">
+                            <span class="part-of-speech">[ Abramov Russian ]</span>
+                            <span class="word-title">${query}</span>
+                            ${matches.map(m => `<p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;"><strong>Synonyms:</strong> ${m.definition}</p>`).join("")}
+                        </div>`;
+                        found = true;
+                    }
+                }
+            }
+
+            // Registry 6: Chinese Pinyin Mapping
+            if (dictionaryData[5]) {
+                const def = dictionaryData[5][query] || dictionaryData[5][query.toLowerCase()];
+                if (def) {
+                    html += `<div style="margin-bottom: 0.8rem;">
+                        <span class="part-of-speech">[ Pinyin ]</span>
+                        <span class="word-title">${query}</span>
+                        <p style="margin: 0.2rem 0; font-size: 0.8rem; color: #ccc; line-height:1.4;">Pinyin: ${Array.isArray(def) ? def.join(", ") : def}</p>
+                    </div>`;
+                    found = true;
+                }
+            }
+
+            if (!found) {
+                html = `<div class="no-results">No associations found for "${query}" across loaded registries.</div>`;
+            }
+
+            dictResult.innerHTML = html;
+        }
+
+        // Action binding
+        document.getElementById("search-button").addEventListener("click", () => {
+            searchLocalDictionaries(dictInput.value);
         });
 
         document.getElementById("random-word").addEventListener("click", () => {
-            const list = ["interzone", "virus", "matrix", "sovereign", "neuron", "silence", "machine", "cutup"];
+            const list = ["interzone", "virus", "matrix", "sovereign", "neuron", "silence", "machine", "cutup", "entropy", "junkie", "system"];
             dictInput.value = list[Math.floor(Math.random() * list.length)];
-            document.getElementById("search-button").click();
+            searchLocalDictionaries(dictInput.value);
         });
 
         document.getElementById("clear-dict").addEventListener("click", () => {
