@@ -6,9 +6,18 @@
 <title>Immersive 3D Mechanical Typewriter</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
+/* Load the custom font from jsDelivr proxy to avoid strict CORS/MIME-type blocking on raw GitHub files */
+@font-face {
+  font-family: 'Inkrealm';
+  src: url('https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg-color: #050505;
-  --bg-card: rgba(5, 5, 5, 0.88);
+  --bg-card: rgba(5, 5, 5, 0.9);
   --primary: #ff0000;
   --primary-dim: #aa0000;
   --secondary: #550000;
@@ -18,7 +27,7 @@
   --line-soft: rgba(232, 224, 204, 0.14);
   --font-serif: Georgia, "Times New Roman", serif;
   --font-sans: "Avenir Next", "Segoe UI", sans-serif;
-  --font-mono: "Courier New", "Courier Prime", monospace;
+  --font-mono: 'Inkrealm', "Courier New", "Courier Prime", monospace;
   --selection-bg: #ff0033;
   --selection-color: #0a0a0a;
 }
@@ -75,12 +84,42 @@ body {
   position: absolute; top: 70px; right: 26px;
   border: 1px solid var(--line-soft); background: var(--bg-card);
   backdrop-filter: blur(8px); padding: 12px 16px;
-  font-family: var(--font-mono); font-size: 11px;
+  font-family: "Courier New", monospace; font-size: 11px;
   line-height: 1.7; letter-spacing: 0.08em;
   min-width: 140px; color: var(--text-dim);
+  z-index: 20;
 }
 .stat-row { display: flex; justify-content: space-between; gap: 20px; }
 .stat-value { color: var(--text-main); }
+
+/* Interactive Manuscript Side Panel */
+#manuscript-panel {
+  position: fixed; top: 0; left: -420px; width: 400px; height: 100%;
+  background: var(--bg-card); border-right: 1px solid var(--line);
+  backdrop-filter: blur(12px); z-index: 15;
+  transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex; flex-direction: column; padding: 26px;
+  pointer-events: auto;
+  box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+}
+#manuscript-panel.open {
+  left: 0;
+}
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--line-soft); padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+.panel-header h2 {
+  font-family: var(--font-serif); font-size: 15px; letter-spacing: 0.15em;
+  color: var(--text-main); font-weight: 400; text-transform: uppercase;
+}
+#manuscript-textarea {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text-main); font-family: var(--font-mono);
+  font-size: 16px; line-height: 1.75; resize: none;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
 
 /* Control Desk */
 #control-desk {
@@ -88,7 +127,7 @@ body {
   border: 1px solid var(--line-soft); background: var(--bg-card);
   backdrop-filter: blur(8px); padding: 10px 14px 8px;
   display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center;
-  max-width: min(92vw, 520px);
+  max-width: min(92vw, 550px);
 }
 
 .desk-btn {
@@ -102,7 +141,7 @@ body {
   border-color: var(--text-main); outline: none;
 }
 .desk-btn:disabled { opacity: 0.35; cursor: default; }
-.desk-btn.on { background: rgba(232,224,204,0.14); }
+.desk-btn.on { background: rgba(232, 224, 204, 0.14); }
 .desk-btn.accent { border-color: #b08d57; color: #b08d57; }
 .desk-btn.accent:hover:not(:disabled) { background: rgba(176,141,87,0.12); }
 .desk-btn.danger { border-color: rgba(190,110,80,0.6); color: #be6e50; }
@@ -140,12 +179,6 @@ body {
   #cam-indicator { top: 10px; right: 10px; }
   .hud-title { top: 10px; left: 10px; }
   .hud-title h1 { font-size: 16px; }
-}
-
-/* Hidden Input */
-#hidden-input {
-  position: fixed; opacity: 0; pointer-events: none; z-index: -1;
-  left: -9999px;
 }
 
 /* Recovery Modal */
@@ -195,7 +228,7 @@ body {
   #print-content {
     position: absolute; left: 0; top: 0; width: 100%; display: block !important;
     background: #fffef8 !important; color: #1a1a1a !important;
-    padding: 60px; font-family: "Courier New", "Courier Prime", monospace !important;
+    padding: 60px; font-family: "Inkrealm", monospace !important;
     font-size: 12pt; line-height: 1.6; white-space: pre-wrap;
   }
 }
@@ -206,6 +239,14 @@ body {
 
 <div id="canvas-container"></div>
 <div id="scanlines"></div>
+
+<!-- Side Panel Manuscript view -->
+<div id="manuscript-panel" aria-label="Manuscript Panel">
+  <div class="panel-header">
+    <h2>Manuscript</h2>
+  </div>
+  <textarea id="manuscript-textarea" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Type here or directly on the typewriter..."></textarea>
+</div>
 
 <div id="ui-layer">
   <div class="hud-title">
@@ -234,6 +275,7 @@ body {
     <div class="panel-section">
       <div class="section-label">OPTIONS</div>
       <button class="desk-btn" id="btn-unicode">UNICODE</button>
+      <button class="desk-btn" id="btn-panel">PANEL</button>
     </div>
     <div class="desk-sep"></div>
     <div class="panel-section">
@@ -263,8 +305,6 @@ body {
   </div>
 </div>
 
-<textarea id="hidden-input" autocapitalize="off" autocomplete="off" spellcheck="false" aria-hidden="true"></textarea>
-
 <div id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
   <div id="recovery-box">
     <h2 id="recovery-title">DRAFT RECOVERED</h2>
@@ -281,16 +321,17 @@ body {
 <script>
 /* ============================================================
    IMMERSIVE 3D MECHANICAL TYPEWRITER
-   Citadelle Red theme, single-file, English-only
+   Unified Feature Set
    ============================================================ */
 
 const STATE = {
   text: '', lines: [''], cursorLine: 0, cursorCol: 0,
   history: [], historyIndex: -1,
-  soundOn: true, unicodeMode: false,
+  soundOn: true, unicodeMode: false, panelOpen: false,
   cameraMode: 'WRITE', isTyping: false,
   carriageX: 0, paperOffset: 0,
   maxCharsPerLine: 48, linesPerPage: 24, pageCount: 1,
+  bellRungOnLine: -1,
   audioCtx: null, draftRestored: false
 };
 
@@ -463,11 +504,16 @@ ribbonMesh.position.set(0,9.2,0.15); ribbonMesh.rotation.x = -Math.PI/2;
 carriageGroup.add(ribbonMesh);
 
 /* --- PAPER RENDER --- */
+let isCustomFontLoaded = false;
+
 function renderPaper() {
   const ctx = paperCtx, w = 1024, h = 1400;
   ctx.fillStyle = '#fffef8'; ctx.fillRect(0,0,w,h);
   ctx.fillStyle = '#2a2a2a';
-  ctx.font = 'bold 28px "Courier New", monospace';
+  
+  // Apply loaded Inkrealm font or fall back safely to courier
+  ctx.font = isCustomFontLoaded ? '32px "Inkrealm"' : 'bold 28px "Courier New", monospace';
+  
   const lineH = 42, margin = 60;
   STATE.lines.forEach((line, i) => {
     const pageIdx = Math.floor(i / STATE.linesPerPage);
@@ -483,15 +529,27 @@ function renderPaper() {
   paperTex.needsUpdate = true;
 }
 
+/* --- INKREALM FONT ASYNC LOADER --- */
+const inkrealmFont = new FontFace('Inkrealm', 'url(https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2)');
+inkrealmFont.load().then((loadedFont) => {
+  document.fonts.add(loadedFont);
+  isCustomFontLoaded = true;
+  renderPaper();
+}).catch(err => {
+  console.warn('Fallback to system monospace: Font failed to download.', err);
+});
+
 /* --- AUDIO ENGINE --- */
 function initAudio() {
   if (!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (STATE.audioCtx.state === 'suspended') STATE.audioCtx.resume();
 }
 
 function playClick(intensity=1) {
   if (!STATE.soundOn || !STATE.audioCtx) return;
   const ctx = STATE.audioCtx, now = ctx.currentTime;
-  // Sharp mechanical clack — filtered noise burst
+  
+  // Mechanical sharp clack
   const bufferSize = ctx.sampleRate * 0.015;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -504,7 +562,8 @@ function playClick(intensity=1) {
   noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
   noise.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(ctx.destination);
   noise.start(now); noise.stop(now + 0.015);
-  // Low thud — typebar impact body
+  
+  // Low-freq typing chassis thud
   const thudOsc = ctx.createOscillator();
   thudOsc.type = 'triangle';
   thudOsc.frequency.setValueAtTime(180, now);
@@ -514,18 +573,6 @@ function playClick(intensity=1) {
   thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
   thudOsc.connect(thudGain); thudGain.connect(ctx.destination);
   thudOsc.start(now); thudOsc.stop(now + 0.05);
-  // Metal tick — high harmonic
-  const tickOsc = ctx.createOscillator();
-  tickOsc.type = 'square';
-  tickOsc.frequency.setValueAtTime(3200, now);
-  tickOsc.frequency.exponentialRampToValueAtTime(800, now + 0.008);
-  const tickGain = ctx.createGain();
-  tickGain.gain.setValueAtTime(0.025 * intensity, now);
-  tickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
-  const tickFilter = ctx.createBiquadFilter();
-  tickFilter.type = 'bandpass'; tickFilter.frequency.value = 3000; tickFilter.Q.value = 2;
-  tickOsc.connect(tickFilter); tickFilter.connect(tickGain); tickGain.connect(ctx.destination);
-  tickOsc.start(now); tickOsc.stop(now + 0.01);
 }
 
 function playReturn() {
@@ -540,6 +587,19 @@ function playReturn() {
   gain.gain.linearRampToValueAtTime(0.001, now + 0.22);
   osc.connect(gain); gain.connect(ctx.destination);
   osc.start(now); osc.stop(now + 0.22);
+}
+
+function playBell() {
+  if (!STATE.soundOn || !STATE.audioCtx) return;
+  const ctx = STATE.audioCtx, now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1600, now); // High resonant chime
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.4);
 }
 
 /* --- ANIMATIONS --- */
@@ -580,8 +640,8 @@ function updateAnimations() {
   }
 }
 
-/* --- TYPING LOGIC --- */
-const hiddenInput = document.getElementById('hidden-input');
+/* --- TEXT AREA DIRECT INTEGRATION --- */
+const editor = document.getElementById('manuscript-textarea');
 
 function saveHistory() {
   STATE.history = STATE.history.slice(0, STATE.historyIndex + 1);
@@ -590,12 +650,22 @@ function saveHistory() {
   else STATE.historyIndex++;
 }
 
+function updateEditorValue() {
+  editor.value = STATE.lines.join('\n');
+  let idx = 0;
+  for (let i = 0; i < STATE.cursorLine; i++) {
+    idx += STATE.lines[i].length + 1; // Including return character
+  }
+  idx += STATE.cursorCol;
+  editor.setSelectionRange(idx, idx);
+}
+
 function undo() {
   if (STATE.historyIndex <= 0) return;
   STATE.historyIndex--;
   const snap = STATE.history[STATE.historyIndex];
   STATE.lines = [...snap.lines]; STATE.cursorLine = snap.cursorLine; STATE.cursorCol = snap.cursorCol;
-  recalcStats(); renderPaper(); updateCarriage();
+  updateEditorValue(); recalcStats(); renderPaper(); updateCarriage();
 }
 
 function redo() {
@@ -603,49 +673,7 @@ function redo() {
   STATE.historyIndex++;
   const snap = STATE.history[STATE.historyIndex];
   STATE.lines = [...snap.lines]; STATE.cursorLine = snap.cursorLine; STATE.cursorCol = snap.cursorCol;
-  recalcStats(); renderPaper(); updateCarriage();
-}
-
-function typeChar(ch) {
-  initAudio(); saveHistory();
-  const c = STATE.unicodeMode ? ch : ch.replace(/[^\x00-\x7F]/g, '?');
-  if (c === '\n') { newLine(); return; }
-  const line = STATE.lines[STATE.cursorLine];
-  const before = line.substring(0, STATE.cursorCol);
-  const after = line.substring(STATE.cursorCol);
-  STATE.lines[STATE.cursorLine] = before + c + after;
-  STATE.cursorCol++;
-  animateKey(c === ' ' ? ' ' : c); playClick();
-  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
-}
-
-function newLine() {
-  saveHistory();
-  const line = STATE.lines[STATE.cursorLine];
-  const before = line.substring(0, STATE.cursorCol);
-  const after = line.substring(STATE.cursorCol);
-  STATE.lines[STATE.cursorLine] = before;
-  STATE.cursorLine++; STATE.lines.splice(STATE.cursorLine, 0, after);
-  STATE.cursorCol = 0; playReturn();
-  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
-}
-
-function backspace() {
-  if (STATE.cursorCol > 0) {
-    saveHistory();
-    const line = STATE.lines[STATE.cursorLine];
-    STATE.lines[STATE.cursorLine] = line.substring(0, STATE.cursorCol - 1) + line.substring(STATE.cursorCol);
-    STATE.cursorCol--; animateKey('BACKSPACE'); playClick(0.7);
-  } else if (STATE.cursorLine > 0) {
-    saveHistory();
-    const prev = STATE.lines[STATE.cursorLine - 1];
-    const cur = STATE.lines[STATE.cursorLine];
-    STATE.cursorLine--; STATE.cursorCol = prev.length;
-    STATE.lines[STATE.cursorLine] = prev + cur;
-    STATE.lines.splice(STATE.cursorLine + 1, 1);
-    animateKey('BACKSPACE'); playReturn();
-  }
-  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
+  updateEditorValue(); recalcStats(); renderPaper(); updateCarriage();
 }
 
 function updateCarriage() {
@@ -668,19 +696,121 @@ function recalcStats() {
   document.getElementById('stat-col').textContent = STATE.cursorCol + 1;
 }
 
-/* --- INPUT --- */
-let lastInputValue = '';
-hiddenInput.addEventListener('input', (e) => {
-  const val = hiddenInput.value;
-  if (val.length > lastInputValue.length) {
-    const added = val.slice(lastInputValue.length);
-    for (const ch of added) { if (ch === '\n') newLine(); else typeChar(ch); }
+/* --- DUAL INTERACTION ENGINE (Bidirectional Sync) --- */
+editor.addEventListener('input', (e) => {
+  initAudio();
+  
+  const text = editor.value;
+  const lines = text.split('\n');
+  
+  // Calculate selection details
+  const selStart = editor.selectionStart;
+  const textBefore = text.substring(0, selStart);
+  const parsedLines = textBefore.split('\n');
+  const activeLineIdx = parsedLines.length - 1;
+  const activeColIdx = parsedLines[parsedLines.length - 1].length;
+
+  // Margin limits: Prevent entering characters beyond maximum margin limits
+  if (lines[activeLineIdx] && lines[activeLineIdx].length > STATE.maxCharsPerLine) {
+    // Truncate input back to maximum character limit
+    editor.value = STATE.lines.join('\n');
+    const resetCursor = selStart - 1;
+    editor.setSelectionRange(resetCursor, resetCursor);
+    playClick(0.35); // stuck mechanical key sound feedback
+    return;
   }
-  lastInputValue = val;
+
+  saveHistory();
+  STATE.lines = lines;
+  STATE.cursorLine = activeLineIdx;
+  STATE.cursorCol = activeColIdx;
+
+  // Trigger margin bell warning once as margin is crossed
+  if (STATE.cursorCol >= STATE.maxCharsPerLine - 6 && STATE.bellRungOnLine !== STATE.cursorLine && e.data) {
+    playBell();
+    STATE.bellRungOnLine = STATE.cursorLine;
+  }
+
+  // Process physical mechanical feedback
+  if (e.inputType === 'insertLineBreak') {
+    playReturn();
+  } else if (e.inputType === 'deleteContentBackward') {
+    animateKey('BACKSPACE');
+    playClick(0.7);
+  } else if (e.data) {
+    const ch = e.data[e.data.length - 1];
+    animateKey(ch);
+    playClick();
+  }
+
+  recalcStats();
+  renderPaper();
+  updateCarriage();
+  saveDraft();
 });
 
+// Clean wrap long pasted texts into 48-character blocks
+editor.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+  
+  const wrapParagraph = (str, limit) => {
+    const words = str.split(' ');
+    let wrappedLines = [];
+    let currentLine = '';
+    words.forEach(word => {
+      if ((currentLine + word).length < limit) {
+        currentLine += (currentLine === '' ? '' : ' ') + word;
+      } else {
+        wrappedLines.push(currentLine);
+        currentLine = word;
+      }
+    });
+    if (currentLine) wrappedLines.push(currentLine);
+    return wrappedLines.join('\n');
+  };
+
+  const formattedLines = pastedText.split('\n').map(p => wrapParagraph(p, STATE.maxCharsPerLine)).join('\n');
+  
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const val = editor.value;
+  editor.value = val.substring(0, start) + formattedLines + val.substring(end);
+  
+  // Dispatch synthetic event to rebuild and render assets
+  const syncEvent = new Event('input', { bubbles: true });
+  editor.dispatchEvent(syncEvent);
+  
+  const finalCursorPos = start + formattedLines.length;
+  editor.setSelectionRange(finalCursorPos, finalCursorPos);
+  syncCursorOnly();
+});
+
+// Sync cursor alignment when user clicks or shifts lines with arrows
+function syncCursorOnly() {
+  const text = editor.value;
+  const selStart = editor.selectionStart;
+  const textBefore = text.substring(0, selStart);
+  const parsedLines = textBefore.split('\n');
+  
+  STATE.cursorLine = parsedLines.length - 1;
+  STATE.cursorCol = parsedLines[parsedLines.length - 1].length;
+
+  renderPaper();
+  updateCarriage();
+  recalcStats();
+}
+
+editor.addEventListener('click', syncCursorOnly);
+editor.addEventListener('keyup', (e) => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    syncCursorOnly();
+  }
+});
+
+/* Global keydown fallback listener when clicking on 3D canvas (outside panel) */
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'BUTTON') return;
+  if (document.activeElement === editor || e.target.tagName === 'BUTTON') return;
   if (e.ctrlKey || e.metaKey) {
     if (e.key === 'z') { e.preventDefault(); undo(); }
     if (e.key === 'y') { e.preventDefault(); redo(); }
@@ -688,21 +818,12 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 's') { e.preventDefault(); exportTXT(); }
     return;
   }
-  if (e.key === 'Backspace') { e.preventDefault(); backspace(); }
-  else if (e.key === 'Enter') { e.preventDefault(); newLine(); }
-  else if (e.key === 'Tab') { e.preventDefault(); typeChar('  '); }
-  else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault(); typeChar(e.key);
-  }
-  hiddenInput.focus();
+  editor.focus();
 });
 
-document.getElementById('tap-zone').addEventListener('click', () => hiddenInput.focus());
-
-hiddenInput.addEventListener('paste', (e) => {
-  e.preventDefault();
-  const text = e.clipboardData.getData('text');
-  for (const ch of text) { if (ch === '\n') newLine(); else typeChar(ch); }
+document.getElementById('tap-zone').addEventListener('click', () => {
+  editor.focus();
+  togglePanel(true);
 });
 
 /* --- CAMERA --- */
@@ -786,6 +907,17 @@ function toggleBtn(id, state, onText, offText) {
   if (onText) btn.textContent = state ? onText : offText;
 }
 
+function togglePanel(forcedState) {
+  STATE.panelOpen = forcedState !== undefined ? forcedState : !STATE.panelOpen;
+  const panel = document.getElementById('manuscript-panel');
+  toggleBtn('btn-panel', STATE.panelOpen);
+  if (STATE.panelOpen) {
+    panel.classList.add('open');
+  } else {
+    panel.classList.remove('open');
+  }
+}
+
 document.getElementById('btn-sound').addEventListener('click', () => {
   STATE.soundOn = !STATE.soundOn;
   toggleBtn('btn-sound', STATE.soundOn, 'ON', 'OFF');
@@ -799,6 +931,8 @@ document.getElementById('btn-unicode').addEventListener('click', () => {
   showToast(STATE.unicodeMode ? 'UNICODE ON' : 'UNICODE OFF');
 });
 
+document.getElementById('btn-panel').addEventListener('click', () => togglePanel());
+
 document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
 
@@ -806,7 +940,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
   if (!confirm('Clear entire manuscript?')) return;
   saveHistory();
   STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
-  recalcStats(); renderPaper(); updateCarriage();
+  updateEditorValue(); recalcStats(); renderPaper(); updateCarriage();
   localStorage.removeItem('typewriter-draft');
   showToast('CLEARED');
 });
@@ -870,7 +1004,7 @@ function checkRecovery() {
     modal.style.display = 'flex';
     document.getElementById('btn-recover-yes').onclick = () => {
       STATE.lines = data.lines || ['']; STATE.cursorLine = data.cursorLine || 0; STATE.cursorCol = data.cursorCol || 0;
-      recalcStats(); renderPaper(); updateCarriage(); modal.style.display = 'none';
+      updateEditorValue(); recalcStats(); renderPaper(); updateCarriage(); modal.style.display = 'none';
       showToast('DRAFT RESTORED');
     };
     document.getElementById('btn-recover-no').onclick = () => {
@@ -883,9 +1017,16 @@ function checkRecovery() {
 function animate() {
   requestAnimationFrame(animate);
   updateAnimations();
+  
+  // Smoothly lerp camera perspective
   camera.position.lerp(camTargetPos, 0.05);
   currentLook.lerp(camTargetLook, 0.05);
   camera.lookAt(currentLook);
+  
+  // Vertical feed logic: smooth lerp to raise/lower paper plane out of platen
+  const targetPaperY = 9.5 + (STATE.cursorLine * 0.22);
+  paperMesh.position.y = THREE.MathUtils.lerp(paperMesh.position.y, targetPaperY, 0.12);
+  
   const t = performance.now() * 0.001;
   rimLight.intensity = 0.9 + Math.sin(t) * 0.1;
   paperMesh.rotation.x = -Math.PI/2 + Math.sin(t*0.5) * 0.008;
@@ -900,7 +1041,10 @@ window.addEventListener('resize', () => {
 
 /* --- INIT --- */
 recalcStats(); renderPaper(); checkRecovery(); animate();
-setTimeout(() => hiddenInput.focus(), 600);
+setTimeout(() => {
+  editor.focus();
+  togglePanel(true); // Default open the side panel to facilitate immediate writing
+}, 600);
 </script>
 </body>
 </html>
