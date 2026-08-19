@@ -210,6 +210,9 @@ body {
 }
 
 /* Mobile Tap Zone */
+ #manuscript-textarea {
+  font-size: 16px; /* Prevents unwanted browser zoom on mobile focus */
+}
 #tap-zone {
   position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
   width: 260px; height: 50px; z-index: 5;
@@ -299,7 +302,17 @@ body {
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.04) 2px, rgba(255,0,0,0.04) 4px);
   opacity: 0.35;
 }
-
+@media print {
+  body * { visibility: hidden !important; }
+  #print-content, #print-content * { visibility: visible !important; }
+  #print-content {
+    position: absolute; left: 0; top: 0; width: 100%; display: block !important;
+    background: #fffef8 !important; color: #1a1a1a !important;
+    padding: 60px; 
+    font-family: var(--font-mono) !important; /* Dynamically matches active layout */
+    font-size: 12pt; line-height: 1.6; white-space: pre-wrap;
+  }
+}
 /* Print content */
 #print-content { display: none; }
 @media print {
@@ -1077,7 +1090,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
   saveHistory();
   STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
   updateEditorValue(); recalcStats(); renderPaper(); updateCarriage();
-  localStorage.removeItem('typewriter-draft');
+  localStorage.removeItem('ironclad-draft');
   showToast('CLEARED');
 });
 
@@ -1120,22 +1133,22 @@ document.getElementById('btn-pdf').addEventListener('click', exportPDF);
 function saveDraft() {
   const text = STATE.lines.join('\n');
   if (!text || text.trim().length === 0) {
-    localStorage.removeItem('typewriter-draft');
+    localStorage.removeItem('ironclad-draft');
     return;
   }
-  localStorage.setItem('typewriter-draft', JSON.stringify({
+  localStorage.setItem('ironclad-draft', JSON.stringify({
     lines: STATE.lines, cursorLine: STATE.cursorLine, cursorCol: STATE.cursorCol,
     timestamp: Date.now()
   }));
 }
 
 function checkRecovery() {
-  const raw = localStorage.getItem('typewriter-draft');
+  const raw = localStorage.getItem('ironclad-draft');
   if (!raw) return;
   try {
     const data = JSON.parse(raw);
     const text = (data.lines || []).join('\n');
-    if (!text || text.trim().length === 0) { localStorage.removeItem('typewriter-draft'); return; }
+    if (!text || text.trim().length === 0) { localStorage.removeItem('ironclad-draft'); return; }
     const modal = document.getElementById('recovery-modal');
     modal.style.display = 'flex';
     document.getElementById('btn-recover-yes').onclick = () => {
@@ -1144,9 +1157,9 @@ function checkRecovery() {
       showToast('DRAFT RESTORED');
     };
     document.getElementById('btn-recover-no').onclick = () => {
-      localStorage.removeItem('typewriter-draft'); modal.style.display = 'none';
+      localStorage.removeItem('ironclad-draft'); modal.style.display = 'none';
     };
-  } catch(e) { localStorage.removeItem('typewriter-draft'); }
+  } catch(e) { localStorage.removeItem('ironclad-draft'); }
 }
 
 /* --- RENDER LOOP --- */
