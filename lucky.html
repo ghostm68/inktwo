@@ -88,7 +88,7 @@ body {
   border: 1px solid var(--line-soft); background: var(--bg-card);
   backdrop-filter: blur(8px); padding: 10px 14px 8px;
   display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center;
-  max-width: min(92vw, 640px);
+  max-width: min(92vw, 520px);
 }
 
 .desk-btn {
@@ -124,7 +124,7 @@ body {
 
 /* Mobile Tap Zone */
 #tap-zone {
-  position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
   width: 260px; height: 50px; z-index: 5;
   border: 1px dashed var(--line-soft); border-radius: 2px;
   display: none; align-items: center; justify-content: center;
@@ -211,7 +211,7 @@ body {
   <div class="hud-title">
     <h1>TYPEWRITER</h1>
     <div class="subtitle">IMMERSIVE 3D MECHANICAL</div>
-    <div class="tagline">Type anywhere. The machine listens.<br>ESC for controls. Mouse to orbit in INSPECT.</div>
+    <div class="tagline">Type anywhere. The machine listens.<br>Mouse to orbit in INSPECT mode.</div>
   </div>
 
   <div id="cam-indicator" role="status" aria-live="polite">WRITE</div>
@@ -233,7 +233,6 @@ body {
     <div class="desk-sep"></div>
     <div class="panel-section">
       <div class="section-label">OPTIONS</div>
-      <button class="desk-btn" id="btn-auto">AUTO-RETURN</button>
       <button class="desk-btn" id="btn-unicode">UNICODE</button>
     </div>
     <div class="desk-sep"></div>
@@ -241,12 +240,10 @@ body {
       <div class="section-label">EDIT</div>
       <button class="desk-btn" id="btn-undo">UNDO</button>
       <button class="desk-btn" id="btn-redo">REDO</button>
-      <button class="desk-btn" id="btn-new">NEW SHEET</button>
     </div>
     <div class="desk-sep"></div>
     <div class="panel-section">
       <div class="section-label">MANUSCRIPT</div>
-      <button class="desk-btn accent" id="btn-sample">SAMPLE</button>
       <button class="desk-btn danger" id="btn-clear">CLEAR</button>
     </div>
     <div class="desk-sep"></div>
@@ -260,7 +257,6 @@ body {
       <div class="section-label">CAMERA</div>
       <div class="segmented">
         <button class="desk-btn seg on" id="cam-write">WRITE</button>
-        <button class="desk-btn seg" id="cam-mech">MECH</button>
         <button class="desk-btn seg" id="cam-inspect">INSPECT</button>
       </div>
     </div>
@@ -291,14 +287,12 @@ body {
 const STATE = {
   text: '', lines: [''], cursorLine: 0, cursorCol: 0,
   history: [], historyIndex: -1,
-  soundOn: true, autoReturn: false, unicodeMode: false,
+  soundOn: true, unicodeMode: false,
   cameraMode: 'WRITE', isTyping: false,
   carriageX: 0, paperOffset: 0,
   maxCharsPerLine: 48, linesPerPage: 24, pageCount: 1,
   audioCtx: null, draftRestored: false
 };
-
-const SAMPLE_TEXT = "A quick brown fox jumps over the lazy dog while the typewriter clicks rhythmically in the quiet room. Mechanical arms dance with precision, striking ink against pristine paper. Each keystroke echoes through time, preserving thoughts in permanent black marks. The carriage returns, ready for more words to transform silence into literature and ideas into reality.";
 
 /* --- THREE.JS --- */
 const container = document.getElementById('canvas-container');
@@ -447,7 +441,7 @@ box(0.4,1,10, mats.ivory, 7,8,-1, carriageGroup);
 box(14,0.3,0.3, mats.chrome, 0,8.5,-4, carriageGroup);
 box(14,0.3,0.3, mats.chrome, 0,8.5,2, carriageGroup);
 
-const platen = cyl(1.2,1.2,13,32,mats.blackPaint,0,9.2,-1,0,Math.PI/2,carriageGroup);
+cyl(1.2,1.2,13,32,mats.blackPaint,0,9.2,-1,0,Math.PI/2,carriageGroup);
 
 const paperCanvas = document.createElement('canvas');
 paperCanvas.width = 1024; paperCanvas.height = 1400;
@@ -546,17 +540,6 @@ function playReturn() {
   gain.gain.linearRampToValueAtTime(0.001, now + 0.22);
   osc.connect(gain); gain.connect(ctx.destination);
   osc.start(now); osc.stop(now + 0.22);
-  // Bell at margin
-  if (STATE.autoReturn && STATE.cursorCol >= STATE.maxCharsPerLine - 3) {
-    const bell = ctx.createOscillator();
-    bell.type = 'sine';
-    bell.frequency.setValueAtTime(1250, now + 0.22);
-    const bGain = ctx.createGain();
-    bGain.gain.setValueAtTime(0.04, now + 0.22);
-    bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-    bell.connect(bGain); bGain.connect(ctx.destination);
-    bell.start(now + 0.22); bell.stop(now + 0.38);
-  }
 }
 
 /* --- ANIMATIONS --- */
@@ -633,7 +616,6 @@ function typeChar(ch) {
   STATE.lines[STATE.cursorLine] = before + c + after;
   STATE.cursorCol++;
   animateKey(c === ' ' ? ' ' : c); playClick();
-  if (STATE.autoReturn && STATE.cursorCol >= STATE.maxCharsPerLine) newLine();
   recalcStats(); renderPaper(); updateCarriage(); saveDraft();
 }
 
@@ -726,7 +708,6 @@ hiddenInput.addEventListener('paste', (e) => {
 /* --- CAMERA --- */
 const CAMERAS = {
   WRITE: { pos: new THREE.Vector3(0, 14, 22), look: new THREE.Vector3(0, 6, 0) },
-  MECHANISM: { pos: new THREE.Vector3(18, 10, 5), look: new THREE.Vector3(0, 5, 0) },
   INSPECT: { pos: new THREE.Vector3(12, 12, 12), look: new THREE.Vector3(0, 5, 0) }
 };
 
@@ -739,7 +720,7 @@ let currentLook = CAMERAS.WRITE.look.clone();
 function setCamera(mode) {
   STATE.cameraMode = mode;
   document.getElementById('cam-indicator').textContent = mode;
-  ['cam-write','cam-mech','cam-inspect'].forEach(id => document.getElementById(id).classList.remove('on'));
+  ['cam-write','cam-inspect'].forEach(id => document.getElementById(id).classList.remove('on'));
   document.getElementById('cam-' + mode.toLowerCase()).classList.add('on');
   const c = CAMERAS[mode];
   camTargetPos.copy(c.pos); camTargetLook.copy(c.look);
@@ -747,7 +728,6 @@ function setCamera(mode) {
 }
 
 document.getElementById('cam-write').addEventListener('click', () => setCamera('WRITE'));
-document.getElementById('cam-mech').addEventListener('click', () => setCamera('MECHANISM'));
 document.getElementById('cam-inspect').addEventListener('click', () => setCamera('INSPECT'));
 setCamera('WRITE');
 
@@ -813,12 +793,6 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   showToast(STATE.soundOn ? 'SOUND ON' : 'SOUND OFF');
 });
 
-document.getElementById('btn-auto').addEventListener('click', () => {
-  STATE.autoReturn = !STATE.autoReturn;
-  toggleBtn('btn-auto', STATE.autoReturn);
-  showToast(STATE.autoReturn ? 'AUTO-RETURN ON' : 'AUTO-RETURN OFF');
-});
-
 document.getElementById('btn-unicode').addEventListener('click', () => {
   STATE.unicodeMode = !STATE.unicodeMode;
   toggleBtn('btn-unicode', STATE.unicodeMode);
@@ -828,13 +802,6 @@ document.getElementById('btn-unicode').addEventListener('click', () => {
 document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
 
-document.getElementById('btn-new').addEventListener('click', () => {
-  saveHistory();
-  STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
-  recalcStats(); renderPaper(); updateCarriage();
-  showToast('NEW SHEET');
-});
-
 document.getElementById('btn-clear').addEventListener('click', () => {
   if (!confirm('Clear entire manuscript?')) return;
   saveHistory();
@@ -842,23 +809,6 @@ document.getElementById('btn-clear').addEventListener('click', () => {
   recalcStats(); renderPaper(); updateCarriage();
   localStorage.removeItem('typewriter-draft');
   showToast('CLEARED');
-});
-
-document.getElementById('btn-sample').addEventListener('click', () => {
-  saveHistory();
-  STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
-  const words = SAMPLE_TEXT.split(' ');
-  let line = '';
-  words.forEach(w => {
-    if ((line + w).length > STATE.maxCharsPerLine) {
-      STATE.lines[STATE.cursorLine] = line.trim(); STATE.lines.push(''); STATE.cursorLine++;
-      line = w + ' ';
-    } else { line += w + ' '; }
-  });
-  if (line.trim()) STATE.lines[STATE.cursorLine] = line.trim();
-  STATE.cursorCol = STATE.lines[STATE.cursorLine].length;
-  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
-  showToast('SAMPLE LOADED');
 });
 
 /* --- EXPORT --- */
@@ -881,7 +831,6 @@ function exportTXT() {
 function exportPDF() {
   const text = getManuscriptText();
   const printDiv = document.getElementById('print-content');
-  // Force fresh content
   printDiv.innerHTML = '';
   const inner = document.createElement('div');
   inner.textContent = text;
