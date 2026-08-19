@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immersive 3D Mechanical Typewriter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  --bg-color: #050505;
+  --bg-card: rgba(5, 5, 5, 0.85);
+  --primary: #ff0000;
+  --secondary: #550000;
+  --text-main: #ffffff;
+  --scanline-tint: rgba(255, 0, 0, 0.06);
+  --font-tech: 'Courier New', monospace;
+  --font-seg: 'Georgia', serif;
+  --font-mono: 'Courier New', monospace;
+  --white: #ffffff;
+  --grey: #333333;
+  --red: #ff0000;
+  --dark-grey: #222222;
+  --selection-bg: #ff0033;
+  --selection-color: #0a0a0a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+::selection { background: var(--selection-bg); color: var(--selection-color); text-shadow: none; }
+
+body {
+  background: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-tech);
+  overflow: hidden;
+  width: 100vw; height: 100vh;
+}
+
+#canvas-container {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+}
+
+#ui-layer {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
+  pointer-events: none;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+
+#ui-layer > * { pointer-events: auto; }
+
+/* Control Desk */
+#control-desk {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--secondary);
+  border-top: 2px solid var(--primary);
+  padding: 12px 16px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+  max-width: 100%;
+  box-shadow: 0 -4px 24px rgba(255,0,0,0.15);
+}
+
+.desk-btn {
+  background: transparent;
+  border: 1px solid var(--secondary);
+  color: var(--text-main);
+  font-family: var(--font-tech);
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 8px 14px; cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.desk-btn:hover, .desk-btn:focus {
+  background: var(--secondary); border-color: var(--primary);
+  box-shadow: 0 0 12px rgba(255,0,0,0.3); outline: none;
+}
+.desk-btn:active { transform: translateY(1px); }
+.desk-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+
+.desk-sep { width: 1px; height: 28px; background: var(--secondary); margin: 0 4px; }
+
+/* Stats Panel */
+#stats-panel {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--bg-card); backdrop-filter: blur(8px);
+  border: 1px solid var(--secondary); padding: 12px 16px;
+  font-size: 12px; line-height: 1.6; letter-spacing: 0.5px;
+  min-width: 160px;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 16px; }
+.stat-label { color: #888; }
+.stat-value { color: var(--primary); font-weight: bold; }
+
+/* Camera Mode Indicator */
+#cam-indicator {
+  position: absolute; top: 16px; left: 16px;
+  background: var(--bg-card); backdrop-filter: blur(8px);
+  border: 1px solid var(--secondary); padding: 8px 14px;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* Hidden Input */
+#hidden-input {
+  position: fixed; opacity: 0; pointer-events: none; z-index: -1;
+  left: -9999px;
+}
+
+/* Mobile Tap Zone */
+#tap-zone {
+  position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
+  width: 280px; height: 60px; z-index: 5;
+  background: rgba(255,0,0,0.05); border: 1px dashed var(--secondary);
+  border-radius: 4px; display: none; align-items: center; justify-content: center;
+  color: var(--primary); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  pointer-events: auto; cursor: text;
+}
+@media (max-width: 768px) {
+  #tap-zone { display: flex; }
+  #control-desk { padding: 8px; gap: 4px; }
+  .desk-btn { padding: 6px 8px; font-size: 9px; }
+  #stats-panel { top: 8px; right: 8px; font-size: 10px; padding: 8px; min-width: 120px; }
+}
+
+/* Recovery Modal */
+#recovery-modal {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85); z-index: 100;
+  display: none; align-items: center; justify-content: center;
+}
+#recovery-box {
+  background: var(--bg-card); border: 1px solid var(--primary);
+  padding: 32px; max-width: 400px; text-align: center;
+  box-shadow: 0 0 40px rgba(255,0,0,0.2);
+}
+#recovery-box h2 { font-family: var(--font-seg); font-size: 20px; margin-bottom: 12px; color: var(--primary); }
+#recovery-box p { font-size: 13px; color: #aaa; margin-bottom: 20px; line-height: 1.5; }
+.recovery-btn { margin: 0 8px; }
+
+/* Print Styles for PDF Export */
+@media print {
+  body * { visibility: hidden; }
+  #print-content, #print-content * { visibility: visible; }
+  #print-content {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: white !important; color: black !important;
+    padding: 60px; font-family: 'Courier New', monospace; font-size: 12pt; line-height: 1.6;
+  }
+}
+
+#print-content { display: none; }
+
+/* Scanline overlay */
+#scanlines {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--scanline-tint) 2px, var(--scanline-tint) 4px);
+  opacity: 0.4;
+}
+
+/* Notification toast */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card); border: 1px solid var(--primary); padding: 10px 20px;
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--primary);
+  opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 50;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="scanlines"></div>
+
+<div id="ui-layer">
+  <div id="cam-indicator" role="status" aria-live="polite">CAMERA: WRITE</div>
+
+  <div id="stats-panel" role="complementary" aria-label="Document Statistics">
+    <div class="stat-row"><span class="stat-label">WORDS</span><span class="stat-value" id="stat-words">0</span></div>
+    <div class="stat-row"><span class="stat-label">PAGES</span><span class="stat-value" id="stat-pages">1</span></div>
+    <div class="stat-row"><span class="stat-label">LINES</span><span class="stat-value" id="stat-lines">1</span></div>
+    <div class="stat-row"><span class="stat-label">COLUMN</span><span class="stat-value" id="stat-col">1</span></div>
+  </div>
+
+  <div id="tap-zone" role="button" aria-label="Tap to open keyboard">TAP TO TYPE</div>
+
+  <div id="control-desk" role="toolbar" aria-label="Typewriter Controls">
+    <button class="desk-btn" id="btn-explode" aria-label="Explode view">EXPLODE</button>
+    <button class="desk-btn" id="btn-cutaway" aria-label="Cutaway view">CUTAWAY</button>
+    <div class="desk-sep"></div>
+    <button class="desk-btn" id="btn-sound" aria-label="Toggle sound">SOUND</button>
+    <button class="desk-btn" id="btn-auto" aria-label="Toggle auto return">AUTO-RETURN</button>
+    <button class="desk-btn" id="btn-unicode" aria-label="Toggle unicode adapter">UNICODE</button>
+    <div class="desk-sep"></div>
+    <button class="desk-btn" id="btn-undo" aria-label="Undo last action">UNDO</button>
+    <button class="desk-btn" id="btn-redo" aria-label="Redo last action">REDO</button>
+    <button class="desk-btn" id="btn-new" aria-label="New sheet">NEW SHEET</button>
+    <div class="desk-sep"></div>
+    <button class="desk-btn" id="btn-sample" aria-label="Load sample manuscript">SAMPLE</button>
+    <button class="desk-btn" id="btn-clear" aria-label="Clear manuscript">CLEAR</button>
+    <div class="desk-sep"></div>
+    <button class="desk-btn" id="btn-txt" aria-label="Export as text file">EXPORT TXT</button>
+    <button class="desk-btn" id="btn-pdf" aria-label="Export as PDF">PRINT TO PDF</button>
+    <div class="desk-sep"></div>
+    <button class="desk-btn" id="cam-write" aria-label="Write camera mode">WRITE</button>
+    <button class="desk-btn" id="cam-mech" aria-label="Mechanism camera mode">MECHANISM</button>
+    <button class="desk-btn" id="cam-inspect" aria-label="Inspect camera mode">INSPECT</button>
+  </div>
+</div>
+
+<textarea id="hidden-input" autocapitalize="off" autocomplete="off" spellcheck="false" aria-hidden="true"></textarea>
+
+<div id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+  <div id="recovery-box">
+    <h2 id="recovery-title">DRAFT RECOVERED</h2>
+    <p>A previous typing session was found in your browser's local storage. Would you like to restore it?</p>
+    <button class="desk-btn recovery-btn" id="btn-recover-yes">RESTORE</button>
+    <button class="desk-btn recovery-btn" id="btn-recover-no">DISCARD</button>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="print-content"></div>
+
+<script>
+/* ============================================================
+   IMMERSIVE 3D MECHANICAL TYPEWRITER
+   English-only, Citadelle Red theme, single-file deployment
+   ============================================================ */
+
+// --- STATE ---
+const STATE = {
+  text: '',
+  lines: [''],
+  cursorLine: 0,
+  cursorCol: 0,
+  history: [],
+  historyIndex: -1,
+  soundOn: true,
+  autoReturn: false,
+  unicodeMode: false,
+  exploded: false,
+  cutaway: false,
+  cameraMode: 'WRITE',
+  isTyping: false,
+  carriageX: 0,
+  paperOffset: 0,
+  maxCharsPerLine: 48,
+  linesPerPage: 24,
+  pageCount: 1,
+  audioCtx: null,
+  draftRestored: false
+};
+
+const SAMPLE_TEXT = "A quick brown fox jumps over the lazy dog while the typewriter clicks rhythmically in the quiet room. Mechanical arms dance with precision, striking ink against pristine paper. Each keystroke echoes through time, preserving thoughts in permanent black marks. The carriage returns, ready for more words to transform silence into literature and ideas into reality.";
+
+// --- THREE.JS SETUP ---
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050505);
+scene.fog = new THREE.FogExp2(0x050505, 0.015);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+// --- LIGHTING ---
+const ambientLight = new THREE.AmbientLight(0xffeedd, 0.25);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffeebb, 1.2);
+keyLight.position.set(10, 20, 15);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 50;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+
+const fillLight = new THREE.PointLight(0xffaa66, 0.4, 40);
+fillLight.position.set(-10, 10, 10);
+scene.add(fillLight);
+
+const rimLight = new THREE.SpotLight(0xff4400, 0.8, 50, Math.PI/6, 0.5);
+rimLight.position.set(0, 15, -10);
+rimLight.lookAt(0, 0, 0);
+scene.add(rimLight);
+
+// --- MATERIALS ---
+const mats = {
+  ivory: new THREE.MeshStandardMaterial({ color: 0xf5f0e6, roughness: 0.35, metalness: 0.05 }),
+  blackPaint: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.25, metalness: 0.15 }),
+  brass: new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.2, metalness: 0.9 }),
+  chrome: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.1, metalness: 1.0 }),
+  paper: new THREE.MeshStandardMaterial({ color: 0xfffef8, roughness: 0.9, metalness: 0.0 }),
+  ribbon: new THREE.MeshStandardMaterial({ color: 0x330000, roughness: 0.6, metalness: 0.1 }),
+  keyTop: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.1 }),
+  typebarMetal: new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.8 }),
+  rubber: new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.95, metalness: 0.0 })
+};
+
+// --- TYPEWRITER GROUPS ---
+const typewriterGroup = new THREE.Group();
+scene.add(typewriterGroup);
+
+const carriageGroup = new THREE.Group();
+const keysGroup = new THREE.Group();
+const typebarsGroup = new THREE.Group();
+const internalsGroup = new THREE.Group();
+
+typewriterGroup.add(carriageGroup);
+typewriterGroup.add(keysGroup);
+typewriterGroup.add(typebarsGroup);
+typewriterGroup.add(internalsGroup);
+
+// --- GEOMETRY BUILDERS ---
+function createBox(w, h, d, mat, x, y, z, parent, castShadow=true) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  if (parent) parent.add(mesh);
+  return mesh;
+}
+
+function createCylinder(rt, rb, h, seg, mat, x, y, z, rotX=0, rotZ=0, parent) {
+  const geo = new THREE.CylinderGeometry(rt, rb, h, seg);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotX;
+  mesh.rotation.z = rotZ;
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  if (parent) parent.add(mesh);
+  return mesh;
+}
+
+// --- BUILD TYPEWRITER BODY ---
+// Main base
+const bodyBase = createBox(16, 3, 10, mats.ivory, 0, 1.5, 0, typewriterGroup);
+// Keyboard bed
+const kbBed = createBox(14, 0.8, 6, mats.blackPaint, 0, 3.4, 2, typewriterGroup);
+// Top cover
+const topCover = createBox(16, 1.5, 8, mats.ivory, 0, 5.5, -1, typewriterGroup);
+// Paper table
+const paperTable = createBox(14, 0.2, 4, mats.chrome, 0, 6.3, -2, typewriterGroup);
+// Side panels
+createBox(0.5, 6, 10, mats.ivory, -8, 3, 0, typewriterGroup);
+createBox(0.5, 6, 10, mats.ivory, 8, 3, 0, typewriterGroup);
+// Back panel
+createBox(16, 6, 0.5, mats.ivory, 0, 3, -5, typewriterGroup);
+// Brass accents
+for (let x of [-7.5, 7.5]) {
+  createCylinder(0.3, 0.3, 6.5, 16, mats.brass, x, 3.25, 0, Math.PI/2, 0, typewriterGroup);
+}
+// Feet
+for (let x of [-6, 6]) {
+  for (let z of [-3, 3]) {
+    createCylinder(0.6, 0.8, 0.8, 16, mats.rubber, x, 0.4, z, 0, 0, typewriterGroup);
+  }
+}
+
+// --- BUILD KEYS ---
+const KEY_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Z','X','C','V','B','N','M']
+];
+const keysMap = new Map();
+const keyMeshes = [];
+
+function buildKeys() {
+  const keySize = 0.9;
+  const keySpacing = 1.1;
+  KEY_ROWS.forEach((row, ri) => {
+    const z = 3.5 + ri * 1.2;
+    const rowWidth = row.length * keySpacing;
+    const startX = -rowWidth/2 + keySpacing/2;
+    row.forEach((char, ci) => {
+      const x = startX + ci * keySpacing;
+      const keyStem = createCylinder(0.15, 0.15, 0.6, 8, mats.chrome, x, 3.8, z, 0, 0, keysGroup);
+      const keyCap = createCylinder(keySize/2, keySize/2, 0.25, 16, mats.keyTop, x, 4.2, z, 0, 0, keysGroup);
+      const keyLabel = createBox(0.5, 0.05, 0.5, mats.ivory, x, 4.33, z, keysGroup);
+      const km = { char, mesh: keyCap, stem: keyStem, label: keyLabel, baseY: 4.2, x, z };
+      keysMap.set(char, km);
+      keyMeshes.push(km);
+    });
+  });
+  // Spacebar
+  const sbX = 0, sbZ = 7;
+  const sbStem1 = createCylinder(0.15, 0.15, 0.6, 8, mats.chrome, -2, 3.8, sbZ, 0, 0, keysGroup);
+  const sbStem2 = createCylinder(0.15, 0.15, 0.6, 8, mats.chrome, 2, 3.8, sbZ, 0, 0, keysGroup);
+  const sbCap = createBox(7, 0.25, 0.8, mats.keyTop, sbX, 4.2, sbZ, keysGroup);
+  keysMap.set(' ', { char: ' ', mesh: sbCap, stem: sbStem1, stem2: sbStem2, baseY: 4.2, x: sbX, z: sbZ, isSpace: true });
+  keyMeshes.push(keysMap.get(' '));
+  // Enter key
+  const enX = 7, enZ = 5.5;
+  const enStem = createCylinder(0.15, 0.15, 0.6, 8, mats.chrome, enX, 3.8, enZ, 0, 0, keysGroup);
+  const enCap = createBox(1.2, 0.25, 1.8, mats.keyTop, enX, 4.2, enZ, keysGroup);
+  keysMap.set('ENTER', { char: 'ENTER', mesh: enCap, stem: enStem, baseY: 4.2, x: enX, z: enZ });
+  keyMeshes.push(keysMap.get('ENTER'));
+  // Backspace
+  const bsX = -7, bsZ = 5.5;
+  const bsStem = createCylinder(0.15, 0.15, 0.6, 8, mats.chrome, bsX, 3.8, bsZ, 0, 0, keysGroup);
+  const bsCap = createBox(1.2, 0.25, 1.8, mats.keyTop, bsX, 4.2, bsZ, keysGroup);
+  keysMap.set('BACKSPACE', { char: 'BACKSPACE', mesh: bsCap, stem: bsStem, baseY: 4.2, x: bsX, z: bsZ });
+  keyMeshes.push(keysMap.get('BACKSPACE'));
+}
+buildKeys();
+
+// --- BUILD TYPEBARS ---
+const typebarsMap = new Map();
+function buildTypebars() {
+  keyMeshes.forEach(km => {
+    if (km.char === 'ENTER' || km.char === 'BACKSPACE') return;
+    const barLen = 4.5;
+    const bar = createBox(0.08, barLen, 0.08, mats.typebarMetal, km.x, 6.5, -1, typebarsGroup);
+    bar.geometry.translate(0, barLen/2, 0);
+    bar.rotation.x = -0.3;
+    const pivot = new THREE.Group();
+    pivot.position.set(km.x, 5.5, -2.5);
+    pivot.add(bar);
+    bar.position.set(0, 0, 0);
+    typebarsGroup.add(pivot);
+    typebarsMap.set(km.char, { pivot, baseRotX: -0.3, activeRotX: 0.2 });
+  });
+}
+buildTypebars();
+
+// --- BUILD CARRIAGE ---
+// Side arms
+const carArmL = createBox(0.4, 1, 10, mats.ivory, -7, 8, -1, carriageGroup);
+const carArmR = createBox(0.4, 1, 10, mats.ivory, 7, 8, -1, carriageGroup);
+// Cross bars
+const carBarF = createBox(14, 0.3, 0.3, mats.chrome, 0, 8.5, -4, carriageGroup);
+const carBarB = createBox(14, 0.3, 0.3, mats.chrome, 0, 8.5, 2, carriageGroup);
+// Platen (roller)
+const platen = createCylinder(1.2, 1.2, 13, 32, mats.blackPaint, 0, 9.2, -1, 0, Math.PI/2, carriageGroup);
+// Paper
+const paperGeo = new THREE.PlaneGeometry(10, 14);
+const paperCanvas = document.createElement('canvas');
+paperCanvas.width = 1024; paperCanvas.height = 1400;
+const paperCtx = paperCanvas.getContext('2d');
+paperCtx.fillStyle = '#fffef8'; paperCtx.fillRect(0, 0, 1024, 1400);
+const paperTex = new THREE.CanvasTexture(paperCanvas);
+paperTex.minFilter = THREE.LinearFilter;
+const paperMat = new THREE.MeshStandardMaterial({ map: paperTex, roughness: 0.9 });
+const paperMesh = new THREE.Mesh(paperGeo, paperMat);
+paperMesh.position.set(0, 9.5, 0.3);
+paperMesh.rotation.x = -Math.PI/2;
+paperMesh.receiveShadow = true;
+carriageGroup.add(paperMesh);
+// Paper guides
+for (let x of [-4.5, 4.5]) {
+  createBox(0.1, 0.8, 0.1, mats.chrome, x, 9.5, 0.5, carriageGroup);
+}
+// Ribbon spools
+const spoolL = createCylinder(1, 1, 0.6, 24, mats.brass, -7.5, 9, -1, 0, Math.PI/2, carriageGroup);
+const spoolR = createCylinder(1, 1, 0.6, 24, mats.brass, 7.5, 9, -1, 0, Math.PI/2, carriageGroup);
+// Ribbon
+const ribbonGeo = new THREE.PlaneGeometry(13, 0.8);
+const ribbonMesh = new THREE.Mesh(ribbonGeo, mats.ribbon);
+ribbonMesh.position.set(0, 9.2, 0.15);
+ribbonMesh.rotation.x = -Math.PI/2;
+carriageGroup.add(ribbonMesh);
+
+// --- PAPER TEXT RENDERING ---
+function renderPaper() {
+  const ctx = paperCtx;
+  const w = paperCanvas.width, h = paperCanvas.height;
+  ctx.fillStyle = '#fffef8'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#2a2a2a';
+  ctx.font = 'bold 28px "Courier New", monospace';
+  const lineH = 42;
+  const margin = 60;
+  const maxW = w - margin * 2;
+  STATE.lines.forEach((line, i) => {
+    const y = margin + (i % STATE.linesPerPage) * lineH + 32;
+    const pageOffset = Math.floor(i / STATE.linesPerPage) * h;
+    ctx.fillText(line, margin, y + pageOffset);
+    // Cursor indicator
+    if (i === STATE.cursorLine && document.activeElement === hiddenInput) {
+      const textBefore = line.substring(0, STATE.cursorCol);
+      const tw = ctx.measureText(textBefore).width;
+      ctx.fillStyle = 'rgba(255,0,0,0.4)';
+      ctx.fillRect(margin + tw, y + pageOffset - 28, 3, 32);
+      ctx.fillStyle = '#2a2a2a';
+    }
+  });
+  paperTex.needsUpdate = true;
+}
+
+// --- AUDIO ---
+function initAudio() {
+  if (!STATE.audioCtx) STATE.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playClick(intensity=1) {
+  if (!STATE.soundOn || !STATE.audioCtx) return;
+  const ctx = STATE.audioCtx;
+  const now = ctx.currentTime;
+  // Mechanical click
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(800 + Math.random()*400, now);
+  osc.frequency.exponentialRampToValueAtTime(100, now + 0.04);
+  gain.gain.setValueAtTime(0.08 * intensity, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.05);
+  // Thud
+  const noise = ctx.createBufferSource();
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i=0; i<data.length; i++) data[i] = (Math.random()*2-1) * 0.5;
+  noise.buffer = buffer;
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(0.06 * intensity, now);
+  nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+  noise.connect(nGain); nGain.connect(ctx.destination);
+  noise.start(now);
+  // Bell at margin
+  if (STATE.cursorCol >= STATE.maxCharsPerLine - 3 && STATE.autoReturn) {
+    const bell = ctx.createOscillator();
+    const bGain = ctx.createGain();
+    bell.type = 'sine';
+    bell.frequency.setValueAtTime(1200, now);
+    bGain.gain.setValueAtTime(0.05, now);
+    bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    bell.connect(bGain); bGain.connect(ctx.destination);
+    bell.start(now); bell.stop(now + 0.15);
+  }
+}
+
+function playReturn() {
+  if (!STATE.soundOn || !STATE.audioCtx) return;
+  const ctx = STATE.audioCtx, now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, now);
+  osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+  gain.gain.setValueAtTime(0.04, now);
+  gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.2);
+}
+
+// --- ANIMATION SYSTEM ---
+const activeAnimations = [];
+
+function animateKey(char) {
+  const k = keysMap.get(char.toUpperCase()) || keysMap.get(char) || keysMap.get(' ');
+  if (!k) return;
+  const startTime = performance.now();
+  const duration = 120;
+  activeAnimations.push({
+    type: 'key', target: k, startTime, duration,
+    from: k.baseY, to: k.baseY - 0.3
+  });
+  // Typebar
+  const tb = typebarsMap.get(char.toUpperCase()) || typebarsMap.get(char) || typebarsMap.get(' ');
+  if (tb) {
+    activeAnimations.push({
+      type: 'typebar', target: tb, startTime, duration: 150,
+      from: tb.baseRotX, to: tb.activeRotX
+    });
+  }
+}
+
+function updateAnimations() {
+  const now = performance.now();
+  for (let i = activeAnimations.length - 1; i >= 0; i--) {
+    const a = activeAnimations[i];
+    const t = Math.min((now - a.startTime) / a.duration, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // easeInOut
+    if (a.type === 'key') {
+      const y = a.from + (a.to - a.from) * Math.sin(t * Math.PI);
+      a.target.mesh.position.y = y;
+      if (a.target.stem) a.target.stem.position.y = y - 0.4;
+      if (a.target.stem2) a.target.stem2.position.y = y - 0.4;
+      if (a.target.label) a.target.label.position.y = y + 0.13;
+    } else if (a.type === 'typebar') {
+      a.target.pivot.rotation.x = a.from + (a.to - a.from) * Math.sin(t * Math.PI);
+    } else if (a.type === 'carriage') {
+      carriageGroup.position.x = a.from + (a.to - a.from) * ease;
+    } else if (a.type === 'explode') {
+      typewriterGroup.position.y = a.from.y + (a.to.y - a.from.y) * ease;
+      internalsGroup.position.z = a.from.z + (a.to.z - a.from.z) * ease;
+      keysGroup.position.z = a.from.kz + (a.to.kz - a.from.kz) * ease;
+    }
+    if (t >= 1) activeAnimations.splice(i, 1);
+  }
+}
+
+// --- TYPING LOGIC ---
+const hiddenInput = document.getElementById('hidden-input');
+
+function saveHistory() {
+  STATE.history = STATE.history.slice(0, STATE.historyIndex + 1);
+  STATE.history.push({ lines: [...STATE.lines], cursorLine: STATE.cursorLine, cursorCol: STATE.cursorCol });
+  if (STATE.history.length > 50) STATE.history.shift();
+  else STATE.historyIndex++;
+}
+
+function undo() {
+  if (STATE.historyIndex <= 0) return;
+  STATE.historyIndex--;
+  const snap = STATE.history[STATE.historyIndex];
+  STATE.lines = [...snap.lines];
+  STATE.cursorLine = snap.cursorLine;
+  STATE.cursorCol = snap.cursorCol;
+  recalcStats(); renderPaper(); updateCarriage();
+}
+
+function redo() {
+  if (STATE.historyIndex >= STATE.history.length - 1) return;
+  STATE.historyIndex++;
+  const snap = STATE.history[STATE.historyIndex];
+  STATE.lines = [...snap.lines];
+  STATE.cursorLine = snap.cursorLine;
+  STATE.cursorCol = snap.cursorCol;
+  recalcStats(); renderPaper(); updateCarriage();
+}
+
+function typeChar(ch) {
+  initAudio();
+  saveHistory();
+  const c = STATE.unicodeMode ? ch : ch.replace(/[^\x00-\x7F]/g, '?');
+  if (c === '\n') {
+    newLine();
+    return;
+  }
+  const line = STATE.lines[STATE.cursorLine];
+  const before = line.substring(0, STATE.cursorCol);
+  const after = line.substring(STATE.cursorCol);
+  STATE.lines[STATE.cursorLine] = before + c + after;
+  STATE.cursorCol++;
+  animateKey(c === ' ' ? ' ' : c);
+  playClick();
+  if (STATE.autoReturn && STATE.cursorCol >= STATE.maxCharsPerLine) {
+    newLine();
+  }
+  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
+}
+
+function newLine() {
+  saveHistory();
+  const line = STATE.lines[STATE.cursorLine];
+  const before = line.substring(0, STATE.cursorCol);
+  const after = line.substring(STATE.cursorCol);
+  STATE.lines[STATE.cursorLine] = before;
+  STATE.cursorLine++;
+  STATE.lines.splice(STATE.cursorLine, 0, after);
+  STATE.cursorCol = 0;
+  playReturn();
+  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
+}
+
+function backspace() {
+  if (STATE.cursorCol > 0) {
+    saveHistory();
+    const line = STATE.lines[STATE.cursorLine];
+    STATE.lines[STATE.cursorLine] = line.substring(0, STATE.cursorCol - 1) + line.substring(STATE.cursorCol);
+    STATE.cursorCol--;
+    animateKey('BACKSPACE'); playClick(0.7);
+  } else if (STATE.cursorLine > 0) {
+    saveHistory();
+    const prevLine = STATE.lines[STATE.cursorLine - 1];
+    const curLine = STATE.lines[STATE.cursorLine];
+    STATE.cursorLine--;
+    STATE.cursorCol = prevLine.length;
+    STATE.lines[STATE.cursorLine] = prevLine + curLine;
+    STATE.lines.splice(STATE.cursorLine + 1, 1);
+    animateKey('BACKSPACE'); playReturn();
+  }
+  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
+}
+
+function updateCarriage() {
+  const charWidth = 0.18;
+  const targetX = -STATE.cursorCol * charWidth;
+  const startX = carriageGroup.position.x;
+  activeAnimations.push({
+    type: 'carriage', target: null, startTime: performance.now(), duration: 80,
+    from: startX, to: targetX
+  });
+  // Paper scroll
+  const lineH = 42;
+  const pageH = 1400;
+  const totalLines = STATE.lines.length;
+  const currentPage = Math.floor(STATE.cursorLine / STATE.linesPerPage);
+  STATE.paperOffset = currentPage * pageH;
+}
+
+function recalcStats() {
+  const fullText = STATE.lines.join('\n');
+  const words = fullText.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const lines = STATE.lines.length;
+  const pages = Math.max(1, Math.ceil(lines / STATE.linesPerPage));
+  document.getElementById('stat-words').textContent = words;
+  document.getElementById('stat-pages').textContent = pages;
+  document.getElementById('stat-lines').textContent = lines;
+  document.getElementById('stat-col').textContent = STATE.cursorCol + 1;
+}
+
+// --- INPUT HANDLING ---
+let lastInputValue = '';
+
+hiddenInput.addEventListener('input', (e) => {
+  const val = hiddenInput.value;
+  if (val.length > lastInputValue.length) {
+    const added = val.slice(lastInputValue.length);
+    for (const ch of added) {
+      if (ch === '\n') newLine();
+      else typeChar(ch);
+    }
+  } else if (val.length < lastInputValue.length) {
+    // Backspace handled by keydown
+  }
+  lastInputValue = val;
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'BUTTON') return;
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.key === 'y') { e.preventDefault(); redo(); }
+    if (e.key === 'p') { e.preventDefault(); exportPDF(); }
+    if (e.key === 's') { e.preventDefault(); exportTXT(); }
+    return;
+  }
+  if (e.key === 'Backspace') { e.preventDefault(); backspace(); }
+  else if (e.key === 'Enter') { e.preventDefault(); newLine(); }
+  else if (e.key === 'Tab') { e.preventDefault(); typeChar('  '); }
+  else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    typeChar(e.key);
+  }
+  hiddenInput.focus();
+});
+
+// Mobile tap zone
+document.getElementById('tap-zone').addEventListener('click', () => {
+  hiddenInput.focus();
+});
+
+// Paste support
+hiddenInput.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text');
+  for (const ch of text) {
+    if (ch === '\n') newLine();
+    else typeChar(ch);
+  }
+});
+
+// --- CAMERA MODES ---
+const CAMERAS = {
+  WRITE: { pos: new THREE.Vector3(0, 14, 22), look: new THREE.Vector3(0, 6, 0) },
+  MECHANISM: { pos: new THREE.Vector3(18, 10, 5), look: new THREE.Vector3(0, 5, 0) },
+  INSPECT: { pos: new THREE.Vector3(12, 12, 12), look: new THREE.Vector3(0, 5, 0) }
+};
+
+let orbitActive = false;
+let orbitTheta = 0, orbitPhi = Math.PI/3, orbitRadius = 20;
+let camTargetPos = CAMERAS.WRITE.pos.clone();
+let camTargetLook = CAMERAS.WRITE.look.clone();
+let currentLook = CAMERAS.WRITE.look.clone();
+
+function setCamera(mode) {
+  STATE.cameraMode = mode;
+  document.getElementById('cam-indicator').textContent = 'CAMERA: ' + mode;
+  ['cam-write','cam-mech','cam-inspect'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('cam-' + mode.toLowerCase()).classList.add('active');
+  const c = CAMERAS[mode];
+  camTargetPos.copy(c.pos);
+  camTargetLook.copy(c.look);
+  orbitActive = (mode === 'INSPECT');
+}
+
+document.getElementById('cam-write').addEventListener('click', () => setCamera('WRITE'));
+document.getElementById('cam-mech').addEventListener('click', () => setCamera('MECHANISM'));
+document.getElementById('cam-inspect').addEventListener('click', () => setCamera('INSPECT'));
+setCamera('WRITE');
+
+// Mouse orbit for INSPECT
+let isDragging = false, lastMX = 0, lastMY = 0;
+renderer.domElement.addEventListener('mousedown', e => { isDragging = true; lastMX = e.clientX; lastMY = e.clientY; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', e => {
+  if (!isDragging || !orbitActive) return;
+  orbitTheta -= (e.clientX - lastMX) * 0.01;
+  orbitPhi += (e.clientY - lastMY) * 0.01;
+  orbitPhi = Math.max(0.2, Math.min(Math.PI/2 - 0.1, orbitPhi));
+  lastMX = e.clientX; lastMY = e.clientY;
+  camTargetPos.set(
+    orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta),
+    orbitRadius * Math.cos(orbitPhi),
+    orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta)
+  );
+});
+renderer.domElement.addEventListener('wheel', e => {
+  if (!orbitActive) return;
+  orbitRadius += e.deltaY * 0.02;
+  orbitRadius = Math.max(8, Math.min(40, orbitRadius));
+  camTargetPos.set(
+    orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta),
+    orbitRadius * Math.cos(orbitPhi),
+    orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta)
+  );
+});
+
+// Touch support for mobile orbit
+let lastTouch = null;
+renderer.domElement.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) lastTouch = e.touches[0];
+});
+renderer.domElement.addEventListener('touchmove', e => {
+  if (!orbitActive || !lastTouch || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  orbitTheta -= (t.clientX - lastTouch.clientX) * 0.01;
+  orbitPhi += (t.clientY - lastTouch.clientY) * 0.01;
+  orbitPhi = Math.max(0.2, Math.min(Math.PI/2 - 0.1, orbitPhi));
+  camTargetPos.set(
+    orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta),
+    orbitRadius * Math.cos(orbitPhi),
+    orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta)
+  );
+  lastTouch = t;
+});
+
+// --- CONTROLS ---
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+document.getElementById('btn-explode').addEventListener('click', () => {
+  STATE.exploded = !STATE.exploded;
+  document.getElementById('btn-explode').classList.toggle('active', STATE.exploded);
+  activeAnimations.push({
+    type: 'explode', startTime: performance.now(), duration: 800,
+    from: { y: typewriterGroup.position.y, z: internalsGroup.position.z, kz: keysGroup.position.z },
+    to: STATE.exploded ? { y: 2, z: 3, kz: 2 } : { y: 0, z: 0, kz: 0 }
+  });
+  showToast(STATE.exploded ? 'EXPLODE VIEW ON' : 'EXPLODE VIEW OFF');
+});
+
+document.getElementById('btn-cutaway').addEventListener('click', () => {
+  STATE.cutaway = !STATE.cutaway;
+  document.getElementById('btn-cutaway').classList.toggle('active', STATE.cutaway);
+  topCover.visible = !STATE.cutaway;
+  paperTable.visible = !STATE.cutaway;
+  showToast(STATE.cutaway ? 'CUTAWAY VIEW ON' : 'CUTAWAY VIEW OFF');
+});
+
+document.getElementById('btn-sound').addEventListener('click', () => {
+  STATE.soundOn = !STATE.soundOn;
+  document.getElementById('btn-sound').classList.toggle('active', STATE.soundOn);
+  if (STATE.soundOn) initAudio();
+  showToast(STATE.soundOn ? 'SOUND ON' : 'SOUND OFF');
+});
+document.getElementById('btn-sound').classList.add('active');
+
+document.getElementById('btn-auto').addEventListener('click', () => {
+  STATE.autoReturn = !STATE.autoReturn;
+  document.getElementById('btn-auto').classList.toggle('active', STATE.autoReturn);
+  showToast(STATE.autoReturn ? 'AUTO-RETURN ON' : 'AUTO-RETURN OFF');
+});
+
+document.getElementById('btn-unicode').addEventListener('click', () => {
+  STATE.unicodeMode = !STATE.unicodeMode;
+  document.getElementById('btn-unicode').classList.toggle('active', STATE.unicodeMode);
+  showToast(STATE.unicodeMode ? 'UNICODE ADAPTER ON' : 'UNICODE ADAPTER OFF');
+});
+
+document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-redo').addEventListener('click', redo);
+
+document.getElementById('btn-new').addEventListener('click', () => {
+  saveHistory();
+  STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
+  recalcStats(); renderPaper(); updateCarriage();
+  showToast('NEW SHEET LOADED');
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!confirm('Clear entire manuscript?')) return;
+  saveHistory();
+  STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
+  recalcStats(); renderPaper(); updateCarriage();
+  localStorage.removeItem('typewriter-draft');
+  showToast('MANUSCRIPT CLEARED');
+});
+
+document.getElementById('btn-sample').addEventListener('click', () => {
+  saveHistory();
+  STATE.lines = ['']; STATE.cursorLine = 0; STATE.cursorCol = 0;
+  const words = SAMPLE_TEXT.split(' ');
+  let line = '';
+  words.forEach(w => {
+    if ((line + w).length > STATE.maxCharsPerLine) {
+      STATE.lines[STATE.cursorLine] = line.trim();
+      STATE.lines.push('');
+      STATE.cursorLine++;
+      line = w + ' ';
+    } else {
+      line += w + ' ';
+    }
+  });
+  if (line.trim()) STATE.lines[STATE.cursorLine] = line.trim();
+  STATE.cursorCol = STATE.lines[STATE.cursorLine].length;
+  recalcStats(); renderPaper(); updateCarriage(); saveDraft();
+  showToast('SAMPLE LOADED');
+});
+
+// --- EXPORT FUNCTIONS ---
+function exportTXT() {
+  const text = STATE.lines.join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'manuscript_' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('TXT EXPORTED');
+}
+
+function exportPDF() {
+  const printDiv = document.getElementById('print-content');
+  printDiv.style.display = 'block';
+  printDiv.innerHTML = '<div style="font-family:Courier New,monospace;font-size:12pt;line-height:1.6;padding:60px;white-space:pre-wrap;">' + STATE.lines.join('\n').replace(/</g, '&lt;') + '</div>';
+  window.print();
+  printDiv.style.display = 'none';
+  showToast('PDF PRINT DIALOG OPENED');
+}
+
+document.getElementById('btn-txt').addEventListener('click', exportTXT);
+document.getElementById('btn-pdf').addEventListener('click', exportPDF);
+
+// --- DRAFT RECOVERY ---
+function saveDraft() {
+  const text = STATE.lines.join('\n');
+  if (text.trim().length === 0) {
+    localStorage.removeItem('typewriter-draft');
+    return;
+  }
+  localStorage.setItem('typewriter-draft', JSON.stringify({
+    lines: STATE.lines, cursorLine: STATE.cursorLine, cursorCol: STATE.cursorCol,
+    timestamp: Date.now()
+  }));
+}
+
+function checkRecovery() {
+  const raw = localStorage.getItem('typewriter-draft');
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    const text = (data.lines || []).join('\n');
+    if (!text || text.trim().length === 0) { localStorage.removeItem('typewriter-draft'); return; }
+    const modal = document.getElementById('recovery-modal');
+    modal.style.display = 'flex';
+    document.getElementById('btn-recover-yes').onclick = () => {
+      STATE.lines = data.lines || [''];
+      STATE.cursorLine = data.cursorLine || 0;
+      STATE.cursorCol = data.cursorCol || 0;
+      recalcStats(); renderPaper(); updateCarriage();
+      modal.style.display = 'none';
+      showToast('DRAFT RESTORED');
+    };
+    document.getElementById('btn-recover-no').onclick = () => {
+      localStorage.removeItem('typewriter-draft');
+      modal.style.display = 'none';
+    };
+  } catch(e) { localStorage.removeItem('typewriter-draft'); }
+}
+
+// --- RENDER LOOP ---
+function animate() {
+  requestAnimationFrame(animate);
+  updateAnimations();
+  // Smooth camera
+  camera.position.lerp(camTargetPos, 0.05);
+  currentLook.lerp(camTargetLook, 0.05);
+  camera.lookAt(currentLook);
+  // Subtle idle animation
+  const t = performance.now() * 0.001;
+  rimLight.intensity = 0.8 + Math.sin(t) * 0.1;
+  // Paper subtle curl
+  paperMesh.rotation.x = -Math.PI/2 + Math.sin(t*0.5) * 0.01;
+  renderer.render(scene, camera);
+}
+
+// --- RESIZE ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- INIT ---
+recalcStats();
+renderPaper();
+checkRecovery();
+animate();
+
+// Focus input on load (delayed for mobile)
+setTimeout(() => hiddenInput.focus(), 500);
+</script>
+</body>
+</html>
