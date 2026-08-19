@@ -6,10 +6,10 @@
 <title>Ironclad — 3D Mechanical Typewriter</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-/* Load the custom font from jsDelivr proxy to avoid strict CORS/MIME-type blocking on raw GitHub files */
+/* Load the WordStar retro monospace font safely via jsDelivr */
 @font-face {
-  font-family: 'Inkrealm';
-  src: url('https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2') format('woff2');
+  font-family: 'WordStar';
+  src: url('https://cdn.jsdelivr.net/gh/ghostm68/eg@main/fonts/wordstar-regular.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -27,7 +27,7 @@
   --line-soft: rgba(232, 224, 204, 0.14);
   --font-serif: Georgia, "Times New Roman", serif;
   --font-sans: "Avenir Next", "Segoe UI", sans-serif;
-  --font-mono: 'Inkrealm', "Courier New", "Courier Prime", monospace;
+  --font-mono: 'WordStar', "Courier New", "Courier Prime", monospace;
   --selection-bg: #ff0033;
   --selection-color: #0a0a0a;
 }
@@ -92,14 +92,14 @@ body {
 .stat-row { display: flex; justify-content: space-between; gap: 20px; }
 .stat-value { color: var(--text-main); }
 
-/* Interactive Manuscript Side Panel - Positioned Under Stats Panel on the Right */
+/* Interactive Manuscript Side Panel - Float Right below stats panel */
 #manuscript-panel {
   position: fixed; 
-  top: 165px; /* Sits perfectly below the stats panel */
-  right: -420px; /* Hidden off-screen to the right by default */
+  top: 165px; 
+  right: -420px; 
   left: auto;
-  width: 360px; /* Aligns comfortably on the right side of the screen */
-  height: calc(100% - 187px); /* Fills vertical space beautifully to the bottom margin */
+  width: 360px; 
+  height: calc(100% - 187px); 
   background: var(--bg-card); 
   border: 1px solid var(--line);
   backdrop-filter: blur(12px); 
@@ -112,7 +112,7 @@ body {
   box-shadow: -10px 10px 30px rgba(0,0,0,0.5);
 }
 #manuscript-panel.open {
-  right: 26px; /* Aligns with the 26px margin of the stats box */
+  right: 26px; 
 }
 .panel-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -126,11 +126,12 @@ body {
 #manuscript-textarea {
   flex: 1; background: transparent; border: none; outline: none;
   color: var(--text-main); font-family: var(--font-mono);
-  font-size: 16px; line-height: 1.75; resize: none;
+  font-size: 15px; line-height: 1.75; resize: none;
+  letter-spacing: 0.02em;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
 
-/* Control Desk */
+/* Control Desk Toolbar */
 #control-desk {
   position: absolute; left: 26px; bottom: 22px;
   border: 1px solid var(--line-soft); background: var(--bg-card);
@@ -179,22 +180,43 @@ body {
   color: var(--text-dim); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
   pointer-events: auto; cursor: text; background: rgba(5,5,5,0.4);
 }
+
+/* --- MOBILE SPECIFIC STYLING --- */
 @media (max-width: 768px) {
   #tap-zone { display: flex; }
-  #control-desk { left: 10px; right: 10px; bottom: 10px; max-width: none; }
-  .panel-section + .panel-section { border-left: none; padding-left: 0; }
+  
+  /* Horizontal Touch-Scroll Toolbar */
+  #control-desk {
+    left: 10px; right: 10px; bottom: 10px;
+    max-width: none;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+    padding: 10px 14px;
+    gap: 12px;
+  }
+  .desk-sep { display: none; } 
+  .panel-section {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    border-left: none !important;
+    padding-left: 0 !important;
+  }
+  .section-label { font-size: 7.5px; }
+
   .hud-title .tagline { display: none; }
   #stats-panel { top: 60px; right: 10px; }
   #cam-indicator { top: 10px; right: 10px; }
   .hud-title { top: 10px; left: 10px; }
   .hud-title h1 { font-size: 16px; }
   
-  /* Responsive mobile adaptations for the right-side manuscript panel */
+  /* Slide-up mobile overlay panel */
   #manuscript-panel {
     top: 150px;
     right: -100%;
     width: calc(100% - 20px);
-    height: calc(100% - 280px);
+    height: calc(100% - 260px); /* Leave clean clearance for the scrollable toolbar */
+    z-index: 25;
   }
   #manuscript-panel.open {
     right: 10px;
@@ -248,7 +270,7 @@ body {
   #print-content {
     position: absolute; left: 0; top: 0; width: 100%; display: block !important;
     background: #fffef8 !important; color: #1a1a1a !important;
-    padding: 60px; font-family: "Inkrealm", monospace !important;
+    padding: 60px; font-family: "WordStar", monospace !important;
     font-size: 12pt; line-height: 1.6; white-space: pre-wrap;
   }
 }
@@ -341,7 +363,7 @@ body {
 <script>
 /* ============================================================
    IRONCLAD — IMMERSIVE 3D MECHANICAL TYPEWRITER
-   Unified Architecture & Float-Right Stack Layout
+   Grouped History, Mobile Toolbar Optimization & WordStar Font [1]
    ============================================================ */
 
 const STATE = {
@@ -531,8 +553,8 @@ function renderPaper() {
   ctx.fillStyle = '#fffef8'; ctx.fillRect(0,0,w,h);
   ctx.fillStyle = '#2a2a2a';
   
-  // Apply loaded Inkrealm font or fall back safely to courier [1]
-  ctx.font = isCustomFontLoaded ? '32px "Inkrealm"' : 'bold 28px "Courier New", monospace';
+  // Apply loaded retro WordStar font or fall back safely [1]
+  ctx.font = isCustomFontLoaded ? '25px "WordStar"' : 'bold 28px "Courier New", monospace';
   
   const lineH = 42, margin = 60;
   STATE.lines.forEach((line, i) => {
@@ -549,9 +571,9 @@ function renderPaper() {
   paperTex.needsUpdate = true;
 }
 
-/* --- INKREALM FONT ASYNC LOADER --- */
-const inkrealmFont = new FontFace('Inkrealm', 'url(https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2)');
-inkrealmFont.load().then((loadedFont) => {
+/* --- retro WORDSTAR FONT ASYNC LOADER --- */
+const wordstarFont = new FontFace('WordStar', 'url(https://cdn.jsdelivr.net/gh/ghostm68/eg@main/fonts/wordstar-regular.woff2)');
+wordstarFont.load().then((loadedFont) => {
   document.fonts.add(loadedFont);
   isCustomFontLoaded = true;
   renderPaper();
@@ -614,7 +636,7 @@ function playBell() {
   const ctx = STATE.audioCtx, now = ctx.currentTime;
   const osc = ctx.createOscillator();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(1600, now); // High resonant chime
+  osc.frequency.setValueAtTime(1600, now); 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.08, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
@@ -660,8 +682,11 @@ function updateAnimations() {
   }
 }
 
-/* --- TEXT AREA DIRECT INTEGRATION --- */
+/* --- TEXT AREA DIRECT INTEGRATION & HISTORY ENGINE --- */
 const editor = document.getElementById('manuscript-textarea');
+
+let lastChangeType = ''; // 'insert', 'delete', 'newline'
+let historyDebounceTimer = null;
 
 function saveHistory() {
   STATE.history = STATE.history.slice(0, STATE.historyIndex + 1);
@@ -670,11 +695,29 @@ function saveHistory() {
   else STATE.historyIndex++;
 }
 
+// Group sequential inputs to prevent single character undo bloat
+function checkAndGroupHistory(changeType) {
+  clearTimeout(historyDebounceTimer);
+  
+  const isTypeBoundary = changeType !== lastChangeType || changeType === 'newline' || changeType === 'space';
+  
+  if (isTypeBoundary) {
+    saveHistory();
+    lastChangeType = changeType;
+  } else {
+    // Debounce to save history snapshot after a natural writing pause
+    historyDebounceTimer = setTimeout(() => {
+      saveHistory();
+      lastChangeType = '';
+    }, 1200);
+  }
+}
+
 function updateEditorValue() {
   editor.value = STATE.lines.join('\n');
   let idx = 0;
   for (let i = 0; i < STATE.cursorLine; i++) {
-    idx += STATE.lines[i].length + 1; // Including return character
+    idx += STATE.lines[i].length + 1; 
   }
   idx += STATE.cursorCol;
   editor.setSelectionRange(idx, idx);
@@ -740,7 +783,14 @@ editor.addEventListener('input', (e) => {
     return;
   }
 
-  saveHistory();
+  // Determine history action category
+  let actionType = 'insert';
+  if (e.inputType === 'insertLineBreak') actionType = 'newline';
+  else if (e.inputType === 'deleteContentBackward') actionType = 'delete';
+  else if (e.data === ' ') actionType = 'space';
+
+  checkAndGroupHistory(actionType);
+
   STATE.lines = lines;
   STATE.cursorLine = activeLineIdx;
   STATE.cursorCol = activeColIdx;
