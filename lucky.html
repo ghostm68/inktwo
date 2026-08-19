@@ -4,9 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ironclad — 3D Mechanical Typewriter</title>
+
+<!-- SEO Metadata based on inkrealm.info digital ecosystem -->
+<meta name="description" content="Ironclad — An immersive 3D mechanical typewriter simulation. Where digital ink meets physical mechanics, featuring real-time interactive rendering, retro typography options, and authentic mechanical acoustics.">
+<meta name="keywords" content="typewriter, 3d, mechanical typewriter, wordstar, inkrealm, vintage word processor, writing app, webgl typewriter, typewriter simulator">
+<meta name="author" content="inkrealm">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://inkrealm.info">
+<meta property="og:title" content="Ironclad — Immersive 3D Mechanical Typewriter">
+<meta property="og:description" content="A distraction-free tactile writing experience matching historical typewriter acoustics with a modern, fully synchronized side panel manuscript and retro typography.">
+<meta property="og:image" content="https://inkrealm.info/favicon.ico">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="https://inkrealm.info">
+<meta property="twitter:title" content="Ironclad — Immersive 3D Mechanical Typewriter">
+<meta property="twitter:description" content="A distraction-free tactile writing experience matching historical typewriter acoustics with a modern, fully synchronized side panel manuscript and retro typography.">
+<meta property="twitter:image" content="https://inkrealm.info/favicon.ico">
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#050505">
+
+<!-- Favicon Link -->
+<link rel="icon" type="image/x-icon" href="https://inkrealm.info/favicon.ico">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-/* Load the WordStar retro monospace font safely via jsDelivr */
+/* Load Both Custom Fonts safely via jsDelivr */
+@font-face {
+  font-family: 'Inkrealm';
+  src: url('https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'WordStar';
   src: url('https://cdn.jsdelivr.net/gh/ghostm68/eg@main/fonts/wordstar-regular.woff2') format('woff2');
@@ -27,7 +61,10 @@
   --line-soft: rgba(232, 224, 204, 0.14);
   --font-serif: Georgia, "Times New Roman", serif;
   --font-sans: "Avenir Next", "Segoe UI", sans-serif;
-  --font-mono: 'WordStar', "Courier New", "Courier Prime", monospace;
+  
+  /* Fallback initialized to Inkrealm */
+  --font-mono: 'Inkrealm', "Courier New", "Courier Prime", monospace;
+  
   --selection-bg: #ff0033;
   --selection-color: #0a0a0a;
 }
@@ -129,6 +166,7 @@ body {
   font-size: 15px; line-height: 1.75; resize: none;
   letter-spacing: 0.02em;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  transition: font-family 0.15s ease;
 }
 
 /* Control Desk Toolbar */
@@ -318,6 +356,7 @@ body {
       <div class="section-label">OPTIONS</div>
       <button class="desk-btn" id="btn-unicode">UNICODE</button>
       <button class="desk-btn" id="btn-panel">PANEL</button>
+      <button class="desk-btn" id="btn-font">FONT: INKREALM</button>
     </div>
     <div class="desk-sep"></div>
     <div class="panel-section">
@@ -363,13 +402,14 @@ body {
 <script>
 /* ============================================================
    IRONCLAD — IMMERSIVE 3D MECHANICAL TYPEWRITER
-   Grouped History, Mobile Toolbar Optimization & WordStar Font [1]
+   Multi-Font Options, Mobile Toolbar Optimization & Dynamic Acoustic Feedback
    ============================================================ */
 
 const STATE = {
   text: '', lines: [''], cursorLine: 0, cursorCol: 0,
   history: [], historyIndex: -1,
   soundOn: true, unicodeMode: false, panelOpen: false,
+  fontMode: 'INKREALM', // 'INKREALM' or 'WORDSTAR'
   cameraMode: 'WRITE', isTyping: false,
   carriageX: 0, paperOffset: 0,
   maxCharsPerLine: 48, linesPerPage: 24, pageCount: 1,
@@ -546,15 +586,20 @@ ribbonMesh.position.set(0,9.2,0.15); ribbonMesh.rotation.x = -Math.PI/2;
 carriageGroup.add(ribbonMesh);
 
 /* --- PAPER RENDER --- */
-let isCustomFontLoaded = false;
+let isInkrealmFontLoaded = false;
+let isWordstarFontLoaded = false;
 
 function renderPaper() {
   const ctx = paperCtx, w = 1024, h = 1400;
   ctx.fillStyle = '#fffef8'; ctx.fillRect(0,0,w,h);
   ctx.fillStyle = '#2a2a2a';
   
-  // Apply loaded retro WordStar font or fall back safely [1]
-  ctx.font = isCustomFontLoaded ? '25px "WordStar"' : 'bold 28px "Courier New", monospace';
+  // Choose Font based on option selection
+  if (STATE.fontMode === 'INKREALM') {
+    ctx.font = isInkrealmFontLoaded ? '32px "Inkrealm"' : 'bold 28px "Courier New", monospace';
+  } else {
+    ctx.font = isWordstarFontLoaded ? '25px "WordStar"' : 'bold 28px "Courier New", monospace';
+  }
   
   const lineH = 42, margin = 60;
   STATE.lines.forEach((line, i) => {
@@ -571,14 +616,23 @@ function renderPaper() {
   paperTex.needsUpdate = true;
 }
 
-/* --- retro WORDSTAR FONT ASYNC LOADER --- */
+/* --- retro WORDSTAR & INKREALM FONTS ASYNC LOADERS --- */
+const inkrealmFont = new FontFace('Inkrealm', 'url(https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/fonts/Inkrealm-Regular.woff2)');
+inkrealmFont.load().then((loadedFont) => {
+  document.fonts.add(loadedFont);
+  isInkrealmFontLoaded = true;
+  renderPaper();
+}).catch(err => {
+  console.warn('Inkrealm font failed to download.', err);
+});
+
 const wordstarFont = new FontFace('WordStar', 'url(https://cdn.jsdelivr.net/gh/ghostm68/eg@main/fonts/wordstar-regular.woff2)');
 wordstarFont.load().then((loadedFont) => {
   document.fonts.add(loadedFont);
-  isCustomFontLoaded = true;
+  isWordstarFontLoaded = true;
   renderPaper();
 }).catch(err => {
-  console.warn('Fallback to system monospace: Font failed to download.', err);
+  console.warn('WordStar font failed to download.', err);
 });
 
 /* --- AUDIO ENGINE --- */
@@ -1002,6 +1056,18 @@ document.getElementById('btn-unicode').addEventListener('click', () => {
 });
 
 document.getElementById('btn-panel').addEventListener('click', () => togglePanel());
+
+document.getElementById('btn-font').addEventListener('click', () => {
+  // Cycle font modes between loaded custom families
+  STATE.fontMode = STATE.fontMode === 'INKREALM' ? 'WORDSTAR' : 'INKREALM';
+  document.getElementById('btn-font').textContent = 'FONT: ' + STATE.fontMode;
+  
+  // Swap global CSS variables to update HTML editor elements dynamically [1]
+  document.documentElement.style.setProperty('--font-mono', STATE.fontMode === 'INKREALM' ? "'Inkrealm', monospace" : "'WordStar', monospace");
+  
+  renderPaper();
+  showToast('FONT: ' + STATE.fontMode);
+});
 
 document.getElementById('btn-undo').addEventListener('click', undo);
 document.getElementById('btn-redo').addEventListener('click', redo);
