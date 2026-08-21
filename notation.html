@@ -1405,8 +1405,9 @@ document.querySelectorAll('details').forEach(detail => {
 function toggleMenu() {
 	const m = document.getElementById('menuOverlay');
 	if (!m) return;
-	m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-	document.body.style.overflow = (m.style.display === 'flex') ? 'hidden' : '';
+	const isOpen = m.style.display === 'flex';
+	m.style.display = isOpen ? 'none' : 'flex';
+	document.body.style.overflow = isOpen ? '' : 'hidden';
 }
 
 function closeMenu() {
@@ -1430,25 +1431,7 @@ function glitchEffect() {
 }
 
 // ================================================================
-// 3. EXPORT DRAFT (Global)
-// ================================================================
-function exportDraft(buttonElement) {
-	const storyContainer = buttonElement.closest('.story-content');
-	if (!storyContainer) return;
-	const content = storyContainer.innerText;
-	const blob = new Blob([content], { type: 'text/plain' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = 'inkrealm-dossier.txt';
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
-}
-
-// ================================================================
-// 4. AUDIO POWER TOGGLE
+// 3. AUDIO POWER TOGGLE
 // ================================================================
 let audioCtx, humOsc, isPowered = false;
 
@@ -1458,7 +1441,7 @@ function togglePower() {
 
 	if (!audioCtx) {
 		try {
-			audioCtx = new AudioContext();
+			audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 			humOsc = audioCtx.createOscillator();
 			const gain = audioCtx.createGain();
 			humOsc.type = 'sawtooth';
@@ -1482,17 +1465,30 @@ function togglePower() {
 		}
 	}
 
-	if (isPowered) {
-		powerBtn.innerText = "POWER: ON";
-		powerBtn.classList.add('power-on');
-	} else {
-		powerBtn.innerText = "POWER: OFF";
-		powerBtn.classList.remove('power-on');
-	}
+	powerBtn.innerText = isPowered ? "POWER: ON" : "POWER: OFF";
+	powerBtn.classList.toggle('power-on', isPowered);
 }
 
 // ================================================================
-// 5. TTS FUNCTIONS
+// 4. EXPORT DRAFT (Single Global Function)
+// ================================================================
+function exportDraft(buttonElement) {
+	const storyContainer = buttonElement.closest('.story-content');
+	if (!storyContainer) return;
+	const content = storyContainer.innerText;
+	const blob = new Blob([content], { type: 'text/plain' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = 'inkrealm-dossier.txt';
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// 5. TTS FUNCTIONS (Single Definitions)
 // ================================================================
 let storySynth = window.speechSynthesis;
 let storyUtterance = null;
@@ -1633,7 +1629,7 @@ function closeAllSelects(exceptThis) {
 }
 
 // ================================================================
-// 7. ASCII ART GENERATOR (FIXED - Witch & Matrix Working)
+// 7. ASCII ART GENERATOR (FIXED - Richer Matrix & Witch)
 // ================================================================
 const asciiArt = {
 	'INK': [
@@ -1723,12 +1719,13 @@ function colorizeASCII(lines) {
 }
 
 function generateCustomASCII(text, style) {
+	// EXPANDED character sets for Matrix and Witch
 	const chars = {
 		'runes': ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ', 'ᚻ', 'ᚾ', 'ᛁ', 'ᛉ', 'ᛊ', 'ᛏ', 'ᛒ', 'ᛖ', 'ᛗ', 'ᛚ', 'ᛝ', 'ᛟ', 'ᛞ'],
 		'block': ['█', '▓', '▒', '░', ' ', '▄', '▀', '■', '□', '▪', '▫'],
 		'simple': ['#', '*', '+', '.', ' ', '=', '-', '~', ':', ';', ','],
-		'matrix': ['ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ', 'サ', 'シ', 'ス', 'セ', 'ソ', 'タ', 'チ', 'ツ', 'テ', 'ト', 'ナ', 'ニ', 'ヌ', 'ネ', 'ノ'],
-		'witch': ['☾', '✧', '☽', '☆', '✵', '✶', '✷', '✸', '✹', '✺', '✦', '✧', '★', '✩', '✪', '✫', '✬', '✭', '✮', '✯', '✰', '✱', '✲', '✳', '✴']
+		'matrix': ['ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ', 'サ', 'シ', 'ス', 'セ', 'ソ', 'タ', 'チ', 'ツ', 'テ', 'ト', 'ナ', 'ニ', 'ヌ', 'ネ', 'ノ', 'ハ', 'ヒ', 'フ', 'ヘ', 'ホ', 'マ', 'ミ', 'ム', 'メ', 'モ', 'ヤ', 'ユ', 'ヨ', 'ラ', 'リ', 'ル', 'レ', 'ロ', 'ワ', 'ヲ', 'ン'],
+		'witch': ['☾', '✧', '☽', '☆', '✵', '✶', '✷', '✸', '✹', '✺', '✦', '✧', '★', '✩', '✪', '✫', '✬', '✭', '✮', '✯', '✰', '✱', '✲', '✳', '✴', '✵', '✶', '✷', '✸', '✹', '✺', '✻', '✼', '✽', '✾', '✿', '❀', '❁', '❂', '❃', '❄', '❅', '❆', '❇', '❈', '❉', '❊', '❋']
 	};
 	
 	const charSet = chars[style] || chars.block;
@@ -1801,9 +1798,6 @@ function generateASCII() {
 	const coloredAscii = colorizeASCII(asciiLines);
 	container.innerHTML = header + coloredAscii;
 	container.scrollTop = 0;
-	
-	container.classList.add('ascii-glitch');
-	setTimeout(() => container.classList.remove('ascii-glitch'), 300);
 }
 
 function clearChat() {
@@ -1942,411 +1936,308 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ================================================================
-// 11. HASH CHANGE LISTENER
+// 11. HASH CHANGE & CLICK LISTENERS
 // ================================================================
 window.addEventListener('hashchange', () => {
 	handleAnchorOpen(window.location.hash);
 });
 
-// ================================================================
-// 12. CLICK DELEGATION FOR ANCHOR LINKS
-// ================================================================
 document.addEventListener('click', (e) => {
 	const link = e.target.closest('a[href^="#"]');
 	if (link) {
 		handleAnchorOpen(link.getAttribute('href'));
 	}
 });
+</script>
 
-// ================================================================
-// 13. THREE.JS FOOTER (Single Instance)
-// ================================================================
-(function() {
-	const container = document.getElementById('three-footer');
-	if (!container) return;
-	
-	import('https://unpkg.com/three@0.160.0/build/three.module.js').then((THREE) => {
-		let camera, scene, renderer;
-		let particles, count = 0;
-		let mouseX = 0;
-		let windowHalfX = container.clientWidth / 2;
+<!-- ================================================================ -->
+<!-- WEBLLM / HERMES AI (Module)                                      -->
+<!-- ================================================================ -->
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-		function init() {
-			camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 1, 10000);
-			camera.position.z = 1000;
-			camera.position.y = 300;
+const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC";
+let engine;
 
-			scene = new THREE.Scene();
-			scene.fog = new THREE.FogExp2(0x050505, 0.001);
+const btn = document.getElementById('loadCoreBtn');
+const output = document.getElementById('nous-output');
+const dlText = document.getElementById('dl-text');
+const genBtn = document.getElementById('nous-transmit-btn');
+const promptInput = document.getElementById('nous-prompt');
 
-			const geometry = new THREE.BufferGeometry();
-			const positions = [];
-			const colors = [];
+if (btn) {
+	btn.onclick = async () => {
+		try {
+			if (!navigator.gpu) throw new Error("GPU MISSING");
+			btn.disabled = true;
+			btn.textContent = "SYNCING...";
+			const track = document.getElementById('dl-track');
+			if (track) track.style.display = 'block';
+			if (dlText) dlText.style.display = 'block';
+			if (output) output.textContent = "INITIALIZING...";
+			
+			engine = await webllm.CreateMLCEngine(modelId, {
+				initProgressCallback: (report) => {
+					const p = report.progress * 100;
+					const bar = document.getElementById('dl-bar');
+					if (bar) bar.style.width = p + '%';
+					if (dlText) dlText.textContent = `LOADING: ${Math.round(p)}%`;
+					if (p === 100) {
+						if (output) output.textContent = "HERMES ONLINE.";
+						if (btn) btn.style.display = 'none';
+						if (dlText) dlText.style.display = 'none';
+						const status = document.getElementById('nous-status');
+						if (status) {
+							status.textContent = "ONLINE";
+							status.style.color = "#ff0033";
+						}
+					}
+				}
+			});
+		} catch (err) {
+			if (output) output.textContent = "ERR: " + err.message;
+		}
+	};
+}
 
-			const colorRed = new THREE.Color(0xff0033);
-			const colorWhite = new THREE.Color(0xffffff);
-
-			let i = 0;
-			for (let x = -1500; x < 1500; x += 50) {
-				for (let z = -1000; z < 1000; z += 50) {
-					positions.push(x, 0, z);
-					const color = (Math.random() > 0.85) ? colorRed : colorWhite;
-					colors.push(color.r, color.g, color.b);
-					i++;
+if (genBtn && promptInput) {
+	genBtn.onclick = async () => {
+		if (!engine) return;
+		const val = promptInput.value.trim();
+		if (!val) return;
+		genBtn.disabled = true;
+		if (output) output.textContent = "";
+		let fullText = "";
+		try {
+			const chunks = await engine.chat.completions.create({
+				messages: [{ role: "system", content: "You are NOUS." }, { role: "user", content: val }],
+				stream: true,
+				temperature: 0.7,
+				max_tokens: 512
+			});
+			for await (const chunk of chunks) {
+				fullText += chunk.choices[0]?.delta?.content || "";
+				if (output) {
+					output.textContent = fullText;
+					output.scrollTop = output.scrollHeight;
 				}
 			}
+		} catch (e) {
+			if (output) output.textContent = "ERR";
+		} finally {
+			genBtn.disabled = false;
+		}
+	};
+}
+</script>
 
-			geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-			geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+<!-- ================================================================ -->
+<!-- MOZART DICE GAME (Module)                                        -->
+<!-- ================================================================ -->
+<script type="module">
+import * as Tone from 'https://esm.sh/tone';
 
-			const material = new THREE.PointsMaterial({
-				size: 5,
-				vertexColors: true,
-				transparent: true,
-				opacity: 0.8,
-				blending: THREE.AdditiveBlending
+const mozartTable = {
+	2:  [96, 22, 141, 41, 105, 122, 11, 30],
+	3:  [32, 6, 128, 63, 146, 46, 134, 81],
+	4:  [69, 95, 158, 13, 153, 55, 110, 24],
+	5:  [40, 17, 113, 85, 161, 2, 159, 100],
+	6:  [148, 74, 163, 45, 80, 97, 36, 107],
+	7:  [104, 157, 27, 167, 154, 68, 118, 91],
+	8:  [152, 60, 171, 53, 99, 133, 21, 127],
+	9:  [119, 84, 114, 50, 140, 86, 169, 94],
+	10: [98, 142, 42, 156, 75, 129, 62, 123],
+	11: [3, 87, 165, 61, 135, 47, 147, 33],
+	12: [54, 130, 10, 103, 28, 37, 106, 5]
+};
+
+const grid = document.getElementById('mozart-grid');
+const rollBtn = document.getElementById('rollBtn');
+const playBtn = document.getElementById('playBtn');
+const codeDisplay = document.getElementById('composition-code');
+
+window.currentSequence = [];
+
+let synth, chorus, reverb;
+let isPlaying = false;
+let currentPlaybackTimeout = null;
+
+async function initAudio() {
+	if (synth) return;
+	await Tone.start();
+	
+	reverb = new Tone.Reverb({ decay: 6, wet: 0.5, preDelay: 0.2 }).toDestination();
+	chorus = new Tone.Chorus(1.5, 2.5, 0.5).connect(reverb).start();
+	
+	synth = new Tone.PolySynth(Tone.FMSynth, {
+		harmonicity: 3,
+		modulationIndex: 10,
+		oscillator: { type: "sine" },
+		envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 2 },
+		modulation: { type: "square" },
+		modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
+	}).connect(chorus);
+}
+
+function stopPlayback() {
+	if (currentPlaybackTimeout) {
+		clearTimeout(currentPlaybackTimeout);
+		currentPlaybackTimeout = null;
+	}
+	if (synth) synth.releaseAll();
+	isPlaying = false;
+	if (playBtn) playBtn.innerHTML = '▶ PLAY COMPOSITION';
+}
+
+function buildGrid() {
+	if (!grid) return;
+	grid.innerHTML = '';
+	for(let row=2; row<=12; row++) {
+		mozartTable[row].forEach((val, index) => {
+			const cell = document.createElement('div');
+			cell.textContent = val;
+			cell.style.border = '1px solid #333';
+			cell.style.padding = '5px';
+			cell.style.textAlign = 'center';
+			cell.style.color = '#555';
+			cell.id = `m-${row}-${index}`;
+			grid.appendChild(cell);
+		});
+	}
+}
+buildGrid();
+
+const measureCount = document.getElementById('measure-count');
+const exportStatus = document.getElementById('export-status');
+if (measureCount) measureCount.textContent = 'MEASURES: 0';
+if (exportStatus) exportStatus.innerHTML = '{ AWAITING_INPUT }';
+
+if (rollBtn) {
+	rollBtn.onclick = () => {
+		stopPlayback();
+		
+		document.querySelectorAll('#mozart-grid div').forEach(d => {
+			d.style.background = 'transparent';
+			d.style.color = '#555';
+			d.style.borderColor = '#333';
+		});
+
+		window.currentSequence = [];
+		let sequenceIds = [];
+
+		for(let i=0; i<8; i++) {
+			const d1 = Math.floor(Math.random() * 6) + 1;
+			const d2 = Math.floor(Math.random() * 6) + 1;
+			const sum = d1 + d2;
+			
+			const measureID = mozartTable[sum][i];
+			window.currentSequence.push({ note: sum, id: measureID });
+			sequenceIds.push(measureID);
+
+			const cell = document.getElementById(`m-${sum}-${i}`);
+			if(cell) {
+				cell.style.background = 'var(--red)';
+				cell.style.color = 'black';
+				cell.style.borderColor = 'var(--red)';
+			}
+		}
+
+		if (codeDisplay) codeDisplay.textContent = `SEQ: [ ${sequenceIds.join(' - ')} ]`;
+		if (playBtn) {
+			playBtn.disabled = false;
+			playBtn.style.opacity = '1';
+			playBtn.innerHTML = '▶ PLAY COMPOSITION';
+		}
+		if (measureCount) measureCount.textContent = `MEASURES: ${window.currentSequence.length}`;
+		if (exportStatus) exportStatus.innerHTML = '{ SEQUENCE_READY }';
+	};
+}
+
+if (playBtn) {
+	playBtn.onclick = async () => {
+		if (!window.currentSequence.length) {
+			alert('Generate a sequence first!');
+			return;
+		}
+		
+		if (isPlaying) {
+			stopPlayback();
+			return;
+		}
+		
+		await initAudio();
+		stopPlayback();
+		
+		isPlaying = true;
+		playBtn.innerHTML = '⏸ STOP';
+		
+		const now = Tone.now();
+		let time = 0;
+
+		const chordMap = {
+			2:  ['C3', 'E3', 'G3'],
+			3:  ['D3', 'F3', 'A3'],
+			4:  ['E3', 'G3', 'B3'],
+			5:  ['F3', 'A3', 'C4'],
+			6:  ['G3', 'B3', 'D4'],
+			7:  ['A3', 'C4', 'E4'],
+			8:  ['B3', 'D4', 'F4'],
+			9:  ['C3', 'E3', 'A#3'],
+			10: ['D3', 'F#3', 'C4'],
+			11: ['E3', 'G#3', 'D4'],
+			12: ['F#3', 'A3', 'C4', 'E4']
+		};
+		
+		window.currentSequence.forEach((step, index) => {
+			let notes = [...(chordMap[step.note] || ['C3', 'E3', 'G3'])];
+			const bassNote = notes[0];
+			let chordTones = notes.slice(1);
+
+			if (Math.random() > 0.5) {
+				chordTones = chordTones.map(n => Tone.Frequency(n).transpose(12));
+			}
+
+			const humanize = () => (Math.random() * 0.03) - 0.015;
+			
+			const finalBass = Math.random() > 0.7 ? Tone.Frequency(bassNote).transpose(-12) : bassNote;
+			synth.triggerAttackRelease(finalBass, "2n", now + time + humanize(), 0.9);
+			
+			chordTones.forEach((note, i) => {
+				synth.triggerAttackRelease(note, "8n", now + time + 0.3 + (i * 0.05) + humanize(), 0.6);
 			});
 
-			particles = new THREE.Points(geometry, material);
-			scene.add(particles);
-
-			renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-			renderer.setPixelRatio(window.devicePixelRatio);
-			renderer.setSize(container.clientWidth, container.clientHeight);
-			container.appendChild(renderer.domElement);
-
-			container.addEventListener('mousemove', onDocumentMouseMove);
-			window.addEventListener('resize', onWindowResize);
-		}
-
-		function onWindowResize() {
-			windowHalfX = container.clientWidth / 2;
-			camera.aspect = container.clientWidth / container.clientHeight;
-			camera.updateProjectionMatrix();
-			renderer.setSize(container.clientWidth, container.clientHeight);
-		}
-
-		function onDocumentMouseMove(event) {
-			mouseX = (event.clientX - windowHalfX) * 0.1;
-		}
-
-		function animate() {
-			requestAnimationFrame(animate);
-			render();
-		}
-
-		function render() {
-			camera.position.x += (mouseX - camera.position.x) * 0.05;
-			camera.lookAt(scene.position);
-
-			const positions = particles.geometry.attributes.position.array;
-			let i = 0;
-			for (let x = -1500; x < 1500; x += 50) {
-				for (let z = -1000; z < 1000; z += 50) {
-					positions[i + 1] = (Math.sin((x + count) * 0.005) * 50) +
-					                   (Math.sin((z + count) * 0.005) * 50);
-					i += 3;
-				}
-			}
-
-			particles.geometry.attributes.position.needsUpdate = true;
-			count += 4;
-
-			renderer.render(scene, camera);
-		}
-
-		init();
-		animate();
-	});
-})();
-
-// ================================================================
-// 14. WEBLLM / HERMES AI
-// ================================================================
-if (document.getElementById('loadCoreBtn')) {
-	import('https://esm.run/@mlc-ai/web-llm').then((webllm) => {
-		const modelId = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC";
-		let engine;
-
-		const btn = document.getElementById('loadCoreBtn');
-		const output = document.getElementById('nous-output');
-		const dlText = document.getElementById('dl-text');
-		const genBtn = document.getElementById('nous-transmit-btn');
-		const promptInput = document.getElementById('nous-prompt');
-
-		if (btn) {
-			btn.onclick = async () => {
-				try {
-					if (!navigator.gpu) throw new Error("GPU MISSING");
-					btn.disabled = true;
-					btn.textContent = "SYNCING...";
-					const track = document.getElementById('dl-track');
-					if (track) track.style.display = 'block';
-					if (dlText) dlText.style.display = 'block';
-					if (output) output.textContent = "INITIALIZING...";
-					
-					engine = await webllm.CreateMLCEngine(modelId, {
-						initProgressCallback: (report) => {
-							const p = report.progress * 100;
-							const bar = document.getElementById('dl-bar');
-							if (bar) bar.style.width = p + '%';
-							if (dlText) dlText.textContent = `LOADING: ${Math.round(p)}%`;
-							if (p === 100) {
-								if (output) output.textContent = "HERMES ONLINE.";
-								if (btn) btn.style.display = 'none';
-								if (dlText) dlText.style.display = 'none';
-								const status = document.getElementById('nous-status');
-								if (status) {
-									status.textContent = "ONLINE";
-									status.style.color = "#ff0033";
-								}
-							}
-						}
-					});
-				} catch (err) {
-					if (output) output.textContent = "ERR: " + err.message;
-				}
-			};
-		}
-
-		if (genBtn && promptInput) {
-			genBtn.onclick = async () => {
-				if (!engine) return;
-				const val = promptInput.value.trim();
-				if (!val) return;
-				genBtn.disabled = true;
-				if (output) output.textContent = "";
-				let fullText = "";
-				try {
-					const chunks = await engine.chat.completions.create({
-						messages: [{ role: "system", content: "You are NOUS." }, { role: "user", content: val }],
-						stream: true,
-						temperature: 0.7,
-						max_tokens: 512
-					});
-					for await (const chunk of chunks) {
-						fullText += chunk.choices[0]?.delta?.content || "";
-						if (output) {
-							output.textContent = fullText;
-							output.scrollTop = output.scrollHeight;
-						}
-					}
-				} catch (e) {
-					if (output) output.textContent = "ERR";
-				} finally {
-					genBtn.disabled = false;
-				}
-			};
-		}
-	});
-}
-
-// ================================================================
-// 15. MOZART DICE GAME (ESM.SH)
-// ================================================================
-if (document.getElementById('mozart-grid')) {
-	import('https://esm.sh/tone').then((Tone) => {
-		const mozartTable = {
-			2:  [96, 22, 141, 41, 105, 122, 11, 30],
-			3:  [32, 6, 128, 63, 146, 46, 134, 81],
-			4:  [69, 95, 158, 13, 153, 55, 110, 24],
-			5:  [40, 17, 113, 85, 161, 2, 159, 100],
-			6:  [148, 74, 163, 45, 80, 97, 36, 107],
-			7:  [104, 157, 27, 167, 154, 68, 118, 91],
-			8:  [152, 60, 171, 53, 99, 133, 21, 127],
-			9:  [119, 84, 114, 50, 140, 86, 169, 94],
-			10: [98, 142, 42, 156, 75, 129, 62, 123],
-			11: [3, 87, 165, 61, 135, 47, 147, 33],
-			12: [54, 130, 10, 103, 28, 37, 106, 5]
-		};
-
-		const grid = document.getElementById('mozart-grid');
-		const rollBtn = document.getElementById('rollBtn');
-		const playBtn = document.getElementById('playBtn');
-		const codeDisplay = document.getElementById('composition-code');
-		
-		window.currentSequence = [];
-		
-		let synth, chorus, reverb;
-		let isPlaying = false;
-		let currentPlaybackTimeout = null;
-
-		async function initAudio() {
-			if (synth) return;
-			await Tone.start();
+			chordTones.forEach((note, i) => {
+				synth.triggerAttackRelease(note, "8n", now + time + 0.6 + (i * 0.05) + humanize(), 0.5);
+			});
 			
-			reverb = new Tone.Reverb({ decay: 6, wet: 0.5, preDelay: 0.2 }).toDestination();
-			chorus = new Tone.Chorus(1.5, 2.5, 0.5).connect(reverb).start();
-			
-			synth = new Tone.PolySynth(Tone.FMSynth, {
-				harmonicity: 3,
-				modulationIndex: 10,
-				oscillator: { type: "sine" },
-				envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 2 },
-				modulation: { type: "square" },
-				modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
-			}).connect(chorus);
-		}
-
-		function stopPlayback() {
-			if (currentPlaybackTimeout) {
-				clearTimeout(currentPlaybackTimeout);
+			let measureGap = 0.85;
+			if ((index + 1) % 4 === 0) measureGap += 0.2;
+			time += measureGap;
+		});
+		
+		const totalDuration = time * 1000;
+		currentPlaybackTimeout = setTimeout(() => {
+			if (isPlaying) {
+				isPlaying = false;
+				if (playBtn) playBtn.innerHTML = '▶ PLAY COMPOSITION';
 				currentPlaybackTimeout = null;
 			}
-			if (synth) synth.releaseAll();
-			isPlaying = false;
-			if (playBtn) playBtn.innerHTML = '▶ PLAY COMPOSITION';
-		}
-
-		function buildGrid() {
-			if (!grid) return;
-			grid.innerHTML = '';
-			for(let row=2; row<=12; row++) {
-				mozartTable[row].forEach((val, index) => {
-					const cell = document.createElement('div');
-					cell.textContent = val;
-					cell.style.border = '1px solid #333';
-					cell.style.padding = '5px';
-					cell.style.textAlign = 'center';
-					cell.style.color = '#555';
-					cell.id = `m-${row}-${index}`;
-					grid.appendChild(cell);
-				});
-			}
-		}
-		buildGrid();
-
-		const measureCount = document.getElementById('measure-count');
-		const exportStatus = document.getElementById('export-status');
-		if (measureCount) measureCount.textContent = 'MEASURES: 0';
-		if (exportStatus) exportStatus.innerHTML = '{ AWAITING_INPUT }';
-
-		if (rollBtn) {
-			rollBtn.onclick = () => {
-				stopPlayback();
-				
-				document.querySelectorAll('#mozart-grid div').forEach(d => {
-					d.style.background = 'transparent';
-					d.style.color = '#555';
-					d.style.borderColor = '#333';
-				});
-
-				window.currentSequence = [];
-				let sequenceIds = [];
-
-				for(let i=0; i<8; i++) {
-					const d1 = Math.floor(Math.random() * 6) + 1;
-					const d2 = Math.floor(Math.random() * 6) + 1;
-					const sum = d1 + d2;
-					
-					const measureID = mozartTable[sum][i];
-					window.currentSequence.push({ note: sum, id: measureID });
-					sequenceIds.push(measureID);
-
-					const cell = document.getElementById(`m-${sum}-${i}`);
-					if(cell) {
-						cell.style.background = 'var(--red)';
-						cell.style.color = 'black';
-						cell.style.borderColor = 'var(--red)';
-					}
-				}
-
-				if (codeDisplay) codeDisplay.textContent = `SEQ: [ ${sequenceIds.join(' - ')} ]`;
-				if (playBtn) {
-					playBtn.disabled = false;
-					playBtn.style.opacity = '1';
-					playBtn.innerHTML = '▶ PLAY COMPOSITION';
-				}
-				if (measureCount) measureCount.textContent = `MEASURES: ${window.currentSequence.length}`;
-				if (exportStatus) exportStatus.innerHTML = '{ SEQUENCE_READY }';
-			};
-		}
-
-		if (playBtn) {
-			playBtn.onclick = async () => {
-				if (!window.currentSequence.length) {
-					alert('Generate a sequence first!');
-					return;
-				}
-				
-				if (isPlaying) {
-					stopPlayback();
-					return;
-				}
-				
-				await initAudio();
-				stopPlayback();
-				
-				isPlaying = true;
-				playBtn.innerHTML = '⏸ STOP';
-				
-				const now = Tone.now();
-				let time = 0;
-
-				const chordMap = {
-					2:  ['C3', 'E3', 'G3'],
-					3:  ['D3', 'F3', 'A3'],
-					4:  ['E3', 'G3', 'B3'],
-					5:  ['F3', 'A3', 'C4'],
-					6:  ['G3', 'B3', 'D4'],
-					7:  ['A3', 'C4', 'E4'],
-					8:  ['B3', 'D4', 'F4'],
-					9:  ['C3', 'E3', 'A#3'],
-					10: ['D3', 'F#3', 'C4'],
-					11: ['E3', 'G#3', 'D4'],
-					12: ['F#3', 'A3', 'C4', 'E4']
-				};
-				
-				window.currentSequence.forEach((step, index) => {
-					let notes = [...(chordMap[step.note] || ['C3', 'E3', 'G3'])];
-					const bassNote = notes[0];
-					let chordTones = notes.slice(1);
-
-					if (Math.random() > 0.5) {
-						chordTones = chordTones.map(n => Tone.Frequency(n).transpose(12));
-					}
-
-					const humanize = () => (Math.random() * 0.03) - 0.015;
-					
-					const finalBass = Math.random() > 0.7 ? Tone.Frequency(bassNote).transpose(-12) : bassNote;
-					synth.triggerAttackRelease(finalBass, "2n", now + time + humanize(), 0.9);
-					
-					chordTones.forEach((note, i) => {
-						synth.triggerAttackRelease(note, "8n", now + time + 0.3 + (i * 0.05) + humanize(), 0.6);
-					});
-
-					chordTones.forEach((note, i) => {
-						synth.triggerAttackRelease(note, "8n", now + time + 0.6 + (i * 0.05) + humanize(), 0.5);
-					});
-					
-					let measureGap = 0.85;
-					if ((index + 1) % 4 === 0) measureGap += 0.2;
-					time += measureGap;
-				});
-				
-				const totalDuration = time * 1000;
-				currentPlaybackTimeout = setTimeout(() => {
-					if (isPlaying) {
-						isPlaying = false;
-						if (playBtn) playBtn.innerHTML = '▶ PLAY COMPOSITION';
-						currentPlaybackTimeout = null;
-					}
-				}, totalDuration + 500);
-			};
-		}
-
-		window.addEventListener('beforeunload', () => {
-			if (synth) synth.dispose();
-			if (chorus) chorus.dispose();
-			if (reverb) reverb.dispose();
-			if (currentPlaybackTimeout) clearTimeout(currentPlaybackTimeout);
-		});
-	});
+		}, totalDuration + 500);
+	};
 }
 
-// ================================================================
-// 16. EXPORT HARMONIC ANALYSIS
-// ================================================================
+window.addEventListener('beforeunload', () => {
+	if (synth) synth.dispose();
+	if (chorus) chorus.dispose();
+	if (reverb) reverb.dispose();
+	if (currentPlaybackTimeout) clearTimeout(currentPlaybackTimeout);
+});
+</script>
+
+<!-- ================================================================ -->
+<!-- EXPORT HARMONIC ANALYSIS                                         -->
+<!-- ================================================================ -->
+<script>
 function exportHarmonicAnalysis(sequence) {
 	if (!sequence || !sequence.length) {
 		alert('ROLL THE DICE FIRST');
@@ -2454,9 +2345,6 @@ PERFORMANCE NOTES:
 	return analysis;
 }
 
-// ================================================================
-// 17. EXPORT HARMONY BUTTON HANDLER
-// ================================================================
 document.addEventListener('DOMContentLoaded', function() {
 	const exportBtn = document.getElementById('exportHarmonyBtn');
 	if (exportBtn) {
@@ -2509,10 +2397,12 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	}
 });
+</script>
 
-// ================================================================
-// 18. WEBMCP TOOL REGISTRY
-// ================================================================
+<!-- ================================================================ -->
+<!-- WEBMCP TOOL REGISTRY                                             -->
+<!-- ================================================================ -->
+<script>
 if ('ai' in navigator && navigator.ai && navigator.ai.tools) {
 	navigator.ai.tools.register({
 		name: "compose_mozart_dice",
@@ -2601,6 +2491,6 @@ if ('ai' in navigator && navigator.ai && navigator.ai.tools) {
 		}
 	});
 }
-				</script>
+</script>
 </body>
 </html>
