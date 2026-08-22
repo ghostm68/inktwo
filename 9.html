@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chambers — A Woolf & WebSim Fusion</title>
+<style>
+:root {
+  --ink: #050505;
+  --bone: #e8e0cc;
+  --bone-dim: #a89f8a;
+  --nickel: #b08d57;
+  --red: #ff0000;
+  --line: rgba(232, 224, 204, 0.28);
+  --line-soft: rgba(232, 224, 204, 0.14);
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+::selection { background: var(--red); color: var(--ink); }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── CHAPTER SHELL ── */
+.chapter {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: flex-end;
+}
+.chapter.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Background image layer */
+.chapter-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.6) saturate(0.8) contrast(1.05);
+  transform: scale(1.04);
+  transition: transform 1.4s ease-out, filter 0.8s ease;
+}
+.chapter.active .chapter-bg {
+  transform: scale(1);
+}
+
+/* Vignette + bottom gradient for text */
+.chapter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 30%, transparent 30%, rgba(5,5,5,0.5) 100%),
+    linear-gradient(to top, rgba(5,5,5,0.9) 0%, rgba(5,5,5,0.3) 45%, transparent 70%);
+  z-index: 1;
+}
+
+/* Film grain overlay */
+.chapter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── CONTENT ── */
+.chapter-content {
+  position: relative;
+  z-index: 3;
+  padding: 0 8vw 12vh;
+  max-width: 720px;
+}
+
+.chapter-content h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(36px, 6vw, 72px);
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  margin-bottom: 20px;
+  color: var(--bone);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+
+.chapter-content p {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--bone-dim);
+  margin-bottom: 36px;
+  max-width: 460px;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+}
+
+/* ── INNER LINKS ── */
+.inner-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--nickel);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+  transition: all 0.35s ease;
+  cursor: pointer;
+  background: none; border: none; font-family: inherit;
+}
+.inner-link::after {
+  content: '→';
+  transition: transform 0.35s ease;
+}
+.inner-link:hover {
+  color: var(--bone);
+  border-bottom-color: var(--nickel);
+}
+.inner-link:hover::after {
+  transform: translateX(4px);
+}
+
+/* ── MENU BUTTON ── */
+#menu-btn {
+  position: fixed;
+  top: 28px; right: 28px;
+  z-index: 100;
+  width: 48px; height: 48px;
+  background: rgba(5,5,5,0.4);
+  border: 1px solid var(--line-soft);
+  color: var(--bone);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#menu-btn:hover, #menu-btn:focus {
+  border-color: var(--bone);
+  background: rgba(232,224,204,0.08);
+  outline: none;
+}
+
+/* ── CHAPTER SHEET OVERLAY ── */
+#sheet {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,5,0.94);
+  backdrop-filter: blur(16px) saturate(0.8);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+#sheet.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sheet-hint {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  margin-bottom: 48px;
+  opacity: 0.6;
+}
+
+.chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.chapters-list button {
+  background: none; border: none;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 400;
+  color: var(--bone-dim);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  padding: 10px 32px;
+  transition: all 0.35s ease;
+  position: relative;
+}
+.chapters-list button::after {
+  content: '';
+  position: absolute;
+  bottom: 6px; left: 50%;
+  width: 0; height: 1px;
+  background: var(--nickel);
+  transition: all 0.35s ease;
+  transform: translateX(-50%);
+}
+.chapters-list button:hover,
+.chapters-list button:focus {
+  color: var(--bone);
+  outline: none;
+}
+.chapters-list button:hover::after,
+.chapters-list button:focus::after {
+  width: 60%;
+}
+.chapters-list button.active-chapter {
+  color: var(--red);
+}
+.chapters-list button.active-chapter::after {
+  width: 40%; background: var(--red);
+}
+
+/* ── PROGRESS ── */
+#progress {
+  position: fixed;
+  bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--bone-dim);
+  opacity: 0.5;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── SCANLINES (Citadelle echo) ── */
+#scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(255,0,0,0.025) 2px, rgba(255,0,0,0.025) 4px
+  );
+  opacity: 0.4;
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .chapter-content { padding: 0 6vw 10vh; max-width: 100vw; }
+  .chapter-content h1 { font-size: clamp(32px, 10vw, 48px); }
+  #menu-btn { top: 16px; right: 16px; width: 44px; height: 44px; }
+  #progress { bottom: 16px; }
+  .chapters-list button { padding: 8px 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter, .chapter-bg, .inner-link, #sheet, #menu-btn {
+    transition: none !important;
+  }
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<div id="scanlines"></div>
+
+<button id="menu-btn" aria-label="Chapters">☰</button>
+
+<div id="progress" aria-live="polite">I / V</div>
+
+<!-- ═══════ CHAPTER I ═══════ -->
+<section class="chapter active" data-index="0">
+  <div class="chapter-bg" style="background-color:#1a1a1a;background-image:url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1920&q=80')"></div>
+  <div class="chapter-content">
+    <h1>The Portrait</h1>
+    <p>A face in profile, caught between centuries. The light falls from the left, as it always has in rooms where someone is thinking and the world outside has been asked to wait.</p>
+    <button class="inner-link" data-goto="2">Enter the study</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER II ═══════ -->
+<section class="chapter" data-index="1">
+  <div class="chapter-bg" style="background-color:#2a0a0a;background-image:url('https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=1920&q=80')"></div>
+  <div class="chapter-content">
+    <h1>The Red Sea</h1>
+    <p>Not water but ink. Not waves but sentences, each one rising to break against the margin and falling back to begin again, carrying the same salt, the same story.</p>
+    <button class="inner-link" data-goto="3">Find the cottage</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER III ═══════ -->
+<section class="chapter" data-index="2">
+  <div class="chapter-bg" style="background-color:#1c1810;background-image:url('https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1920&q=80')"></div>
+  <div class="chapter-content">
+    <h1>The Study</h1>
+    <p>A machine sits by the window, still warm. The page holds the indentation of keys that struck hours ago but sound, still, in the mind of whoever passed the door.</p>
+    <button class="inner-link" data-goto="1">Return to the sea</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER IV ═══════ -->
+<section class="chapter" data-index="3">
+  <div class="chapter-bg" style="background-color:#1a2218;background-image:url('https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=1920&q=80')"></div>
+  <div class="chapter-content">
+    <h1>The Cottage</h1>
+    <p>Someone lives here. The door is painted white, the roses climb without permission, and the path leads only inward, toward a room that smells of paper and rain.</p>
+    <button class="inner-link" data-goto="4">Walk the garden</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER V ═══════ -->
+<section class="chapter" data-index="4">
+  <div class="chapter-bg" style="background-color:#181e14;background-image:url('https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1920&q=80')"></div>
+  <div class="chapter-content">
+    <h1>The Garden</h1>
+    <p>Hollyhocks and delphiniums mark the border between what is cultivated and what simply grew while no one was watching. A bee moves from silence to silence.</p>
+    <button class="inner-link" data-goto="0">Back to the portrait</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER SHEET ═══════ -->
+<div id="sheet" role="dialog" aria-modal="true" aria-label="Chapter navigation">
+  <div class="sheet-hint">Select a chamber</div>
+  <div class="chapters-list">
+    <button data-goto="0">The Portrait</button>
+    <button data-goto="1">The Red Sea</button>
+    <button data-goto="2">The Study</button>
+    <button data-goto="3">The Cottage</button>
+    <button data-goto="4">The Garden</button>
+  </div>
+</div>
+
+<script>
+const chapters = document.querySelectorAll('.chapter');
+const sheet = document.getElementById('sheet');
+const menuBtn = document.getElementById('menu-btn');
+const progress = document.getElementById('progress');
+const roman = ['I','II','III','IV','V'];
+let current = 0;
+
+function showChapter(index) {
+  if (index < 0 || index >= chapters.length) return;
+  chapters[current].classList.remove('active');
+  chapters[index].classList.add('active');
+  current = index;
+  progress.textContent = roman[current] + ' / ' + roman[chapters.length - 1];
+  document.querySelectorAll('.chapters-list button').forEach((btn, i) => {
+    btn.classList.toggle('active-chapter', i === current);
+  });
+}
+
+// Menu toggle
+menuBtn.addEventListener('click', () => {
+  const isOpen = sheet.classList.toggle('open');
+  menuBtn.setAttribute('aria-expanded', isOpen);
+});
+
+// Sheet chapter selection
+sheet.querySelectorAll('button[data-goto]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    showChapter(parseInt(btn.dataset.goto));
+    sheet.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  });
+});
+
+// Inner cross-links
+document.querySelectorAll('.inner-link').forEach(link => {
+  link.addEventListener('click', () => {
+    showChapter(parseInt(link.dataset.goto));
+  });
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (sheet.classList.contains('open')) {
+    if (e.key === 'Escape') {
+      sheet.classList.remove('open');
+      menuBtn.setAttribute('aria-expanded', 'false');
+    }
+    return;
+  }
+  if (e.key === 'ArrowRight') showChapter(current + 1);
+  if (e.key === 'ArrowLeft') showChapter(current - 1);
+  if (e.key === 'Escape') {
+    sheet.classList.add('open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+  }
+});
+
+// Touch swipe
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive:true});
+document.addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].screenX;
+  if (Math.abs(diff) > 60) {
+    showChapter(diff > 0 ? current + 1 : current - 1);
+  }
+}, {passive:true});
+
+// Close sheet on backdrop click
+sheet.addEventListener('click', (e) => {
+  if (e.target === sheet) {
+    sheet.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+</script>
+
+</body>
+</html>
