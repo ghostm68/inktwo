@@ -294,7 +294,87 @@
             outline: none;
             line-height: 1.6;
         }
+/* --- Live Document Header with Font Level HUD --- */
+.article-header {
+    padding: 0.75rem 1rem;
+    background: var(--gray-1);
+    border-bottom: 1px solid var(--gray-3);
+    font-size: .8rem;
+    color: var(--gray-6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 
+.article-level-hud {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.doc-lvl-btn {
+    background: #000;
+    border: 1px solid #333;
+    color: #888;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    padding: 3px 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.doc-lvl-btn.active, .doc-lvl-btn:hover {
+    color: #000;
+    background: var(--red);
+    border-color: var(--red);
+    font-weight: bold;
+    box-shadow: 0 0 8px rgba(255, 0, 51, 0.5);
+}
+
+/* === LEVEL 0: RAW BRUTALIST === */
+article.level-0 {
+    background: #0d0d0d !important;
+    color: #dcdcdc !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    letter-spacing: 0;
+    text-shadow: none;
+    border-right: 1px solid #222;
+}
+
+/* === LEVEL 1: INTERZONE CIPHER (CRIMSON PHOSPHOR) === */
+article.level-1 {
+    background: #080203 !important;
+    color: #ff3355 !important;
+    font-family: 'Courier New', monospace !important;
+    text-shadow: 0 0 8px rgba(255, 0, 51, 0.6);
+    letter-spacing: 0.05em;
+    border-right: 1px solid #ff0033;
+}
+
+/* === LEVEL 2: KINETIC SOFT-MACHINE === */
+article.level-2 {
+    background: #110507 !important;
+    color: #ffffff !important;
+    font-family: 'Georgia', serif !important;
+    font-style: italic;
+    font-size: 1.05rem !important;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    letter-spacing: 0.03em;
+    border-right: 1px solid #999;
+}
+
+/* === LEVEL 3: PARAMETRIC OVERDRIVE (NEON LASER) === */
+article.level-3 {
+    background: #050002 !important;
+    color: #fff0f3 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    text-shadow: 0 0 10px #ff0033, 0 0 20px rgba(255, 0, 51, 0.8);
+    letter-spacing: 0.12em;
+    border-right: 1px solid #ff0033;
+    box-shadow: inset 0 0 30px rgba(255, 0, 51, 0.15);
+}
         /* ----------  chat  ---------- */
         .chat-messages {
             flex: 1;
@@ -889,10 +969,18 @@
 
     <!-- Main -->
     <div class="container">
-        <aside class="article-panel">
-            <div class="article-header">Live Document Editor</div>
-            <article contenteditable="plaintext-only" spellcheck></article>
-        </aside>
+       <aside class="article-panel">
+    <div class="article-header">
+        <span>Live Document Editor</span>
+        <div class="article-level-hud">
+            <button type="button" onclick="setDocLevel(0)" class="doc-lvl-btn active" id="doc-btn-0">0:RAW</button>
+            <button type="button" onclick="setDocLevel(1)" class="doc-lvl-btn" id="doc-btn-1">1:CIPHER</button>
+            <button type="button" onclick="setDocLevel(2)" class="doc-lvl-btn" id="doc-btn-2">2:KINETIC</button>
+            <button type="button" onclick="setDocLevel(3)" class="doc-lvl-btn" id="doc-btn-3">3:PARAMETRIC</button>
+        </div>
+    </div>
+    <article contenteditable="plaintext-only" spellcheck class="level-0"></article>
+</aside>
         <main class="writing-container" id="writing-container">
             <div class="chat-messages" id="chat-messages">
                 <div class="message system">System Ready. Chat Mode Active.</div>
@@ -1487,6 +1575,112 @@
                 };
             }
         })();
+    </script>
+        <!-- Load GSAP Core (Free & Lightweight) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<script>
+    let currentDocLevel = 0;
+    const docChars = '§!<>-_\\/[]{}—=+*^?#@%&010101';
+    const articleEl = document.querySelector('article');
+
+    window.setDocLevel = function(lvl) {
+        currentDocLevel = lvl;
+
+        // 1. Update UI Buttons
+        document.querySelectorAll('.doc-lvl-btn').forEach((b, i) => {
+            b.classList.toggle('active', i === lvl);
+        });
+
+        // 2. Switch classes
+        articleEl.classList.remove('level-0', 'level-1', 'level-2', 'level-3');
+        articleEl.classList.add(`level-${lvl}`);
+
+        // 3. Level Switch Transition
+        if (lvl === 1) {
+            runArticleCipher(articleEl);
+        } else if (lvl === 2 && typeof gsap !== 'undefined') {
+            gsap.fromTo(articleEl, 
+                { scale: 0.98, x: -5 }, 
+                { scale: 1, x: 0, duration: 0.4, ease: "elastic.out(1, 0.4)" }
+            );
+        } else if (lvl === 3 && typeof gsap !== 'undefined') {
+            gsap.fromTo(articleEl, 
+                { filter: "brightness(2) contrast(1.4)" }, 
+                { filter: "brightness(1) contrast(1)", duration: 0.5 }
+            );
+        }
+    };
+
+    // Matrix / Cyber Decode on Level 1
+    function runArticleCipher(element) {
+        const originalText = element.innerText;
+        if (!originalText || originalText.trim().length === 0) return;
+
+        let iteration = 0;
+        const interval = setInterval(() => {
+            element.innerText = originalText
+                .split('')
+                .map((char, index) => {
+                    if (char === ' ' || char === '\n') return char;
+                    if (index < iteration) return originalText[index];
+                    return docChars[Math.floor(Math.random() * docChars.length)];
+                })
+                .join('');
+
+            if (iteration >= originalText.length) {
+                clearInterval(interval);
+                element.innerText = originalText;
+            }
+            iteration += 2;
+        }, 20);
+    }
+
+    // Live Keystroke Reactions
+    if (articleEl) {
+        articleEl.addEventListener('keydown', (e) => {
+            if (typeof gsap === 'undefined') return;
+
+            // LEVEL 1: Cipher Scanline Flash
+            if (currentDocLevel === 1 && e.key.length === 1) {
+                gsap.fromTo(articleEl, 
+                    { textShadow: "0 0 15px #ff0033, 2px 0 0 #ffffff" }, 
+                    { textShadow: "0 0 8px rgba(255, 0, 51, 0.6)", duration: 0.2 }
+                );
+            }
+
+            // LEVEL 2: Mechanical Soft-Machine Recoil
+            if (currentDocLevel === 2) {
+                if (e.key === 'Enter') {
+                    gsap.fromTo(articleEl, 
+                        { y: 6, rotate: -0.2 }, 
+                        { y: 0, rotate: 0, duration: 0.35, ease: "elastic.out(1.2, 0.3)" }
+                    );
+                } else if (e.key.length === 1) {
+                    const randX = (Math.random() - 0.5) * 3;
+                    const randY = (Math.random() - 0.5) * 2;
+                    gsap.fromTo(articleEl, { x: randX, y: randY }, { x: 0, y: 0, duration: 0.08 });
+                }
+            }
+
+            // LEVEL 3: Parametric Laser Overdrive
+            if (currentDocLevel === 3 && e.key.length === 1) {
+                gsap.fromTo(articleEl, 
+                    { 
+                        textShadow: "0 0 20px #ffffff, 0 0 35px #ff0033",
+                        letterSpacing: "0.16em"
+                    }, 
+                    { 
+                        textShadow: "0 0 10px #ff0033, 0 0 20px rgba(255, 0, 51, 0.8)",
+                        letterSpacing: "0.12em", 
+                        duration: 0.3,
+                        ease: "power2.out"
+                    }
+                );
+            }
+        });
+    }
+
     </script>
 </body>
 </html>
