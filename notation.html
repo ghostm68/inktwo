@@ -1,0 +1,670 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>deja vu glitches</title>
+  <meta name="description" content="deja vu glitches – glitch art & experimental interfaces" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+
+  <style>
+    /* ── reset & base ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: #000; scrollbar-width: thin; scrollbar-color: #ff0000 #000; }
+    ::-webkit-scrollbar { width: 8px; background: #000; }
+    ::-webkit-scrollbar-thumb { background: #ff0000; }
+    body {
+      font-family: 'Anonymous Pro', 'Kode Mono', monospace;
+      background: #000;
+      color: #818181;
+      overflow-x: hidden;
+    }
+    a { color: #ff0000; text-decoration: none; }
+    ::selection { background: #a2a2a2; color: #000; }
+
+    /* ── scaling (1024px design) ── */
+    #page {
+      position: relative;
+      width: 1024px;
+      transform-origin: 0 0;
+      margin: 0 auto;
+    }
+    @media (max-width: 1024px) {
+      #page { zoom: calc(100vw / 1024); }
+    }
+
+    /* ── SVG filters (threshold + electric glow) ── */
+    svg.filter-svg { position: absolute; width: 0; height: 0; }
+
+    /* ── fixed header ── */
+    #fixedHeader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 1024px;
+      transform-origin: 0 0;
+      z-index: 50;
+      pointer-events: none;
+      padding: 14px 20px 0 20px;
+      background: linear-gradient(to bottom, #000 60%, transparent);
+    }
+    #fixedHeader a, #fixedHeader .clickable { pointer-events: auto; }
+    .brand {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 38px;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      text-transform: uppercase;
+      color: #ff0000;
+      filter: url(#threshfxStrong);
+    }
+    .brand .grey { color: #818181; }
+    .brand a { color: #ff0000; }
+    .brand a:hover { color: #fff; }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      font-size: 12px;
+      letter-spacing: 0px;
+    }
+    .top-row .mail {
+      font-family: 'Kode Mono', monospace;
+      background: #000;
+      padding: 2px 8px;
+      box-shadow: 0 0 0 2px #000;
+    }
+    .top-row .mail:hover { background: #ff0000; color: #000; }
+
+    /* ── scanline overlay ── */
+    .scanlines {
+      position: relative;
+      overflow: hidden;
+    }
+    .scanlines::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.5) 0 1px, transparent 1px 3px);
+      background-size: 100% 3px;
+      animation: scanMove 1.1s linear infinite;
+      z-index: 2;
+    }
+    @keyframes scanMove { 0% { background-position: 0 0; } 100% { background-position: 0 6px; } }
+
+    /* ── hero (pencil + text) ── */
+    #hero {
+      position: relative;
+      width: 1024px;
+      min-height: 480px;
+      margin-top: 80px;
+      background: #0a0a0a;
+      border-bottom: 1px solid #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 40px 60px;
+      gap: 30px;
+      overflow: hidden;
+    }
+    #hero .hero-pencil {
+      flex: 0 0 380px;  /* larger */
+      max-width: 380px;
+      filter: drop-shadow(0 0 30px rgba(255,0,0,0.25));
+      animation: pencilFloat 4s ease-in-out infinite;
+    }
+    #hero .hero-pencil svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+    @keyframes pencilFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-16px); }
+    }
+
+    #hero .hero-text {
+      flex: 1;
+      text-align: right;
+      filter: url(#threshfxStrong);
+    }
+    #hero .hero-text .glitch-line {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 62px;
+      line-height: 1.1;
+      letter-spacing: -3px;
+      text-transform: uppercase;
+      color: #242424;
+      display: block;
+    }
+    #hero .hero-text .glitch-line .hl { color: #ff0000; }
+    #hero .hero-text .glitch-line.shard {
+      animation: glitch-split 3.2s infinite steps(2, end);
+    }
+    @keyframes glitch-split {
+      0%, 100% { clip-path: inset(0 0 0 0); }
+      25% { clip-path: inset(15% 0 70% 0); }
+      50% { clip-path: inset(55% 0 20% 0); }
+      75% { clip-path: inset(5% 0 85% 0); }
+    }
+
+    /* ── pointer trail ── */
+    #trailCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+      mix-blend-mode: screen;
+    }
+
+    /* ── marquee (glitch loop) ── */
+    #marquee {
+      width: 1024px;
+      overflow: hidden;
+      background: #050505;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+      padding: 18px 0;
+      cursor: ew-resize;
+      touch-action: pan-y;
+      user-select: none;
+    }
+    #marquee .track {
+      display: flex;
+      white-space: nowrap;
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 48px;
+      letter-spacing: -3px;
+      text-transform: uppercase;
+      color: #242424;
+      filter: url(#threshfxStrong);
+      animation: marqueeScroll 18s linear infinite;
+      will-change: transform;
+    }
+    #marquee .track span { padding: 0 24px; }
+    #marquee .track .hl { color: #ff0000; }
+    @keyframes marqueeScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    /* ── word wall (scramble) ── */
+    #wordwall {
+      width: 1024px;
+      padding: 60px 20px;
+      border-bottom: 1px solid #1a1a1a;
+      background: #050505;
+    }
+    #wordwall .wall-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px 40px;
+    }
+    #wordwall .wall-item {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 48px;
+      line-height: 1.2;
+      letter-spacing: -2px;
+      text-transform: uppercase;
+      color: #242424;
+      filter: url(#threshfxStrong);
+      cursor: crosshair;
+      transition: color 0.15s;
+      padding: 8px 0;
+      border-bottom: 1px solid transparent;
+    }
+    #wordwall .wall-item .hl { color: #ff0000; }
+    #wordwall .wall-item:hover { color: #ff0000; border-bottom-color: #ff0000; }
+
+    /* ── FAQ ── */
+    #faq {
+      width: 1024px;
+      padding: 60px 20px 50px 20px;
+      border-bottom: 1px solid #1a1a1a;
+      background: #000;
+    }
+    #faq .faq-head {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 52px;
+      line-height: 1.1;
+      letter-spacing: -3px;
+      text-transform: uppercase;
+      color: #242424;
+      filter: url(#threshfxStrong);
+      margin-bottom: 32px;
+    }
+    #faq .faq-head .hl { color: #ff0000; }
+    .faq-item {
+      border-top: 1px solid #1a1a1a;
+      padding: 6px 0;
+    }
+    .faq-item:last-child { border-bottom: 1px solid #1a1a1a; }
+    .faq-q {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      width: 100%;
+      background: none;
+      border: 0;
+      color: #818181;
+      font-family: 'Kode Mono', monospace;
+      font-size: 16px;
+      line-height: 1.4;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+      padding: 14px 2px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .faq-q span { color: #ff0000; flex: none; margin-left: 20px; }
+    .faq-q:hover { color: #fff; }
+    .faq-item.open .faq-q { color: #fff; }
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out;
+    }
+    .faq-item.open .faq-a { max-height: 200px; }
+    .faq-a p {
+      margin: 0;
+      padding: 0 2px 18px 2px;
+      color: #6a6a6a;
+      font-family: 'Kode Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      letter-spacing: -0.2px;
+      text-transform: uppercase;
+    }
+
+    /* ── footer ── */
+    #footer {
+      width: 1024px;
+      padding: 40px 20px 50px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      font-family: 'Kode Mono', monospace;
+      font-size: 12px;
+      color: #444;
+    }
+    #footer .big-email {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: 38px;
+      letter-spacing: -2px;
+      color: #ff0000;
+      filter: url(#threshfxStrong);
+    }
+    #footer .big-email:hover { color: #fff; }
+    #footer .copy { color: #2a2a2a; }
+    #invertToggle {
+      background: #000;
+      border: 1px solid #ff0000;
+      color: #a2a2a2;
+      font-family: 'Anonymous Pro', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 6px 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    #invertToggle:hover { background: #ff0000; color: #000; }
+    body.site-inverted::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      background: rgba(255,255,255,.001);
+      backdrop-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(.50) contrast(1.72) grayscale(.18);
+      -webkit-backdrop-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(.50) contrast(1.72) grayscale(.18);
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 700px) {
+      #hero { flex-direction: column; padding: 30px 20px; min-height: auto; }
+      #hero .hero-pencil { flex: 0 0 200px; max-width: 200px; }
+      #hero .hero-text { text-align: center; }
+      #hero .hero-text .glitch-line { font-size: 34px; }
+      #wordwall .wall-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      #wordwall .wall-item { font-size: 28px; }
+      #faq .faq-head { font-size: 32px; }
+      #footer .big-email { font-size: 24px; }
+      .top-row { flex-wrap: wrap; gap: 8px; }
+      #marquee .track { font-size: 28px; }
+    }
+
+    /* ── fonts ── */
+    @font-face {
+      font-family: 'p--l';
+      src: url("data:font/opentype;base64,AAEAAAAQAQAABAAAR0RFRlRVRUoAAAGsAAAAHEdQT1M3Q0NEAAAByAAAAFpHU1VCd2hpdGUAAAIkAAAAak9TLzJvbW5seQAAAQAAAABWY21hc3luY2gAAADcAAAADmdseWZwbHVzZwAAApAAAAQgaGRteHlyZWFkeQAAAQ4AAAAcaGVhZGFycm93AAAAbAAAADZoaGVoZGVmYXVsdAAAAUQAAAAkaG10eGhpbnRlcm5ldAAAAWgAAAAgbG9jYWx3YXlzAAAAAQAAACBtYXh0eXBlc2NyaXB0AAAAZAAAACBuYW1lY29udmVydGVkAAAAZAAAACBwb3N0cG9zdHNjcmlwdAAAAGQAAAAgAA== dummy") format('opentype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+  </style>
+
+  <link href="https://fonts.googleapis.com/css2?family=Kode+Mono:wght@400;700&family=Anonymous+Pro:wght@400;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- pointer trail canvas -->
+<canvas id="trailCanvas"></canvas>
+
+<!-- fixed header -->
+<div id="fixedHeader">
+  <div class="brand"><a href="#">deja vu <span class="grey">glitches</span></a></div>
+  <div class="top-row">
+    <span class="mail"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
+    <span style="color:#2a2a2a; font-size:10px; letter-spacing:1px;">✦ glitch studio</span>
+  </div>
+</div>
+
+<!-- page -->
+<div id="page">
+
+  <!-- hero (scanlines overlay) -->
+  <div id="hero" class="scanlines">
+
+    <!-- PENCIL SVG – larger, with electric glow -->
+    <div class="hero-pencil">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" class="electric-pencil-svg">
+        <defs>
+          <filter id="electric-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <style>
+          .ep-body { fill: #0a0a0a; stroke: #ff0000; stroke-width: 3.5; }
+          .ep-stroke { stroke: #ff0000; stroke-width: 3.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+          .ep-fill { fill: #ff0000; stroke: none; }
+          .ep-bolt { stroke: #ffffff; stroke-width: 2.5; fill: none; filter: url(#electric-glow); animation: zap 1.2s infinite alternate; }
+          .ep-bolt .spark { fill: #ffffff; stroke: none; filter: url(#electric-glow); animation: zap 1.2s infinite alternate; }
+          @keyframes zap {
+            0% { opacity: 0.6; stroke: #ff0000; }
+            50% { opacity: 1; stroke: #ffffff; }
+            100% { opacity: 0.9; stroke: #ff4444; }
+          }
+        </style>
+
+        <g transform="rotate(-45 250 250)">
+          <!-- Eraser & Ferrule Metal Band -->
+          <path d="M 230 70 L 270 70 A 15 15 0 0 1 270 100 L 230 100 A 15 15 0 0 1 230 70 Z" class="ep-body" />
+          <rect x="230" y="100" width="40" height="20" class="ep-stroke" />
+          <line x1="230" y1="108" x2="270" y2="108" class="ep-stroke" />
+          <line x1="230" y1="114" x2="270" y2="114" class="ep-stroke" />
+
+          <!-- Hexagonal Shaft -->
+          <polygon points="230,120 270,120 270,350 230,350" class="ep-body" />
+          <line x1="243" y1="120" x2="243" y2="350" class="ep-stroke" />
+          <line x1="257" y1="120" x2="257" y2="350" class="ep-stroke" />
+
+          <!-- Sharpened Wood Cone -->
+          <polygon points="230,350 270,350 250,410" class="ep-body" />
+          <line x1="243" y1="350" x2="250" y2="410" class="ep-stroke" />
+          <line x1="257" y1="350" x2="250" y2="410" class="ep-stroke" />
+
+          <!-- Graphite Lead Tip -->
+          <polygon points="245,395 255,395 250,410" class="ep-fill" />
+
+          <!-- Lightning Arcs Exploding from Tip (250, 410) -->
+          <g class="ep-bolt">
+            <!-- Center Strike -->
+            <path d="M 250 410 L 244 430 L 254 445 L 246 475 L 252 490" />
+            <!-- Left Fork -->
+            <path d="M 250 410 L 230 425 L 238 440 L 215 465" />
+            <!-- Right Fork -->
+            <path d="M 250 410 L 268 428 L 260 445 L 285 470" />
+            <!-- Micro Arcs -->
+            <path d="M 245 425 L 220 435" />
+            <path d="M 255 435 L 275 440" />
+
+            <!-- Sparks -->
+            <circle cx="210" cy="475" r="3" class="spark" />
+            <circle cx="290" cy="478" r="2.5" class="spark" />
+            <circle cx="250" cy="498" r="3.5" class="spark" />
+            <circle cx="230" cy="445" r="2" class="spark" />
+            <circle cx="270" cy="450" r="2" class="spark" />
+          </g>
+        </g>
+      </svg>
+    </div>
+  <!-- hero (scanlines overlay) -->
+  <div id="hero" class="scanlines">
+    <div class="glitch-wrapper">
+      <div class="glitch-text">
+        <span class="hl">//</span> deja vu <span class="hl shard">glitches</span> <span class="hl">//</span>
+      </div>
+    </div>
+  </div>
+    <!-- Hero Text -->
+    <div class="hero-text">
+      <span class="glitch-line">deja vu</span>
+      <span class="glitch-line shard"><span class="hl">glitches</span></span>
+      <span class="glitch-line" style="font-size:32px; letter-spacing:0px; color:#444;">⚡ signal / decay ⚡</span>
+    </div>
+  </div>
+
+  <!-- MARQUEE (glitch loop) – brought back -->
+  <div id="marquee">
+    <div class="track" id="marqueeTrack">
+      <span>glitch <span class="hl">//</span> break <span class="hl">//</span> repeat <span class="hl">//</span></span>
+      <span>glitch <span class="hl">//</span> break <span class="hl">//</span> repeat <span class="hl">//</span></span>
+      <span>glitch <span class="hl">//</span> break <span class="hl">//</span> repeat <span class="hl">//</span></span>
+      <span>glitch <span class="hl">//</span> break <span class="hl">//</span> repeat <span class="hl">//</span></span>
+    </div>
+  </div>
+
+  <!-- WORD WALL (scramble) -->
+  <div id="wordwall">
+    <div class="wall-grid">
+      <div class="wall-item"><span class="hl">//</span> GLITCH</div>
+      <div class="wall-item"><span class="hl">//</span> LOOP</div>
+      <div class="wall-item"><span class="hl">//</span> BREAK</div>
+      <div class="wall-item"><span class="hl">//</span> SIGNAL</div>
+      <div class="wall-item"><span class="hl">//</span> DECAY</div>
+      <div class="wall-item"><span class="hl">//</span> REPEAT</div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div id="faq">
+    <div class="faq-head">fractured <span class="hl">faq</span> //</div>
+
+    <div class="faq-item">
+      <button class="faq-q">What is a glitch? <span>[+]</span></button>
+      <div class="faq-a"><p>A beautiful mistake in the matrix – an error that becomes expression.</p></div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q">Why deja vu? <span>[+]</span></button>
+      <div class="faq-a"><p>Because the signal repeats until it breaks, and in that break, we find meaning.</p></div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q">Is this generative? <span>[+]</span></button>
+      <div class="faq-a"><p>Yes – every loop, every distortion is born from code, randomness, and intent.</p></div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q">Can I touch it? <span>[+]</span></button>
+      <div class="faq-a"><p>You already are. The cursor leaves a trail – that’s your mark on the machine.</p></div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q">Who built this? <span>[+]</span></button>
+      <div class="faq-a"><p>wordstar.nexus – a studio for glitch, signal, and broken beauty.</p></div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div id="footer">
+    <div>
+      <span class="big-email"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
+    </div>
+    <div style="display:flex; gap:16px; align-items:center;">
+      <button id="invertToggle" type="button">◐ invert</button>
+      <span class="copy">© 2026 · wordstar.nexus</span>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- filters -->
+<svg class="filter-svg" aria-hidden="true">
+  <filter id="threshfxStrong" color-interpolation-filters="sRGB">
+    <feGaussianBlur stdDeviation="0.55" result="soft" />
+    <feColorMatrix in="soft" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 8 -3.2" />
+  </filter>
+</svg>
+
+<script>
+  (function() {
+    // ── POINTER TRAIL ──
+    const canvas = document.getElementById('trailCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    const pts = [];
+    const LIFE = 700;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    document.addEventListener('pointermove', function(e) {
+      pts.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+    });
+
+    function drawTrail() {
+      requestAnimationFrame(drawTrail);
+      const now = performance.now();
+      while (pts.length && now - pts[0].t > LIFE) pts.shift();
+
+      ctx.clearRect(0, 0, W, H);
+      if (pts.length < 2) return;
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (let i = 1; i < pts.length; i++) {
+        const a = 1 - (now - pts[i].t) / LIFE;
+        const alpha = Math.min(1, a * 1.4);
+        ctx.strokeStyle = 'rgba(255, 0, 0, ' + alpha.toFixed(3) + ')';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+        ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+      }
+    }
+    drawTrail();
+
+    // ── INVERT TOGGLE ──
+    const invertBtn = document.getElementById('invertToggle');
+    invertBtn.addEventListener('click', function() {
+      document.body.classList.toggle('site-inverted');
+      this.textContent = document.body.classList.contains('site-inverted') ? '◑ invert' : '◐ invert';
+    });
+
+    // ── FAQ ACCORDION ──
+    const faqItems = document.querySelectorAll('.faq-item');
+    faqItems.forEach(function(item) {
+      const btn = item.querySelector('.faq-q');
+      btn.addEventListener('click', function() {
+        const isOpen = item.classList.toggle('open');
+        btn.querySelector('span').textContent = isOpen ? '[-]' : '[+]';
+      });
+    });
+
+    // ── TEXT SCRAMBLE (word wall) ──
+    const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const wallItems = document.querySelectorAll('.wall-item');
+
+    wallItems.forEach(function(el) {
+      const original = el.textContent.trim();
+      const chars = original.split('');
+      let interval = null;
+
+      function scramble() {
+        if (interval) return;
+        let count = 0;
+        const total = chars.length;
+        const duration = 600;
+        const start = performance.now();
+
+        interval = setInterval(function() {
+          const now = performance.now();
+          const progress = Math.min(1, (now - start) / duration);
+          const reveal = Math.floor(progress * total);
+          let result = '';
+          for (let i = 0; i < total; i++) {
+            if (i < reveal) {
+              result += chars[i];
+            } else {
+              result += GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+            }
+          }
+          el.textContent = result;
+          if (progress >= 1) {
+            clearInterval(interval);
+            interval = null;
+            el.textContent = original;
+          }
+        }, 45);
+      }
+
+      el.addEventListener('mouseenter', function() {
+        if (interval) return;
+        scramble();
+      });
+    });
+
+    // ── MARQUEE DRAG ──
+    const track = document.getElementById('marqueeTrack');
+    let isDragging = false, startX = 0, startDelay = 0;
+
+    track.addEventListener('pointerdown', function(e) {
+      isDragging = true;
+      startX = e.clientX;
+      const style = getComputedStyle(this);
+      startDelay = parseFloat(style.animationDelay) || 0;
+      this.style.animationPlayState = 'paused';
+      this.setPointerCapture(e.pointerId);
+    });
+
+    document.addEventListener('pointermove', function(e) {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const seg = track.scrollWidth / 2;
+      const delay = startDelay + (dx / seg) * 18;
+      track.style.animationDelay = delay.toFixed(2) + 's';
+    });
+
+    document.addEventListener('pointerup', function() {
+      if (isDragging) {
+        isDragging = false;
+        track.style.animationPlayState = 'running';
+      }
+    });
+    document.addEventListener('pointercancel', function() {
+      if (isDragging) {
+        isDragging = false;
+        track.style.animationPlayState = 'running';
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>
