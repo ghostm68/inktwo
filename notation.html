@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>deja vu glitches</title>
   <meta name="description" content="deja vu glitches – glitch art & experimental interfaces" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
@@ -10,7 +10,12 @@
   <style>
     /* ── reset & base ── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { background: #000; scrollbar-width: thin; scrollbar-color: #ff0000 #000; }
+    html {
+      background: #000;
+      scrollbar-width: thin;
+      scrollbar-color: #ff0000 #000;
+      -webkit-text-size-adjust: 100%;
+    }
     ::-webkit-scrollbar { width: 8px; background: #000; }
     ::-webkit-scrollbar-thumb { background: #ff0000; }
     body {
@@ -18,22 +23,20 @@
       background: #000;
       color: #818181;
       overflow-x: hidden;
+      min-height: 100dvh;
     }
     a { color: #ff0000; text-decoration: none; }
     ::selection { background: #a2a2a2; color: #000; }
 
-    /* ── scaling (1024px design) ── */
+    /* ── layout: fluid max 1024, no zoom hacks ── */
     #page {
       position: relative;
-      width: 1024px;
-      transform-origin: 0 0;
+      width: 100%;
+      max-width: 1024px;
       margin: 0 auto;
     }
-    @media (max-width: 1024px) {
-      #page { zoom: calc(100vw / 1024); }
-    }
 
-    /* ── SVG filters (threshold + electric glow) ── */
+    /* ── SVG filters ── */
     svg.filter-svg { position: absolute; width: 0; height: 0; }
 
     /* ── fixed header ── */
@@ -41,17 +44,23 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 1024px;
-      transform-origin: 0 0;
+      right: 0;
       z-index: 50;
       pointer-events: none;
-      padding: 14px 20px 0 20px;
-      background: linear-gradient(to bottom, #000 60%, transparent);
+      padding: 12px 16px 0;
+      padding-top: max(12px, env(safe-area-inset-top));
+      background: linear-gradient(to bottom, #000 55%, transparent);
+    }
+    #fixedHeader .header-inner {
+      max-width: 1024px;
+      margin: 0 auto;
+      pointer-events: none;
     }
     #fixedHeader a, #fixedHeader .clickable { pointer-events: auto; }
+
     .brand {
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 38px;
+      font-size: clamp(22px, 5vw, 38px);
       line-height: 1.1;
       letter-spacing: -1.5px;
       text-transform: uppercase;
@@ -68,7 +77,8 @@
       align-items: center;
       margin-top: 4px;
       font-size: 12px;
-      letter-spacing: 0px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .top-row .mail {
       font-family: 'Kode Mono', monospace;
@@ -79,10 +89,7 @@
     .top-row .mail:hover { background: #ff0000; color: #000; }
 
     /* ── scanline overlay ── */
-    .scanlines {
-      position: relative;
-      overflow: hidden;
-    }
+    .scanlines { position: relative; overflow: hidden; }
     .scanlines::after {
       content: '';
       position: absolute;
@@ -95,23 +102,84 @@
     }
     @keyframes scanMove { 0% { background-position: 0 0; } 100% { background-position: 0 6px; } }
 
-    /* ── hero (pencil + text) ── */
+    /* ── secondary top bar (signal / version) – OUTSIDE hero ── */
+    #signalBar {
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      margin-top: clamp(72px, 14vw, 90px);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: clamp(12px, 2.5vw, 16px);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #242424;
+      filter: url(#threshfxStrong);
+      border-bottom: 1px solid #1a1a1a;
+    }
+    #signalBar .hl { color: #ff0000; }
+    #signalBar .ver { color: #444; }
+
+    /* ── video / media strip (was intended as 2nd header) ── */
+    #mediaStrip {
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      position: relative;
+      background: #0a0a0a;
+      border-bottom: 1px solid #1a1a1a;
+      aspect-ratio: 16 / 6;
+      max-height: 280px;
+      overflow: hidden;
+    }
+    #mediaStrip video,
+    #mediaStrip .media-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #mediaStrip .media-placeholder {
+      background: #0a0a0a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-family: 'Kode Mono', monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    #mediaStrip .media-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(to top, rgba(0,0,0,.6), transparent 40%);
+      z-index: 1;
+    }
+
+    /* ── hero ── */
     #hero {
       position: relative;
-      width: 1024px;
-      min-height: 480px;
-      margin-top: 80px;
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      min-height: 320px;
       background: #0a0a0a;
       border-bottom: 1px solid #1a1a1a;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 40px 60px;
-      gap: 30px;
+      padding: clamp(24px, 5vw, 40px) clamp(16px, 4vw, 60px);
+      gap: clamp(16px, 3vw, 30px);
       overflow: hidden;
     }
     #hero .hero-pencil {
-      flex: 0 0 380px;
+      flex: 0 0 auto;
+      width: min(38vw, 380px);
       max-width: 380px;
       filter: drop-shadow(0 0 30px rgba(255,0,0,0.25));
       animation: pencilFloat 4s ease-in-out infinite;
@@ -131,12 +199,13 @@
       flex: 1;
       text-align: right;
       filter: url(#threshfxStrong);
+      min-width: 0;
     }
     #hero .hero-text .glitch-line {
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 62px;
+      font-size: clamp(28px, 7vw, 62px);
       line-height: 1.1;
-      letter-spacing: -3px;
+      letter-spacing: -0.04em;
       text-transform: uppercase;
       color: #242424;
       display: block;
@@ -144,6 +213,12 @@
     #hero .hero-text .glitch-line .hl { color: #ff0000; }
     #hero .hero-text .glitch-line.shard {
       animation: glitch-split 3.2s infinite steps(2, end);
+    }
+    #hero .hero-text .tagline {
+      font-size: clamp(14px, 3vw, 32px) !important;
+      letter-spacing: 0 !important;
+      color: #444 !important;
+      margin-top: 4px;
     }
     @keyframes glitch-split {
       0%, 100% { clip-path: inset(0 0 0 0); }
@@ -163,83 +238,101 @@
       mix-blend-mode: screen;
     }
 
-    /* ── marquee (glitch loop) ── */
+    /* ── marquee ── */
     #marquee {
-      width: 1024px;
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
       overflow: hidden;
       background: #050505;
       border-top: 1px solid #1a1a1a;
       border-bottom: 1px solid #1a1a1a;
-      padding: 18px 0;
+      padding: 14px 0;
       cursor: ew-resize;
       touch-action: pan-y;
       user-select: none;
+      -webkit-user-select: none;
     }
     #marquee .track {
       display: flex;
       white-space: nowrap;
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 48px;
-      letter-spacing: -3px;
+      font-size: clamp(22px, 5vw, 48px);
+      letter-spacing: -0.04em;
       text-transform: uppercase;
       color: #242424;
       filter: url(#threshfxStrong);
       animation: marqueeScroll 18s linear infinite;
       will-change: transform;
     }
-    #marquee .track span { padding: 0 24px; }
+    #marquee .track span { padding: 0 20px; }
     #marquee .track .hl { color: #ff0000; }
-    @keyframes marqueeScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    @keyframes marqueeScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
 
-    /* ── word wall (scramble) ── */
+    /* ── word wall ── */
     #wordwall {
-      width: 1024px;
-      padding: 60px 20px;
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: clamp(32px, 6vw, 60px) 16px;
       border-bottom: 1px solid #1a1a1a;
       background: #050505;
     }
     #wordwall .wall-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 20px 40px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(12px, 3vw, 20px) clamp(16px, 4vw, 40px);
     }
-   /* ── make the word wall HUGE and INVERTED ── */
-#wordwall .wall-item {
-  font-size: 82px;          /* up from 48px – adjust to taste */
-  color: #ffffff;           /* bright white instead of dark grey */
-  border-bottom-color: #333; /* optional: lighter border so it's visible */
-}
-#wordwall .wall-item .hl {
-  color: #ff0000;           /* keep the slashes red for contrast */
-}
-#wordwall .wall-item:hover {
-  color: #ff0000;           /* on hover, text turns red (still pops) */
-  border-bottom-color: #ff0000;
-}
+    #wordwall .wall-item {
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: clamp(22px, 6vw, 72px);
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: #fff;
+      border-bottom: 1px solid #333;
+      padding-bottom: 6px;
+      cursor: default;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #wordwall .wall-item .hl { color: #ff0000; }
+    #wordwall .wall-item:hover,
+    #wordwall .wall-item:active {
+      color: #ff0000;
+      border-bottom-color: #ff0000;
+    }
 
-    /* ── FAQ ── */
+    /* ── FAQ / STORIES ── */
     #faq {
-      width: 1024px;
-      padding: 60px 20px 50px 20px;
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: clamp(32px, 6vw, 60px) 16px clamp(28px, 5vw, 50px);
       border-bottom: 1px solid #1a1a1a;
       background: #000;
     }
     #faq .faq-head {
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 52px;
+      font-size: clamp(28px, 6vw, 52px);
       line-height: 1.1;
-      letter-spacing: -3px;
+      letter-spacing: -0.04em;
       text-transform: uppercase;
       color: #242424;
       filter: url(#threshfxStrong);
-      margin-bottom: 32px;
+      margin-bottom: 24px;
     }
     #faq .faq-head .hl { color: #ff0000; }
+
     .faq-item {
       border-top: 1px solid #1a1a1a;
-      padding: 6px 0;
+      padding: 0;
     }
     .faq-item:last-child { border-bottom: 1px solid #1a1a1a; }
+
     .faq-q {
       display: flex;
       justify-content: space-between;
@@ -249,59 +342,119 @@
       border: 0;
       color: #818181;
       font-family: 'Kode Mono', monospace;
-      font-size: 16px;
+      font-size: clamp(14px, 3.2vw, 16px);
       line-height: 1.4;
       letter-spacing: -0.3px;
       text-transform: uppercase;
-      padding: 14px 2px;
+      padding: 16px 4px;
       cursor: pointer;
       text-align: left;
+      min-height: 48px; /* touch target */
+      -webkit-tap-highlight-color: transparent;
     }
-    .faq-q span { color: #ff0000; flex: none; margin-left: 20px; }
-    .faq-q:hover { color: #fff; }
+    .faq-q span {
+      color: #ff0000;
+      flex: none;
+      margin-left: 16px;
+      font-size: 1.1em;
+    }
+    .faq-q:hover,
     .faq-item.open .faq-q { color: #fff; }
+
     .faq-a {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.25s ease-out;
+      transition: max-height 0.3s ease;
     }
     .faq-item.open .faq-a {
-      max-height: none;
-      overflow: visible;
+      max-height: 1200px; /* room for longer stories */
     }
-    .faq-a p {
+    .faq-a .story-body {
       margin: 0;
-      padding: 0 2px 18px 2px;
+      padding: 0 4px 20px;
       color: #6a6a6a;
       font-family: 'Kode Mono', monospace;
-      font-size: 14px;
-      line-height: 1.6;
+      font-size: clamp(13px, 2.8vw, 14px);
+      line-height: 1.65;
       letter-spacing: -0.2px;
       text-transform: uppercase;
     }
+    .faq-a .story-body p + p { margin-top: 12px; }
+    .faq-a .story-meta {
+      display: block;
+      margin-top: 10px;
+      color: #444;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    /* ── enter-the-glitch banner ── */
+    #enterBanner {
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: clamp(28px, 6vw, 40px) 16px;
+      background: #0a0a0a;
+      background-size: cover;
+      background-position: center;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+      font-family: 'p--l', 'Anonymous Pro', monospace;
+      font-size: clamp(22px, 5vw, 48px);
+      line-height: 1.2;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      color: #242424;
+      filter: url(#threshfxStrong);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+    }
+    #enterBanner .label {
+      background: rgba(0,0,0,0.75);
+      padding: 8px 20px;
+    }
+    #enterBanner .hl { color: #ff0000; }
 
     /* ── footer ── */
     #footer {
-      width: 1024px;
-      padding: 40px 20px 50px 20px;
+      width: 100%;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 28px 16px max(40px, env(safe-area-inset-bottom));
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
       font-family: 'Kode Mono', monospace;
       font-size: 12px;
       color: #444;
     }
+    #footer .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
     #footer .big-email {
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 38px;
-      letter-spacing: -2px;
+      font-size: clamp(18px, 4vw, 38px);
+      letter-spacing: -0.04em;
       color: #ff0000;
       filter: url(#threshfxStrong);
+      word-break: break-all;
     }
     #footer .big-email:hover { color: #fff; }
     #footer .copy { color: #2a2a2a; }
+    #footer .footer-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     #invertToggle {
       background: #000;
       border: 1px solid #ff0000;
@@ -309,11 +462,14 @@
       font-family: 'Anonymous Pro', monospace;
       font-size: 10px;
       letter-spacing: 1px;
-      padding: 6px 12px;
+      padding: 8px 14px;
       cursor: pointer;
       text-transform: uppercase;
+      min-height: 40px;
+      -webkit-tap-highlight-color: transparent;
     }
     #invertToggle:hover { background: #ff0000; color: #000; }
+
     body.site-inverted::after {
       content: '';
       position: fixed;
@@ -325,38 +481,79 @@
       -webkit-backdrop-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(.50) contrast(1.72) grayscale(.18);
     }
 
-    /* ── new square block in footer ── */
     .footer-square {
-      width: 80px;
-      height: 80px;
+      width: 64px;
+      height: 64px;
       background: #0a0a0a;
       border: 1px solid #ff0000;
       background-size: cover;
       background-position: center;
       flex-shrink: 0;
-      transition: border 0.2s;
+      transition: border-color 0.2s;
     }
     .footer-square:hover { border-color: #fff; }
 
-    /* ── responsive ── */
+    /* ── mobile breakpoints ── */
     @media (max-width: 700px) {
-      #hero { flex-direction: column; padding: 30px 20px; min-height: auto; }
-      #hero .hero-pencil { flex: 0 0 200px; max-width: 200px; }
-      #hero .hero-text { text-align: center; }
-      #hero .hero-text .glitch-line { font-size: 34px; }
-      #wordwall .wall-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-      #wordwall .wall-item { font-size: 28px; }
-      #faq .faq-head { font-size: 32px; }
-      #footer .big-email { font-size: 24px; }
-      .top-row { flex-wrap: wrap; gap: 8px; }
-      #marquee .track { font-size: 28px; }
-      .footer-square { width: 60px; height: 60px; }
+      #hero {
+        flex-direction: column;
+        text-align: center;
+        min-height: auto;
+        padding-top: 20px;
+        padding-bottom: 28px;
+      }
+      #hero .hero-pencil {
+        width: min(55vw, 220px);
+        order: 1;
+      }
+      #hero .hero-text {
+        text-align: center;
+        order: 2;
+      }
+      #wordwall .wall-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 14px;
+      }
+      #mediaStrip {
+        aspect-ratio: 16 / 9;
+        max-height: 200px;
+      }
+      #footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      #footer .footer-right {
+        width: 100%;
+        justify-content: space-between;
+      }
     }
 
-    /* ── fonts ── */
+    @media (max-width: 400px) {
+      #wordwall .wall-grid {
+        grid-template-columns: 1fr;
+      }
+      #wordwall .wall-item {
+        font-size: clamp(28px, 10vw, 40px);
+      }
+      .top-row .studio-label { display: none; }
+    }
+
+    /* reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      .scanlines::after,
+      #hero .hero-pencil,
+      #hero .hero-text .glitch-line.shard,
+      #marquee .track,
+      .ep-bolt,
+      .ep-bolt .spark {
+        animation: none !important;
+      }
+    }
+
+    /* dummy font face kept for filter identity */
     @font-face {
       font-family: 'p--l';
-      src: url("data:font/opentype;base64,AAEAAAAQAQAABAAAR0RFRlRVRUoAAAGsAAAAHEdQT1M3Q0NEAAAByAAAAFpHU1VCd2hpdGUAAAIkAAAAak9TLzJvbW5seQAAAQAAAABWY21hc3luY2gAAADcAAAADmdseWZwbHVzZwAAApAAAAQgaGRteHlyZWFkeQAAAQ4AAAAcaGVhZGFycm93AAAAbAAAADZoaGVoZGVmYXVsdAAAAUQAAAAkaG10eGhpbnRlcm5ldAAAAWgAAAAgbG9jYWx3YXlzAAAAAQAAACBtYXh0eXBlc2NyaXB0AAAAZAAAACBuYW1lY29udmVydGVkAAAAZAAAACBwb3N0cG9zdHNjcmlwdAAAAGQAAAAgAA== dummy") format('opentype');
+      src: url("data:font/opentype;base64,AAEAAAAQAQAABAAAR0RFRlRVRUoAAAGsAAAAHEdQT1M3Q0NEAAAByAAAAFpHU1VCd2hpdGUAAAIkAAAAak9TLzJvbW5seQAAAQAAAABWY21hc3luY2gAAADcAAAADmdseWZwbHVzZwAAApAAAAQgaGRteHlyZWFkeQAAAQ4AAAAcaGVhZGFycm93AAAAbAAAADZoaGVoZGVmYXVsdAAAAUQAAAAkaG10eGhpbnRlcm5ldAAAAWgAAAAgbG9jYWx3YXlzAAAAAQAAACBtYXh0eXBlc2NyaXB0AAAAZAAAACBuYW1lY29udmVydGVkAAAAZAAAACBwb3N0cG9zdHNjcmlwdAAAAGQAAAAgAA==") format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: block;
@@ -367,44 +564,42 @@
 </head>
 <body>
 
-<!-- pointer trail canvas -->
-<canvas id="trailCanvas"></canvas>
+<canvas id="trailCanvas" aria-hidden="true"></canvas>
 
 <!-- fixed header -->
-<div id="fixedHeader">
-  <div class="brand"><a href="#">deja vu <span class="grey">glitches</span></a></div>
-  <div class="top-row">
-    <span class="mail"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
-    <span style="color:#2a2a2a; font-size:10px; letter-spacing:1px;">✦ glitch studio</span>
+<header id="fixedHeader">
+  <div class="header-inner">
+    <div class="brand"><a href="#">deja vu <span class="grey">glitches</span></a></div>
+    <div class="top-row">
+      <span class="mail"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
+      <span class="studio-label" style="color:#2a2a2a; font-size:10px; letter-spacing:1px;">✦ glitch studio</span>
+    </div>
   </div>
-</div>
+</header>
 
-<!-- page -->
 <div id="page">
 
-  <!-- hero (scanlines overlay) – FIXED: single hero container -->
+  <!-- secondary bar (was nested inside hero) -->
+  <div id="signalBar">
+    <span>✦ <span class="hl">signal</span> / decay</span>
+    <span class="ver">v.0.2</span>
+  </div>
+
+  <!-- media strip: drop a <video> or background image here -->
+  <div id="mediaStrip" class="scanlines">
+    <!-- Replace with your video:
+    <video autoplay muted loop playsinline poster="poster.jpg">
+      <source src="glitch-loop.mp4" type="video/mp4" />
+    </video>
+    -->
+    <div class="media-placeholder">// video or still · signal feed</div>
+    <div class="media-overlay"></div>
+  </div>
+
+  <!-- hero -->
   <div id="hero" class="scanlines">
-<!-- SECOND HEADER ROW (top) -->
-<div style="
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: 'p--l', 'Anonymous Pro', monospace;
-  font-size: 16px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #242424;
-  filter: url(#threshfxStrong);
-  padding-bottom: 4px;
-  border-bottom: 1px solid #1a1a1a;
-  margin-bottom: 6px;
-">
-  <span>✦ <span style="color:#ff0000;">signal</span> / decay</span>
-  <span style="color:#444;">v.0.2</span>
-</div>
-    <!-- PENCIL SVG -->
     <div class="hero-pencil">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" class="electric-pencil-svg">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" class="electric-pencil-svg" aria-hidden="true">
         <defs>
           <filter id="electric-glow" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="3.5" result="blur" />
@@ -426,28 +621,18 @@
             100% { opacity: 0.9; stroke: #ff4444; }
           }
         </style>
-
         <g transform="rotate(-45 250 250)">
-          <!-- Eraser & Ferrule -->
           <path d="M 230 70 L 270 70 A 15 15 0 0 1 270 100 L 230 100 A 15 15 0 0 1 230 70 Z" class="ep-body" />
           <rect x="230" y="100" width="40" height="20" class="ep-stroke" />
           <line x1="230" y1="108" x2="270" y2="108" class="ep-stroke" />
           <line x1="230" y1="114" x2="270" y2="114" class="ep-stroke" />
-
-          <!-- Shaft -->
           <polygon points="230,120 270,120 270,350 230,350" class="ep-body" />
           <line x1="243" y1="120" x2="243" y2="350" class="ep-stroke" />
           <line x1="257" y1="120" x2="257" y2="350" class="ep-stroke" />
-
-          <!-- Cone -->
           <polygon points="230,350 270,350 250,410" class="ep-body" />
           <line x1="243" y1="350" x2="250" y2="410" class="ep-stroke" />
           <line x1="257" y1="350" x2="250" y2="410" class="ep-stroke" />
-
-          <!-- Tip -->
           <polygon points="245,395 255,395 250,410" class="ep-fill" />
-
-          <!-- Lightning -->
           <g class="ep-bolt">
             <path d="M 250 410 L 244 430 L 254 445 L 246 475 L 252 490" />
             <path d="M 250 410 L 230 425 L 238 440 L 215 465" />
@@ -464,15 +649,14 @@
       </svg>
     </div>
 
-    <!-- Hero Text – now directly inside the same hero -->
     <div class="hero-text">
       <span class="glitch-line">deja vu</span>
       <span class="glitch-line shard"><span class="hl">glitches</span></span>
-      <span class="glitch-line" style="font-size:32px; letter-spacing:0px; color:#444;">⚡ signal / decay ⚡</span>
+      <span class="glitch-line tagline">⚡ signal / decay ⚡</span>
     </div>
   </div>
 
-  <!-- MARQUEE -->
+  <!-- marquee -->
   <div id="marquee">
     <div class="track" id="marqueeTrack">
       <span>glitch <span class="hl">//</span> break <span class="hl">//</span> repeat <span class="hl">//</span></span>
@@ -482,7 +666,7 @@
     </div>
   </div>
 
-  <!-- WORD WALL -->
+  <!-- word wall -->
   <div id="wordwall">
     <div class="wall-grid">
       <div class="wall-item"><span class="hl">//</span> GLITCH</div>
@@ -494,48 +678,78 @@
     </div>
   </div>
 
-  <!-- FAQ -->
-  <div id="faq">
+  <!-- FAQ / STORIES – expand [+] with longer narrative -->
+  <section id="faq">
     <div class="faq-head">fractured <span class="hl">faq</span> //</div>
 
     <div class="faq-item">
-      <button class="faq-q">What is a glitch? <span>[+]</span></button>
-      <div class="faq-a"><p>A beautiful mistake in the matrix – an error that becomes expression.</p></div>
+      <button class="faq-q" type="button" aria-expanded="false">What is a glitch? <span>[+]</span></button>
+      <div class="faq-a">
+        <div class="story-body">
+          <p>A beautiful mistake in the matrix – an error that becomes expression.</p>
+          <!-- STORY SLOT: paste longer text here when ready -->
+        </div>
+      </div>
     </div>
+
     <div class="faq-item">
-      <button class="faq-q">Why deja vu? <span>[+]</span></button>
-      <div class="faq-a"><p>Because the signal repeats until it breaks, and in that break, we find meaning.</p></div>
+      <button class="faq-q" type="button" aria-expanded="false">Why deja vu? <span>[+]</span></button>
+      <div class="faq-a">
+        <div class="story-body">
+          <p>Because the signal repeats until it breaks, and in that break, we find meaning.</p>
+        </div>
+      </div>
     </div>
+
     <div class="faq-item">
-      <button class="faq-q">Is this generative? <span>[+]</span></button>
-      <div class="faq-a"><p>Yes – every loop, every distortion is born from code, randomness, and intent.</p></div>
+      <button class="faq-q" type="button" aria-expanded="false">Is this generative? <span>[+]</span></button>
+      <div class="faq-a">
+        <div class="story-body">
+          <p>Yes – every loop, every distortion is born from code, randomness, and intent.</p>
+        </div>
+      </div>
     </div>
+
     <div class="faq-item">
-      <button class="faq-q">Can I touch it? <span>[+]</span></button>
-      <div class="faq-a"><p>You already are. The cursor leaves a trail – that’s your mark on the machine.</p></div>
+      <button class="faq-q" type="button" aria-expanded="false">Can I touch it? <span>[+]</span></button>
+      <div class="faq-a">
+        <div class="story-body">
+          <p>You already are. The cursor leaves a trail – that’s your mark on the machine.</p>
+        </div>
+      </div>
     </div>
+
     <div class="faq-item">
-      <button class="faq-q">Who built this? <span>[+]</span></button>
-      <div class="faq-a"><p>wordstar.nexus – a studio for glitch, signal, and broken beauty.</p></div>
+      <button class="faq-q" type="button" aria-expanded="false">Who built this? <span>[+]</span></button>
+      <div class="faq-a">
+        <div class="story-body">
+          <p>wordstar.nexus – a studio for glitch, signal, and broken beauty.</p>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <!-- enter banner (moved inside #page, was after </body> content) -->
+  <div id="enterBanner">
+    <span class="label">
+      <span class="hl">//</span> enter the glitch <span class="hl">//</span>
+    </span>
   </div>
 
   <!-- footer -->
-  <div id="footer">
-    <div style="display:flex; align-items:center; gap:16px;">
-      <!-- SQUARE BLOCK – add your background image via inline style or CSS -->
-      <div class="footer-square" style="background-image: url('https://via.placeholder.com/80/ff0000/000?text=LOGO');"></div>
+  <footer id="footer">
+    <div class="footer-left">
+      <div class="footer-square" style="background-image: url('https://via.placeholder.com/80/ff0000/000?text=LOGO');" role="img" aria-label="logo"></div>
       <span class="big-email"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
     </div>
-    <div style="display:flex; gap:16px; align-items:center;">
+    <div class="footer-right">
       <button id="invertToggle" type="button">◐ invert</button>
       <span class="copy">© 2026 · wordstar.nexus</span>
     </div>
-  </div>
+  </footer>
 
 </div><!-- /page -->
 
-<!-- filters -->
 <svg class="filter-svg" aria-hidden="true">
   <filter id="threshfxStrong" color-interpolation-filters="sRGB">
     <feGaussianBlur stdDeviation="0.55" result="soft" />
@@ -544,169 +758,133 @@
 </svg>
 
 <script>
-  (function() {
-    // ── POINTER TRAIL ──
-    const canvas = document.getElementById('trailCanvas');
-    const ctx = canvas.getContext('2d');
-    let W, H;
-    const pts = [];
-    const LIFE = 700;
+(function () {
+  // ── POINTER TRAIL (skip heavy work on touch-only if desired) ──
+  const canvas = document.getElementById('trailCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  const pts = [];
+  const LIFE = 700;
+  const isCoarse = window.matchMedia('(pointer: coarse)').matches;
 
-    function resize() {
-      W = canvas.width = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
 
-    document.addEventListener('pointermove', function(e) {
+  if (!isCoarse) {
+    document.addEventListener('pointermove', function (e) {
       pts.push({ x: e.clientX, y: e.clientY, t: performance.now() });
     });
+  }
 
-    function drawTrail() {
-      requestAnimationFrame(drawTrail);
-      const now = performance.now();
-      while (pts.length && now - pts[0].t > LIFE) pts.shift();
-
-      ctx.clearRect(0, 0, W, H);
-      if (pts.length < 2) return;
-
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      for (let i = 1; i < pts.length; i++) {
-        const a = 1 - (now - pts[i].t) / LIFE;
-        const alpha = Math.min(1, a * 1.4);
-        ctx.strokeStyle = 'rgba(255, 0, 0, ' + alpha.toFixed(3) + ')';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
-        ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-      }
+  function drawTrail() {
+    requestAnimationFrame(drawTrail);
+    if (isCoarse) return;
+    const now = performance.now();
+    while (pts.length && now - pts[0].t > LIFE) pts.shift();
+    ctx.clearRect(0, 0, W, H);
+    if (pts.length < 2) return;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 1; i < pts.length; i++) {
+      const a = 1 - (now - pts[i].t) / LIFE;
+      const alpha = Math.min(1, a * 1.4);
+      ctx.strokeStyle = 'rgba(255, 0, 0, ' + alpha.toFixed(3) + ')';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+      ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
     }
-    drawTrail();
+  }
+  drawTrail();
 
-    // ── INVERT TOGGLE ──
-    const invertBtn = document.getElementById('invertToggle');
-    invertBtn.addEventListener('click', function() {
-      document.body.classList.toggle('site-inverted');
-      this.textContent = document.body.classList.contains('site-inverted') ? '◑ invert' : '◐ invert';
+  // ── INVERT ──
+  const invertBtn = document.getElementById('invertToggle');
+  invertBtn.addEventListener('click', function () {
+    document.body.classList.toggle('site-inverted');
+    this.textContent = document.body.classList.contains('site-inverted') ? '◑ invert' : '◐ invert';
+  });
+
+  // ── FAQ accordion (one-open optional; currently multi) ──
+  document.querySelectorAll('.faq-item').forEach(function (item) {
+    const btn = item.querySelector('.faq-q');
+    btn.addEventListener('click', function () {
+      const isOpen = item.classList.toggle('open');
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      btn.querySelector('span').textContent = isOpen ? '[-]' : '[+]';
     });
+  });
 
-    // ── FAQ ACCORDION ──
-    const faqItems = document.querySelectorAll('.faq-item');
-    faqItems.forEach(function(item) {
-      const btn = item.querySelector('.faq-q');
-      btn.addEventListener('click', function() {
-        const isOpen = item.classList.toggle('open');
-        btn.querySelector('span').textContent = isOpen ? '[-]' : '[+]';
-      });
-    });
+  // ── TEXT SCRAMBLE ──
+  const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  document.querySelectorAll('.wall-item').forEach(function (el) {
+    const original = el.textContent.trim();
+    const chars = original.split('');
+    let interval = null;
 
-    // ── TEXT SCRAMBLE (word wall) ──
-    const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const wallItems = document.querySelectorAll('.wall-item');
+    function scramble() {
+      if (interval) return;
+      let count = 0;
+      const total = chars.length;
+      const duration = 600;
+      const start = performance.now();
+      interval = setInterval(function () {
+        const now = performance.now();
+        const progress = Math.min(1, (now - start) / duration);
+        const reveal = Math.floor(progress * total);
+        let result = '';
+        for (let i = 0; i < total; i++) {
+          result += i < reveal ? chars[i] : GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+        }
+        el.textContent = result;
+        if (progress >= 1) {
+          clearInterval(interval);
+          interval = null;
+          el.textContent = original;
+        }
+      }, 45);
+    }
 
-    wallItems.forEach(function(el) {
-      const original = el.textContent.trim();
-      const chars = original.split('');
-      let interval = null;
+    el.addEventListener('mouseenter', scramble);
+    el.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      scramble();
+    }, { passive: false });
+  });
 
-      function scramble() {
-        if (interval) return;
-        let count = 0;
-        const total = chars.length;
-        const duration = 600;
-        const start = performance.now();
+  // ── MARQUEE DRAG ──
+  const track = document.getElementById('marqueeTrack');
+  let isDragging = false, startX = 0, startDelay = 0;
 
-        interval = setInterval(function() {
-          const now = performance.now();
-          const progress = Math.min(1, (now - start) / duration);
-          const reveal = Math.floor(progress * total);
-          let result = '';
-          for (let i = 0; i < total; i++) {
-            if (i < reveal) {
-              result += chars[i];
-            } else {
-              result += GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-            }
-          }
-          el.textContent = result;
-          if (progress >= 1) {
-            clearInterval(interval);
-            interval = null;
-            el.textContent = original;
-          }
-        }, 45);
-      }
+  track.addEventListener('pointerdown', function (e) {
+    isDragging = true;
+    startX = e.clientX;
+    const style = getComputedStyle(this);
+    startDelay = parseFloat(style.animationDelay) || 0;
+    this.style.animationPlayState = 'paused';
+    this.setPointerCapture(e.pointerId);
+  });
 
-      el.addEventListener('mouseenter', function() {
-        if (interval) return;
-        scramble();
-      });
-    });
+  document.addEventListener('pointermove', function (e) {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const seg = track.scrollWidth / 2;
+    const delay = startDelay + (dx / seg) * 18;
+    track.style.animationDelay = delay.toFixed(2) + 's';
+  });
 
-    // ── MARQUEE DRAG ──
-    const track = document.getElementById('marqueeTrack');
-    let isDragging = false, startX = 0, startDelay = 0;
-
-    track.addEventListener('pointerdown', function(e) {
-      isDragging = true;
-      startX = e.clientX;
-      const style = getComputedStyle(this);
-      startDelay = parseFloat(style.animationDelay) || 0;
-      this.style.animationPlayState = 'paused';
-      this.setPointerCapture(e.pointerId);
-    });
-
-    document.addEventListener('pointermove', function(e) {
-      if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const seg = track.scrollWidth / 2;
-      const delay = startDelay + (dx / seg) * 18;
-      track.style.animationDelay = delay.toFixed(2) + 's';
-    });
-
-    document.addEventListener('pointerup', function() {
-      if (isDragging) {
-        isDragging = false;
-        track.style.animationPlayState = 'running';
-      }
-    });
-    document.addEventListener('pointercancel', function() {
-      if (isDragging) {
-        isDragging = false;
-        track.style.animationPlayState = 'running';
-      }
-    });
-  })();
+  function endDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    track.style.animationPlayState = 'running';
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+})();
 </script>
-<!-- POST-FOOTER HEADER BLOCK -->
-<div style="
-  width: 1024px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  background-image: url('https://via.placeholder.com/1024x200/0a0a0a/ff0000?text=YOUR+IMAGE');
-  background-size: cover;
-  background-position: center;
-  border-top: 1px solid #1a1a1a;
-  border-bottom: 1px solid #1a1a1a;
-  font-family: 'p--l', 'Anonymous Pro', monospace;
-  font-size: 48px;
-  line-height: 1.2;
-  letter-spacing: -2px;
-  text-transform: uppercase;
-  color: #242424;
-  filter: url(#threshfxStrong);
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 160px;
-">
-  <span style="background: rgba(0,0,0,0.7); padding: 8px 24px;">
-    <span style="color:#ff0000;">//</span> enter the glitch <span style="color:#ff0000;">//</span>
-  </span>
-</div>
 </body>
 </html>
