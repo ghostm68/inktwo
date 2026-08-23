@@ -11,10 +11,15 @@
   --bone-dim: #a89f8a;
   --nickel: #b08d57;
   --red: #ff0000;
+  --accent-primary: #ff0000;
+  --accent-secondary: #550000;
+  --text-main: #ffffff;
+  --text-dim: #a89f8a;
   --line: rgba(232, 224, 204, 0.28);
   --line-soft: rgba(232, 224, 204, 0.14);
   --font-serif: Georgia, "Times New Roman", serif;
   --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", monospace, monospace;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,6 +32,91 @@ html, body {
   font-family: var(--font-sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER & TYPING NAV ── */
+header {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.menu-toggle {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  background: rgba(5, 5, 5, 0.6);
+  border: 1px solid var(--line-soft);
+  color: var(--bone);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.menu-toggle:hover {
+  background: var(--accent-primary);
+  color: black;
+  box-shadow: 0 0 12px var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.header-typing-wrapper {
+  pointer-events: auto;
+  margin-left: 24px;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.header-typing-wrapper a {
+  color: var(--text-dim);
+  text-decoration: none;
+  margin-right: 18px;
+  position: relative;
+  transition: color 0.3s, text-shadow 0.3s;
+  cursor: pointer;
+}
+
+.header-typing-wrapper a:hover {
+  color: var(--text-main);
+  text-shadow: 0 0 8px var(--text-main);
+}
+
+.header-typing-wrapper a::before {
+  content: '[';
+  margin-right: 4px;
+  color: var(--accent-primary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.header-typing-wrapper a::after {
+  content: ']';
+  margin-left: 4px;
+  color: var(--accent-primary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.header-typing-wrapper a:hover::before,
+.header-typing-wrapper a:hover::after {
+  opacity: 1;
 }
 
 /* ── CHAPTER SHELL ── */
@@ -44,7 +134,7 @@ html, body {
   pointer-events: auto;
 }
 
-/* Background image layer */
+/* Background image layer + Ken Burns Drift */
 .chapter-bg {
   position: absolute;
   inset: 0;
@@ -52,20 +142,27 @@ html, body {
   background-position: center;
   filter: brightness(0.6) saturate(0.8) contrast(1.05);
   transform: scale(1.04);
-  transition: transform 1.4s ease-out, filter 0.8s ease;
-}
-.chapter.active .chapter-bg {
-  transform: scale(1);
+  transition: filter 0.8s ease;
 }
 
-/* Vignette + bottom gradient for text */
+@keyframes ambientDrift {
+  0% { transform: scale(1.02) translate(0, 0); }
+  50% { transform: scale(1.06) translate(-1.2%, -0.6%); }
+  100% { transform: scale(1.02) translate(0, 0); }
+}
+
+.chapter.active .chapter-bg {
+  animation: ambientDrift 28s ease-in-out infinite alternate;
+}
+
+/* Vignette + bottom gradient */
 .chapter::before {
   content: '';
   position: absolute;
   inset: 0;
   background:
     radial-gradient(ellipse at 70% 30%, transparent 30%, rgba(5,5,5,0.5) 100%),
-    linear-gradient(to top, rgba(5,5,5,0.9) 0%, rgba(5,5,5,0.3) 45%, transparent 70%);
+    linear-gradient(to top, rgba(5,5,5,0.95) 0%, rgba(5,5,5,0.3) 45%, transparent 70%);
   z-index: 1;
 }
 
@@ -80,12 +177,38 @@ html, body {
   z-index: 2;
 }
 
-/* ── CONTENT ── */
+/* ── STAGGERED CHAPTER CONTENT ── */
 .chapter-content {
   position: relative;
   z-index: 3;
   padding: 0 8vw 12vh;
   max-width: 720px;
+}
+
+.chapter-content h1,
+.chapter-content p,
+.chapter-content .inner-link {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chapter.active .chapter-content h1 {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+
+.chapter.active .chapter-content p {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.4s;
+}
+
+.chapter.active .chapter-content .inner-link {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.55s;
 }
 
 .chapter-content h1 {
@@ -136,103 +259,7 @@ html, body {
   transform: translateX(4px);
 }
 
-/* ── MENU BUTTON ── */
-#menu-btn {
-  position: fixed;
-  top: 28px; right: 28px;
-  z-index: 100;
-  width: 48px; height: 48px;
-  background: rgba(5,5,5,0.4);
-  border: 1px solid var(--line-soft);
-  color: var(--bone);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
-}
-#menu-btn:hover, #menu-btn:focus {
-  border-color: var(--bone);
-  background: rgba(232,224,204,0.08);
-  outline: none;
-}
-
-/* ── CHAPTER SHEET OVERLAY ── */
-#sheet {
-  position: fixed;
-  inset: 0;
-  background: rgba(5,5,5,0.94);
-  backdrop-filter: blur(16px) saturate(0.8);
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.5s ease;
-}
-#sheet.open {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sheet-hint {
-  font-size: 9px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--bone-dim);
-  margin-bottom: 48px;
-  opacity: 0.6;
-}
-
-.chapters-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: center;
-}
-
-.chapters-list button {
-  background: none; border: none;
-  font-family: var(--font-serif);
-  font-size: clamp(28px, 5vw, 52px);
-  font-weight: 400;
-  color: var(--bone-dim);
-  cursor: pointer;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-  padding: 10px 32px;
-  transition: all 0.35s ease;
-  position: relative;
-}
-.chapters-list button::after {
-  content: '';
-  position: absolute;
-  bottom: 6px; left: 50%;
-  width: 0; height: 1px;
-  background: var(--nickel);
-  transition: all 0.35s ease;
-  transform: translateX(-50%);
-}
-.chapters-list button:hover,
-.chapters-list button:focus {
-  color: var(--bone);
-  outline: none;
-}
-.chapters-list button:hover::after,
-.chapters-list button:focus::after {
-  width: 60%;
-}
-.chapters-list button.active-chapter {
-  color: var(--red);
-}
-.chapters-list button.active-chapter::after {
-  width: 40%; background: var(--red);
-}
-
-/* ── PROGRESS ── */
+/* ── PROGRESS INDICATOR ── */
 #progress {
   position: fixed;
   bottom: 28px; left: 50%;
@@ -245,9 +272,10 @@ html, body {
   transition: opacity 0.3s;
   pointer-events: none;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
-/* ── SCANLINES (Citadelle echo) ── */
+/* ── SCANLINES ── */
 #scanlines {
   position: fixed;
   inset: 0;
@@ -264,14 +292,15 @@ html, body {
 @media (max-width: 768px) {
   .chapter-content { padding: 0 6vw 10vh; max-width: 100vw; }
   .chapter-content h1 { font-size: clamp(32px, 10vw, 48px); }
-  #menu-btn { top: 16px; right: 16px; width: 44px; height: 44px; }
+  header { top: 16px; left: 16px; right: 16px; }
+  .header-typing-wrapper { margin-left: 12px; font-size: 0.8rem; }
   #progress { bottom: 16px; }
-  .chapters-list button { padding: 8px 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chapter, .chapter-bg, .inner-link, #sheet, #menu-btn {
+  .chapter, .chapter-bg, .inner-link {
     transition: none !important;
+    animation: none !important;
   }
 }
 </style>
@@ -281,7 +310,17 @@ html, body {
 
 <div id="scanlines"></div>
 
-<button id="menu-btn" aria-label="Chapters">☰</button>
+<!-- ═══════ HEADER NAV WITH TYPING TRIGGER ═══════ -->
+<header>
+  <div class="menu-toggle" id="menuBtn" title="Toggle Chambers Index">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </div>
+  <div class="header-typing-wrapper" id="header-type-target"></div>
+</header>
 
 <div id="progress" aria-live="polite">I / V</div>
 
@@ -335,22 +374,8 @@ html, body {
   </div>
 </section>
 
-<!-- ═══════ CHAPTER SHEET ═══════ -->
-<div id="sheet" role="dialog" aria-modal="true" aria-label="Chapter navigation">
-  <div class="sheet-hint">Select a chamber</div>
-  <div class="chapters-list">
-    <button data-goto="0">The Portrait</button>
-    <button data-goto="1">The Red Sea</button>
-    <button data-goto="2">The Study</button>
-    <button data-goto="3">The Cottage</button>
-    <button data-goto="4">The Garden</button>
-  </div>
-</div>
-
 <script>
 const chapters = document.querySelectorAll('.chapter');
-const sheet = document.getElementById('sheet');
-const menuBtn = document.getElementById('menu-btn');
 const progress = document.getElementById('progress');
 const roman = ['I','II','III','IV','V'];
 let current = 0;
@@ -361,48 +386,91 @@ function showChapter(index) {
   chapters[index].classList.add('active');
   current = index;
   progress.textContent = roman[current] + ' / ' + roman[chapters.length - 1];
-  document.querySelectorAll('.chapters-list button').forEach((btn, i) => {
-    btn.classList.toggle('active-chapter', i === current);
-  });
 }
 
-// Menu toggle
-menuBtn.addEventListener('click', () => {
-  const isOpen = sheet.classList.toggle('open');
-  menuBtn.setAttribute('aria-expanded', isOpen);
-});
-
-// Sheet chapter selection
-sheet.querySelectorAll('button[data-goto]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    showChapter(parseInt(btn.dataset.goto));
-    sheet.classList.remove('open');
-    menuBtn.setAttribute('aria-expanded', 'false');
-  });
-});
-
-// Inner cross-links
+// Inner cross-links inside chamber text
 document.querySelectorAll('.inner-link').forEach(link => {
   link.addEventListener('click', () => {
     showChapter(parseInt(link.dataset.goto));
   });
 });
 
-// Keyboard navigation
-document.addEventListener('keydown', (e) => {
-  if (sheet.classList.contains('open')) {
-    if (e.key === 'Escape') {
-      sheet.classList.remove('open');
-      menuBtn.setAttribute('aria-expanded', 'false');
+// --- MENU TYPING LOGIC (Connected to Inner Chapters) ---
+const menuBtn = document.getElementById('menuBtn');
+const headerTarget = document.getElementById('header-type-target');
+
+const menuLinks = [
+  { text: "I. PORTRAIT", chapterIndex: 0 },
+  { text: "II. RED SEA", chapterIndex: 1 },
+  { text: "III. STUDY", chapterIndex: 2 },
+  { text: "IV. COTTAGE", chapterIndex: 3 },
+  { text: "V. GARDEN", chapterIndex: 4 }
+];
+
+let isMenuOpen = false;
+let isTyping = false;
+
+function typeHeaderLinks() {
+  headerTarget.innerHTML = "";
+  isTyping = true;
+  let linkIndex = 0;
+  let charIndex = 0;
+  
+  let currentLink = document.createElement('a');
+  currentLink.dataset.goto = menuLinks[0].chapterIndex;
+  currentLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showChapter(parseInt(e.currentTarget.dataset.goto));
+  });
+  headerTarget.appendChild(currentLink);
+
+  function step() {
+    if (linkIndex >= menuLinks.length) { 
+      isTyping = false; 
+      return; 
     }
-    return;
+
+    const linkData = menuLinks[linkIndex];
+
+    if (charIndex < linkData.text.length) {
+      currentLink.textContent += linkData.text.charAt(charIndex);
+      charIndex++;
+      setTimeout(step, 30);
+    } else {
+      linkIndex++;
+      charIndex = 0;
+      if (linkIndex < menuLinks.length) {
+        currentLink = document.createElement('a');
+        currentLink.dataset.goto = menuLinks[linkIndex].chapterIndex;
+        currentLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          showChapter(parseInt(e.currentTarget.dataset.goto));
+        });
+        headerTarget.appendChild(currentLink);
+        setTimeout(step, 60);
+      } else {
+        isTyping = false;
+      }
+    }
   }
+  step();
+}
+
+menuBtn.addEventListener('click', () => {
+  if (isTyping) return; 
+  if (!isMenuOpen) {
+    typeHeaderLinks();
+    isMenuOpen = true;
+  } else {
+    headerTarget.innerHTML = ""; 
+    isMenuOpen = false;
+  }
+});
+
+// Keyboard navigation (Left / Right arrows)
+document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') showChapter(current + 1);
   if (e.key === 'ArrowLeft') showChapter(current - 1);
-  if (e.key === 'Escape') {
-    sheet.classList.add('open');
-    menuBtn.setAttribute('aria-expanded', 'true');
-  }
 });
 
 // Touch swipe
@@ -414,14 +482,6 @@ document.addEventListener('touchend', e => {
     showChapter(diff > 0 ? current + 1 : current - 1);
   }
 }, {passive:true});
-
-// Close sheet on backdrop click
-sheet.addEventListener('click', (e) => {
-  if (e.target === sheet) {
-    sheet.classList.remove('open');
-    menuBtn.setAttribute('aria-expanded', 'false');
-  }
-});
 </script>
 
 </body>
