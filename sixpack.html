@@ -231,43 +231,28 @@
         }
 
         /* Wavy text */
- /* ── TRUE LIQUID SINE WAVE (NO MUDDY SHADOW) ── */
-.wave-word {
+ /* ── CHARACTER-LEVEL WAVE + CONTINUOUS NOISE (mirrors schemasofuncertainty) ── */
+.wave-char {
   display: inline-block;
-  will-change: transform;
-  /* Smooth infinite wave with traveling phase delay */
-  animation: liquidWave 3.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-  animation-delay: calc(var(--w-idx, 0) * 0.09s);
+  will-change: transform, color;
+  animation: liquidWave 4.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation-delay: calc(var(--c-idx, 0) * 0.018s);
   transform-origin: 50% 100%;
-  transition: color 0.3s ease;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
 @keyframes liquidWave {
-  0% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-8px) rotate(-1.8deg);
-  }
-  50% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(7px) rotate(1.5deg);
-  }
-  100% {
-    transform: translateY(0px) rotate(0deg);
-  }
+  0%   { transform: translateY(0px) rotate(0deg); }
+  25%  { transform: translateY(-5px) rotate(-1.1deg); }
+  50%  { transform: translateY(0px) rotate(0deg); }
+  75%  { transform: translateY(4px) rotate(0.9deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
 }
 
-.about-col-card:hover .wave-word {
+.about-col-card:hover .wave-char {
   color: var(--white);
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.5); /* Soft glowing aura only on hover */
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
 }
-    
-        .about-col-card:hover .wave-word {
-            color: var(--white);
-        }
 
         /* Lens overlay */
         #lens-overlay {
@@ -682,85 +667,70 @@
 
     <!-- SCRIPTS -->
     <script>
-                // 1. SPLIT TEXT INTO WAVE-WORD SPANS (MUST RUN BEFORE SCRAMBLE)
+// 1. SPLIT INTO PER-CHARACTER SPANS (wave + continuous noise)
 (function initWavyText() {
   const paragraphs = document.querySelectorAll('.col-content p');
-  // Skip paragraphs that contain the schema link (we don't want to scramble the link)
   let count = 0;
   paragraphs.forEach(p => {
-    // Skip if this paragraph has a .schema-ref-link inside it
-    if (p.querySelector('.schema-ref-link')) return;
-    
-    const text = p.textContent.trim();
-    const words = text.split(/\s+/);
-    p.innerHTML = words.map(w => {
-      count++;
-      return `<span class="wave-word" style="--w-idx:${count};">${w}</span>`;
-    }).join(' ');
+    if (p.querySelector('.schema-ref-link')) return; // leave link paragraphs alone
+
+    const text = p.textContent;
+    // preserve spaces as normal text nodes so layout stays clean
+    let html = '';
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === ' ' || ch === '\n' || ch === '\t') {
+        html += ch;
+      } else {
+        count++;
+        html += `<span class="wave-char" style="--c-idx:${count}" data-orig="${ch}">${ch}</span>`;
+      }
+    }
+    p.innerHTML = html;
   });
 })();
-     // 6. CONTINUOUS TEXT SCRAMBLE (Always On, No Hover)
-(function initContinuousScramble() {
+
+// 2. CONTINUOUS CHARACTER-LEVEL NOISE (closer to schemasofuncertainty canvas effect)
+(function initContinuousNoise() {
+  const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*+=-_/\\|<>[]{}~^';
   const cards = document.querySelectorAll('.about-col-card');
   if (!cards.length) return;
 
   cards.forEach(card => {
-    const words = card.querySelectorAll('.wave-word');
-    if (!words.length) return;
+    const chars = Array.from(card.querySelectorAll('.wave-char'));
+    if (!chars.length) return;
 
-    // Store original text
-    const originals = Array.from(words).map(w => w.textContent);
-    let scrambleInterval = null;
-    let timeoutId = null;
-    let isActive = false;
+    // Pre-compute a soft vertical intensity so lower text is more corrupted
+    const total = chars.length;
+    const intensity = chars.map((_, i) => {
+      const t = i / total;                 // 0 → top, 1 → bottom
+      return 0.08 + t * 0.55;              // base 8% → ~63% at bottom
+    });
 
-    function startScramble() {
-      if (isActive) return;
-      isActive = true;
+    // Each character keeps its own phase so the noise feels organic
+    const phases = chars.map(() => Math.random() * Math.PI * 2);
 
-      let iterations = 0;
-      const maxIterations = 12; // ~1.5 seconds (125ms * 12)
+    function tick(time) {
+      const t = time * 0.001; // seconds
 
-      scrambleInterval = setInterval(() => {
-        words.forEach((word, idx) => {
-          const original = originals[idx];
-          if (original.length > 2) {
-            let scrambled = '';
-            for (let i = 0; i < original.length; i++) {
-              // 65% chance to replace with a random character
-              if (Math.random() > 0.35) {
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?/~`';
-                scrambled += chars.charAt(Math.floor(Math.random() * chars.length));
-              } else {
-                scrambled += original[i];
-              }
-            }
-            word.textContent = scrambled;
-          }
-        });
+      chars.forEach((el, i) => {
+        const orig = el.dataset.orig;
+        // soft sine + intensity controls how often this glyph flips
+        const noise = (Math.sin(t * 1.7 + phases[i]) + 1) * 0.5; // 0–1
+        const chance = intensity[i] * (0.35 + noise * 0.65);
 
-        iterations++;
-        if (iterations >= maxIterations) {
-          clearInterval(scrambleInterval);
-          scrambleInterval = null;
-          isActive = false;
-
-          // Revert to original text
-          words.forEach((word, idx) => {
-            word.textContent = originals[idx];
-          });
-
-          // Wait 1.8 seconds, then scramble again
-          timeoutId = setTimeout(() => {
-            startScramble();
-          }, 1800);
+        if (Math.random() < chance) {
+          el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+        } else {
+          el.textContent = orig;
         }
-      }, 125); // update every 125ms
+      });
+
+      requestAnimationFrame(tick);
     }
 
-    // Start the first scramble 0.6s after page load
-   const delay = 600 + (Math.random() * 800); // random offset
-setTimeout(startScramble, delay);
+    // slight staggered start so the two columns don't pulse in lockstep
+    setTimeout(() => requestAnimationFrame(tick), 400 + Math.random() * 600);
   });
 })();
 
