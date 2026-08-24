@@ -231,24 +231,39 @@
         }
 
         /* Wavy text */
-        .wave-word {
-            display: inline-block;
-            will-change: transform;
-            animation: schemasDistort 3.8s ease-in-out infinite alternate;
-            animation-delay: calc(var(--w-idx, 0) * 0.075s);
-            transition: color 0.25s ease, text-shadow 0.25s ease;
-        }
-        @keyframes schemasDistort {
-            0% {
-                transform: translateY(0px) rotate(0deg) skewX(0deg);
-            }
-            50% {
-                transform: translateY(-5px) rotate(-1.5deg) skewX(-1.5deg);
-            }
-            100% {
-                transform: translateY(4.5px) rotate(1.2deg) skewX(1deg);
-            }
-        }
+  .wave-word {
+  display: inline-block;
+  will-change: transform, text-shadow;
+  /* This runs forever, no hover needed */
+  animation: schemasDistort 2.8s ease-in-out infinite alternate;
+  animation-delay: calc(var(--w-idx, 0) * 0.04s);
+}
+      @keyframes schemasDistort {
+  0% {
+    transform: translate(0px, 0px) skewX(0deg) skewY(0deg);
+    text-shadow: 0 0 0 white, 0 0 0 black;
+  }
+  20% {
+    transform: translate(-8px, -14px) skewX(-10deg) skewY(6deg);
+    text-shadow: -5px 0 white, 5px 0 black;
+  }
+  40% {
+    transform: translate(10px, 8px) skewX(8deg) skewY(-8deg);
+    text-shadow: 7px 0 black, -7px 0 white;
+  }
+  60% {
+    transform: translate(-12px, 12px) skewX(-14deg) skewY(10deg);
+    text-shadow: -9px 0 white, 9px 0 black;
+  }
+  80% {
+    transform: translate(6px, -16px) skewX(12deg) skewY(-6deg);
+    text-shadow: 6px 0 black, -6px 0 white;
+  }
+  100% {
+    transform: translate(0px, 0px) skewX(0deg) skewY(0deg);
+    text-shadow: 0 0 0 white, 0 0 0 black;
+  }
+}
         .about-col-card:hover .wave-word {
             color: var(--white);
         }
@@ -666,21 +681,69 @@
 
     <!-- SCRIPTS -->
     <script>
-        // 1. WAVY TEXT
-        (function initWavyText() {
-            const paragraphs = document.querySelectorAll('.col-content p');
-            let count = 0;
-            paragraphs.forEach(p => {
-                // skip the paragraph that contains the schema link (we don't want to warp the link text)
-                if (p.querySelector('.schema-ref-link')) return;
-                const text = p.textContent.trim();
-                const words = text.split(/\s+/);
-                p.innerHTML = words.map(w => {
-                    count++;
-                    return `<span class="wave-word" style="--w-idx:${count};">${w}</span>`;
-                }).join(' ');
-            });
-        })();
+     // 6. CONTINUOUS TEXT SCRAMBLE (Always On, No Hover)
+(function initContinuousScramble() {
+  const cards = document.querySelectorAll('.about-col-card');
+  if (!cards.length) return;
+
+  cards.forEach(card => {
+    const words = card.querySelectorAll('.wave-word');
+    if (!words.length) return;
+
+    // Store original text
+    const originals = Array.from(words).map(w => w.textContent);
+    let scrambleInterval = null;
+    let timeoutId = null;
+    let isActive = false;
+
+    function startScramble() {
+      if (isActive) return;
+      isActive = true;
+
+      let iterations = 0;
+      const maxIterations = 12; // ~1.5 seconds (125ms * 12)
+
+      scrambleInterval = setInterval(() => {
+        words.forEach((word, idx) => {
+          const original = originals[idx];
+          if (original.length > 2) {
+            let scrambled = '';
+            for (let i = 0; i < original.length; i++) {
+              // 65% chance to replace with a random character
+              if (Math.random() > 0.35) {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?/~`';
+                scrambled += chars.charAt(Math.floor(Math.random() * chars.length));
+              } else {
+                scrambled += original[i];
+              }
+            }
+            word.textContent = scrambled;
+          }
+        });
+
+        iterations++;
+        if (iterations >= maxIterations) {
+          clearInterval(scrambleInterval);
+          scrambleInterval = null;
+          isActive = false;
+
+          // Revert to original text
+          words.forEach((word, idx) => {
+            word.textContent = originals[idx];
+          });
+
+          // Wait 1.8 seconds, then scramble again
+          timeoutId = setTimeout(() => {
+            startScramble();
+          }, 1800);
+        }
+      }, 125); // update every 125ms
+    }
+
+    // Start the first scramble 0.6s after page load
+    setTimeout(startScramble, 600);
+  });
+})();
 
         // 2. CLEAN DATA FOR LENS
         const cleanColumnData = {
