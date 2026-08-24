@@ -199,7 +199,7 @@
         .col-content {
             font-family: var(--font-serif);
             font-size: clamp(16px, 1.4vw, 19px);
-            line-height: 1.75; /* slightly tighter so wave crossings feel denser */
+            line-height: 1.65; /* tighter so dramatic wave crossings feel dense */
             color: var(--bone);
             overflow: visible;
         }
@@ -235,7 +235,7 @@
         }
 
         /* Wavy text */
- /* ── CHARACTER-LEVEL WAVE THAT CROSSES LINE BOUNDARIES ── */
+ /* ── DRAMATIC CROSS-LINE LIQUID WAVE ── */
 .wave-char {
   display: inline-block;
   will-change: transform, color, z-index;
@@ -243,28 +243,27 @@
   min-width: 0.52em;
   text-align: center;
   position: relative;
-  /* Larger travel so glyphs from adjacent lines visibly intersect */
-  animation: liquidWave 5.8s cubic-bezier(0.37, 0.0, 0.63, 1.0) infinite;
-  animation-delay: calc(var(--c-idx, 0) * 0.026s);
+  animation: liquidWave 4.8s cubic-bezier(0.32, 0.0, 0.68, 1.0) infinite;
+  animation-delay: calc(var(--c-idx, 0) * 0.021s);
   transform-origin: 50% 50%;
-  transition: color 0.35s ease, text-shadow 0.35s ease;
-  /* Let characters layer over one another when they cross */
+  transition: color 0.3s ease, text-shadow 0.3s ease;
   z-index: 1;
 }
 
 @keyframes liquidWave {
-  0%   { transform: translateY(0px)  translateX(0px)   rotate(0deg);   z-index: 1; }
-  15%  { transform: translateY(-11px) translateX(-1.5px) rotate(-1.4deg); z-index: 3; }
-  30%  { transform: translateY(-7px)  translateX(1px)   rotate(0.6deg);  z-index: 2; }
-  50%  { transform: translateY(2px)   translateX(-0.5px) rotate(-0.3deg); z-index: 1; }
-  70%  { transform: translateY(12px)  translateX(1.8px)  rotate(1.3deg);  z-index: 3; }
-  85%  { transform: translateY(5px)   translateX(-1px)  rotate(-0.5deg); z-index: 2; }
-  100% { transform: translateY(0px)  translateX(0px)   rotate(0deg);   z-index: 1; }
+  0%   { transform: translateY(0px)   translateX(0px)   rotate(0deg)    scale(1);    z-index: 1; }
+  12%  { transform: translateY(-18px) translateX(-3px)  rotate(-3.2deg) scale(1.04); z-index: 4; }
+  25%  { transform: translateY(-14px) translateX(2.5px) rotate(2.1deg)  scale(0.97); z-index: 3; }
+  40%  { transform: translateY(4px)   translateX(-2px)  rotate(-1.4deg) scale(1.02); z-index: 2; }
+  55%  { transform: translateY(16px)  translateX(3.5px) rotate(3.5deg)  scale(1.05); z-index: 5; }
+  70%  { transform: translateY(11px)  translateX(-2.5px) rotate(-2.0deg) scale(0.96); z-index: 3; }
+  85%  { transform: translateY(-5px)  translateX(1.5px) rotate(1.1deg)  scale(1.01); z-index: 2; }
+  100% { transform: translateY(0px)   translateX(0px)   rotate(0deg)    scale(1);    z-index: 1; }
 }
 
 .about-col-card:hover .wave-char {
   color: var(--white);
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.55);
 }
 
         /* Lens overlay */
@@ -725,17 +724,15 @@
     if (!chars.length) return;
 
     const total = chars.length;
-    // Very gentle vertical gradient — top almost clean, bottom only lightly restless
+    // Stronger gradient now that readability is secondary to drama
     const intensity = chars.map((_, i) => {
       const t = i / total;
-      return 0.02 + t * t * 0.18; // quadratic, max ~20% at bottom
+      return 0.06 + t * t * 0.42; // max ~48% at bottom
     });
 
-    // Independent slow phases so the shimmer travels organically
     const phases = chars.map(() => Math.random() * Math.PI * 2);
-    // Track last flip time so a character stays corrupted only briefly
     const lastFlip = new Float32Array(chars.length);
-    const FLIP_DURATION = 180; // ms a glyph stays swapped before snapping back
+    const FLIP_DURATION = 220;
 
     function tick(time) {
       const t = time * 0.001;
@@ -744,12 +741,10 @@
         const el = chars[i];
         const orig = el.dataset.orig;
 
-        // Slow traveling wave of activity
-        const wave = (Math.sin(t * 0.85 + phases[i]) + 1) * 0.5;
-        const chance = intensity[i] * (0.15 + wave * 0.55);
+        const wave = (Math.sin(t * 1.05 + phases[i]) + 1) * 0.5;
+        const chance = intensity[i] * (0.25 + wave * 0.7);
 
-        // Only consider a new flip if enough time has passed since last one
-        if (time - lastFlip[i] > FLIP_DURATION + Math.random() * 400) {
+        if (time - lastFlip[i] > FLIP_DURATION + Math.random() * 280) {
           if (Math.random() < chance) {
             el.textContent = GLYPHS[(Math.random() * GLYPHS.length) | 0];
             lastFlip[i] = time;
@@ -757,7 +752,6 @@
             el.textContent = orig;
           }
         } else if (time - lastFlip[i] > FLIP_DURATION && el.textContent !== orig) {
-          // Soft snap-back
           el.textContent = orig;
         }
       }
