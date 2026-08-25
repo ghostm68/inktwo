@@ -73,6 +73,26 @@ html, body {
   transform: scale(1);
 }
 
+/* Video background variant */
+.chapter-bg.video-bg {
+  background-image: none !important;
+  filter: none;
+  overflow: hidden;
+}
+.chapter-bg.video-bg video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.55) saturate(0.8) contrast(1.05);
+  transform: scale(1.04);
+  transition: transform 1.4s ease-out, filter 0.8s ease;
+}
+.chapter.active .chapter-bg.video-bg video {
+  transform: scale(1);
+}
+
 .chapter::before {
   content: '';
   position: absolute;
@@ -149,14 +169,13 @@ html, body {
   transform: translateX(4px);
 }
 
-/* ── MASSIVE 3D RELIC ANCHOR (LOWER RIGHT CORNER) ── */
-/* ── CALIBRATED 3D RELIC (MORE INWARD, BALANCED SCALE) ── */
+/* ── 3D RELIQUARY — fully visible, compact lower-right ── */
 #reliquary-stage {
   position: fixed;
-  bottom: 4vh;                        /* Lifted off the bottom edge */
-  right: 5vw;                         /* Moved more to the left / inward */
-  width: clamp(300px, 32vw, 480px);   /* Scaled down so it doesn't intrude on the image */
-  height: clamp(300px, 32vw, 480px);
+  bottom: 3vh;
+  right: 3vw;
+  width: clamp(200px, 22vw, 320px);
+  height: clamp(200px, 22vw, 320px);
   z-index: 10;
   pointer-events: none;
   background: transparent;
@@ -164,15 +183,6 @@ html, body {
   box-shadow: none;
 }
 
-@media (max-width: 900px) {
-  #reliquary-stage {
-    width: 220px;
-    height: 220px;
-    bottom: 2vh;
-    right: 2vw;
-    opacity: 0.8;
-  }
-}
 #three-viewport {
   width: 100%;
   height: 100%;
@@ -230,12 +240,13 @@ header {
   align-items: center;
   flex-wrap: wrap;
   font-family: var(--font-mono);
+  gap: 4px 0;
 }
 
 .header-typing-wrapper a {
   color: var(--text-dim);
   text-decoration: none;
-  margin-right: 22px;
+  margin-right: 18px;
   position: relative;
   transition: color 0.3s, text-shadow 0.3s;
   cursor: pointer;
@@ -249,7 +260,7 @@ header {
 /* ── PROGRESS & SCANLINES ── */
 #progress {
   position: fixed;
-  bottom: 28px; 
+  bottom: 28px;
   left: 6vw;
   z-index: 50;
   font-size: 11px;
@@ -275,15 +286,40 @@ header {
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   #reliquary-stage {
-    width: 320px;
-    height: 320px;
-    bottom: -10px;
-    right: -10px;
-    opacity: 0.85;
+    width: clamp(140px, 36vw, 200px);
+    height: clamp(140px, 36vw, 200px);
+    bottom: 2vh;
+    right: 2vw;
+    opacity: 0.92;
   }
   .chapter-content {
-    padding: 0 6vw 12vh;
+    padding: 0 5vw 14vh;
     max-width: 100%;
+  }
+  .header-typing-wrapper {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+  }
+  .header-typing-wrapper a {
+    margin-right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  #reliquary-stage {
+    width: 130px;
+    height: 130px;
+    bottom: 1.5vh;
+    right: 1.5vw;
+  }
+  header {
+    top: 16px;
+    left: 12px;
+    right: 12px;
+  }
+  .menu-toggle {
+    width: 38px;
+    height: 38px;
   }
 }
 </style>
@@ -309,7 +345,7 @@ header {
   <div id="three-viewport"></div>
 </aside>
 
-<div id="progress" aria-live="polite">I / V</div>
+<div id="progress" aria-live="polite">I / VI</div>
 
 <!-- ═══════ CHAPTER I ═══════ -->
 <section class="chapter active" data-index="0">
@@ -357,6 +393,27 @@ header {
   <div class="chapter-content">
     <h1>The Unbroken Signal</h1>
     <p>Gods do not die; they simply migrate to higher resolution screens. The owl sits in the rafters of the soundstage, listening to the clapperboard fall like a gavel.</p>
+    <button class="inner-link" data-goto="5">Open the reel</button>
+  </div>
+</section>
+
+<!-- ═══════ CHAPTER VI — VIDEO ═══════ -->
+<section class="chapter" data-index="5">
+  <div class="chapter-bg video-bg" style="background-color:#0a0a12;">
+    <video
+      muted
+      loop
+      playsinline
+      preload="auto"
+      poster="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&q=80"
+    >
+      <!-- Public-domain / freely usable sample film clip (Internet Archive) -->
+      <source src="https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="chapter-content">
+    <h1>The Moving Image</h1>
+    <p>Celluloid becomes signal; signal becomes chamber. The frame no longer holds still — it breathes, advances, forgets itself between cuts. What was once a coin now runs at twenty-four gods per second.</p>
     <button class="inner-link" data-goto="0">Return to the profile</button>
   </div>
 </section>
@@ -372,15 +429,28 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 /* ── 1. CHAPTER ENGINE ── */
 const chapters = document.querySelectorAll('.chapter');
 const progress = document.getElementById('progress');
-const roman = ['I','II','III','IV','V'];
+const roman = ['I','II','III','IV','V','VI'];
 let current = 0;
 
 function showChapter(index) {
   if (index < 0 || index >= chapters.length) return;
+
+  // Pause any playing chapter videos when leaving
+  chapters[current].querySelectorAll('video').forEach(v => {
+    v.pause();
+  });
+
   chapters[current].classList.remove('active');
   chapters[index].classList.add('active');
   current = index;
   progress.textContent = roman[current] + ' / ' + roman[chapters.length - 1];
+
+  // Auto-play video in the new chapter (if present)
+  const vid = chapters[current].querySelector('video');
+  if (vid) {
+    vid.currentTime = 0;
+    vid.play().catch(() => {/* autoplay may be blocked until interaction */});
+  }
 
   // Nudge the 3D model rotation on chapter change
   if (window.templeModel) {
@@ -402,7 +472,8 @@ const menuLinks = [
   { text: "II. MINERVA", index: 1 },
   { text: "III. HELMET", index: 2 },
   { text: "IV. STRATEGY", index: 3 },
-  { text: "V. SIGNAL", index: 4 }
+  { text: "V. SIGNAL", index: 4 },
+  { text: "VI. REEL", index: 5 }
 ];
 
 let isMenuOpen = false;
@@ -468,7 +539,7 @@ function typeHeaderLinks() {
 
 menuBtn.addEventListener('click', () => {
   if (isTyping) { closeMenu(); return; }
-  if (!isMenuOpen) { typeHeaderLinks(); isMenuOpen = true; } 
+  if (!isMenuOpen) { typeHeaderLinks(); isMenuOpen = true; }
   else { closeMenu(); }
 });
 
@@ -491,7 +562,7 @@ document.addEventListener('keydown', (e) => {
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.5; // Crisp high-definition exposure
+  renderer.toneMappingExposure = 1.5;
   container.appendChild(renderer.domElement);
 
   // Gallery Lighting
@@ -518,7 +589,7 @@ document.addEventListener('keydown', (e) => {
   loader.setDRACOLoader(dracoLoader);
   loader.setKTX2Loader(ktx2Loader);
   loader.setMeshoptDecoder(MeshoptDecoder);
-  
+
   const modelUrl = 'https://cdn.jsdelivr.net/gh/ghostm68/inktwo@5b49dea5e290ea1b10c3efbef76876392d8115e9/detailled.glb';
 
   loader.load(
@@ -544,11 +615,12 @@ document.addEventListener('keydown', (e) => {
       const size = box.getSize(new THREE.Vector3());
       model.position.sub(center);
 
-      // Tight camera zoom (0.75 multiplier for large, close-up details)
+      // Fit model fully in view with a little breathing room
       const maxDim = Math.max(size.x, size.y, size.z);
       const fov = camera.fov * (Math.PI / 180);
-       let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 0.95;
-      camera.position.set(cameraZ * 0.25, cameraZ * 0.15, cameraZ);
+      // Slightly more zoomed-out so the whole relic is visible in the smaller stage
+      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.15;
+      camera.position.set(cameraZ * 0.2, cameraZ * 0.12, cameraZ);
       camera.lookAt(0, 0, 0);
 
       scene.add(model);
