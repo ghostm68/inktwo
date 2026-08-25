@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D GLB Inspector // lasher.glb</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #080808;
+            color: #f5efe6;
+            font-family: monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #ui-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(12, 12, 12, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 16px 20px;
+            backdrop-filter: blur(8px);
+            max-width: 320px;
+        }
+        #ui-overlay h2 {
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #ff2222;
+            margin-bottom: 8px;
+        }
+        #telemetry {
+            font-size: 11px;
+            line-height: 1.6;
+            color: #cecece;
+        }
+        .btn-row {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        button {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:hover {
+            background: #ff2222;
+            border-color: #ff2222;
+        }
+    </style>
+
+    <!-- Three.js + Loaders + Controls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h2>Telemetry // lasher.glb</h2>
+        <div id="telemetry">Status: Initializing...</div>
+        <div class="btn-row">
+            <button id="btn-marble">Bone Marble</button>
+            <button id="btn-wire">Wireframe</button>
+            <button id="btn-red">Crimson</button>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        const container = document.getElementById('canvas-container');
+        const telemetry = document.getElementById('telemetry');
+
+        // 1. Scene, Camera, Renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x060606);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 5000);
+        camera.position.set(0, 5, 20);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        // 2. Interactive Orbit Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // 3. Studio Gallery Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+        keyLight.position.set(20, 40, 30);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xff3333, 0.6); // Subtle red rim light
+        fillLight.position.set(-20, -10, -20);
+        scene.add(fillLight);
+
+        // 4. Load GLB (with Draco support fallback)
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+
+        const loader = new THREE.GLTFLoader();
+        loader.setDRACOLoader(dracoLoader);
+
+        let loadedModel = null;
+        let polyCount = 0;
+        let meshCount = 0;
+
+        // RAW URL for your file
+        const modelUrl = 'https://raw.githubusercontent.com/ghostm68/inktwo/8621b6a640d3179fc045c404de5bf48d209d06dc/lasher.glb';
+
+        telemetry.textContent = "Status: Downloading GLB...";
+
+        loader.load(
+            modelUrl,
+            (gltf) => {
+                loadedModel = gltf.scene;
+
+                // Inspect vertices and calculate bounds
+                loadedModel.traverse((child) => {
+                    if (child.isMesh) {
+                        meshCount++;
+                        if (child.geometry) {
+                            polyCount += child.geometry.attributes.position.count;
+                            child.geometry.computeVertexNormals(); // Ensure smooth stone shading
+                        }
+                    }
+                });
+
+                // Auto-center geometry to exact pivot
+                const box = new THREE.Box3().setFromObject(loadedModel);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                loadedModel.position.sub(center);
+
+                // Auto-fit camera distance based on model dimensions
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.6;
+                camera.position.set(cameraZ * 0.4, cameraZ * 0.3, cameraZ);
+                camera.lookAt(0, 0, 0);
+                controls.target.set(0, 0, 0);
+
+                scene.add(loadedModel);
+
+                setMaterial('marble');
+
+                telemetry.innerHTML = `
+                    Status: Loaded OK<br>
+                    Meshes: ${meshCount}<br>
+                    Vertices: ${polyCount.toLocaleString()}<br>
+                    Bounds: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}
+                `;
+            },
+            (xhr) => {
+                if (xhr.lengthComputable) {
+                    const percent = Math.round((xhr.loaded / xhr.total) * 100);
+                    telemetry.textContent = `Status: Loading ${percent}%`;
+                }
+            },
+            (error) => {
+                console.error(error);
+                telemetry.innerHTML = `<span style="color:#ff4444;">Error loading GLB. Check console.</span>`;
+            }
+        );
+
+        // 5. Material Presets
+        function setMaterial(type) {
+            if (!loadedModel) return;
+
+            let mat;
+            if (type === 'marble') {
+                mat = new THREE.MeshStandardMaterial({
+                    color: 0xf5efe6,
+                    roughness: 0.45,
+                    metalness: 0.05,
+                    wireframe: false
+                });
+            } else if (type === 'wire') {
+                mat = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    wireframe: true
+                });
+            } else if (type === 'red') {
+                mat = new THREE.MeshStandardMaterial({
+                    color: 0xff0011,
+                    roughness: 0.25,
+                    metalness: 0.3,
+                    wireframe: false
+                });
+            }
+
+            loadedModel.traverse((child) => {
+                if (child.isMesh) child.material = mat;
+            });
+        }
+
+        document.getElementById('btn-marble').addEventListener('click', () => setMaterial('marble'));
+        document.getElementById('btn-wire').addEventListener('click', () => setMaterial('wire'));
+        document.getElementById('btn-red').addEventListener('click', () => setMaterial('red'));
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 6. Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
