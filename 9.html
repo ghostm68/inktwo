@@ -175,35 +175,38 @@ html, body {
   cursor: grabbing;
 }
 
-.reliquary-header {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  right: 14px;
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--accent-primary);
+/* ── CORNER NAV 3D TALISMAN (OPTION A) ── */
+#reliquary-stage {
+  position: fixed;
+  top: 76px;
+  right: 28px;
+  width: 130px;
+  height: 130px;
+  z-index: 50;
   pointer-events: none;
-  z-index: 11;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
+/* Hide the technical text headers for a pure floating object */
+.reliquary-header,
 .reliquary-footer {
-  position: absolute;
-  bottom: 12px;
-  left: 14px;
-  right: 14px;
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: var(--bone-dim);
-  pointer-events: none;
-  z-index: 11;
+  display: none;
+}
+
+#three-viewport {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  #reliquary-stage {
+    top: 64px;
+    right: 16px;
+    width: 90px;
+    height: 90px;
+  }
 }
 
 /* ── HEADER & TYPING NAV ── */
@@ -404,8 +407,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
 /* ── 1. CHAPTER ENGINE ── */
 const chapters = document.querySelectorAll('.chapter');
 const progress = document.getElementById('progress');
@@ -532,13 +535,6 @@ document.addEventListener('keydown', (e) => {
   renderer.toneMappingExposure = 1.3;
   container.appendChild(renderer.domElement);
 
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.enableZoom = true;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.8;
-
   // Gallery Lighting
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x442222, 2.2);
   scene.add(hemiLight);
@@ -551,7 +547,7 @@ document.addEventListener('keydown', (e) => {
   redRimLight.position.set(-20, -10, -20);
   scene.add(redRimLight);
 
-  // Decoders (Draco + KTX2 Basis)
+  // Decoders (Draco + KTX2 + Meshopt)
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
 
@@ -595,7 +591,6 @@ document.addEventListener('keydown', (e) => {
       let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
       camera.position.set(cameraZ * 0.5, cameraZ * 0.4, cameraZ);
       camera.lookAt(0, 0, 0);
-      controls.target.set(0, 0, 0);
 
       scene.add(model);
       if (statusLabel) statusLabel.textContent = "ONLINE // 3D";
@@ -619,9 +614,25 @@ document.addEventListener('keydown', (e) => {
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
 
+  // Gentle mouse-tilt tracking
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 0.3;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 0.3;
+  });
+
   function animate() {
     requestAnimationFrame(animate);
-    controls.update();
+
+    if (window.templeModel) {
+      // 1. Continuous, hypnotic axial spin
+      window.templeModel.rotation.y += 0.004;
+
+      // 2. Subtle organic breathing tilt toward cursor
+      window.templeModel.rotation.x = THREE.MathUtils.lerp(window.templeModel.rotation.x, mouseY, 0.04);
+      window.templeModel.rotation.z = THREE.MathUtils.lerp(window.templeModel.rotation.z, -mouseX * 0.5, 0.04);
+    }
+
     renderer.render(scene, camera);
   }
   animate();
