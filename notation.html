@@ -3,13 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>deja vu glitches — scrollcraft edition</title>
+  <title>deja vu glitches // kinetic edition</title>
   <meta name="description" content="deja vu glitches – glitch art & experimental interfaces" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+
+  <!-- Lenis CSS for smooth inertia -->
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.1.18/dist/lenis.css" />
 
   <style>
     /* ── RESET & BASE ── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html.lenis, html.lenis body { height: auto; }
+    .lenis.lenis-smooth { scroll-behavior: auto !important; }
+    .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+    .lenis.lenis-stopped { overflow: hidden; }
+
     html {
       background: #000;
       scrollbar-width: thin;
@@ -96,7 +104,7 @@
       background: repeating-linear-gradient(0deg, rgba(0,0,0,.55) 0 1px, transparent 1px 3px);
       background-size: 100% 3px;
       animation: scanMove 1.1s linear infinite;
-      z-index: 8;
+      z-index: 4;
     }
     @keyframes scanMove { 0% { background-position: 0 0; } 100% { background-position: 0 6px; } }
 
@@ -225,241 +233,93 @@
       75% { clip-path: inset(5% 0 85% 0); }
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-       SCROLLCRAFT ENGINE CORE STYLES (CONTINUOUS SCRUB & TIMELINES)
-       ═══════════════════════════════════════════════════════════════ */
-    .sc-container {
-      position: relative;
+    /* ── FAST KINETIC SECTIONS (NON-BLOCKING) ── */
+    .kinetic-section {
       width: 100%;
-      background: #000;
-    }
-
-    /* Pinned Sticky Stage */
-    .sc-sticky-box {
-      position: sticky;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
+      border-bottom: 1px solid #1a1a1a;
       background: #050505;
-      border-top: 1px solid #220000;
-      border-bottom: 1px solid #220000;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: clamp(16px, 3vw, 28px);
-      box-sizing: border-box;
-    }
-
-    /* Continuous Scrolled Canvas Background */
-    #scVisualCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.55;
-      z-index: 1;
-      filter: contrast(1.4) saturate(1.2);
-    }
-
-    /* Shutter Wipe Curtain Layer */
-    .sc-shutter-layer {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      background-size: cover;
-      background-position: center;
-      opacity: 0.6;
-      filter: contrast(1.5) grayscale(0.3);
-      will-change: clip-path, transform;
-      pointer-events: none;
-    }
-
-    /* Dynamic Scrim & HUD Overlays */
-    .sc-hud {
+      padding: clamp(40px, 8vw, 80px) 16px;
       position: relative;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: 'Kode Mono', monospace;
-      font-size: clamp(10px, 2.2vw, 12px);
-      letter-spacing: 1.5px;
-      color: #666;
-      text-transform: uppercase;
-      background: rgba(0,0,0,0.6);
-      padding: 6px 12px;
-      border: 1px solid rgba(255,0,0,0.25);
     }
-    .sc-hud .live-val { color: #ff0000; }
 
-    /* Word-by-word Scrolled Typography Reveal Engine */
-    .sc-text-stage {
-      position: relative;
-      z-index: 10;
-      max-width: 820px;
-      margin: auto 0;
-      pointer-events: none;
-    }
-    .sc-badge {
-      display: inline-block;
-      font-family: 'Kode Mono', monospace;
-      font-size: 11px;
-      color: #000;
-      background: #ff0000;
-      padding: 2px 6px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 12px;
-      box-shadow: 0 0 10px rgba(255,0,0,0.5);
-    }
-    .sc-reveal-headline {
+    .k-header {
       font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: clamp(32px, 7vw, 68px);
-      line-height: 1.05;
+      font-size: clamp(32px, 6vw, 56px);
       letter-spacing: -0.04em;
       text-transform: uppercase;
+      color: #333;
       filter: url(#threshfxStrong);
-      color: #1a1a1a;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px 16px;
-      margin-bottom: 16px;
+      margin-bottom: 24px;
+      transition: color 0.4s ease;
     }
-    .sc-reveal-headline .word {
-      display: inline-block;
-      transition: color 0.1s, text-shadow 0.15s, transform 0.15s;
-      will-change: transform, color;
-    }
-    .sc-reveal-headline .word.lit {
-      color: #ffffff;
-      text-shadow: 0 0 15px rgba(255,0,0,0.8);
-      transform: translateY(-2px);
-    }
-    .sc-reveal-headline .word.hl-word.lit {
-      color: #ff0000;
-      text-shadow: 0 0 25px #ff0000;
-    }
+    .k-header.in-view { color: #fff; }
+    .k-header .hl { color: #ff0000; }
 
-    .sc-reveal-body {
-      font-family: 'Kode Mono', monospace;
-      font-size: clamp(12px, 2.5vw, 15px);
-      line-height: 1.6;
-      text-transform: uppercase;
-      max-width: 620px;
-      background: rgba(0,0,0,0.85);
-      border-left: 3px solid #ff0000;
-      padding: 12px 16px;
-      color: #777;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-      transition: color 0.2s;
-    }
-    .sc-reveal-body.active {
-      color: #d1d1d1;
-    }
-
-    /* Bottom Timeline Bar & Velocity Dial */
-    .sc-timeline-row {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: rgba(0,0,0,0.8);
-      padding: 8px 12px;
-      border: 1px solid #1a1a1a;
-    }
-    .sc-track-bar {
-      flex: 1;
-      height: 3px;
-      background: #222;
-      position: relative;
-      overflow: hidden;
-    }
-    .sc-track-fill {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 0%;
-      background: #ff0000;
-      box-shadow: 0 0 12px #ff0000;
-    }
-    .sc-telemetry-num {
-      font-family: 'Kode Mono', monospace;
-      font-size: 11px;
-      color: #ff0000;
-      letter-spacing: 1px;
-      min-width: 80px;
-      text-align: right;
-    }
-
-    /* ── SCROLL HORIZONTAL DECK ── */
-    #scDeckTrack {
-      height: 320vh;
-      background: #020202;
-    }
-    .sc-h-slider {
-      display: flex;
+    /* Asymmetric Signal Grid */
+    .signal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 24px;
-      position: absolute;
-      top: 50%;
-      left: 0;
-      transform: translateY(-50%) translateX(0px);
-      padding: 0 40px;
-      will-change: transform;
+      margin-top: 24px;
     }
-    .sc-card {
-      flex: 0 0 clamp(280px, 45vw, 420px);
+    .signal-card {
       background: #090909;
-      border: 1px solid #222;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: clamp(340px, 55vh, 460px);
+      border: 1px solid #1f1f1f;
+      padding: 16px;
       position: relative;
       overflow: hidden;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
       transition: border-color 0.2s;
     }
-    .sc-card:hover { border-color: #ff0000; }
-    .sc-card .card-img {
+    .signal-card:hover { border-color: #ff0000; }
+    .signal-card .card-media {
+      position: relative;
       width: 100%;
-      height: 180px;
+      height: 220px;
+      overflow: hidden;
+      background: #000;
+    }
+    .signal-card .card-media img {
+      width: 100%;
+      height: 100%;
       object-fit: cover;
-      border: 1px solid #1a1a1a;
-      filter: grayscale(0.4) contrast(1.2);
+      filter: contrast(1.3) grayscale(0.4);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s;
+      will-change: transform;
     }
-    .sc-card .card-meta {
-      font-family: 'Kode Mono', monospace;
-      font-size: 11px;
-      color: #ff0000;
-      letter-spacing: 1.5px;
+    .signal-card:hover .card-media img {
+      filter: contrast(1.5) grayscale(0);
+      transform: scale(1.04);
+    }
+    .signal-card .card-info {
       margin-top: 14px;
-      text-transform: uppercase;
-    }
-    .sc-card .card-title {
-      font-family: 'p--l', 'Anonymous Pro', monospace;
-      font-size: 22px;
-      color: #e5e5e5;
-      text-transform: uppercase;
-      filter: url(#threshfxStrong);
-      margin-top: 4px;
-    }
-    .sc-card .card-desc {
       font-family: 'Kode Mono', monospace;
-      font-size: 12px;
+    }
+    .signal-card .card-kicker {
+      color: #ff0000;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .signal-card .card-text {
+      color: #888;
+      font-size: 13px;
       line-height: 1.5;
-      color: #777;
       text-transform: uppercase;
       margin-top: 6px;
     }
 
-    /* ── MARQUEE & WORDWALL ── */
+    /* Velocity Glitch Overlay on Media */
+    .velocity-tear {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: transparent;
+      mix-blend-mode: screen;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    /* ── MARQUEE ── */
     #marquee {
       width: 100%;
       max-width: 1024px;
@@ -469,8 +329,6 @@
       border-top: 1px solid #1a1a1a;
       border-bottom: 1px solid #1a1a1a;
       padding: 14px 0;
-      cursor: ew-resize;
-      touch-action: pan-y;
       user-select: none;
     }
     #marquee .track {
@@ -492,6 +350,7 @@
       100% { transform: translateX(-50%); }
     }
 
+    /* ── WORD WALL ── */
     #wordwall {
       width: 100%;
       max-width: 1024px;
@@ -519,13 +378,9 @@
       text-overflow: ellipsis;
     }
     #wordwall .wall-item .hl { color: #ff0000; }
-    #wordwall .wall-item:hover,
-    #wordwall .wall-item:active {
-      color: #ff0000;
-      border-bottom-color: #ff0000;
-    }
+    #wordwall .wall-item:hover { color: #ff0000; border-bottom-color: #ff0000; }
 
-    /* ── FAQ / STORIES ── */
+    /* ── FAQ ── */
     #faq {
       width: 100%;
       max-width: 1024px;
@@ -545,10 +400,7 @@
       margin-bottom: 24px;
     }
     #faq .faq-head .hl { color: #ff0000; }
-    .faq-item {
-      border-top: 1px solid #1a1a1a;
-      padding: 0;
-    }
+    .faq-item { border-top: 1px solid #1a1a1a; padding: 0; }
     .faq-item:last-child { border-bottom: 1px solid #1a1a1a; }
     .faq-q {
       display: flex;
@@ -568,18 +420,9 @@
       text-align: left;
       min-height: 48px;
     }
-    .faq-q span {
-      color: #ff0000;
-      flex: none;
-      margin-left: 16px;
-      font-size: 1.1em;
-    }
+    .faq-q span { color: #ff0000; flex: none; margin-left: 16px; font-size: 1.1em; }
     .faq-q:hover, .faq-item.open .faq-q { color: #fff; }
-    .faq-a {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-    }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
     .faq-item.open .faq-a { max-height: 1200px; }
     .faq-a .story-body {
       margin: 0;
@@ -691,6 +534,7 @@
       #hero { flex-direction: column; text-align: center; }
       #hero .hero-pencil { width: min(55vw, 220px); order: 1; }
       #hero .hero-text { text-align: center; order: 2; }
+      .signal-grid { grid-template-columns: 1fr; }
       #wordwall .wall-grid { grid-template-columns: 1fr 1fr; }
       #mediaStrip { aspect-ratio: 16 / 9; max-height: 200px; }
       #footer { flex-direction: column; align-items: flex-start; }
@@ -718,7 +562,7 @@
     <div class="brand"><a href="#">deja vu <span class="grey">glitches</span></a></div>
     <div class="top-row">
       <span class="mail"><a href="mailto:hello@wordstar.nexus">hello@wordstar.nexus</a></span>
-      <span class="studio-label" style="color:#2a2a2a; font-size:10px; letter-spacing:1px;">✦ SCROLLCRAFT ENGINE ACTIVE</span>
+      <span class="studio-label" style="color:#2a2a2a; font-size:10px; letter-spacing:1px;">✦ LENIS INERTIAL ENGINE</span>
     </div>
   </div>
 </header>
@@ -727,12 +571,12 @@
 
   <div id="signalBar">
     <span>✦ <span class="hl">signal</span> / decay</span>
-    <span class="ver">v.0.3 · CONTINUOUS_TIMELINE</span>
+    <span class="ver">v.0.4 · FAST_KINETIC</span>
   </div>
 
   <div id="mediaStrip" class="scanlines">
     <img src="https://github.com/ghostm68/pantheon/raw/main/minaro_231218_06491.gif" alt="Minaro Signal Feed" />
-    <span class="media-tag">REC // BUFFER: 27 · TIMELINE: ARMED</span>
+    <span class="media-tag">REC // LIVE FEED // BUFFER: 27</span>
     <div class="media-overlay"></div>
   </div>
 
@@ -806,100 +650,61 @@
   </div>
 
   <!-- ═════════════════════════════════════════════════════════════
-       SCROLLCRAFT SIGNATURE SECTION: PINNED SCRUB & LIVE SHUTTER
+       NEW KINETIC SECTION: TRANSMISSION ARCHIVES (FAST & FLUID)
        ═════════════════════════════════════════════════════════════ -->
-  <section class="sc-container" id="scPinnedStage" style="height: 460vh;">
-    <div class="sc-sticky-box scanlines">
+  <section class="kinetic-section">
+    <div class="k-header" data-observe="true">MINARO <span class="hl">// MANIFEST</span> [27]</div>
+    
+    <p style="font-family: 'Kode Mono', monospace; font-size: 14px; text-transform: uppercase; color: #888; max-width: 680px; line-height: 1.6; border-left: 2px solid #ff0000; padding-left: 12px; margin-bottom: 28px;">
+      a series of mind breaths, winter dream notes & musings brought to you by MINAro. fast transmission across decoupled frequencies.
+    </p>
 
-      <!-- Dynamic Visual Canvas: RGB displacement & frame interpolation -->
-      <canvas id="scVisualCanvas"></canvas>
-
-      <!-- Diagonal Shutter Layer Peel (Asset from /27) -->
-      <div class="sc-shutter-layer" id="scShutter" style="background-image: url('https://github.com/ghostm68/pantheon/raw/main/Minaro_231218_074117.gif');"></div>
-
-      <!-- Top HUD Telemetry -->
-      <div class="sc-hud">
-        <span>MEM_REG: <span class="live-val" id="scRegister">0x27A0</span></span>
-        <span>FREQ: <span class="live-val" id="scFreq">108.4 MHz</span></span>
-        <span>SECTOR: <span class="live-val" id="scSector">ALPHA // 01</span></span>
-      </div>
-
-      <!-- Word-by-Word Kinetic Headline Reveal -->
-      <div class="sc-text-stage">
-        <span class="sc-badge" id="scStageBadge">PHASE 1: TRANSMISSION</span>
-        
-        <h2 class="sc-reveal-headline" id="scHeadline">
-          <span class="word">THE</span>
-          <span class="word">SIGNAL</span>
-          <span class="word hl-word">REPEATS</span>
-          <span class="word">UNTIL</span>
-          <span class="word">MEMORY</span>
-          <span class="word hl-word">FRACTURES</span>
-          <span class="word">INTO</span>
-          <span class="word hl-word">CODE.</span>
-        </h2>
-
-        <p class="sc-reveal-body" id="scBodyText">
-          // MINARO_MANIFEST [27] · winter dream notes & musings. a continuous recording of glitch, frequency, and cognitive drift across encrypted sectors.
-        </p>
-      </div>
-
-      <!-- Bottom Progress Bar & Velocity Counter -->
-      <div class="sc-timeline-row">
-        <span style="font-family: 'Kode Mono', monospace; font-size:11px; color:#555;">TIMELINE</span>
-        <div class="sc-track-bar">
-          <div class="sc-track-fill" id="scMainFill"></div>
+    <div class="signal-grid">
+      <!-- Card 1 -->
+      <div class="signal-card">
+        <div class="card-media scanlines">
+          <img src="https://github.com/ghostm68/pantheon/raw/main/minaro_20231218_070131_.jpeg" alt="Fragment Oct 20" />
+          <div class="velocity-tear"></div>
         </div>
-        <div class="sc-telemetry-num" id="scVelocityGauge">VEL: 00 px/s</div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ═════════════════════════════════════════════════════════════
-       SCROLLCRAFT SECTION 2: PINNED HORIZONTAL DECK TIMELINE
-       ═════════════════════════════════════════════════════════════ -->
-  <section class="sc-container" id="scDeckTrack">
-    <div class="sc-sticky-box scanlines" style="border-top:none;">
-      <div class="sc-hud">
-        <span>HORIZONTAL TRANSMISSION DECK</span>
-        <span>SCRUB VIEW ➔</span>
-      </div>
-
-      <div class="sc-h-slider" id="scSlider">
-        <div class="sc-card">
-          <img src="https://github.com/ghostm68/pantheon/raw/main/minaro_231218_06491.gif" class="card-img" alt="Signal Capture" />
-          <div class="card-meta">FILE_01 // PULSE</div>
-          <div class="card-title">Minaro Loop</div>
-          <div class="card-desc">Continuous feedback loop captured at 06:49:10 during high-frequency signal breakdown.</div>
-        </div>
-
-        <div class="sc-card">
-          <img src="https://github.com/ghostm68/pantheon/raw/main/minaro_20231218_070131_.jpeg" class="card-img" alt="Memory Fragment" />
-          <div class="card-meta">FILE_02 // STILL</div>
-          <div class="card-title">Oct 26 Fragment</div>
-          <div class="card-desc">Redesigned wordstar architecture with low-pass perceptual distortion filters.</div>
-        </div>
-
-        <div class="sc-card">
-          <img src="https://github.com/ghostm68/pantheon/raw/main/Minaro_231218_074117.gif" class="card-img" alt="Decay Pattern" />
-          <div class="card-meta">FILE_03 // ITERATION</div>
-          <div class="card-title">Mind Breath #3</div>
-          <div class="card-desc">Temporal frame interpolation showing residual ghost artifacts across 12 sectors.</div>
-        </div>
-
-        <div class="sc-card">
-          <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/minaro.wordstar.1701231387619.gif" class="card-img" alt="Encrypted Key" />
-          <div class="card-meta">FILE_04 // TOKEN</div>
-          <div class="card-title">Token Matrix</div>
-          <div class="card-desc">Encrypted authentication token. Insert Disk 2 for Citadelle Blue system swap.</div>
+        <div class="card-info">
+          <div class="card-kicker">// 20 OCTOBER · DRAWER</div>
+          <div class="card-text">drawer full of money, didn't count it... rush into stranger's house; hurrying out into unknown sidewalk.</div>
         </div>
       </div>
 
-      <div class="sc-timeline-row">
-        <span style="font-family: 'Kode Mono', monospace; font-size:11px; color:#555;">BUFFER SCRUB</span>
-        <div class="sc-track-bar">
-          <div class="sc-track-fill" id="scSliderProgress"></div>
+      <!-- Card 2 -->
+      <div class="signal-card">
+        <div class="card-media scanlines">
+          <img src="https://github.com/ghostm68/pantheon/raw/main/Minaro_231218_074117.gif" alt="Fragment Nov 3" />
+          <div class="velocity-tear"></div>
+        </div>
+        <div class="card-info">
+          <div class="card-kicker">// 03 NOVEMBER · DELETION</div>
+          <div class="card-text">speaking with an aunt i never speak to, how do you sleep, deletion demo, i don't want to lose you.</div>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="signal-card">
+        <div class="card-media scanlines">
+          <img src="https://github.com/ghostm68/pantheon/raw/main/minaro_20231218-072633_.jpeg" alt="Fragment Nov 26" />
+          <div class="velocity-tear"></div>
+        </div>
+        <div class="card-info">
+          <div class="card-kicker">// 26 OCTOBER · GHOST DANCE</div>
+          <div class="card-text">dream of dancing figures, thought they were singing. redesigned wordstar with perceptual distortion.</div>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="signal-card">
+        <div class="card-media scanlines">
+          <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/minaro.wordstar.1701231387619.gif" alt="Auth Key" />
+          <div class="velocity-tear"></div>
+        </div>
+        <div class="card-info">
+          <div class="card-kicker">// SYSTEM · CITADELLE_RED</div>
+          <div class="card-text">authentication verified. drive a: ready. mode: overtype. memory buffer sustained.</div>
         </div>
       </div>
     </div>
@@ -917,7 +722,7 @@
     </div>
   </div>
 
-  <!-- FAQ / STORIES -->
+  <!-- FAQ -->
   <section id="faq">
     <div class="faq-head">fractured <span class="hl">faq</span> //</div>
 
@@ -977,23 +782,58 @@
     </div>
   </footer>
 
-</div><!-- /page -->
+</div>
 
-<!-- SVG Filters for glitch displacement -->
+<!-- SVG Filters -->
 <svg class="filter-svg" aria-hidden="true">
   <filter id="threshfxStrong" color-interpolation-filters="sRGB">
     <feGaussianBlur stdDeviation="0.55" result="soft" />
     <feColorMatrix in="soft" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 8 -3.2" />
   </filter>
-  <filter id="turbDisplace">
-    <feTurbulence type="fractalNoise" baseFrequency="0.05 0.95" numOctaves="1" result="noise" />
-    <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" id="turbMap" />
-  </filter>
 </svg>
+
+<!-- Lenis JS -->
+<script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
 
 <script>
 (function () {
-  // ── POINTER TRAIL ──
+  // ── 1. LENIS SMOOTH MOMENTUM ENGINE ──
+  const lenis = new Lenis({
+    duration: 0.9,
+    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    smoothWheel: true,
+    touchMultiplier: 1.5
+  });
+
+  function raf(time) {
+    lenis.raf(time);
+    requestAnimationFrame(raf);
+  }
+  requestAnimationFrame(raf);
+
+  // ── 2. PASSIVE VELOCITY REACTIVITY (NO LOCKING) ──
+  const mediaImages = document.querySelectorAll('.signal-card .card-media img');
+  lenis.on('scroll', (e) => {
+    const vel = Math.min(15, Math.abs(e.velocity) * 0.4);
+    // Skew and tear images slightly based on scroll speed
+    mediaImages.forEach((img, i) => {
+      const dir = (i % 2 === 0 ? 1 : -1);
+      img.style.transform = `translateY(${dir * vel * 0.8}px) scale(${1 + vel * 0.005})`;
+    });
+  });
+
+  // ── 3. INTERSECTION OBSERVER FOR HEADLINE ILLUMINATION ──
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('[data-observe="true"]').forEach(el => observer.observe(el));
+
+  // ── 4. POINTER TRAIL ──
   const canvas = document.getElementById('trailCanvas');
   const ctx = canvas.getContext('2d');
   let W, H;
@@ -1036,191 +876,26 @@
   }
   drawTrail();
 
-  // ═══════════════════════════════════════════════════════════════
-  // SCROLLCRAFT TIMELINE SCRUB & REAL-TIME RENDER ENGINE
-  // ═══════════════════════════════════════════════════════════════
-  const stage = document.getElementById('scPinnedStage');
-  const mainFill = document.getElementById('scMainFill');
-  const velGauge = document.getElementById('scVelocityGauge');
-  const regEl = document.getElementById('scRegister');
-  const freqEl = document.getElementById('scFreq');
-  const sectorEl = document.getElementById('scSector');
-  const badgeEl = document.getElementById('scStageBadge');
-  const bodyTextEl = document.getElementById('scBodyText');
-  const shutterEl = document.getElementById('scShutter');
-  const words = document.querySelectorAll('#scHeadline .word');
-  const turbMap = document.getElementById('turbMap');
-
-  // Load visual layers into memory for continuous canvas rendering
-  const vCanvas = document.getElementById('scVisualCanvas');
-  const vCtx = vCanvas.getContext('2d');
-  const img1 = new Image(); img1.src = 'https://github.com/ghostm68/pantheon/raw/main/minaro_20231218_070131_.jpeg';
-  const img2 = new Image(); img2.src = 'https://github.com/ghostm68/pantheon/raw/main/minaro_20231218-072633_.jpeg';
-
-  function resizeVCanvas() {
-    vCanvas.width = vCanvas.offsetWidth || window.innerWidth;
-    vCanvas.height = vCanvas.offsetHeight || window.innerHeight;
-  }
-  window.addEventListener('resize', resizeVCanvas);
-  resizeVCanvas();
-
-  const stageNarratives = [
-    {
-      badge: "PHASE 1: SIGNAL DISCOVERY",
-      sector: "ALPHA // 01",
-      body: "// MINARO_MANIFEST [27] · winter dream notes & musings. a continuous recording of glitch, frequency, and cognitive drift.",
-      freqBase: 108.4
-    },
-    {
-      badge: "PHASE 2: MEMORY DECAY",
-      sector: "OCT_20 // 02",
-      body: "drawer full of money, didn't count it... rush into a stranger's house; hurrying out into unknown sidewalk. dream of dancing dwarves singing.",
-      freqBase: 241.8
-    },
-    {
-      badge: "PHASE 3: CITADELLE RED",
-      sector: "DELETION // 03",
-      body: "speaking with an aunt i never speak to, how do you sleep, deletion demo, i don't want to lose you, you say yes and i say no.",
-      freqBase: 432.0
-    },
-    {
-      badge: "PHASE 4: AUTH TOKEN",
-      sector: "DRIVE_A // 04",
-      body: "AUTHENTICATION CONFIRMED. Citadelle initialization complete. Insert Disk 2 for full system memory overhaul.",
-      freqBase: 890.6
-    }
-  ];
-
-  let lastScrollY = window.scrollY;
-  let lastScrollTime = performance.now();
-  let scrollVelocity = 0;
-
-  function renderScrollCraft() {
-    requestAnimationFrame(renderScrollCraft);
-
-    // Calculate Scroll Velocity
-    const now = performance.now();
-    const dt = Math.max(1, now - lastScrollTime);
-    const dy = Math.abs(window.scrollY - lastScrollY);
-    const targetVel = (dy / dt) * 1000;
-    scrollVelocity += (targetVel - scrollVelocity) * 0.15;
-    lastScrollY = window.scrollY;
-    lastScrollTime = now;
-
-    velGauge.textContent = `VEL: ${Math.round(scrollVelocity).toString().padStart(3, '0')} PX/S`;
-
-    // Dynamic Glitch displacement on high scroll speed
-    if (turbMap) {
-      const disp = Math.min(25, scrollVelocity * 0.035);
-      turbMap.setAttribute('scale', disp.toFixed(1));
-    }
-
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    const totalDist = rect.height - window.innerHeight;
-    const cur = -rect.top;
-    const p = Math.max(0, Math.min(1, cur / totalDist));
-
-    // Update Progress Bar
-    mainFill.style.width = (p * 100).toFixed(1) + '%';
-
-    // 1. Kinetic Word-by-Word Typography Reveal
-    const totalWords = words.length;
-    words.forEach((w, i) => {
-      const wordProgressTrigger = (i + 0.3) / totalWords;
-      if (p >= wordProgressTrigger) {
-        w.classList.add('lit');
-      } else {
-        w.classList.remove('lit');
-      }
-    });
-
-    // 2. Continuous Angular Shutter Curtain Wipe
-    const wipePercent = Math.max(0, Math.min(100, p * 130 - 15));
-    shutterEl.style.clipPath = `polygon(0% 0%, ${wipePercent}% 0%, ${Math.max(0, wipePercent - 25)}% 100%, 0% 100%)`;
-    shutterEl.style.transform = `scale(${1 + p * 0.12})`;
-
-    // 3. Telemetry Hex & Frequency computation
-    const hexVal = Math.floor(0x27A0 + p * 0xD800).toString(16).toUpperCase();
-    regEl.textContent = '0x' + hexVal;
-
-    const narrativeIdx = Math.min(stageNarratives.length - 1, Math.floor(p * stageNarratives.length));
-    const currentNarrative = stageNarratives[narrativeIdx];
-    badgeEl.textContent = currentNarrative.badge;
-    sectorEl.textContent = currentNarrative.sector;
-    freqEl.textContent = (currentNarrative.freqBase + (p * 45)).toFixed(1) + ' MHz';
-    bodyTextEl.textContent = currentNarrative.body;
-    bodyTextEl.classList.add('active');
-
-    // 4. Continuous Canvas RGB Split & Cross-Fade
-    if (vCtx && vCanvas.width > 0) {
-      vCtx.clearRect(0, 0, vCanvas.width, vCanvas.height);
-      
-      const rgbOffset = (scrollVelocity * 0.05) + Math.sin(p * Math.PI * 4) * 8;
-      
-      // Draw background image 1 with scale
-      if (img1.complete && img1.naturalWidth > 0) {
-        vCtx.save();
-        vCtx.globalAlpha = Math.max(0, 1 - p * 1.5);
-        const scale1 = 1.05 + p * 0.25;
-        vCtx.translate(vCanvas.width / 2, vCanvas.height / 2);
-        vCtx.scale(scale1, scale1);
-        vCtx.drawImage(img1, -vCanvas.width / 2 + rgbOffset, -vCanvas.height / 2, vCanvas.width, vCanvas.height);
-        vCtx.restore();
-      }
-
-      // Draw background image 2 with RGB channel split
-      if (img2.complete && img2.naturalWidth > 0 && p > 0.15) {
-        vCtx.save();
-        vCtx.globalAlpha = Math.min(1, (p - 0.15) * 1.6);
-        vCtx.globalCompositeOperation = 'screen';
-        
-        // Red channel
-        vCtx.fillStyle = 'rgba(255,0,0,0.4)';
-        vCtx.drawImage(img2, -rgbOffset, 0, vCanvas.width, vCanvas.height);
-        
-        // Base composite
-        vCtx.drawImage(img2, 0, 0, vCanvas.width, vCanvas.height);
-        vCtx.restore();
-      }
-    }
-
-    // 5. Horizontal Deck Scrub
-    const deckTrack = document.getElementById('scDeckTrack');
-    const slider = document.getElementById('scSlider');
-    const sliderProgress = document.getElementById('scSliderProgress');
-    if (deckTrack && slider) {
-      const dRect = deckTrack.getBoundingClientRect();
-      const dTotal = dRect.height - window.innerHeight;
-      const dCur = -dRect.top;
-      const dp = Math.max(0, Math.min(1, dCur / dTotal));
-
-      sliderProgress.style.width = (dp * 100).toFixed(1) + '%';
-      const maxTranslate = slider.scrollWidth - window.innerWidth + 80;
-      const translateX = -(dp * Math.max(0, maxTranslate));
-      slider.style.transform = `translateY(-50%) translateX(${translateX}px)`;
-    }
-  }
-  renderScrollCraft();
-
-  // ── INVERT TOGGLE ──
+  // ── 5. INVERT TOGGLE ──
   const invertBtn = document.getElementById('invertToggle');
   invertBtn.addEventListener('click', function () {
     document.body.classList.toggle('site-inverted');
     this.textContent = document.body.classList.contains('site-inverted') ? '◑ invert' : '◐ invert';
   });
 
-  // ── FAQ ACCORDION ──
+  // ── 6. FAQ ACCORDION ──
   document.querySelectorAll('.faq-item').forEach(function (item) {
     const btn = item.querySelector('.faq-q');
     btn.addEventListener('click', function () {
       const isOpen = item.classList.toggle('open');
       btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
       btn.querySelector('span').textContent = isOpen ? '[-]' : '[+]';
+      // Notify Lenis to update scroll dimensions on accordion open
+      setTimeout(() => lenis.resize(), 320);
     });
   });
 
-  // ── TEXT SCRAMBLE ──
+  // ── 7. TEXT SCRAMBLE ──
   const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   document.querySelectorAll('.wall-item').forEach(function (el) {
     const original = el.textContent.trim();
@@ -1231,7 +906,7 @@
       if (interval) return;
       let count = 0;
       const total = chars.length;
-      const duration = 600;
+      const duration = 500;
       const start = performance.now();
       interval = setInterval(function () {
         const now = performance.now();
@@ -1247,7 +922,7 @@
           interval = null;
           el.textContent = original;
         }
-      }, 45);
+      }, 40);
     }
 
     el.addEventListener('mouseenter', scramble);
@@ -1256,35 +931,6 @@
       scramble();
     }, { passive: false });
   });
-
-  // ── MARQUEE DRAG ──
-  const track = document.getElementById('marqueeTrack');
-  let isDragging = false, startX = 0, startDelay = 0;
-
-  track.addEventListener('pointerdown', function (e) {
-    isDragging = true;
-    startX = e.clientX;
-    const style = getComputedStyle(this);
-    startDelay = parseFloat(style.animationDelay) || 0;
-    this.style.animationPlayState = 'paused';
-    this.setPointerCapture(e.pointerId);
-  });
-
-  document.addEventListener('pointermove', function (e) {
-    if (!isDragging) return;
-    const dx = e.clientX - startX;
-    const seg = track.scrollWidth / 2;
-    const delay = startDelay + (dx / seg) * 18;
-    track.style.animationDelay = delay.toFixed(2) + 's';
-  });
-
-  function endDrag() {
-    if (!isDragging) return;
-    isDragging = false;
-    track.style.animationPlayState = 'running';
-  }
-  document.addEventListener('pointerup', endDrag);
-  document.addEventListener('pointercancel', endDrag);
 })();
 </script>
 </body>
