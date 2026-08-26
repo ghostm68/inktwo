@@ -581,16 +581,26 @@
   }
   @keyframes scanMove { 0% { background-position: 0 0; } 100% { background-position: 0 6px; } }
 
-  body.site-inverted::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 9998;
-    pointer-events: none;
-    background: rgba(255,255,255,.001);
-    backdrop-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(.50) contrast(1.72) grayscale(.18);
-    -webkit-backdrop-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(.50) contrast(1.72) grayscale(.18);
-  }
+ /* Full-page invert applied directly to the document root */
+html.site-inverted,
+body.site-inverted {
+  filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(0.95) contrast(1.2) grayscale(0.18) !important;
+  -webkit-filter: invert(1) hue-rotate(45deg) saturate(1.85) brightness(0.95) contrast(1.2) grayscale(0.18) !important;
+  background-color: #000000 !important;
+}
+
+/* Ensure fixed overlays & dock stay visible without double-filtering issues */
+body.site-inverted .ink-floating-dock {
+  /* Keeps buttons readable and high-contrast */
+  filter: none;
+}
+
+/* Optional: if you have images or video you DON'T want inverted into photo-negatives */
+body.site-inverted img,
+body.site-inverted video,
+body.site-inverted iframe {
+  filter: invert(1) hue-rotate(180deg);
+}
 
   @media (max-width: 860px) {
     .vault-grid-6 { grid-template-columns: repeat(2, 1fr); }
@@ -3476,29 +3486,28 @@ document.querySelectorAll('.faq-item').forEach(function(item) {
 </script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // 1. Invert (LIT) Toggle
     const invertBtn = document.getElementById('invertToggle');
-    
-    // Restore state from previous visit
+    const root = document.documentElement; // <html>
+
+    // Restore saved mode
     if (localStorage.getItem('siteInvert') === 'true') {
+      root.classList.add('site-inverted');
       document.body.classList.add('site-inverted');
     }
 
     if (invertBtn) {
       invertBtn.addEventListener('click', () => {
-        const isInverted = document.body.classList.toggle('site-inverted');
+        const isInverted = root.classList.toggle('site-inverted');
+        document.body.classList.toggle('site-inverted', isInverted);
         localStorage.setItem('siteInvert', isInverted);
       });
     }
 
-    // 2. Smooth Back-to-Top
+    // Back to top
     const backBtn = document.getElementById('backToTopBtn');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
   });
