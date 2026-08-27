@@ -2,7 +2,40 @@
    INKREALM CORE — Non-module scripts extracted from index
    Load with: <script src="js/inkrealm-core.js" defer></script>
    ================================================================ */
+// ================================================================
+// 0. contact
+// ================================================================
+// ── SCRAMBLE LINK DECODER EFFECT ──
+document.addEventListener('DOMContentLoaded', () => {
+  const letters = "!<>-_\\/[]{}—=+*^?#________ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  
+  document.querySelectorAll(".scramble-link").forEach(link => {
+    link.addEventListener("mouseover", event => {
+      let iteration = 0;
+      clearInterval(event.target.interval);
+      
+      const target = event.target;
+      const originalText = target.dataset.value || target.innerText;
+      
+      target.interval = setInterval(() => {
+        target.innerText = originalText
+          .split("")
+          .map((char, index) => {
+            if (index < iteration) {
+              return originalText[index];
+            }
+            return letters[Math.floor(Math.random() * letters.length)];
+          })
+          .join("");
 
+        if (iteration >= originalText.length) {
+          clearInterval(target.interval);
+        }
+        iteration += 1 / 2;
+      }, 30);
+    });
+  });
+});
 // ================================================================
 // 1. LENIS SMOOTH SCROLL
 // ================================================================
