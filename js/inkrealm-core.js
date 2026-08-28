@@ -612,6 +612,9 @@ document.addEventListener('click', (e) => {
 // ================================================================
 // 12. NEON POINTER TRAIL + TEXT SCRAMBLE + DRAGGABLE MARQUEE
 // ================================================================
+// ================================================================
+// 12. NEON POINTER TRAIL + CIPHER DECRYPTION + MULTI-MARQUEE DRAG
+// ================================================================
 (function() {
   // 1. NEON POINTER TRAIL
   const canvas = document.getElementById('trailCanvas');
@@ -657,42 +660,46 @@ document.addEventListener('click', (e) => {
     drawTrail();
   }
 
-  // 2. TEXT SCRAMBLE ON HOVER
-  const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789//';
+  // 2. CIPHER DECRYPTION MATRIX (WORD WALL)
+  const CIPHER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=<>{}[]/\\";
+  
   document.querySelectorAll('.ink-wall-item').forEach((el) => {
-    const original = el.textContent.trim();
-    const chars = original.split('');
+    // Read data-term if provided, or clean up existing inner text
+    const target = el.getAttribute('data-term') || el.textContent.replace('//', '').trim();
     let interval = null;
 
-    function scramble() {
-      if (interval) return;
-      const total = chars.length;
-      const duration = 400;
-      const start = performance.now();
+    function decrypt() {
+      let iteration = 0;
+      clearInterval(interval);
+
       interval = setInterval(() => {
-        const now = performance.now();
-        const progress = Math.min(1, (now - start) / duration);
-        const reveal = Math.floor(progress * total);
-        let result = '';
-        for (let i = 0; i < total; i++) {
-          result += i < reveal ? chars[i] : GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-        }
-        el.textContent = result;
-        if (progress >= 1) {
+        const currentScramble = target.split("").map((char, index) => {
+          if (index < iteration) {
+            return target[index];
+          }
+          return CIPHER_CHARS[Math.floor(Math.random() * CIPHER_CHARS.length)];
+        }).join("");
+
+        el.innerHTML = `<span style="color:#ff0000;">//</span> ${currentScramble}`;
+
+        if (iteration >= target.length) {
           clearInterval(interval);
           interval = null;
-          el.textContent = original;
         }
-      }, 35);
+        iteration += 1 / 2; // Decryption resolution speed
+      }, 25);
     }
-    el.addEventListener('mouseenter', scramble);
-    el.addEventListener('touchstart', (e) => { e.preventDefault(); scramble(); }, { passive: false });
+
+    el.addEventListener('mouseenter', decrypt);
+    el.addEventListener('touchstart', (e) => { decrypt(); }, { passive: true });
   });
 
-  // 3. DRAGGABLE MARQUEE SCRUB
-  const track = document.getElementById('inkMarqueeTrack');
-  if (track) {
-    let isDragging = false, startX = 0, startDelay = 0;
+  // 3. ALL DRAGGABLE MARQUEE TRACKS
+  document.querySelectorAll('.ink-marquee-track').forEach((track) => {
+    let isDragging = false;
+    let startX = 0;
+    let startDelay = 0;
+
     track.addEventListener('pointerdown', function(e) {
       isDragging = true;
       startX = e.clientX;
@@ -700,15 +707,24 @@ document.addEventListener('click', (e) => {
       this.style.animationPlayState = 'paused';
       this.setPointerCapture(e.pointerId);
     });
-    document.addEventListener('pointermove', (e) => {
+
+    track.addEventListener('pointermove', function(e) {
       if (!isDragging) return;
       const dx = e.clientX - startX;
-      track.style.animationDelay = (startDelay + (dx / (track.scrollWidth / 2)) * 26).toFixed(2) + 's';
+      const period = 26; // match CSS marquee duration
+      this.style.animationDelay = (startDelay + (dx / (this.scrollWidth / 2)) * period).toFixed(2) + 's';
     });
-    const stopDrag = () => { if (!isDragging) return; isDragging = false; track.style.animationPlayState = 'running'; };
-    document.addEventListener('pointerup', stopDrag);
-    document.addEventListener('pointercancel', stopDrag);
-  }
+
+    const stopDrag = function(e) {
+      if (!isDragging) return;
+      isDragging = false;
+      track.style.animationPlayState = 'running';
+      try { track.releasePointerCapture(e.pointerId); } catch(err) {}
+    };
+
+    track.addEventListener('pointerup', stopDrag);
+    track.addEventListener('pointercancel', stopDrag);
+  });
 })();
 
 // ================================================================
