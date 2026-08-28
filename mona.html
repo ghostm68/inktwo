@@ -674,11 +674,17 @@
       <div class="dock-divider"></div>
 
       <!-- FILE UTILITIES (.NSF / .PWP / .TXT) -->
+   <!-- EXPORT WITH OPTIONAL FORMAT SELECTOR -->
+<!-- FILE UTILITIES WITH CYCLE FORMAT PILL -->
       <div class="dock-section">
+        <!-- Clicking this cycles: .TXT -> .NSF -> .PWP -> .EBC -->
+        <button class="dock-pill" id="fmt-pill" onclick="cycleExportFormat()" title="Click to cycle export format">
+          FMT: <span id="fmt-label" style="color:var(--c-white); font-weight:bold;">.TXT</span>
+        </button>
         <button class="dock-pill" onclick="storeDataDisk()">EXPORT</button>
         <label class="dock-pill" style="cursor:pointer;">
           LOAD
-          <input type="file" accept=".nsf,.pwp,.ebc,.diz,.txt,.dat" style="display:none;" onchange="loadExternalFile(event)">
+          <input type="file" accept=".txt,.nsf,.pwp,.ebc,.diz,.dat,.md" style="display:none;" onchange="loadExternalFile(event)">
         </label>
         <button class="dock-pill" onclick="toggleCalibrator()">ALIGN</button>
       </div>
@@ -995,31 +1001,45 @@ All text compresses directly into your browser's address bar.
   }
 
   // ==================== OBSCURE .NSF / .PWP STORAGE ====================
-  function storeDataDisk() {
-    const blob = new Blob([editor.value], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `TALAMASCA_${dateStamp}.nsf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+// ==================== DYNAMIC MULTI-FORMAT EXPORT ====================
+// ==================== FORMAT CYCLE & DYNAMIC EXPORT ====================
+const exportFormats = ['txt', 'nsf', 'pwp', 'ebc'];
+let currentFormatIdx = 0;
 
-  function loadExternalFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      editor.value = event.target.result;
-      saveToUrlHash();
-      updateMetrics();
-    };
-    reader.readAsText(file);
-  }
+function cycleExportFormat() {
+  currentFormatIdx = (currentFormatIdx + 1) % exportFormats.length;
+  const ext = exportFormats[currentFormatIdx];
+  document.getElementById('fmt-label').textContent = `.${ext.toUpperCase()}`;
+  playKeystrokeAudio(360, 0.03);
+}
+
+function storeDataDisk() {
+  const ext = exportFormats[currentFormatIdx];
+  const text = editor.value;
+  const mimeType = (ext === 'txt') ? 'text/plain;charset=utf-8' : 'application/octet-stream';
+  
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `MAYFAIR_${dateStamp}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  playKeystrokeAudio(320, 0.05);
+  const status = document.getElementById('save-status');
+  const prev = status.textContent;
+  status.textContent = `EXPORTED: .${ext.toUpperCase()}`;
+  status.style.color = 'var(--c-crimson)';
+  setTimeout(() => {
+    status.textContent = prev;
+    status.style.color = 'var(--crt-phosphor)';
+  }, 2200);
+}
 
   // ==================== APERTURE CALIBRATOR ====================
   function toggleCalibrator() {
