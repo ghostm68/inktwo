@@ -7,10 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Cinzel:wght@700;900&family=Special+Elite&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
 <style>
   :root {
-    /* STRICT DOMAIN PALETTE: RED, WHITE, GRAY, BLACK */
+    /* DOMAIN PALETTE: RED, WHITE, GRAY, BLACK */
     --c-black: #050404;
     --c-dark-gray: #121010;
     --c-mid-gray: #242020;
@@ -25,10 +26,10 @@
     --crt-dim: #590d0d;
     --crt-bg: rgba(10, 4, 4, 0.90);
     --crt-highlight: #ffffff;
+    --beam-gain: 1.0;
     --video-opacity: 0.40;
   }
 
-  /* MONOCHROME WHITE CRT */
   [data-theme="white"] {
     --crt-phosphor: #f0f0f0;
     --crt-glow: rgba(240, 240, 240, 0.5);
@@ -37,7 +38,6 @@
     --crt-highlight: #ffffff;
   }
 
-  /* BONE SILVER NOIR */
   [data-theme="bone"] {
     --crt-phosphor: #d6cfc5;
     --crt-glow: rgba(214, 207, 197, 0.4);
@@ -63,7 +63,18 @@
     overflow-x: hidden;
   }
 
-  /* ==================== TOP HARDWARE RACK ==================== */
+  /* FULLSCREEN PARTICLE CANVAS TRAIL */
+  #trailCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 99999;
+  }
+
+  /* ==================== HARDWARE RACK ==================== */
   header.hardware-shelf {
     width: 100%;
     background: linear-gradient(180deg, #1c1414 0%, #0d0808 100%);
@@ -105,7 +116,7 @@
   .btn-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     flex-wrap: wrap;
   }
 
@@ -123,6 +134,9 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     transition: 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
 
   .retro-btn:hover {
@@ -197,17 +211,13 @@
     }
   }
 
-  /* ==================== CONSTRAINED LEFT-PANEL CRT APERTURE ====================
-     Positioned to start on the Smith Corona monitor and extend down over the 
-     8-point option menu, but STOPPING strictly before the vertical crimson stripe.
-  ================================================================================ */
+  /* ==================== CONSTRAINED CRT APERTURE ==================== */
   .screen-aperture-fitted {
     position: absolute;
     top: 31.8%;
     left: 7.2%;
-    width: 32.8%;   /* stops before the crimson stripe */
-    height: 64.5%;  /* extends down through the foot of panel 1 to cover 8-pt menu */
-    
+    width: 32.8%;
+    height: 64.5%;
     background: var(--crt-bg);
     border: 2px solid var(--c-blood);
     border-radius: 4px;
@@ -221,7 +231,7 @@
     backdrop-filter: blur(2px);
   }
 
-  /* CRT Scanlines & Glass Glow */
+  /* CRT Scanlines & Curved Glass vignette */
   .screen-aperture-fitted::before {
     content: " ";
     position: absolute;
@@ -267,7 +277,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scale(1.3);
+    transform: scale(1.35);
     filter: contrast(1.5) grayscale(0.85) brightness(0.65);
   }
 
@@ -284,7 +294,7 @@
     align-items: center;
     letter-spacing: 1.5px;
     z-index: 10;
-    text-shadow: 0 0 6px var(--crt-glow);
+    text-shadow: 0 0 calc(6px * var(--beam-gain)) var(--crt-glow);
   }
 
   /* CRT TEXTAREA */
@@ -303,7 +313,7 @@
     line-height: 1.25;
     letter-spacing: 1px;
     padding: 10px 14px;
-    text-shadow: 0 0 6px var(--crt-glow);
+    text-shadow: 0 0 calc(6px * var(--beam-gain)) var(--crt-glow);
     white-space: pre-wrap;
     word-break: break-word;
     caret-color: var(--crt-highlight);
@@ -350,43 +360,61 @@
     50% { opacity: 0.25; }
   }
 
-  /* CALIBRATION TOOLBAR */
-  .calibrator-panel {
+  /* MODAL / CALIBRATION PANELS */
+  .hud-panel {
     position: fixed;
-    bottom: 15px;
-    right: 15px;
+    bottom: 20px;
+    right: 20px;
     background: rgba(18, 10, 10, 0.96);
     border: 1px solid var(--c-blood);
     border-radius: 4px;
-    padding: 10px 14px;
+    padding: 12px 16px;
     z-index: 9999;
     box-shadow: 0 10px 30px rgba(0,0,0,0.95);
-    font-size: 0.7rem;
-    max-width: 320px;
+    font-size: 0.72rem;
+    max-width: 340px;
     display: none;
   }
 
-  .calibrator-panel.show {
+  .hud-panel.show {
     display: block;
   }
 
-  .cal-row {
+  .hud-header {
+    font-weight: bold;
+    color: var(--c-white);
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--c-blood);
+    padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .hud-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
     gap: 8px;
   }
 
-  .cal-row input[type="range"] {
+  .hud-row input[type="range"], .hud-row input[type="text"] {
     flex: 1;
     accent-color: var(--c-crimson);
-    cursor: pointer;
+    background: #0f0a0a;
+    border: 1px solid #4a2828;
+    color: #fff;
+    padding: 3px 6px;
+    font-family: inherit;
+    font-size: 0.72rem;
   }
 </style>
 </head>
 
 <body data-theme="crimson">
+
+  <!-- LASHER / TALTOS PARTICLES LASER TRAIL -->
+  <canvas id="trailCanvas"></canvas>
 
   <!-- TOP HARDWARE RACK -->
   <header class="hardware-shelf">
@@ -408,7 +436,7 @@
       </svg>
       <div>
         <div class="brand-title">TALAMASCA DOLL-PROCESSOR</div>
-        <div class="brand-sub">PANEL 1 CRT // PRESERVED CRIMSON STRIPE</div>
+        <div class="brand-sub">PANEL 1 CRT // URL-COMPRESSED SYSTEM</div>
       </div>
     </div>
 
@@ -420,9 +448,22 @@
         <option value="bone">Bone Silver Noir</option>
       </select>
 
-      <!-- VIDEO BACKGROUND TOGGLE -->
+      <!-- VIDEO BACKGROUND CONFIG -->
       <button class="retro-btn" id="vbg-toggle" onclick="toggleVideoBackground()">
         📹 VIDEO BG: <span id="vbg-label" style="color:var(--c-silver);">OFF</span>
+      </button>
+      <button class="retro-btn" onclick="toggleVideoHUD()">
+        ⚙ VIDEO DECK
+      </button>
+
+      <!-- CIPHER RUNES DECODER -->
+      <button class="retro-btn" onclick="runTaltosCipher()">
+        ᚱ DECODE CIPHER
+      </button>
+
+      <!-- BEAM GAIN TRUNCATOR -->
+      <button class="retro-btn" id="beam-btn" onclick="cycleBeamGain()">
+        ⚡ BEAM: <span id="beam-label">1.0x</span>
       </button>
 
       <!-- SOLENOID AUDIO -->
@@ -430,25 +471,25 @@
         🔊 CLICKS: <span id="audio-label" style="color:var(--c-white);">ON</span>
       </button>
 
-      <!-- STORE DATADISK -->
+      <!-- STORE DATADISK (.TXT EXPORT) -->
       <button class="retro-btn" onclick="storeDataDisk()">
-        💾 [STORE DATADISK]
+        💾 [STORE .TXT]
       </button>
 
       <!-- LOAD EXTERNAL DOSSIER -->
       <label class="retro-btn" style="cursor:pointer;">
-        📂 LOAD .TXT
+        📂 LOAD
         <input type="file" accept=".txt,.md,.dat" style="display:none;" onchange="loadExternalFile(event)">
       </label>
 
       <!-- CALIBRATE APERTURE -->
       <button class="retro-btn" onclick="toggleCalibrator()">
-        📐 ALIGN SCREEN
+        📐 ALIGN
       </button>
     </div>
   </header>
 
-  <!-- COLLAGE VIEWPORT -->
+  <!-- COLLAGE VIEWPORT (ANIMATED TRIPTYCH GIF) -->
   <div class="collage-viewport" id="viewport">
     <img 
       src="https://raw.githubusercontent.com/ghostm68/666/main/triptych1787949777205.gif" 
@@ -456,7 +497,7 @@
       class="collage-base-img"
     >
 
-    <!-- FITTED CRT SCREEN (COVERS 8-POINT MENU, PRESERVES DOLL STRIPE) -->
+    <!-- FITTED CRT SCREEN APERTURE -->
     <div class="screen-aperture-fitted" id="crt-aperture">
       
       <!-- Video Background Layer -->
@@ -482,7 +523,7 @@
       <div class="crt-footer">
         <div class="status-tag">
           <div class="status-dot"></div>
-          <span id="save-status">DISK: SYNCED</span>
+          <span id="save-status">URL MEMORY: SYNCED</span>
         </div>
         <div>
           <span>LN <span id="stat-line">1</span></span>
@@ -496,34 +537,58 @@
     </div>
   </div>
 
-  <!-- CALIBRATION HUD -->
-  <div class="calibrator-panel" id="calibrator">
-    <div style="font-weight:bold; color:var(--c-white); margin-bottom:8px; border-bottom:1px solid var(--c-blood); padding-bottom:4px; display:flex; justify-content:space-between;">
+  <!-- VIDEO DECK CONFIG HUD (CUSTOM URL & PRESETS) -->
+  <div class="hud-panel" id="video-hud">
+    <div class="hud-header">
+      <span>VIDEO BACKGROUND DECK</span>
+      <span style="cursor:pointer; color:var(--c-crimson);" onclick="toggleVideoHUD()">✕</span>
+    </div>
+    <div class="hud-row">
+      <label>Preset:</label>
+      <select class="retro-select" style="flex:1;" id="video-preset-select" onchange="applyVideoPreset(this.value)">
+        <option value="Hozfg9_v-V4">Gothic Attic Embers (Default)</option>
+        <option value="jfKfPfyJRdk">Analog Static & CRT Noise</option>
+        <option value="WPni755-Krg">Thunderstorm / Rain on Glass</option>
+        <option value="custom">-- Custom YouTube ID --</option>
+      </select>
+    </div>
+    <div class="hud-row" id="custom-vid-row" style="display:none;">
+      <label>YT ID / Link:</label>
+      <input type="text" id="custom-yt-input" placeholder="e.g. Hozfg9_v-V4" onchange="setCustomVideo(this.value)">
+    </div>
+    <div class="hud-row">
+      <label>Opacity (%):</label>
+      <input type="range" id="vid-opacity" min="5" max="90" step="1" value="40" oninput="setVideoOpacity(this.value)">
+      <span id="val-vopacity">40</span>
+    </div>
+  </div>
+
+  <!-- APERTURE CALIBRATOR HUD -->
+  <div class="hud-panel" id="calibrator">
+    <div class="hud-header">
       <span>APERTURE CALIBRATOR</span>
       <span style="cursor:pointer; color:var(--c-crimson);" onclick="toggleCalibrator()">✕</span>
     </div>
-    
-    <div class="cal-row">
+    <div class="hud-row">
       <label>Top (%):</label>
       <input type="range" id="cal-top" min="0" max="60" step="0.1" value="31.8" oninput="updateGeometry()">
       <span id="val-top">31.8</span>
     </div>
-    <div class="cal-row">
+    <div class="hud-row">
       <label>Left (%):</label>
       <input type="range" id="cal-left" min="0" max="30" step="0.1" value="7.2" oninput="updateGeometry()">
       <span id="val-left">7.2</span>
     </div>
-    <div class="cal-row">
+    <div class="hud-row">
       <label>Width (%):</label>
       <input type="range" id="cal-width" min="15" max="60" step="0.1" value="32.8" oninput="updateGeometry()">
       <span id="val-width">32.8</span>
     </div>
-    <div class="cal-row">
+    <div class="hud-row">
       <label>Height (%):</label>
       <input type="range" id="cal-height" min="20" max="80" step="0.1" value="64.5" oninput="updateGeometry()">
       <span id="val-height">64.5</span>
     </div>
-    
     <div style="display:flex; justify-content:space-between; margin-top:8px;">
       <button class="retro-btn" onclick="resetGeometry()">RESET</button>
       <button class="retro-btn" style="border-color:var(--c-crimson); color:var(--c-white);" onclick="saveGeometry()">LOCK POS</button>
@@ -539,59 +604,120 @@
   const statChars = document.getElementById('stat-chars');
   const crtClock = document.getElementById('crt-clock');
   
-  const STORAGE_KEY = 'PWP_FITTED_TEXT_V4';
-  const GEOM_KEY = 'PWP_FITTED_GEOM_V4';
+  const STORAGE_KEY = 'PWP_FITTED_TEXT_V5';
+  const GEOM_KEY = 'PWP_FITTED_GEOM_V5';
   
   let audioEnabled = true;
   let videoEnabled = false;
 
   const DEFAULT_DOLL_TEXT = `TALAMASCA FIELD DOSSIER // CASE 666-TALTOS
-TERMINAL: SMITH CORONA CRT [PANEL 1 BUFFER]
+TERMINAL: SMITH CORONA CRT [REALTIME URL-HASH ENGINE]
 LOCATION: ATTIC OBSERVATORY // FIRST STREET HOUSE
 
 ----------------------------------------------------------------
 1. THE APERTURE
-The word processor terminal maps across the lower attic chamber,
+The word processor terminal maps across the lower chamber,
 stopping cleanly before the crimson stripe of porcelain faces.
 
 2. LASHER / TALTOS RESONANCE
 Mechanical key strikes activate non-volatile memory imprints.
-The 8-point menu remains eclipsed behind the active CRT buffer.
+All text compresses directly into your browser's address bar.
 
 [Type and structure your dossier text below...]`;
 
-  const DEFAULT_GEOM = {
-    top: 31.8,
-    left: 7.2,
-    width: 32.8,
-    height: 64.5
-  };
+  const DEFAULT_GEOM = { top: 31.8, left: 7.2, width: 32.8, height: 64.5 };
 
-  window.addEventListener('DOMContentLoaded', () => {
+  // ==================== REALTIME URL COMPRESSION (EBCDIC/WORDSTAR ENGINE) ====================
+  async function compressArticle(string) {
+    if (!string) return '';
+    const byteArray = new TextEncoder().encode(string);
+    const stream = new CompressionStream('deflate-raw');
+    const writer = stream.writable.getWriter();
+    writer.write(byteArray);
+    writer.close();
+    const buffer = await new Response(stream.readable).arrayBuffer();
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  }
+
+  async function decompressArticle(b64) {
+    if (!b64) return '';
+    const byteArray = Uint8Array.from(
+      atob(b64.replace(/-/g, "+").replace(/_/g, "/")), 
+      c => c.charCodeAt(0)
+    );
+    const stream = new DecompressionStream('deflate-raw');
+    const writer = stream.writable.getWriter();
+    writer.write(byteArray);
+    writer.close();
+    const buffer = await new Response(stream.readable).arrayBuffer();
+    return new TextDecoder().decode(buffer);
+  }
+
+  async function saveToUrlHash() {
+    try {
+      const hash = '#' + await compressArticle(editor.value);
+      if (location.hash !== hash) {
+        history.replaceState({}, '', hash);
+      }
+      localStorage.setItem(STORAGE_KEY, editor.value);
+      saveStatus.textContent = 'URL MEMORY: SYNCED';
+      saveStatus.style.color = 'var(--crt-phosphor)';
+    } catch (e) {}
+  }
+
+  async function loadFromUrlHash() {
+    try {
+      if (location.hash && location.hash.length > 1) {
+        const text = await decompressArticle(location.hash.slice(1));
+        if (text) {
+          editor.value = text;
+          updateMetrics();
+          return;
+        }
+      }
+    } catch (e) {}
+    
+    // Fallback to local storage
     const saved = localStorage.getItem(STORAGE_KEY);
     editor.value = (saved !== null && saved.trim() !== '') ? saved : DEFAULT_DOLL_TEXT;
+    updateMetrics();
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadFromUrlHash();
 
     const savedGeom = localStorage.getItem(GEOM_KEY);
-    if (savedGeom) {
-      applyGeometry(JSON.parse(savedGeom));
-    }
+    if (savedGeom) applyGeometry(JSON.parse(savedGeom));
 
-    updateMetrics();
     startClock();
   });
 
-  // REALTIME PERSISTENCE
+  // REALTIME INPUT LISTENER WITH RECOIL
   let saveDebounce;
   editor.addEventListener('input', () => {
-    saveStatus.textContent = 'SAVING...';
+    saveStatus.textContent = 'URL: COMPRESSING...';
+    saveStatus.style.color = 'var(--crt-highlight)';
     clearTimeout(saveDebounce);
-    saveDebounce = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, editor.value);
-      saveStatus.textContent = 'DISK: SYNCED';
-    }, 400);
+    saveDebounce = setTimeout(saveToUrlHash, 400);
 
     updateMetrics();
     playKeystrokeAudio();
+  });
+
+  // GSAP TACTILE KEYBOARD RECOIL
+  editor.addEventListener('keydown', (e) => {
+    if (typeof gsap === 'undefined') return;
+    if (e.key === 'Enter') {
+      gsap.fromTo(crtAperture, 
+        { y: 3, rotate: -0.15 }, 
+        { y: 0, rotate: 0, duration: 0.25, ease: "elastic.out(1.2, 0.4)" }
+      );
+    } else if (e.key.length === 1) {
+      const rx = (Math.random() - 0.5) * 1.5;
+      const ry = (Math.random() - 0.5) * 1.2;
+      gsap.fromTo(crtAperture, { x: rx, y: ry }, { x: 0, y: 0, duration: 0.05 });
+    }
   });
 
   editor.addEventListener('keyup', updateMetrics);
@@ -608,12 +734,50 @@ The 8-point menu remains eclipsed behind the active CRT buffer.
     statLine.textContent = lines.length;
   }
 
-  // PHOSPHOR PALETTE
+  // ==================== TALTOS RUNES CIPHER DECODER ====================
+  const RUNES = "ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛈᛉᛋᛏᛒᛖᛗᛚᛜᛞᛟ§∆‡†∑√∫0101";
+  function runTaltosCipher() {
+    const originalText = editor.value;
+    if (!originalText.trim()) return;
+
+    let iteration = 0;
+    const interval = setInterval(() => {
+      editor.value = originalText
+        .split('')
+        .map((char, index) => {
+          if (char === ' ' || char === '\n') return char;
+          if (index < iteration) return originalText[index];
+          return RUNES[Math.floor(Math.random() * RUNES.length)];
+        })
+        .join('');
+
+      if (iteration >= originalText.length) {
+        clearInterval(interval);
+        editor.value = originalText;
+        saveToUrlHash();
+      }
+      iteration += 4;
+    }, 20);
+    playKeystrokeAudio(300, 0.08);
+  }
+
+  // ==================== BEAM GAIN CONTROL ====================
+  const beamGains = [0.6, 1.0, 1.5, 2.0];
+  let beamIdx = 1;
+  function cycleBeamGain() {
+    beamIdx = (beamIdx + 1) % beamGains.length;
+    const val = beamGains[beamIdx];
+    document.documentElement.style.setProperty('--beam-gain', val);
+    document.getElementById('beam-label').textContent = val.toFixed(1) + 'x';
+    playKeystrokeAudio(500, 0.02);
+  }
+
+  // ==================== PHOSPHOR PALETTE ====================
   function setPhosphorTheme(theme) {
     document.body.setAttribute('data-theme', theme);
   }
 
-  // VIDEO BACKGROUND TOGGLE
+  // ==================== VIDEO DECK HUD & PRESETS ====================
   function toggleVideoBackground() {
     videoEnabled = !videoEnabled;
     const vLayer = document.getElementById('video-layer');
@@ -633,7 +797,38 @@ The 8-point menu remains eclipsed behind the active CRT buffer.
     }
   }
 
-  // MECHANICAL AUDIO (RED/WHITE MATRIX CLICK)
+  function toggleVideoHUD() {
+    document.getElementById('video-hud').classList.toggle('show');
+  }
+
+  function applyVideoPreset(val) {
+    const customRow = document.getElementById('custom-vid-row');
+    if (val === 'custom') {
+      customRow.style.display = 'flex';
+      return;
+    }
+    customRow.style.display = 'none';
+    setIframeVideo(val);
+  }
+
+  function setCustomVideo(val) {
+    let id = val.trim();
+    if (id.includes('v=')) id = id.split('v=')[1].split('&')[0];
+    if (id.includes('youtu.be/')) id = id.split('youtu.be/')[1].split('?')[0];
+    setIframeVideo(id);
+  }
+
+  function setIframeVideo(id) {
+    const iframe = document.getElementById('video-iframe');
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1`;
+  }
+
+  function setVideoOpacity(val) {
+    document.getElementById('val-vopacity').textContent = val;
+    document.documentElement.style.setProperty('--video-opacity', (val / 100).toFixed(2));
+  }
+
+  // ==================== AUDIO SYNTHESIS ====================
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function toggleAudioFeedback() {
     audioEnabled = !audioEnabled;
@@ -641,32 +836,29 @@ The 8-point menu remains eclipsed behind the active CRT buffer.
     const btn = document.getElementById('audio-toggle');
     lbl.textContent = audioEnabled ? 'ON' : 'MUTED';
     lbl.style.color = audioEnabled ? 'var(--c-white)' : 'var(--c-silver)';
-    if (audioEnabled) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
+    if (audioEnabled) btn.classList.add('active');
+    else btn.classList.remove('active');
   }
 
-  function playKeystrokeAudio() {
+  function playKeystrokeAudio(freq = 140, duration = 0.035) {
     if (!audioEnabled) return;
     try {
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140 + Math.random() * 60, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.035);
+      osc.frequency.setValueAtTime(freq + Math.random() * 60, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + duration);
       gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.035);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.04);
+      osc.stop(audioCtx.currentTime + duration + 0.005);
     } catch (e) {}
   }
 
-  // EXPORT .TXT
+  // ==================== STORE .TXT & LOAD ====================
   function storeDataDisk() {
     const blob = new Blob([editor.value], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -679,20 +871,19 @@ The 8-point menu remains eclipsed behind the active CRT buffer.
     URL.revokeObjectURL(url);
   }
 
-  // LOAD .TXT
   function loadExternalFile(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       editor.value = event.target.result;
-      localStorage.setItem(STORAGE_KEY, editor.value);
+      saveToUrlHash();
       updateMetrics();
     };
     reader.readAsText(file);
   }
 
-  // CALIBRATOR HUD LOGIC
+  // ==================== APERTURE CALIBRATOR ====================
   function toggleCalibrator() {
     document.getElementById('calibrator').classList.toggle('show');
   }
@@ -752,6 +943,58 @@ The 8-point menu remains eclipsed behind the active CRT buffer.
     tick();
     setInterval(tick, 1000);
   }
+
+  // ==================== RED CRT LASER POINTER TRAIL ====================
+  (function initPointerTrail() {
+    const canvas = document.getElementById('trailCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, dpr;
+    const pts = [];
+    const LIFE = 400;
+
+    function resize() {
+      dpr = window.devicePixelRatio || 1;
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('pointermove', (e) => {
+      pts.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+    });
+
+    function render() {
+      requestAnimationFrame(render);
+      const now = performance.now();
+      while (pts.length && now - pts[0].t > LIFE) pts.shift();
+
+      ctx.clearRect(0, 0, W, H);
+      if (pts.length < 2) return;
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (let i = 1; i < pts.length; i++) {
+        const progress = (now - pts[i].t) / LIFE;
+        const alpha = Math.max(0, Math.min(1, (1 - progress) * 1.3));
+        ctx.strokeStyle = `rgba(230, 28, 28, ${alpha.toFixed(3)})`;
+        ctx.shadowColor = 'rgba(255, 51, 51, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.lineWidth = 1.4;
+
+        ctx.beginPath();
+        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+        ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+      }
+    }
+    render();
+  })();
 </script>
 </body>
 </html>
