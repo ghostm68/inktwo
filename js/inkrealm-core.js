@@ -610,10 +610,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ================================================================
-// 12. NEON POINTER TRAIL + TEXT SCRAMBLE + DRAGGABLE MARQUEE
-// ================================================================
-// ================================================================
-// 12. NEON POINTER TRAIL + CIPHER DECRYPTION + MULTI-MARQUEE DRAG
+// 12. NEON POINTER TRAIL + TELEMETRY PORTAL WALL + MULTI-MARQUEE
 // ================================================================
 (function() {
   // 1. NEON POINTER TRAIL
@@ -660,39 +657,83 @@ document.addEventListener('click', (e) => {
     drawTrail();
   }
 
-  // 2. CIPHER DECRYPTION MATRIX (WORD WALL)
-  const CIPHER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=<>{}[]/\\";
+  // 2. TELEMETRY PORTAL WALL (AUTONOMOUS ROTATION + SCRAMBLE LINKS)
+  const CIPHER = "0123456789!@#$%^&*<>{}[]/\\_+=~";
+  const nodes = document.querySelectorAll('.tele-node');
   
-  document.querySelectorAll('.ink-wall-item').forEach((el) => {
-    // Read data-term if provided, or clean up existing inner text
-    const target = el.getAttribute('data-term') || el.textContent.replace('//', '').trim();
-    let interval = null;
+  if (nodes.length) {
+    nodes.forEach((node) => {
+      node._teleList = JSON.parse(node.getAttribute('data-tele') || '[]');
+      node._dest = node.getAttribute('data-dest') || 'PORTAL';
+      node._teleIdx = 0;
+      node._isHovered = false;
+      node._animInterval = null;
 
-    function decrypt() {
-      let iteration = 0;
-      clearInterval(interval);
+      const valSpan = node.querySelector('.tele-val');
 
-      interval = setInterval(() => {
-        const currentScramble = target.split("").map((char, index) => {
-          if (index < iteration) {
-            return target[index];
+      function scrambleTo(targetText, onComplete) {
+        clearInterval(node._animInterval);
+        let iteration = 0;
+        node._animInterval = setInterval(() => {
+          const text = targetText.split('').map((char, i) => {
+            if (i < iteration) return targetText[i];
+            return CIPHER[Math.floor(Math.random() * CIPHER.length)];
+          }).join('');
+
+          if (valSpan) valSpan.textContent = text;
+
+          if (iteration >= targetText.length) {
+            clearInterval(node._animInterval);
+            if (onComplete) onComplete();
           }
-          return CIPHER_CHARS[Math.floor(Math.random() * CIPHER_CHARS.length)];
-        }).join("");
+          iteration += 1 / 2;
+        }, 25);
+      }
 
-        el.innerHTML = `<span style="color:#ff0000;">//</span> ${currentScramble}`;
+      node.addEventListener('mouseenter', () => {
+        node._isHovered = true;
+        scrambleTo(`>> ${node._dest} ↗`);
+      });
 
-        if (iteration >= target.length) {
-          clearInterval(interval);
-          interval = null;
+      node.addEventListener('mouseleave', () => {
+        node._isHovered = false;
+        const currentTele = node._teleList[node._teleIdx] || node._teleList[0];
+        scrambleTo(currentTele);
+      });
+
+      node.addEventListener('touchstart', () => {
+        node._isHovered = true;
+        scrambleTo(`>> ${node._dest} ↗`);
+      }, { passive: true });
+    });
+
+    // Autonomous background telemetry cycler
+    setInterval(() => {
+      const unhovered = Array.from(nodes).filter(n => !n._isHovered);
+      if (!unhovered.length) return;
+
+      const randomNode = unhovered[Math.floor(Math.random() * unhovered.length)];
+      const valSpan = randomNode.querySelector('.tele-val');
+      if (!valSpan || !randomNode._teleList.length) return;
+
+      randomNode._teleIdx = (randomNode._teleIdx + 1) % randomNode._teleList.length;
+      const nextText = randomNode._teleList[randomNode._teleIdx];
+
+      let frame = 0;
+      const glitch = setInterval(() => {
+        valSpan.textContent = Array.from({ length: nextText.length }, () => 
+          CIPHER[Math.floor(Math.random() * CIPHER.length)]
+        ).join('');
+
+        if (++frame >= 3) {
+          clearInterval(glitch);
+          if (!randomNode._isHovered) {
+            valSpan.textContent = nextText;
+          }
         }
-        iteration += 1 / 2; // Decryption resolution speed
-      }, 25);
-    }
-
-    el.addEventListener('mouseenter', decrypt);
-    el.addEventListener('touchstart', (e) => { decrypt(); }, { passive: true });
-  });
+      }, 45);
+    }, 1800);
+  }
 
   // 3. ALL DRAGGABLE MARQUEE TRACKS
   document.querySelectorAll('.ink-marquee-track').forEach((track) => {
@@ -711,7 +752,7 @@ document.addEventListener('click', (e) => {
     track.addEventListener('pointermove', function(e) {
       if (!isDragging) return;
       const dx = e.clientX - startX;
-      const period = 26; // match CSS marquee duration
+      const period = 26; // CSS marquee duration
       this.style.animationDelay = (startDelay + (dx / (this.scrollWidth / 2)) * period).toFixed(2) + 's';
     });
 
@@ -726,7 +767,6 @@ document.addEventListener('click', (e) => {
     track.addEventListener('pointercancel', stopDrag);
   });
 })();
-
 // ================================================================
 // 13. WORDSTAR NEWS ACCORDION + VAULT LIGHTBOX
 // ================================================================
