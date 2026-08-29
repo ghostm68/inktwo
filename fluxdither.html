@@ -510,9 +510,11 @@
 
   <!-- APPLICATION MODULE (Three.js + GIF Pipeline) -->
 <!-- APPLICATION MODULE (Three.js + Hardened GIF Pipeline) -->
+
+<!-- APPLICATION MODULE (Three.js + Fixed GIF Pipeline) -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';
-    import { parseGIF, decompressFrame } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
+    import { parseGIF, decompressFrames, decompressFrame } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
     import { GIFEncoder, quantize, applyPalette } from 'https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm';
 
     // -------------------------------------------------------------
@@ -763,43 +765,52 @@
           const buffer = await file.arrayBuffer();
           const parsedGif = parseGIF(buffer);
 
-          // Get true canvas dimensions from Logical Screen Descriptor (LSD)
-          gifCanvasWidth = parsedGif.lsd ? parsedGif.lsd.width : (parsedGif.frames[0]?.dims?.width || 300);
-          gifCanvasHeight = parsedGif.lsd ? parsedGif.lsd.height : (parsedGif.frames[0]?.dims?.height || 300);
+          // Get true canvas dimensions
+          gifCanvasWidth = (parsedGif.lsd && parsedGif.lsd.width) || 300;
+          gifCanvasHeight = (parsedGif.lsd && parsedGif.lsd.height) || 300;
 
-          // Filter out non-image blocks (metadata/EOF) to prevent crashes
-          const rawFrames = parsedGif.frames.filter(f => f.image || f.patch);
-          const total = rawFrames.length;
-
-          if (total === 0) {
-            throw new Error("No renderable image frames found in GIF.");
-          }
+          // Filter for valid image blocks
+          const rawFrames = parsedGif.frames.filter(f => f.image || f.pixels || !f.gce);
+          const total = rawFrames.length > 0 ? rawFrames.length : parsedGif.frames.length;
 
           gifFrames = [];
 
-          // Frame-by-frame async decoding with live progress updates
+          // Progressive async frame decompression with proper GCT parameter
           for (let i = 0; i < total; i++) {
+            const currentRaw = rawFrames[i] || parsedGif.frames[i];
             try {
-              const frame = decompressFrame(rawFrames[i], true);
+              // Pass (frame, globalColorTable, buildImagePatch = true)
+              const frame = decompressFrame(currentRaw, parsedGif.gct, true);
               if (frame && frame.patch && frame.dims) {
                 gifFrames.push(frame);
               }
             } catch (frameErr) {
-              console.warn(`Skipping unparseable frame ${i}:`, frameErr);
+              console.warn(`Frame ${i} skipped:`, frameErr);
             }
 
             updateProgress("DECODING GIF", i + 1, total);
             viewportStatus.textContent = `DECODING ${i + 1}/${total} FRAMES...`;
 
-            if (i % 2 === 0 || i === total - 1) {
+            if (i % 4 === 0 || i === total - 1) {
               await new Promise(r => setTimeout(r, 0));
             }
           }
 
+          // Fallback: If partial decompression missed, use full batch
+          if (gifFrames.length === 0) {
+            gifFrames = decompressFrames(parsedGif, true);
+          }
+
           progressBox.style.display = 'none';
 
-          if (gifFrames.length === 0) {
-            throw new Error("Failed to decode any valid frames from this GIF.");
+          if (!gifFrames || gifFrames.length === 0) {
+            throw new Error("No renderable frames found in GIF.");
+          }
+
+          // Adjust canvas dims from first frame if LSD was absent
+          if (!gifCanvasWidth || gifCanvasWidth <= 0) {
+            gifCanvasWidth = gifFrames[0].dims.width;
+            gifCanvasHeight = gifFrames[0].dims.height;
           }
 
           fileInfo.textContent = `GIF // ${gifFrames.length} FRAMES`;
@@ -968,19 +979,16 @@
         const baseW = Math.max(1, Math.round(gifCanvasWidth * scale));
         const baseH = Math.max(1, Math.round(gifCanvasHeight * scale));
 
-        // Full accumulation canvas
         const accumCanvas = document.createElement('canvas');
         accumCanvas.width = gifCanvasWidth;
         accumCanvas.height = gifCanvasHeight;
         const accumCtx = accumCanvas.getContext('2d');
 
-        // Scaling canvas
         const scaledCanvas = document.createElement('canvas');
         scaledCanvas.width = baseW;
         scaledCanvas.height = baseH;
         const scaledCtx = scaledCanvas.getContext('2d');
 
-        // Patch canvas
         const patchCanvas = document.createElement('canvas');
         const patchCtx = patchCanvas.getContext('2d');
 
@@ -992,10 +1000,8 @@
           const patchData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
           patchCtx.putImageData(patchData, 0, 0);
 
-          // Composite patch into correct position on accumulator
           accumCtx.drawImage(patchCanvas, frame.dims.left || 0, frame.dims.top || 0);
 
-          // Downscale accumulator to target dimensions
           scaledCtx.clearRect(0, 0, baseW, baseH);
           scaledCtx.drawImage(accumCanvas, 0, 0, baseW, baseH);
 
