@@ -10,11 +10,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Libraries: Three.js + GIF Pipeline -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gifuct-js/dist/gifuct-js.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gifenc/dist/gifenc.js"></script>
-
   <style>
     :root {
       --red: #ff0033;
@@ -323,15 +318,19 @@
       cursor: not-allowed;
     }
 
-    /* Progress */
+    /* Dynamic Progress Bar */
     .progress-container {
       display: none;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--gray-3);
+      padding: 10px;
+      border-radius: 4px;
     }
 
     .progress-track {
-      height: 4px;
+      height: 5px;
       background: var(--gray-2);
       border-radius: 2px;
       overflow: hidden;
@@ -341,7 +340,8 @@
       width: 0%;
       height: 100%;
       background: var(--red);
-      transition: width 0.1s linear;
+      box-shadow: 0 0 8px var(--red);
+      transition: width 0.08s ease-out;
     }
 
     /* Viewport */
@@ -475,10 +475,10 @@
           <input type="range" id="thresholdRange" min="10" max="245" step="1" value="128" />
         </div>
 
-        <!-- Progress -->
+        <!-- Realtime Progress Indicator (Decoding & Processing) -->
         <div class="progress-container" id="progressBox">
           <div class="control-header">
-            <span>PROCESSING GIF FRAMES...</span>
+            <span id="progressStage">DECODING GIF...</span>
             <span class="val-badge" id="progressVal">0%</span>
           </div>
           <div class="progress-track">
@@ -508,8 +508,15 @@
     </div>
   </div>
 
-  <!-- THREE.JS FLUX VORTEX COLUMN -->
-  <script>
+  <!-- APPLICATION MODULE (Three.js + GIF Pipeline) -->
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';
+    import { parseGIF, decompressFrame } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
+    import { GIFEncoder, quantize, applyPalette } from 'https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm';
+
+    // -------------------------------------------------------------
+    // 1. THREE.JS FLUX VORTEX COLUMN
+    // -------------------------------------------------------------
     const vCanvas = document.getElementById('vortex-canvas');
     const renderer = new THREE.WebGLRenderer({ canvas: vCanvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -521,7 +528,6 @@
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 2000);
     camera.position.set(0, 0, 520);
 
-    // Vertical Flux Vortex Column Geometry
     const PARTICLE_COUNT = 16000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(PARTICLE_COUNT * 3);
@@ -539,8 +545,6 @@
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const i3 = i * 3;
       const angle = Math.random() * Math.PI * 2;
-      
-      // Column profile: narrow core with tapering sheath
       const r = 25 + Math.pow(Math.random(), 1.8) * 160;
       const y = (Math.random() - 0.5) * 1200;
 
@@ -553,7 +557,6 @@
       vSpeeds[i] = 1.2 + Math.random() * 2.4;
       rotSpeeds[i] = (2.2 / (r + 10)) * (0.8 + Math.random() * 0.4);
 
-      // Color mapping: Red core, deep red/gray outer column
       let c = colRed.clone();
       if (r > 100) {
         c = c.lerp(colGray, (r - 100) / 80);
@@ -581,12 +584,10 @@
     });
 
     const vortexMesh = new THREE.Points(geometry, pointMaterial);
-    // Slight tilt to match the Flux Vortex column angle
     vortexMesh.rotation.z = -0.15;
     vortexMesh.rotation.x = 0.1;
     scene.add(vortexMesh);
 
-    // Mouse responsiveness
     let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
     window.addEventListener('mousemove', (e) => {
       mouseX = (e.clientX - window.innerWidth / 2) * 0.25;
@@ -614,11 +615,9 @@
         const i3 = i * 3;
         angles[i] += rotSpeeds[i];
 
-        // Vertical movement upwards through column
         pos[i3 + 1] += vSpeeds[i];
         if (pos[i3 + 1] > 600) pos[i3 + 1] = -600;
 
-        // Swirling column radius with slight waver
         const currentR = radii[i] + Math.sin(pos[i3 + 1] * 0.01) * 8;
         pos[i3] = Math.cos(angles[i]) * currentR;
         pos[i3 + 2] = Math.sin(angles[i]) * currentR;
@@ -628,10 +627,10 @@
       renderer.render(scene, camera);
     }
     animateVortex();
-  </script>
 
-  <!-- DITHERING & GIF PIPELINE -->
-  <script>
+    // -------------------------------------------------------------
+    // 2. DITHERING & ASYNC DECODING PIPELINE
+    // -------------------------------------------------------------
     const PALETTES = {
       redblack: [
         [10, 10, 10],
@@ -686,6 +685,7 @@
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const progressBox = document.getElementById('progressBox');
+    const progressStage = document.getElementById('progressStage');
     const progressFill = document.getElementById('progressFill');
     const progressVal = document.getElementById('progressVal');
     const previewCanvas = document.getElementById('previewCanvas');
@@ -713,7 +713,6 @@
     scaleRange.addEventListener('input', () => scaleVal.textContent = parseFloat(scaleRange.value).toFixed(2) + 'x');
     thresholdRange.addEventListener('input', () => thresholdVal.textContent = thresholdRange.value);
 
-    // Initial placeholder
     function drawPlaceholder() {
       previewCanvas.width = 460;
       previewCanvas.height = 300;
@@ -737,31 +736,61 @@
       if (e.target.files[0]) handleFile(e.target.files[0]);
     });
 
+    // Helper: update progress UI
+    function updateProgress(stageText, current, total) {
+      const pct = Math.round((current / total) * 100);
+      progressBox.style.display = 'flex';
+      progressStage.textContent = `${stageText} [${current}/${total}]`;
+      progressVal.textContent = `${pct}%`;
+      progressFill.style.width = `${pct}%`;
+    }
+
     async function handleFile(file) {
       downloadBtn.disabled = true;
+      processBtn.disabled = true;
       processedGifBlob = null;
       previewImg.style.display = 'none';
       previewCanvas.style.display = 'block';
 
       if (file.type === 'image/gif') {
         isGif = true;
-        fileInfo.textContent = `DECODING // ${file.name.toUpperCase()}`;
-        viewportStatus.textContent = 'DECODING GIF...';
+        fileInfo.textContent = `READING // ${file.name.toUpperCase()}`;
+        viewportStatus.textContent = 'PARSING GIF HEADER...';
 
         const buffer = await file.arrayBuffer();
-        const parsedGif = window.gifuct ? window.gifuct.parseGIF(buffer) : window.parseGIF(buffer);
-        gifFrames = window.gifuct ? window.gifuct.decompressFrames(parsedGif, true) : window.decompressFrames(parsedGif, true);
+        const parsedGif = parseGIF(buffer);
+        const total = parsedGif.frames.length;
+        gifFrames = [];
 
+        // Frame-by-frame async decoding with live progress updates
+        for (let i = 0; i < total; i++) {
+          const frame = decompressFrame(parsedGif.frames[i], true);
+          gifFrames.push(frame);
+
+          updateProgress("DECODING GIF", i + 1, total);
+          viewportStatus.textContent = `DECODING ${i + 1}/${total} FRAMES...`;
+
+          // Yield execution to allow UI and progress bar to refresh smoothly
+          if (i % 2 === 0 || i === total - 1) {
+            await new Promise(r => setTimeout(r, 0));
+          }
+        }
+
+        progressBox.style.display = 'none';
         fileInfo.textContent = `GIF // ${gifFrames.length} FRAMES`;
         viewportStatus.textContent = `${gifFrames[0].dims.width}x${gifFrames[0].dims.height} // ${gifFrames.length} FRAMES`;
 
+        // Render first frame as initial preview
         previewCanvas.width = gifFrames[0].dims.width;
         previewCanvas.height = gifFrames[0].dims.height;
         const firstPatch = new ImageData(new Uint8ClampedArray(gifFrames[0].patch), gifFrames[0].dims.width, gifFrames[0].dims.height);
         ctx.putImageData(firstPatch, 0, 0);
+        processBtn.disabled = false;
+
       } else {
         isGif = false;
         gifFrames = [];
+        progressBox.style.display = 'none';
         fileInfo.textContent = `STATIC // ${file.name.toUpperCase()}`;
 
         const img = new Image();
@@ -771,6 +800,7 @@
           previewCanvas.height = img.height;
           ctx.drawImage(img, 0, 0);
           viewportStatus.textContent = `${img.width}x${img.height} // STATIC`;
+          processBtn.disabled = false;
         };
         img.src = URL.createObjectURL(file);
       }
@@ -830,9 +860,11 @@
             if (algo === 'noise') {
               lum += (Math.random() - 0.5) * 60;
             } else if (algo === 'bayer4') {
-              lum += (bayer4[y % 4][x % 4] / 16 - 0.5) * 80;
+              const m = (bayer4[y % 4][x % 4] / 16 - 0.5) * 80;
+              lum += m;
             } else if (algo === 'bayer8') {
-              lum += (bayer8[y % 8][x % 8] / 64 - 0.5) * 80;
+              const m = (bayer8[y % 8][x % 8] / 64 - 0.5) * 80;
+              lum += m;
             }
 
             const chosen = getNearestColor(lum, lum, lum, palette);
@@ -887,11 +919,10 @@
 
       if (isGif && gifFrames.length > 0) {
         processBtn.disabled = true;
-        progressBox.style.display = 'flex';
         viewportStatus.textContent = 'DITHERING GIF...';
 
-        const { GIFEncoder, quantize, applyPalette } = window.gifenc;
         const gif = GIFEncoder();
+        const total = gifFrames.length;
 
         const baseW = Math.max(1, Math.round(gifFrames[0].dims.width * scale));
         const baseH = Math.max(1, Math.round(gifFrames[0].dims.height * scale));
@@ -901,7 +932,7 @@
         offCanvas.height = baseH;
         const offCtx = offCanvas.getContext('2d');
 
-        for (let i = 0; i < gifFrames.length; i++) {
+        for (let i = 0; i < total; i++) {
           const frame = gifFrames[i];
           
           const frameCanvas = document.createElement('canvas');
@@ -924,10 +955,7 @@
             delay: frame.delay || 100
           });
 
-          const pct = Math.round(((i + 1) / gifFrames.length) * 100);
-          progressFill.style.width = pct + '%';
-          progressVal.textContent = pct + '%';
-
+          updateProgress("DITHERING & ENCODING", i + 1, total);
           await new Promise(r => setTimeout(r, 0));
         }
 
