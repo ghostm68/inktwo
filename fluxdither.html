@@ -509,6 +509,7 @@
   </div>
 
   <!-- APPLICATION MODULE (Three.js + GIF Pipeline) -->
+<!-- APPLICATION MODULE (Three.js + Hardened GIF Pipeline) -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm';
     import { parseGIF, decompressFrame } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
@@ -629,7 +630,7 @@
     animateVortex();
 
     // -------------------------------------------------------------
-    // 2. DITHERING & ASYNC DECODING PIPELINE
+    // 2. DITHERING & ROBUST GIF PIPELINE
     // -------------------------------------------------------------
     const PALETTES = {
       redblack: [
@@ -696,6 +697,8 @@
     let isGif = false;
     let loadedImage = null;
     let gifFrames = [];
+    let gifCanvasWidth = 0;
+    let gifCanvasHeight = 0;
     let processedGifBlob = null;
 
     function renderPalettePreview() {
@@ -736,7 +739,6 @@
       if (e.target.files[0]) handleFile(e.target.files[0]);
     });
 
-    // Helper: update progress UI
     function updateProgress(stageText, current, total) {
       const pct = Math.round((current / total) * 100);
       progressBox.style.display = 'flex';
@@ -757,35 +759,74 @@
         fileInfo.textContent = `READING // ${file.name.toUpperCase()}`;
         viewportStatus.textContent = 'PARSING GIF HEADER...';
 
-        const buffer = await file.arrayBuffer();
-        const parsedGif = parseGIF(buffer);
-        const total = parsedGif.frames.length;
-        gifFrames = [];
+        try {
+          const buffer = await file.arrayBuffer();
+          const parsedGif = parseGIF(buffer);
 
-        // Frame-by-frame async decoding with live progress updates
-        for (let i = 0; i < total; i++) {
-          const frame = decompressFrame(parsedGif.frames[i], true);
-          gifFrames.push(frame);
+          // Get true canvas dimensions from Logical Screen Descriptor (LSD)
+          gifCanvasWidth = parsedGif.lsd ? parsedGif.lsd.width : (parsedGif.frames[0]?.dims?.width || 300);
+          gifCanvasHeight = parsedGif.lsd ? parsedGif.lsd.height : (parsedGif.frames[0]?.dims?.height || 300);
 
-          updateProgress("DECODING GIF", i + 1, total);
-          viewportStatus.textContent = `DECODING ${i + 1}/${total} FRAMES...`;
+          // Filter out non-image blocks (metadata/EOF) to prevent crashes
+          const rawFrames = parsedGif.frames.filter(f => f.image || f.patch);
+          const total = rawFrames.length;
 
-          // Yield execution to allow UI and progress bar to refresh smoothly
-          if (i % 2 === 0 || i === total - 1) {
-            await new Promise(r => setTimeout(r, 0));
+          if (total === 0) {
+            throw new Error("No renderable image frames found in GIF.");
           }
+
+          gifFrames = [];
+
+          // Frame-by-frame async decoding with live progress updates
+          for (let i = 0; i < total; i++) {
+            try {
+              const frame = decompressFrame(rawFrames[i], true);
+              if (frame && frame.patch && frame.dims) {
+                gifFrames.push(frame);
+              }
+            } catch (frameErr) {
+              console.warn(`Skipping unparseable frame ${i}:`, frameErr);
+            }
+
+            updateProgress("DECODING GIF", i + 1, total);
+            viewportStatus.textContent = `DECODING ${i + 1}/${total} FRAMES...`;
+
+            if (i % 2 === 0 || i === total - 1) {
+              await new Promise(r => setTimeout(r, 0));
+            }
+          }
+
+          progressBox.style.display = 'none';
+
+          if (gifFrames.length === 0) {
+            throw new Error("Failed to decode any valid frames from this GIF.");
+          }
+
+          fileInfo.textContent = `GIF // ${gifFrames.length} FRAMES`;
+          viewportStatus.textContent = `${gifCanvasWidth}x${gifCanvasHeight} // ${gifFrames.length} FRAMES`;
+
+          // Render first frame as initial preview
+          previewCanvas.width = gifCanvasWidth;
+          previewCanvas.height = gifCanvasHeight;
+          ctx.clearRect(0, 0, gifCanvasWidth, gifCanvasHeight);
+
+          const firstFrame = gifFrames[0];
+          const patchCanvas = document.createElement('canvas');
+          patchCanvas.width = firstFrame.dims.width;
+          patchCanvas.height = firstFrame.dims.height;
+          const patchCtx = patchCanvas.getContext('2d');
+          const patchData = new ImageData(new Uint8ClampedArray(firstFrame.patch), firstFrame.dims.width, firstFrame.dims.height);
+          patchCtx.putImageData(patchData, 0, 0);
+
+          ctx.drawImage(patchCanvas, firstFrame.dims.left || 0, firstFrame.dims.top || 0);
+          processBtn.disabled = false;
+
+        } catch (err) {
+          console.error("GIF Processing error:", err);
+          fileInfo.textContent = "ERROR PARSING GIF";
+          viewportStatus.textContent = err.message || "CORRUPT GIF";
+          progressBox.style.display = 'none';
         }
-
-        progressBox.style.display = 'none';
-        fileInfo.textContent = `GIF // ${gifFrames.length} FRAMES`;
-        viewportStatus.textContent = `${gifFrames[0].dims.width}x${gifFrames[0].dims.height} // ${gifFrames.length} FRAMES`;
-
-        // Render first frame as initial preview
-        previewCanvas.width = gifFrames[0].dims.width;
-        previewCanvas.height = gifFrames[0].dims.height;
-        const firstPatch = new ImageData(new Uint8ClampedArray(gifFrames[0].patch), gifFrames[0].dims.width, gifFrames[0].dims.height);
-        ctx.putImageData(firstPatch, 0, 0);
-        processBtn.disabled = false;
 
       } else {
         isGif = false;
@@ -924,27 +965,41 @@
         const gif = GIFEncoder();
         const total = gifFrames.length;
 
-        const baseW = Math.max(1, Math.round(gifFrames[0].dims.width * scale));
-        const baseH = Math.max(1, Math.round(gifFrames[0].dims.height * scale));
+        const baseW = Math.max(1, Math.round(gifCanvasWidth * scale));
+        const baseH = Math.max(1, Math.round(gifCanvasHeight * scale));
 
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = baseW;
-        offCanvas.height = baseH;
-        const offCtx = offCanvas.getContext('2d');
+        // Full accumulation canvas
+        const accumCanvas = document.createElement('canvas');
+        accumCanvas.width = gifCanvasWidth;
+        accumCanvas.height = gifCanvasHeight;
+        const accumCtx = accumCanvas.getContext('2d');
+
+        // Scaling canvas
+        const scaledCanvas = document.createElement('canvas');
+        scaledCanvas.width = baseW;
+        scaledCanvas.height = baseH;
+        const scaledCtx = scaledCanvas.getContext('2d');
+
+        // Patch canvas
+        const patchCanvas = document.createElement('canvas');
+        const patchCtx = patchCanvas.getContext('2d');
 
         for (let i = 0; i < total; i++) {
           const frame = gifFrames[i];
           
-          const frameCanvas = document.createElement('canvas');
-          frameCanvas.width = frame.dims.width;
-          frameCanvas.height = frame.dims.height;
-          const fCtx = frameCanvas.getContext('2d');
+          patchCanvas.width = frame.dims.width;
+          patchCanvas.height = frame.dims.height;
           const patchData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-          fCtx.putImageData(patchData, 0, 0);
+          patchCtx.putImageData(patchData, 0, 0);
 
-          offCtx.drawImage(frameCanvas, 0, 0, baseW, baseH);
-          const currentImgData = offCtx.getImageData(0, 0, baseW, baseH);
+          // Composite patch into correct position on accumulator
+          accumCtx.drawImage(patchCanvas, frame.dims.left || 0, frame.dims.top || 0);
 
+          // Downscale accumulator to target dimensions
+          scaledCtx.clearRect(0, 0, baseW, baseH);
+          scaledCtx.drawImage(accumCanvas, 0, 0, baseW, baseH);
+
+          const currentImgData = scaledCtx.getImageData(0, 0, baseW, baseH);
           const dithered = ditherImageData(currentImgData, algo, palette, threshold);
 
           const pal = quantize(dithered.data, 256);
