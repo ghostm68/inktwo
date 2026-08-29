@@ -1058,7 +1058,7 @@ All text compresses directly into your browser's address bar.
   // ==================== OBSCURE .NSF / .PWP STORAGE ====================
 // ==================== DYNAMIC MULTI-FORMAT EXPORT ====================
 // ==================== FORMAT CYCLE & DYNAMIC EXPORT ====================
-const exportFormats = ['txt', 'nsf', 'pwp', 'ebc'];
+const exportFormats = ['txt', 'bak', 'wsd', 'nsf', 'pwp', 'ebc'];
 let currentFormatIdx = 0;
 
 function cycleExportFormat() {
@@ -1209,5 +1209,63 @@ function storeDataDisk() {
     render();
   })();
 </script>
+  <script>
+    // ==================== WORDSTAR .BAK SHADOW ENGINE ====================
+let previousDraft = localStorage.getItem('PWP_DOCUMENT_BAK') || '';
+
+// Call this whenever a major save or export happens
+function createBakCheckpoint() {
+  previousDraft = editor.value;
+  localStorage.setItem('PWP_DOCUMENT_BAK', previousDraft);
+  
+  // Flash status in true vintage fashion
+  const status = document.getElementById('save-status');
+  status.textContent = 'CHECKPOINT -> .BAK CREATED';
+  status.style.color = 'var(--c-crimson)';
+  playKeystrokeAudio(420, 0.08);
+}
+
+// Emergency Revert function
+function restoreFromBak() {
+  if (!previousDraft) {
+    alert('NO .BAK FILE FOUND ON DATADISK');
+    return;
+  }
+  if (confirm('REVERT ACTIVE BUFFER TO PREVIOUS .BAK SNAPSHOT?')) {
+    editor.value = previousDraft;
+    saveToUrlHash();
+    updateMetrics();
+    playKeystrokeAudio(200, 0.1);
+  }
+}
+
+// ==================== WORDSTAR CTRL+K KEYBINDINGS ====================
+let ctrlKArmed = false;
+
+editor.addEventListener('keydown', (e) => {
+  // Listen for Ctrl+K
+  if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    ctrlKArmed = true;
+    const status = document.getElementById('save-status');
+    status.textContent = 'WAITING FOR COMMAND: [S=SAVE/BAK, R=RESTORE, D=DONE]';
+    return;
+  }
+
+  // If Ctrl+K was pressed, check the next key:
+  if (ctrlKArmed) {
+    ctrlKArmed = false;
+    const key = e.key.toLowerCase();
+    
+    if (key === 's' || key === 'd') {
+      e.preventDefault();
+      createBakCheckpoint(); // Saves and creates .BAK
+    } else if (key === 'r') {
+      e.preventDefault();
+      restoreFromBak(); // Restores .BAK
+    }
+  }
+});
+  </script>
 </body>
 </html>
