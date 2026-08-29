@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FLUX // VORTEX DITHER LAB</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Libraries: Three.js + GIF Pipeline -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gifuct-js/dist/gifuct-js.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gifenc/dist/gifenc.js"></script>
+
+  <style>
+    :root {
+      --red: #ff0033;
+      --black: #0a0a0a;
+      --white: #fff;
+      --gray-1: #111;
+      --gray-2: #222;
+      --gray-3: #333;
+      --gray-6: #666;
+      --gray-9: #999;
+      --gray-c: #ccc;
+    }
+
+    ::selection {
+      background: var(--red);
+      color: var(--black);
+      text-shadow: none;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Background 3D Vortex Canvas */
+    #vortex-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Main Container */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--gray-2);
+      border-radius: 6px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-cube {
+      width: 12px;
+      height: 12px;
+      background: var(--red);
+      box-shadow: 0 0 10px var(--red);
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      letter-spacing: 2px;
+      font-weight: 700;
+      color: var(--white);
+      text-transform: uppercase;
+    }
+
+    .brand-tag {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.7rem;
+      background: rgba(255, 0, 51, 0.1);
+      color: var(--red);
+      border: 1px solid rgba(255, 0, 51, 0.35);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Layout */
+    .workspace {
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Panels */
+    .panel {
+      background: rgba(17, 17, 17, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--gray-2);
+      border-radius: 6px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-title {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: var(--gray-9);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid var(--gray-2);
+      padding-bottom: 8px;
+    }
+
+    .panel-title span {
+      color: var(--red);
+    }
+
+    /* Upload Zone */
+    .upload-box {
+      position: relative;
+      border: 1px dashed var(--gray-3);
+      border-radius: 4px;
+      padding: 20px 12px;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .upload-box:hover, .upload-box.dragover {
+      border-color: var(--red);
+      background: rgba(255, 0, 51, 0.04);
+    }
+
+    .upload-box input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-text {
+      font-size: 0.85rem;
+      color: var(--white);
+      font-weight: 600;
+    }
+
+    .upload-sub {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.68rem;
+      color: var(--gray-6);
+      margin-top: 4px;
+    }
+
+    /* Controls */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      color: var(--gray-9);
+    }
+
+    .val-badge {
+      color: var(--red);
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+      background: var(--black);
+      border: 1px solid var(--gray-3);
+      color: var(--white);
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus {
+      border-color: var(--red);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      padding: 0;
+      background: var(--gray-3);
+      cursor: pointer;
+      border: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--red);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--red);
+    }
+
+    /* Palette Swatches */
+    .palette-preview {
+      display: flex;
+      gap: 3px;
+      height: 8px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .palette-preview div {
+      flex: 1;
+      height: 100%;
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    button {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 11px 14px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--red);
+      color: var(--white);
+      box-shadow: 0 0 14px rgba(255, 0, 51, 0.35);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #ff1a4a;
+      box-shadow: 0 0 22px rgba(255, 0, 51, 0.6);
+    }
+
+    .btn-secondary {
+      background: var(--gray-1);
+      border: 1px solid var(--gray-3);
+      color: var(--white);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--gray-2);
+      border-color: var(--gray-6);
+    }
+
+    button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* Progress */
+    .progress-container {
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .progress-track {
+      height: 4px;
+      background: var(--gray-2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--red);
+      transition: width 0.1s linear;
+    }
+
+    /* Viewport */
+    .viewport-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 520px;
+    }
+
+    .viewport-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-pill {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: var(--gray-1);
+      border: 1px solid var(--gray-2);
+      color: var(--gray-9);
+    }
+
+    .status-pill.active {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(255, 0, 51, 0.08);
+    }
+
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 5, 0.85);
+      border: 1px solid var(--gray-2);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      min-height: 380px;
+    }
+
+    #previewCanvas, #previewImg {
+      max-width: 100%;
+      max-height: 62vh;
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    #previewImg {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Three.js Vortex Column -->
+  <canvas id="vortex-canvas"></canvas>
+
+  <div class="app-container">
+    <header>
+      <div class="brand">
+        <div class="brand-cube"></div>
+        <h1>Flux Dither</h1>
+        <span class="brand-tag">VORTEX COLUMN</span>
+      </div>
+      <div class="status-pill" id="fileInfo">READY // AWAITING MEDIA</div>
+    </header>
+
+    <div class="workspace">
+      <!-- Control Panel -->
+      <div class="panel">
+        <div class="panel-title"><span>01</span> Source Media</div>
+        
+        <div class="upload-box" id="dropZone">
+          <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp, image/gif" />
+          <div class="upload-text">Upload or Drop Media</div>
+          <div class="upload-sub">Supports Animated GIF, PNG, JPG, WebP</div>
+        </div>
+
+        <div class="panel-title"><span>02</span> Dither Matrix</div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>ALGORITHM</span>
+          </div>
+          <select id="algoSelect">
+            <option value="floyd">Floyd-Steinberg (Diffusion)</option>
+            <option value="atkinson">Atkinson (Mac Classic)</option>
+            <option value="bayer4">Bayer 4x4 (Ordered)</option>
+            <option value="bayer8">Bayer 8x8 (Ordered)</option>
+            <option value="threshold">Binary Threshold</option>
+            <option value="noise">Noise / Stochastic</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>COLOR PALETTE</span>
+          </div>
+          <select id="paletteSelect">
+            <option value="redblack">Red & Black (2-Bit)</option>
+            <option value="bw">1-Bit Monochrome (Black/White)</option>
+            <option value="crimson">Crimson Glow (4 Shades)</option>
+            <option value="gameboy">Game Boy Classic (4 Shades)</option>
+            <option value="cyberpunk">Cyberpunk Neon</option>
+            <option value="cga">CGA Mode 1</option>
+            <option value="amber">Amber CRT Phosphor</option>
+          </select>
+          <div class="palette-preview" id="palettePreview"></div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>SCALE / DOWNSCALE</span>
+            <span class="val-badge" id="scaleVal">1.0x</span>
+          </div>
+          <input type="range" id="scaleRange" min="0.25" max="1.0" step="0.05" value="1.0" />
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <span>THRESHOLD</span>
+            <span class="val-badge" id="thresholdVal">128</span>
+          </div>
+          <input type="range" id="thresholdRange" min="10" max="245" step="1" value="128" />
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-container" id="progressBox">
+          <div class="control-header">
+            <span>PROCESSING GIF FRAMES...</span>
+            <span class="val-badge" id="progressVal">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="btn-group">
+          <button id="processBtn" class="btn-primary">Execute Dither</button>
+          <button id="downloadBtn" class="btn-secondary" disabled>Export Output</button>
+        </div>
+      </div>
+
+      <!-- Viewport Panel -->
+      <div class="panel viewport-panel">
+        <div class="viewport-header">
+          <div class="panel-title"><span>03</span> Output Viewport</div>
+          <div class="status-pill active" id="viewportStatus">STATIC BUFFER</div>
+        </div>
+
+        <div class="canvas-container">
+          <canvas id="previewCanvas"></canvas>
+          <img id="previewImg" alt="Dither Preview" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THREE.JS FLUX VORTEX COLUMN -->
+  <script>
+    const vCanvas = document.getElementById('vortex-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas: vCanvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.002);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 2000);
+    camera.position.set(0, 0, 520);
+
+    // Vertical Flux Vortex Column Geometry
+    const PARTICLE_COUNT = 16000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(PARTICLE_COUNT * 3);
+    const colors = new Float32Array(PARTICLE_COUNT * 3);
+    const angles = new Float32Array(PARTICLE_COUNT);
+    const radii = new Float32Array(PARTICLE_COUNT);
+    const vSpeeds = new Float32Array(PARTICLE_COUNT);
+    const rotSpeeds = new Float32Array(PARTICLE_COUNT);
+
+    const colRed = new THREE.Color(0xff0033);
+    const colDarkRed = new THREE.Color(0x550011);
+    const colGray = new THREE.Color(0x333333);
+    const colWhite = new THREE.Color(0xffffff);
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const i3 = i * 3;
+      const angle = Math.random() * Math.PI * 2;
+      
+      // Column profile: narrow core with tapering sheath
+      const r = 25 + Math.pow(Math.random(), 1.8) * 160;
+      const y = (Math.random() - 0.5) * 1200;
+
+      positions[i3] = Math.cos(angle) * r;
+      positions[i3 + 1] = y;
+      positions[i3 + 2] = Math.sin(angle) * r;
+
+      angles[i] = angle;
+      radii[i] = r;
+      vSpeeds[i] = 1.2 + Math.random() * 2.4;
+      rotSpeeds[i] = (2.2 / (r + 10)) * (0.8 + Math.random() * 0.4);
+
+      // Color mapping: Red core, deep red/gray outer column
+      let c = colRed.clone();
+      if (r > 100) {
+        c = c.lerp(colGray, (r - 100) / 80);
+      } else if (r < 45 && Math.random() < 0.15) {
+        c = colWhite.clone();
+      } else {
+        c = c.lerp(colDarkRed, r / 100);
+      }
+
+      colors[i3] = c.r;
+      colors[i3 + 1] = c.g;
+      colors[i3 + 2] = c.b;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const pointMaterial = new THREE.PointsMaterial({
+      size: 2.8,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const vortexMesh = new THREE.Points(geometry, pointMaterial);
+    // Slight tilt to match the Flux Vortex column angle
+    vortexMesh.rotation.z = -0.15;
+    vortexMesh.rotation.x = 0.1;
+    scene.add(vortexMesh);
+
+    // Mouse responsiveness
+    let mouseX = 0, mouseY = 0, targetX = 0, targetY = 0;
+    window.addEventListener('mousemove', (e) => {
+      mouseX = (e.clientX - window.innerWidth / 2) * 0.25;
+      mouseY = (e.clientY - window.innerHeight / 2) * 0.25;
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animateVortex() {
+      requestAnimationFrame(animateVortex);
+      targetX += (mouseX - targetX) * 0.05;
+      targetY += (mouseY - targetY) * 0.05;
+
+      camera.position.x = targetX;
+      camera.position.y = -targetY;
+      camera.lookAt(0, 0, 0);
+
+      const pos = geometry.attributes.position.array;
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const i3 = i * 3;
+        angles[i] += rotSpeeds[i];
+
+        // Vertical movement upwards through column
+        pos[i3 + 1] += vSpeeds[i];
+        if (pos[i3 + 1] > 600) pos[i3 + 1] = -600;
+
+        // Swirling column radius with slight waver
+        const currentR = radii[i] + Math.sin(pos[i3 + 1] * 0.01) * 8;
+        pos[i3] = Math.cos(angles[i]) * currentR;
+        pos[i3 + 2] = Math.sin(angles[i]) * currentR;
+      }
+
+      geometry.attributes.position.needsUpdate = true;
+      renderer.render(scene, camera);
+    }
+    animateVortex();
+  </script>
+
+  <!-- DITHERING & GIF PIPELINE -->
+  <script>
+    const PALETTES = {
+      redblack: [
+        [10, 10, 10],
+        [255, 0, 51]
+      ],
+      bw: [
+        [0, 0, 0],
+        [255, 255, 255]
+      ],
+      crimson: [
+        [10, 10, 10],
+        [80, 0, 20],
+        [180, 0, 40],
+        [255, 0, 51]
+      ],
+      gameboy: [
+        [15, 56, 15],
+        [48, 98, 48],
+        [139, 172, 15],
+        [155, 188, 15]
+      ],
+      cyberpunk: [
+        [10, 10, 25],
+        [255, 0, 119],
+        [0, 240, 255],
+        [240, 240, 255]
+      ],
+      cga: [
+        [0, 0, 0],
+        [0, 170, 170],
+        [170, 0, 170],
+        [255, 255, 255]
+      ],
+      amber: [
+        [10, 5, 0],
+        [110, 50, 0],
+        [200, 110, 0],
+        [255, 180, 0]
+      ]
+    };
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileInfo = document.getElementById('fileInfo');
+    const algoSelect = document.getElementById('algoSelect');
+    const paletteSelect = document.getElementById('paletteSelect');
+    const palettePreview = document.getElementById('palettePreview');
+    const scaleRange = document.getElementById('scaleRange');
+    const scaleVal = document.getElementById('scaleVal');
+    const thresholdRange = document.getElementById('thresholdRange');
+    const thresholdVal = document.getElementById('thresholdVal');
+    const processBtn = document.getElementById('processBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const progressBox = document.getElementById('progressBox');
+    const progressFill = document.getElementById('progressFill');
+    const progressVal = document.getElementById('progressVal');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const previewImg = document.getElementById('previewImg');
+    const viewportStatus = document.getElementById('viewportStatus');
+    const ctx = previewCanvas.getContext('2d', { willReadFrequently: true });
+
+    let isGif = false;
+    let loadedImage = null;
+    let gifFrames = [];
+    let processedGifBlob = null;
+
+    function renderPalettePreview() {
+      const colors = PALETTES[paletteSelect.value];
+      palettePreview.innerHTML = '';
+      colors.forEach(c => {
+        const d = document.createElement('div');
+        d.style.backgroundColor = `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+        palettePreview.appendChild(d);
+      });
+    }
+    paletteSelect.addEventListener('change', renderPalettePreview);
+    renderPalettePreview();
+
+    scaleRange.addEventListener('input', () => scaleVal.textContent = parseFloat(scaleRange.value).toFixed(2) + 'x');
+    thresholdRange.addEventListener('input', () => thresholdVal.textContent = thresholdRange.value);
+
+    // Initial placeholder
+    function drawPlaceholder() {
+      previewCanvas.width = 460;
+      previewCanvas.height = 300;
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, 460, 300);
+
+      ctx.fillStyle = '#ff0033';
+      ctx.font = 'bold 16px "Fira Code", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText("FLUX // DITHER MATRIX", 230, 140);
+      ctx.fillStyle = '#666';
+      ctx.font = '12px "Space Grotesk"';
+      ctx.fillText("Drop an image or animated GIF to process", 230, 168);
+    }
+    drawPlaceholder();
+
+    ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('dragover')));
+    ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('dragover')));
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    async function handleFile(file) {
+      downloadBtn.disabled = true;
+      processedGifBlob = null;
+      previewImg.style.display = 'none';
+      previewCanvas.style.display = 'block';
+
+      if (file.type === 'image/gif') {
+        isGif = true;
+        fileInfo.textContent = `DECODING // ${file.name.toUpperCase()}`;
+        viewportStatus.textContent = 'DECODING GIF...';
+
+        const buffer = await file.arrayBuffer();
+        const parsedGif = window.gifuct ? window.gifuct.parseGIF(buffer) : window.parseGIF(buffer);
+        gifFrames = window.gifuct ? window.gifuct.decompressFrames(parsedGif, true) : window.decompressFrames(parsedGif, true);
+
+        fileInfo.textContent = `GIF // ${gifFrames.length} FRAMES`;
+        viewportStatus.textContent = `${gifFrames[0].dims.width}x${gifFrames[0].dims.height} // ${gifFrames.length} FRAMES`;
+
+        previewCanvas.width = gifFrames[0].dims.width;
+        previewCanvas.height = gifFrames[0].dims.height;
+        const firstPatch = new ImageData(new Uint8ClampedArray(gifFrames[0].patch), gifFrames[0].dims.width, gifFrames[0].dims.height);
+        ctx.putImageData(firstPatch, 0, 0);
+      } else {
+        isGif = false;
+        gifFrames = [];
+        fileInfo.textContent = `STATIC // ${file.name.toUpperCase()}`;
+
+        const img = new Image();
+        img.onload = () => {
+          loadedImage = img;
+          previewCanvas.width = img.width;
+          previewCanvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          viewportStatus.textContent = `${img.width}x${img.height} // STATIC`;
+        };
+        img.src = URL.createObjectURL(file);
+      }
+    }
+
+    function getNearestColor(r, g, b, palette) {
+      let minDist = Infinity;
+      let best = palette[0];
+      for (let i = 0; i < palette.length; i++) {
+        const pr = palette[i][0], pg = palette[i][1], pb = palette[i][2];
+        const dist = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+        if (dist < minDist) {
+          minDist = dist;
+          best = palette[i];
+        }
+      }
+      return best;
+    }
+
+    function ditherImageData(srcImgData, algo, paletteKey, threshold) {
+      const palette = PALETTES[paletteKey];
+      const w = srcImgData.width;
+      const h = srcImgData.height;
+      const d = new Uint8ClampedArray(srcImgData.data);
+
+      const bayer4 = [
+        [ 0,  8,  2, 10],
+        [12,  4, 14,  6],
+        [ 3, 11,  1,  9],
+        [15,  7, 13,  5]
+      ];
+
+      const bayer8 = [
+        [ 0, 32,  8, 40,  2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44,  4, 36, 14, 46,  6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [ 3, 35, 11, 43,  1, 33,  9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47,  7, 39, 13, 45,  5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21]
+      ];
+
+      const lumBuffer = new Float32Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        const idx = i * 4;
+        lumBuffer[i] = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
+      }
+
+      if (algo === 'threshold' || algo === 'noise' || algo === 'bayer4' || algo === 'bayer8') {
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const pIdx = idx * 4;
+            let lum = lumBuffer[idx];
+
+            if (algo === 'noise') {
+              lum += (Math.random() - 0.5) * 60;
+            } else if (algo === 'bayer4') {
+              lum += (bayer4[y % 4][x % 4] / 16 - 0.5) * 80;
+            } else if (algo === 'bayer8') {
+              lum += (bayer8[y % 8][x % 8] / 64 - 0.5) * 80;
+            }
+
+            const chosen = getNearestColor(lum, lum, lum, palette);
+            d[pIdx] = chosen[0];
+            d[pIdx + 1] = chosen[1];
+            d[pIdx + 2] = chosen[2];
+            d[pIdx + 3] = 255;
+          }
+        }
+      } else if (algo === 'floyd' || algo === 'atkinson') {
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const pIdx = idx * 4;
+            const oldVal = lumBuffer[idx];
+            const chosen = getNearestColor(oldVal, oldVal, oldVal, palette);
+
+            const newVal = 0.299 * chosen[0] + 0.587 * chosen[1] + 0.114 * chosen[2];
+            const err = oldVal - newVal;
+
+            d[pIdx] = chosen[0];
+            d[pIdx + 1] = chosen[1];
+            d[pIdx + 2] = chosen[2];
+            d[pIdx + 3] = 255;
+
+            if (algo === 'floyd') {
+              if (x + 1 < w) lumBuffer[idx + 1] += err * (7 / 16);
+              if (x - 1 >= 0 && y + 1 < h) lumBuffer[idx + w - 1] += err * (3 / 16);
+              if (y + 1 < h) lumBuffer[idx + w] += err * (5 / 16);
+              if (x + 1 < w && y + 1 < h) lumBuffer[idx + w + 1] += err * (1 / 16);
+            } else if (algo === 'atkinson') {
+              const ae = err / 8;
+              if (x + 1 < w) lumBuffer[idx + 1] += ae;
+              if (x + 2 < w) lumBuffer[idx + 2] += ae;
+              if (x - 1 >= 0 && y + 1 < h) lumBuffer[idx + w - 1] += ae;
+              if (y + 1 < h) lumBuffer[idx + w] += ae;
+              if (x + 1 < w && y + 1 < h) lumBuffer[idx + w + 1] += ae;
+              if (y + 2 < h) lumBuffer[idx + w * 2] += ae;
+            }
+          }
+        }
+      }
+
+      return new ImageData(d, w, h);
+    }
+
+    processBtn.addEventListener('click', async () => {
+      const algo = algoSelect.value;
+      const palette = paletteSelect.value;
+      const threshold = parseInt(thresholdRange.value, 10);
+      const scale = parseFloat(scaleRange.value);
+
+      if (isGif && gifFrames.length > 0) {
+        processBtn.disabled = true;
+        progressBox.style.display = 'flex';
+        viewportStatus.textContent = 'DITHERING GIF...';
+
+        const { GIFEncoder, quantize, applyPalette } = window.gifenc;
+        const gif = GIFEncoder();
+
+        const baseW = Math.max(1, Math.round(gifFrames[0].dims.width * scale));
+        const baseH = Math.max(1, Math.round(gifFrames[0].dims.height * scale));
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = baseW;
+        offCanvas.height = baseH;
+        const offCtx = offCanvas.getContext('2d');
+
+        for (let i = 0; i < gifFrames.length; i++) {
+          const frame = gifFrames[i];
+          
+          const frameCanvas = document.createElement('canvas');
+          frameCanvas.width = frame.dims.width;
+          frameCanvas.height = frame.dims.height;
+          const fCtx = frameCanvas.getContext('2d');
+          const patchData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+          fCtx.putImageData(patchData, 0, 0);
+
+          offCtx.drawImage(frameCanvas, 0, 0, baseW, baseH);
+          const currentImgData = offCtx.getImageData(0, 0, baseW, baseH);
+
+          const dithered = ditherImageData(currentImgData, algo, palette, threshold);
+
+          const pal = quantize(dithered.data, 256);
+          const index = applyPalette(dithered.data, pal);
+
+          gif.writeFrame(index, baseW, baseH, {
+            palette: pal,
+            delay: frame.delay || 100
+          });
+
+          const pct = Math.round(((i + 1) / gifFrames.length) * 100);
+          progressFill.style.width = pct + '%';
+          progressVal.textContent = pct + '%';
+
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        gif.finish();
+        processedGifBlob = new Blob([gif.bytes()], { type: 'image/gif' });
+        const gifUrl = URL.createObjectURL(processedGifBlob);
+
+        previewCanvas.style.display = 'none';
+        previewImg.style.display = 'block';
+        previewImg.src = gifUrl;
+
+        viewportStatus.textContent = `DONE // ${gifFrames.length} FRAMES`;
+        processBtn.disabled = false;
+        downloadBtn.disabled = false;
+        progressBox.style.display = 'none';
+
+      } else if (loadedImage) {
+        previewImg.style.display = 'none';
+        previewCanvas.style.display = 'block';
+
+        const targetW = Math.max(1, Math.round(loadedImage.width * scale));
+        const targetH = Math.max(1, Math.round(loadedImage.height * scale));
+
+        previewCanvas.width = targetW;
+        previewCanvas.height = targetH;
+        ctx.drawImage(loadedImage, 0, 0, targetW, targetH);
+
+        const imgData = ctx.getImageData(0, 0, targetW, targetH);
+        const dithered = ditherImageData(imgData, algo, palette, threshold);
+        ctx.putImageData(dithered, 0, 0);
+
+        viewportStatus.textContent = `${targetW}x${targetH} // STATIC DITHERED`;
+        downloadBtn.disabled = false;
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      const a = document.createElement('a');
+      if (isGif && processedGifBlob) {
+        a.href = URL.createObjectURL(processedGifBlob);
+        a.download = `flux-dither-${Date.now()}.gif`;
+      } else {
+        a.href = previewCanvas.toDataURL('image/png');
+        a.download = `flux-dither-${Date.now()}.png`;
+      }
+      a.click();
+    });
+  </script>
+</body>
+</html>
