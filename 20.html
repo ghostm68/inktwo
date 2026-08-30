@@ -43,34 +43,56 @@
   <link rel="stylesheet" href="/main.css/616.css">
 
   <style>
-    /* 1. ELIMINATE HAZE / FOG OVERLAYS */
-    .menu-overlay {
-      display: none !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
+    /* 1. RELIABLE SLIDE MENU & OVERLAY ENGINE */
+    .slide-menu {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 90vh !important;
+      max-height: 90vh !important;
+      background: #09090b !important;
+      border-top: 2px solid var(--red, #ff0033) !important;
+      transform: translateY(100%) !important;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      z-index: 9999 !important;
+      overflow-y: auto !important;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.9) !important;
     }
-    .menu-overlay.open {
-      display: block !important;
-      opacity: 1 !important;
-      pointer-events: auto !important;
-      background: rgba(0,0,0,0.85) !important;
+    .slide-menu.open, .slide-menu.active {
+      transform: translateY(0) !important;
     }
 
+    .menu-overlay {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: rgba(0,0,0,0.85) !important;
+      z-index: 9998 !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transition: opacity 0.3s ease !important;
+    }
+    .menu-overlay.open, .menu-overlay.active {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    /* 2. SPLASH CLEANUP */
     #splashScreen.fade-out {
       display: none !important;
       opacity: 0 !important;
       pointer-events: none !important;
     }
-
     body.loaded .splash-screen ~ * {
       visibility: visible !important;
       opacity: 1 !important;
       filter: none !important;
     }
 
-    /* 2. TEXT SELECTION */
+    /* 3. TEXT SELECTION */
     ::selection {
       background: #ffffff;
       color: #000000;
@@ -82,7 +104,7 @@
       text-shadow: none;
     }
 
-    /* 3. SIDEBAR KRISTIN LOOP */
+    /* 4. SIDEBAR KRISTIN LOOP */
     .kristin-badge {
       width: 44px;
       height: 44px;
@@ -98,7 +120,7 @@
       object-fit: cover;
     }
 
-    /* 4. LOG STREAM (SINGLE LYRIC) */
+    /* 5. LOG STREAM (SINGLE LYRIC) */
     #log-stream {
       max-height: 480px;
       overflow-y: auto;
@@ -111,10 +133,10 @@
       border: 1px solid #1a1a1a;
     }
 
-    /* 5. ARTIFACTS GALLERY (COVER ART GRID) */
+    /* 6. ARTIFACTS GALLERY (8 ITEMS WITH CLICK-TO-EXPAND) */
     .gallery {
       display: grid !important;
-      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)) !important;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
       gap: 10px !important;
       padding: 8px 0;
     }
@@ -128,20 +150,39 @@
       aspect-ratio: 1 / 1;
       overflow: hidden;
       cursor: pointer;
+      position: relative;
       transition: border-color 0.2s, transform 0.2s;
     }
     .gallery-item:hover {
       border-color: #ff0033;
-      transform: scale(1.05);
+      transform: scale(1.04);
     }
     .gallery-item img {
       width: 100% !important;
       height: 100% !important;
-      object-fit: cover !important;
-      filter: grayscale(0.2) contrast(1.1);
+      object-fit: contain !important;
+      filter: grayscale(0.15) contrast(1.1);
+    }
+    .gallery-item.expanded {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: 280px !important;
+      height: 280px !important;
+      max-width: 85vw !important;
+      max-height: 85vh !important;
+      z-index: 10000 !important;
+      background: #000 !important;
+      border: 2px solid #ff0033 !important;
+      box-shadow: 0 0 50px rgba(0,0,0,0.95), 0 0 20px rgba(255,0,51,0.5) !important;
+    }
+    .gallery-item.expanded img {
+      object-fit: contain !important;
+      filter: none !important;
     }
 
-    /* 6. COVERS SELECTOR (MULTI-TRACK BANK) */
+    /* 7. COVERS SELECTOR BANK */
     .covers-bank {
       max-height: 120px;
       overflow-y: auto;
@@ -184,7 +225,7 @@
       background: rgba(255, 0, 51, 0.12);
     }
 
-    /* 7. AUDIO ROW STYLES (SLIDE-MENU SESSIONS) */
+    /* 8. AUDIO ROW STYLES */
     .audio-row {
       display: flex;
       align-items: center;
@@ -218,7 +259,7 @@
       color: #ff0033;
     }
 
-    /* 8. RED FOOTER LINKS */
+    /* 9. RED FOOTER LINKS */
     .red-footer-link {
       color: #ff0033 !important;
       font-weight: bold;
@@ -264,10 +305,19 @@
     function toggleMenu() {
       const menu = document.getElementById("slide-menu");
       const overlay = document.getElementById("menu-overlay");
-      if (menu && overlay) {
+      if (menu) {
         menu.classList.toggle("open");
-        overlay.classList.toggle("open");
+        menu.classList.toggle("active");
       }
+      if (overlay) {
+        overlay.classList.toggle("open");
+        overlay.classList.toggle("active");
+      }
+    }
+
+    /* ARTIFACT EXPAND TOGGLE */
+    function toggleArtifactZoom(el) {
+      el.classList.toggle('expanded');
     }
 
     /* ================================================================= */
@@ -445,7 +495,6 @@
 
           const playBtn = row.querySelector(".play-btn");
 
-          // Pause active if clicking same row
           if (activeRow === row && activeKeiraAudio) {
             if (!activeKeiraAudio.paused) {
               activeKeiraAudio.pause();
@@ -459,7 +508,6 @@
             return;
           }
 
-          // New Track Selected
           if (activeKeiraAudio) {
             activeKeiraAudio.pause();
             if (activeRow) {
@@ -538,7 +586,7 @@
       
       <div class="flex items-center gap-4">
         <button onclick="exportDraft()" class="text-red-700 text-[10px] font-bold">EXTRACT_lyric</button>
-        <button onclick="toggleMenu()" class="text-[10px] border border-zinc-800 px-3 py-1 hover:border-red-600 text-white menu-trigger" style="font-size: 28px; padding: 0 8px;">N▲V</button>
+        <button onclick="toggleMenu()" class="text-[10px] border border-zinc-800 px-3 py-1 hover:border-red-600 text-white menu-trigger" style="font-size: 28px; padding: 0 8px; cursor: pointer;">N▲V</button>
         <svg style="width: 24px; height: 24px; stroke: var(--red); stroke-width: 1.5; fill: none;" viewBox="0 0 100 100">
           <path class="witch-symbol" d="M50,10 L60,30 L80,35 L65,50 L70,70 L50,60 L30,70 L35,50 L20,35 L40,30 Z" />
           <circle cx="50" cy="85" r="10" />
@@ -804,18 +852,18 @@ hey charlie, what satisfaction?
       </div>
     </main>
 
-    <!-- BOTTOM CONTAINER: ARTIFACTS (COVER ARTWORKS) & COVERS DECK -->
+    <!-- BOTTOM CONTAINER: 8 ARTIFACTS (EVEN GRID WITH EXPAND) & COVERS DECK -->
     <div class="bottom-container">
       <section class="chat-section">
-        <div class="editor-header">>> ARTIFACTS // COVERS &amp; VISUAL LOGS</div>
+        <div class="editor-header">>> ARTIFACTS // VISUAL ARCHIVE [ 08 REELS ]</div>
         <div>
           <div class="gallery">
             <!-- 1. Keira Portrait -->
-            <div class="gallery-item" title="[ ARTIFACT 01 ] Keira Session Portrait">
+            <div class="gallery-item" title="[ ARTIFACT 01 ] Keira Session Portrait" onclick="toggleArtifactZoom(this)">
               <img src="https://raw.githubusercontent.com/ghostm68/666/main/twoskinnygirls.keira1782337265343.png" alt="Keira Portrait">
             </div>
             <!-- 2. Inky Visual -->
-            <div class="gallery-item" title="[ ARTIFACT 02 ] Inky Visual">
+            <div class="gallery-item" title="[ ARTIFACT 02 ] Inky Visual" onclick="toggleArtifactZoom(this)">
               <img src="https://raw.githubusercontent.com/ghostm68/99/main/inky9.gif" alt="Inky Visual">
             </div>
             <!-- 3. Bowie Fashion -->
@@ -830,8 +878,16 @@ hey charlie, what satisfaction?
             <div class="gallery-item" title="[ ARTIFACT 05 ] She Said / Beatles Reel" onclick="selectCover(1)">
               <img src="https://raw.githubusercontent.com/ghostm68/99/main/lyrics-she-said-she-said_01-768x469.jpg" alt="She Said She Said">
             </div>
-            <!-- 6. TSG Uniform Logo -->
-            <div class="gallery-item" title="[ ARTIFACT 06 ] TSG Uniform Stamp">
+            <!-- 6. WordStar Emblem -->
+            <div class="gallery-item" title="[ ARTIFACT 06 ] WordStar Nexus Emblem" onclick="toggleArtifactZoom(this)">
+              <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/wordstar_20240712_065715533.svg" alt="WordStar SVG">
+            </div>
+            <!-- 7. Obituary Merch Postcard -->
+            <div class="gallery-item" title="[ ARTIFACT 07 ] Obituary Postcard GIF" onclick="toggleArtifactZoom(this)">
+              <img src="https://github.com/ghostm68/666/raw/main/merch70807.gif" alt="Merch GIF">
+            </div>
+            <!-- 8. TSG Uniform Logo -->
+            <div class="gallery-item" title="[ ARTIFACT 08 ] TSG Uniform Stamp" onclick="toggleArtifactZoom(this)">
               <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.9843578754211122.4211.png" alt="TSG Logo">
             </div>
           </div>
