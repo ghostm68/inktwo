@@ -30,7 +30,7 @@
   <meta property="og:site_name" content="inkrealm" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="TWO SKINNY GIRLS // OFFICIAL DOSSIER" />
-  <meta property="og:description" content="Eclectic Rock & Roll — Manuscripts, Outtakes, and Covers." />
+  <meta property="og:description" content="Eclectic Rock & Roll — Manuscripts, Outtakes, Covers, and Smoke Throne Sessions." />
   <meta property="og:url" content="https://inkrealm.info/" />
   <meta property="og:image" content="https://github.com/ghostm68/666/raw/main/twoskinnygirls.keira1782337265343.png" />
 
@@ -111,13 +111,61 @@
       border: 1px solid #1a1a1a;
     }
 
-    /* 5. INTERACTIVE COVERS SELECTOR BUTTONS */
+    /* 5. ARTIFACTS GALLERY (COVER ART GRID) */
+    .gallery {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)) !important;
+      gap: 10px !important;
+      padding: 8px 0;
+    }
+    .gallery-item {
+      background: #000;
+      border: 1px solid #222;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .gallery-item:hover {
+      border-color: #ff0033;
+      transform: scale(1.05);
+    }
+    .gallery-item img {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      filter: grayscale(0.2) contrast(1.1);
+    }
+
+    /* 6. COVERS SELECTOR (MULTI-TRACK BANK) */
+    .covers-bank {
+      max-height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 10px;
+      padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: #333 #000;
+    }
+    .covers-bank::-webkit-scrollbar {
+      width: 4px;
+    }
+    .covers-bank::-webkit-scrollbar-thumb {
+      background: #333;
+    }
+
     .cover-tab-btn {
       background: #000;
       color: #777;
       border: 1px solid #222;
-      padding: 6px 10px;
-      font-size: 10px;
+      padding: 5px 8px;
+      font-size: 9px;
       text-align: left;
       cursor: pointer;
       font-family: 'Space Mono', monospace;
@@ -133,10 +181,44 @@
     .cover-tab-btn.active {
       color: #fff;
       border-color: var(--red, #ff0033);
-      background: rgba(255, 0, 51, 0.1);
+      background: rgba(255, 0, 51, 0.12);
     }
 
-    /* 6. RED FOOTER LINKS */
+    /* 7. AUDIO ROW STYLES (SLIDE-MENU SESSIONS) */
+    .audio-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #222;
+      padding: 0.6rem 0;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      transition: color 0.2s;
+    }
+    .audio-row:hover {
+      color: #fff;
+    }
+    .audio-row.playing {
+      color: #ff0033 !important;
+    }
+    .audio-row .play-btn {
+      background: #000;
+      border: 1px solid #333;
+      color: #fff;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+    .audio-row.playing .play-btn {
+      border-color: #ff0033;
+      color: #ff0033;
+    }
+
+    /* 8. RED FOOTER LINKS */
     .red-footer-link {
       color: #ff0033 !important;
       font-weight: bold;
@@ -158,7 +240,7 @@
     document.addEventListener("DOMContentLoaded", updateBodyMobileClass);
     window.addEventListener("resize", updateBodyMobileClass);
 
-    /* SPLASH SCREEN FAILSAFE DISMISS */
+    /* SPLASH SCREEN DISMISS */
     window.addEventListener("DOMContentLoaded", () => {
       const splash = document.getElementById("splashScreen");
       const dismissSplash = () => {
@@ -188,12 +270,15 @@
       }
     }
 
-    /* COVERS DECK CONTROLLER */
+    /* ================================================================= */
+    /* MASTER AUDIO ENGINE: COVERS + KEIRA SESSIONS + VISUALIZER         */
+    /* ================================================================= */
+
     const coverData = [
       {
         tag: "COVER // 01. BOWIE",
         title: "Fashion (Bowie Cover)",
-        desc: "RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, & tape-hiss guitar overdubs.",
+        desc: "RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, & tape-hiss guitar tracks.",
         src: "fashiondemo.mp3",
         feed: "FASHION (BOWIE)"
       },
@@ -210,11 +295,20 @@
         desc: "Tom Waits Live Crossroads Grit Stomp 2025. Unpolished stomp box & raw room mic acoustics.",
         src: "https://github.com/ghostm68/99/raw/refs/heads/main/twoskinnygirlslivegetbehindthemule2025.mp3",
         feed: "GET BEHIND THE MULE (LIVE)"
+      },
+      {
+        tag: "COVER // 04. DEAD / STONES",
+        title: "Cocaine Master",
+        desc: "From Casey Jones to Can't You Hear Me Knocking. Heavy room reverb outtake.",
+        src: "COCAINE MASTER.mp3",
+        feed: "COCAINE MASTER (DEMO)"
       }
     ];
 
     let currentCoverIdx = 0;
+    let visualizerInitialized = false;
 
+    // SELECT COVER
     function selectCover(idx) {
       currentCoverIdx = idx;
       const data = coverData[idx];
@@ -223,32 +317,41 @@
       document.getElementById('cover-display-desc').textContent = data.desc;
       document.getElementById('active-feed-name').textContent = data.feed;
 
-      // Update button active states
       document.querySelectorAll('.cover-tab-btn').forEach((btn, i) => {
         btn.classList.toggle('active', i === idx);
       });
 
-      // Update audio source
       const audio = document.getElementById('viz-audio');
       const wasPlaying = !audio.paused;
       audio.src = data.src;
       if (wasPlaying) {
-        audio.play();
+        audio.play().catch(e => console.log(e));
+        document.getElementById('play-cover-btn').textContent = '⏸ PAUSE';
       }
     }
 
+    // PLAY / PAUSE ACTIVE COVER
     function togglePlayActiveCover() {
       const audio = document.getElementById('viz-audio');
       const btn = document.getElementById('play-cover-btn');
+
+      if (!visualizerInitialized) {
+        initVisualizer();
+      }
+
       if (audio.paused) {
-        audio.play();
-        if (btn) btn.textContent = '⏸ PAUSE';
+        audio.play().then(() => {
+          btn.textContent = '⏸ PAUSE';
+        }).catch(err => {
+          console.log("Playback error: ", err);
+        });
       } else {
         audio.pause();
-        if (btn) btn.textContent = '▶ PLAY';
+        btn.textContent = '▶ PLAY';
       }
     }
 
+    // DOWNLOAD ACTIVE COVER
     function downloadActiveCover() {
       const data = coverData[currentCoverIdx];
       const link = document.createElement('a');
@@ -257,6 +360,142 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+
+    // NATIVE CANVAS OSCILLOSCOPE / VISUALIZER
+    function initVisualizer() {
+      const canvas = document.getElementById('sigil-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const audio = document.getElementById('viz-audio');
+
+      let phase = 0;
+      function drawSigil() {
+        requestAnimationFrame(drawSigil);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const isPlaying = !audio.paused;
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        if (isPlaying) {
+          phase += 0.08;
+          ctx.strokeStyle = '#ff0033';
+          ctx.lineWidth = 1.5;
+
+          // Waveform Ring
+          ctx.beginPath();
+          for (let i = 0; i < 360; i += 4) {
+            const rad = (i * Math.PI) / 180;
+            const r = 50 + Math.sin(rad * 8 + phase) * 14 + Math.cos(rad * 4 - phase) * 8;
+            const x = cx + r * Math.cos(rad);
+            const y = cy + r * Math.sin(rad);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+
+          // Central Sigil Star
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let j = 0; j < 5; j++) {
+            const a = (j * 4 * Math.PI) / 5 - Math.PI / 2 + phase * 0.3;
+            const sx = cx + 32 * Math.cos(a);
+            const sy = cy + 32 * Math.sin(a);
+            if (j === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        } else {
+          // Idle Reticle
+          ctx.strokeStyle = '#333333';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ff0033';
+          ctx.beginPath();
+          ctx.moveTo(cx - 10, cy);
+          ctx.lineTo(cx + 10, cy);
+          ctx.moveTo(cx, cy - 10);
+          ctx.lineTo(cx, cy + 10);
+          ctx.stroke();
+        }
+      }
+      drawSigil();
+      visualizerInitialized = true;
+    }
+
+    // KEIRA SESSIONS AUDIO ENGINE (SLIDE MENU)
+    let activeKeiraAudio = null;
+    let activeRow = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initVisualizer();
+
+      document.querySelectorAll(".audio-row").forEach(row => {
+        row.addEventListener("click", () => {
+          const src = row.getAttribute("data-src");
+          if (!src) return;
+
+          const playBtn = row.querySelector(".play-btn");
+
+          // Pause active if clicking same row
+          if (activeRow === row && activeKeiraAudio) {
+            if (!activeKeiraAudio.paused) {
+              activeKeiraAudio.pause();
+              row.classList.remove("playing");
+              if (playBtn) playBtn.textContent = "▶";
+            } else {
+              activeKeiraAudio.play();
+              row.classList.add("playing");
+              if (playBtn) playBtn.textContent = "⏸";
+            }
+            return;
+          }
+
+          // New Track Selected
+          if (activeKeiraAudio) {
+            activeKeiraAudio.pause();
+            if (activeRow) {
+              activeRow.classList.remove("playing");
+              const oldBtn = activeRow.querySelector(".play-btn");
+              if (oldBtn) oldBtn.textContent = "▶";
+            }
+          }
+
+          activeKeiraAudio = new Audio(src);
+          activeRow = row;
+          row.classList.add("playing");
+          if (playBtn) playBtn.textContent = "⏸";
+
+          activeKeiraAudio.play().catch(e => console.log("Audio play blocked", e));
+
+          activeKeiraAudio.onended = () => {
+            row.classList.remove("playing");
+            if (playBtn) playBtn.textContent = "▶";
+          };
+        });
+      });
+    });
+
+    // TTS SCREENPLAY READER TRIGGER
+    function toggleTTS(element) {
+      if (!('speechSynthesis' in window)) return;
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        return;
+      }
+      const text = element.innerText || element.textContent;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 0.9;
+      window.speechSynthesis.speak(utterance);
     }
   </script>
 </head>
@@ -323,7 +562,7 @@
       <div class="story-panel" id="editor">
         <div style="color:var(--red); border-bottom:1px solid #333; margin-bottom:15px; padding-bottom:5px">
           DOSSIER // PRIMARY_TRANSCRIPTION_LOGS
-          <span class="tts-trigger" onclick="toggleTTS(document.getElementById('editor'))" title="Read screenplay">▶</span>
+          <span class="tts-trigger" onclick="toggleTTS(document.getElementById('editor'))" title="Read Screenplay">▶</span>
         </div>
         
         <p><strong>aint no wifey music lyric all rights reserved</strong></p>
@@ -565,48 +804,63 @@ hey charlie, what satisfaction?
       </div>
     </main>
 
-    <!-- BOTTOM CONTAINER: SWAG GALLERY & SIDE-BY-SIDE COVERS VISUALIZER DECK -->
+    <!-- BOTTOM CONTAINER: ARTIFACTS (COVER ARTWORKS) & COVERS DECK -->
     <div class="bottom-container">
       <section class="chat-section">
-        <div class="editor-header">>> SWAG_ARTIFACTS // LOGOS &amp; EDITIONS</div>
+        <div class="editor-header">>> ARTIFACTS // COVERS &amp; VISUAL LOGS</div>
         <div>
           <div class="gallery">
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_085621279.png" alt="Swag 1"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_085025965.png" alt="Swag 2"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_084559581.png" alt="Swag 3"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.46790642.097532222.png" alt="Swag 4"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.7777_3874335.09865.png" alt="Swag 5"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo6666.7437+660..png" alt="Swag 6"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.08636863256.97645775670.png" alt="Swag 7"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.9843578754211122.4211.png" alt="Swag 8"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo_20240914_090606131.png" alt="Swag 9"></div>
-            <div class="gallery-item"><img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogoM1726319090015.png" alt="Swag 10"></div>
+            <!-- 1. Keira Portrait -->
+            <div class="gallery-item" title="[ ARTIFACT 01 ] Keira Session Portrait">
+              <img src="https://raw.githubusercontent.com/ghostm68/666/main/twoskinnygirls.keira1782337265343.png" alt="Keira Portrait">
+            </div>
+            <!-- 2. Inky Visual -->
+            <div class="gallery-item" title="[ ARTIFACT 02 ] Inky Visual">
+              <img src="https://raw.githubusercontent.com/ghostm68/99/main/inky9.gif" alt="Inky Visual">
+            </div>
+            <!-- 3. Bowie Fashion -->
+            <div class="gallery-item" title="[ ARTIFACT 03 ] Bowie Fashion Reel" onclick="selectCover(0)">
+              <img src="https://raw.githubusercontent.com/ghostm68/99/main/bowiefashion.jpg" alt="Bowie Fashion">
+            </div>
+            <!-- 4. Grateful Dead -->
+            <div class="gallery-item" title="[ ARTIFACT 04 ] Grateful Dead Reel" onclick="selectCover(3)">
+              <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/gratefuldead.gif" alt="Grateful Dead">
+            </div>
+            <!-- 5. She Said She Said -->
+            <div class="gallery-item" title="[ ARTIFACT 05 ] She Said / Beatles Reel" onclick="selectCover(1)">
+              <img src="https://raw.githubusercontent.com/ghostm68/99/main/lyrics-she-said-she-said_01-768x469.jpg" alt="She Said She Said">
+            </div>
+            <!-- 6. TSG Uniform Logo -->
+            <div class="gallery-item" title="[ ARTIFACT 06 ] TSG Uniform Stamp">
+              <img src="https://raw.githubusercontent.com/ghostm68/pantheon/main/skinnylogo.9843578754211122.4211.png" alt="TSG Logo">
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- SIDE-BY-SIDE COVERS & VISUALIZER DECK -->
+      <!-- COVERS VISUALIZER DECK -->
       <section class="sigil-forge">
         <div class="absolute top-2 left-4 text-[9px] text-zinc-700 uppercase tracking-widest">_PLAYERS // COVERS_DECK</div>
         
         <div style="display: flex; gap: 20px; align-items: flex-start; margin-top: 30px; flex-wrap: wrap;">
           
-          <!-- LEFT: Dynamic Cover Info & Selector -->
+          <!-- LEFT: Dynamic Cover Info & Selector Bank -->
           <div style="flex: 1; min-width: 200px;">
             <div id="cover-badge-tag" style="color:var(--red); font-size:9px; margin-bottom:5px; font-family:'Special Elite';">
               COVER // 01. BOWIE
             </div>
             <div style="background:#000; border:1px solid #333; padding:12px; min-height: 188px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <h4 id="cover-display-title" style="color:#fff; font-size:12px; font-family:'Space Mono', monospace; margin-bottom:6px;">Fashion (Bowie Cover)</h4>
-                <p id="cover-display-desc" style="color:#888; font-size:10px; line-height:1.5;">RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, &amp; tape-hiss guitar overdubs.</p>
+                <h4 id="cover-display-title" style="color:#fff; font-size:11px; font-family:'Space Mono', monospace; margin-bottom:4px;">Fashion (Bowie Cover)</h4>
+                <p id="cover-display-desc" style="color:#888; font-size:9px; line-height:1.4;">RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, &amp; tape-hiss guitar tracks.</p>
               </div>
               
-              <!-- Quick Select Buttons -->
-              <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;">
+              <!-- Multi-Track Bank -->
+              <div class="covers-bank">
                 <button onclick="selectCover(0)" class="cover-tab-btn active">01. Fashion [Bowie]</button>
                 <button onclick="selectCover(1)" class="cover-tab-btn">02. She Said / Easy Rider</button>
-                <button onclick="selectCover(2)" class="cover-tab-btn">03. Get Behind the Mule [Waits Live]</button>
+                <button onclick="selectCover(2)" class="cover-tab-btn">03. Get Behind the Mule [Waits]</button>
+                <button onclick="selectCover(3)" class="cover-tab-btn">04. Cocaine Master [Dead/Stones]</button>
               </div>
             </div>
           </div>
@@ -765,22 +1019,22 @@ hey charlie, what satisfaction?
             </p>
 
             <div class="audio-list">
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%27scountryTWOSKINNYGIRLS06222026.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%27scountryTWOSKINNYGIRLS06222026.mp3">
                 <span class="t-num">01</span><span class="t-name">The Sunrise Cut — 06.22</span><div class="play-btn">▶</div>
               </div>
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20evening2.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20evening2.mp3">
                 <span class="t-num">02</span><span class="t-name">The Evening Cut — 06.21</span><div class="play-btn">▶</div>
               </div>
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20sunday2.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20sunday2.mp3">
                 <span class="t-num">03</span><span class="t-name">The Sunday Cut — 06.21</span><div class="play-btn">▶</div>
               </div>
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/semen3.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/semen3.mp3">
                 <span class="t-num">04</span><span class="t-name">The Semen Cut — 06.20</span><div class="play-btn">▶</div>
               </div>
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20seventeen%20mid.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/keira%20seventeen%20mid.mp3">
                 <span class="t-num">05</span><span class="t-name">The Seventeen Cut — 06.17</span><div class="play-btn">▶</div>
               </div>
-              <div class="audio-row" style="padding: 0.5rem 0;" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/k616h.mp3">
+              <div class="audio-row" data-src="https://raw.githubusercontent.com/ghostm68/eg/main/k616h.mp3">
                 <span class="t-num">06</span><span class="t-name">The Initial Cut — 06.16</span><div class="play-btn">▶</div>
               </div>
             </div>
@@ -790,7 +1044,5 @@ hey charlie, what satisfaction?
     </div>
   </div>
 
-  <!-- SCRIPT ENGINE -->
-  <script src="/js/616.js"></script>
 </body>
 </html>
