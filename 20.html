@@ -111,31 +111,29 @@
       border: 1px solid #1a1a1a;
     }
 
-    /* 5. COVERS PLAYER DECK */
-    .covers-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-top: 15px;
-    }
-    .cover-card {
+    /* 5. INTERACTIVE COVERS SELECTOR BUTTONS */
+    .cover-tab-btn {
       background: #000;
+      color: #777;
       border: 1px solid #222;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .cover-card h5 {
-      color: #fff;
-      font-size: 11px;
-      margin-bottom: 4px;
+      padding: 6px 10px;
+      font-size: 10px;
+      text-align: left;
+      cursor: pointer;
       font-family: 'Space Mono', monospace;
+      transition: all 0.2s ease;
+      display: block;
+      width: 100%;
     }
-    .cover-card p {
-      color: #666;
-      font-size: 9px;
-      margin-bottom: 8px;
+    .cover-tab-btn:hover {
+      color: #fff;
+      border-color: #555;
+      background: #0d0d0d;
+    }
+    .cover-tab-btn.active {
+      color: #fff;
+      border-color: var(--red, #ff0033);
+      background: rgba(255, 0, 51, 0.1);
     }
 
     /* 6. RED FOOTER LINKS */
@@ -189,6 +187,77 @@
         overlay.classList.toggle("open");
       }
     }
+
+    /* COVERS DECK CONTROLLER */
+    const coverData = [
+      {
+        tag: "COVER // 01. BOWIE",
+        title: "Fashion (Bowie Cover)",
+        desc: "RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, & tape-hiss guitar overdubs.",
+        src: "fashiondemo.mp3",
+        feed: "FASHION (BOWIE)"
+      },
+      {
+        tag: "COVER // 02. BEATLES & FONDA",
+        title: "She Said / Easy Rider",
+        desc: "1965 Trip Log colliding with Peter Fonda Memorial reel. Acid-guitar drone & tape loop.",
+        src: "said easy.mp3",
+        feed: "SHE SAID / EASY RIDER"
+      },
+      {
+        tag: "COVER // 03. TOM WAITS LIVE",
+        title: "Get Behind the Mule",
+        desc: "Tom Waits Live Crossroads Grit Stomp 2025. Unpolished stomp box & raw room mic acoustics.",
+        src: "https://github.com/ghostm68/99/raw/refs/heads/main/twoskinnygirlslivegetbehindthemule2025.mp3",
+        feed: "GET BEHIND THE MULE (LIVE)"
+      }
+    ];
+
+    let currentCoverIdx = 0;
+
+    function selectCover(idx) {
+      currentCoverIdx = idx;
+      const data = coverData[idx];
+      document.getElementById('cover-badge-tag').textContent = data.tag;
+      document.getElementById('cover-display-title').textContent = data.title;
+      document.getElementById('cover-display-desc').textContent = data.desc;
+      document.getElementById('active-feed-name').textContent = data.feed;
+
+      // Update button active states
+      document.querySelectorAll('.cover-tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === idx);
+      });
+
+      // Update audio source
+      const audio = document.getElementById('viz-audio');
+      const wasPlaying = !audio.paused;
+      audio.src = data.src;
+      if (wasPlaying) {
+        audio.play();
+      }
+    }
+
+    function togglePlayActiveCover() {
+      const audio = document.getElementById('viz-audio');
+      const btn = document.getElementById('play-cover-btn');
+      if (audio.paused) {
+        audio.play();
+        if (btn) btn.textContent = '⏸ PAUSE';
+      } else {
+        audio.pause();
+        if (btn) btn.textContent = '▶ PLAY';
+      }
+    }
+
+    function downloadActiveCover() {
+      const data = coverData[currentCoverIdx];
+      const link = document.createElement('a');
+      link.href = data.src;
+      link.download = data.title.replace(/[^a-zA-Z0-9]/g, '_') + '.mp3';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   </script>
 </head>
 <body>
@@ -239,7 +308,7 @@
       </div>
     </header>
              
-    <!-- SIDEBAR: KRISTIN MOSCOW LOOP REPLACES INKREALM GIF -->
+    <!-- SIDEBAR: KRISTIN MOSCOW LOOP -->
     <aside class="sidebar text-[10px]">
       <div class="kristin-badge" title="[ VISUAL_LOG // kristin.tsg.ru ]">
         <video autoplay muted loop playsinline>
@@ -496,7 +565,7 @@ hey charlie, what satisfaction?
       </div>
     </main>
 
-    <!-- BOTTOM CONTAINER: SWAG & COVERS MEDIA DECK -->
+    <!-- BOTTOM CONTAINER: SWAG GALLERY & SIDE-BY-SIDE COVERS VISUALIZER DECK -->
     <div class="bottom-container">
       <section class="chat-section">
         <div class="editor-header">>> SWAG_ARTIFACTS // LOGOS &amp; EDITIONS</div>
@@ -516,57 +585,61 @@ hey charlie, what satisfaction?
         </div>
       </section>
 
-      <!-- COVERS MEDIA DECK (POPULATED WITH COVERS) -->
+      <!-- SIDE-BY-SIDE COVERS & VISUALIZER DECK -->
       <section class="sigil-forge">
-        <div class="absolute top-2 left-4 text-[9px] text-zinc-700 uppercase tracking-widest">_PLAYERS // COVERS DECK</div>
+        <div class="absolute top-2 left-4 text-[9px] text-zinc-700 uppercase tracking-widest">_PLAYERS // COVERS_DECK</div>
         
-        <div class="covers-grid">
-          <!-- COVER 1: BOWIE FASHION -->
-          <div class="cover-card">
-            <div>
-              <h5>Fashion (Bowie Cover)</h5>
-              <p>RCA 1980 Berlin Hangover Translation.</p>
+        <div style="display: flex; gap: 20px; align-items: flex-start; margin-top: 30px; flex-wrap: wrap;">
+          
+          <!-- LEFT: Dynamic Cover Info & Selector -->
+          <div style="flex: 1; min-width: 200px;">
+            <div id="cover-badge-tag" style="color:var(--red); font-size:9px; margin-bottom:5px; font-family:'Special Elite';">
+              COVER // 01. BOWIE
             </div>
-            <audio controls style="width: 100%; height: 28px; filter: invert(1) hue-rotate(180deg);">
+            <div style="background:#000; border:1px solid #333; padding:12px; min-height: 188px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <h4 id="cover-display-title" style="color:#fff; font-size:12px; font-family:'Space Mono', monospace; margin-bottom:6px;">Fashion (Bowie Cover)</h4>
+                <p id="cover-display-desc" style="color:#888; font-size:10px; line-height:1.5;">RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, &amp; tape-hiss guitar overdubs.</p>
+              </div>
+              
+              <!-- Quick Select Buttons -->
+              <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 12px;">
+                <button onclick="selectCover(0)" class="cover-tab-btn active">01. Fashion [Bowie]</button>
+                <button onclick="selectCover(1)" class="cover-tab-btn">02. She Said / Easy Rider</button>
+                <button onclick="selectCover(2)" class="cover-tab-btn">03. Get Behind the Mule [Waits Live]</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- RIGHT: Live Canvas Visualizer & Audio Controls -->
+          <div style="flex: 1; min-width: 188px; max-width: 220px;">
+            <div style="color:#666; font-size:9px; margin-bottom:5px; font-family:'Special Elite';">
+              press below to play visualizer
+            </div>
+            
+            <canvas id="sigil-canvas" width="188" height="188" 
+                    style="background:#000; border:1px solid #333; margin-bottom:10px; display:block; cursor:pointer;"
+                    onclick="togglePlayActiveCover()"></canvas>
+            
+            <audio id="viz-audio" preload="auto">
               <source src="fashiondemo.mp3" type="audio/mpeg">
             </audio>
-          </div>
-
-          <!-- COVER 2: SHE SAID / EASY RIDER -->
-          <div class="cover-card">
-            <div>
-              <h5>She Said / Easy Rider</h5>
-              <p>1965 Trip Log colliding with Fonda Memorial.</p>
+            
+            <div style="display: flex; gap: 6px;">
+              <button id="play-cover-btn" onclick="togglePlayActiveCover()" 
+                      style="background:#000; color:#fff; border:1px solid #333; padding:5px 8px; font-size:9px; cursor:pointer; flex: 1; font-family:'Space Mono', monospace;">
+                ▶ PLAY
+              </button>
+              <button onclick="downloadActiveCover()" 
+                      style="background:#000; color:#ff0033; border:1px solid #333; padding:5px 8px; font-size:9px; cursor:pointer; width:50px; font-family:'Space Mono', monospace;"
+                      title="Download active track">
+                ↓ MP3
+              </button>
             </div>
-            <audio controls style="width: 100%; height: 28px; filter: invert(1) hue-rotate(180deg);">
-              <source src="said easy.mp3" type="audio/mpeg">
-            </audio>
-          </div>
-
-          <!-- COVER 3: GET BEHIND THE MULE -->
-          <div class="cover-card">
-            <div>
-              <h5>Get Behind the Mule</h5>
-              <p>Tom Waits Live Crossroads Grit Stomp 2025.</p>
-            </div>
-            <audio controls style="width: 100%; height: 28px; filter: invert(1) hue-rotate(180deg);">
-              <source src="https://github.com/ghostm68/99/raw/refs/heads/main/twoskinnygirlslivegetbehindthemule2025.mp3" type="audio/mpeg">
-            </audio>
-          </div>
-
-          <!-- COVER 4: COCAINE MASTER -->
-          <div class="cover-card">
-            <div>
-              <h5>Cocaine Master</h5>
-              <p>From Casey Jones to Can't You Hear Me Knocking.</p>
-            </div>
-            <audio controls style="width: 100%; height: 28px; filter: invert(1) hue-rotate(180deg);">
-              <source src="COCAINE MASTER.mp3" type="audio/mpeg">
-            </audio>
           </div>
         </div>
         
-        <div id="witch-status" class="mt-4 text-[10px] text-red-900 font-bold uppercase">* COVERS ARCHIVE: ACTIVE</div>
+        <div id="witch-status" class="mt-4 text-[10px] text-red-900 font-bold uppercase">* ACTIVE FEED: <span id="active-feed-name">FASHION (BOWIE)</span></div>
       </section>
     </div>
 
