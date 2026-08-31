@@ -86,6 +86,13 @@ const coverData = [
     desc: "From Casey Jones to Can't You Hear Me Knocking. Heavy room reverb outtake.",
     src: "COCAINE MASTER.mp3",
     feed: "COCAINE MASTER (DEMO)"
+  },
+  {
+    tag: "COVER // 05. ARMAGEDDON",
+    title: "Armageddon (Two Skinny Girls)",
+    desc: "Archive Master recording. Industrial overdrive pulse & raw basement guitar drone.",
+    src: "armaggedon two skinny girls.mp3",
+    feed: "ARMAGEDDON // TSG"
   }
 ];
 
