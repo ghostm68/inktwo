@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>atj</title>
+<title>MINERVA IN FLESH: A HYPOTHESIS</title>
+<meta name="description" content="Minerva in flesh. A theory of dual personification into celluloid serving also as praise for the Thoroughbreds star">
+<meta name="author" content="inky">
 
 <!-- Modern Three.js Import Map -->
 <script type="importmap">
@@ -356,11 +358,9 @@ header {
 }
 
 @media (max-width: 768px) {
-  /* Prevents portrait cropping on Chapter 1 */
   .chapter[data-index="0"] .chapter-bg {
-    background-size: contain !important;
-    background-repeat: no-repeat !important;
-    background-position: center 6% !important;
+    background-size: cover !important;
+    background-position: center top !important;
   }
 }
 
@@ -630,6 +630,45 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && isMenuOpen) closeMenu();
 });
 
+ /* ── MOBILE TOUCH SWIPE & DESKTOP WHEEL SCROLL ── */
+let touchStartY = 0;
+let touchStartX = 0;
+let gestureLock = false;
+
+// 1. Mobile Touch Swipe (Swipe up/left for next, down/right for prev)
+window.addEventListener('touchstart', (e) => {
+  touchStartY = e.touches[0].clientY;
+  touchStartX = e.touches[0].clientX;
+}, { passive: true });
+
+window.addEventListener('touchend', (e) => {
+  if (gestureLock) return;
+  const deltaY = touchStartY - e.changedTouches[0].clientY;
+  const deltaX = touchStartX - e.changedTouches[0].clientX;
+
+  // 45px swipe threshold
+  if (Math.abs(deltaY) > 45 || Math.abs(deltaX) > 45) {
+    gestureLock = true;
+    if (deltaY > 45 || deltaX > 45) {
+      showChapter(current + 1);
+    } else {
+      showChapter(current - 1);
+    }
+    setTimeout(() => { gestureLock = false; }, 600); // Debounce lock to prevent double-skipping
+  }
+}, { passive: true });
+
+// 2. Desktop Mousewheel / Trackpad Swipe
+let wheelThrottle = 0;
+window.addEventListener('wheel', (e) => {
+  const now = Date.now();
+  if (now - wheelThrottle < 800) return; // 800ms throttle
+  if (Math.abs(e.deltaY) > 25) {
+    wheelThrottle = now;
+    if (e.deltaY > 0) showChapter(current + 1);
+    else showChapter(current - 1);
+  }
+}, { passive: true }); 
 /* ── 3. THREE.JS 3D RELIQUARY ENGINE (EXACT CODE) ── */
 (function initThreeReliquary() {
   const container = document.getElementById('three-viewport');
