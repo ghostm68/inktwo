@@ -1,667 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>atj</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Anya Taylor-Joy — The Vessel & The Engine</title>
+  <meta name="description" content="A cinematic, multi-chapter artifact documenting the vessel and strategy of Athena.">
 
-<!-- Modern Three.js Import Map -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+  <!-- FONTS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
-<style>
-:root {
-  --ink: #050505;
-  --bone: #e8e0cc;
-  --bone-dim: #a89f8a;
-  --nickel: #b08d57;
-  --red: #ff0000;
-  --accent-primary: #ff0000;
-  --accent-secondary: #550000;
-  --text-main: #ffffff;
-  --text-dim: #a89f8a;
-  --line: rgba(232, 224, 204, 0.28);
-  --line-soft: rgba(232, 224, 204, 0.14);
-  --font-serif: Georgia, "Times New Roman", serif;
-  --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "Share Tech Mono", monospace;
-}
+  <!-- THREE.JS FOR 3D COIN / RELIQUARY -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-::selection { background: var(--red); color: var(--ink); }
+  <style>
+    :root {
+      --bg: #0b0908;
+      --text: #f0e6d6;
+      --gold: #c9a050;
+      --gold-dim: #6b5528;
+      --red: #8b2500;
+      --red-bright: #c83711;
+      --font-serif: 'Cinzel', serif;
+      --font-body: 'Cormorant Garamond', serif;
+      --font-mono: 'Share Tech Mono', monospace;
+      --transition: cubic-bezier(0.16, 1, 0.3, 1);
+    }
 
-html, body {
-  width: 100%; height: 100%;
-  background: var(--ink);
-  color: var(--bone);
-  font-family: var(--font-sans);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-}
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
 
-/* ── CHAPTER SHELL ── */
-.chapter {
-  position: fixed;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: flex-end;
-}
-.chapter.active {
-  opacity: 1;
-  pointer-events: auto;
-}
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 18px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
 
-.chapter-bg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.55) saturate(0.8) contrast(1.05);
-  transform: scale(1.04);
-  transition: transform 1.4s ease-out, filter 0.8s ease;
-}
-.chapter.active .chapter-bg {
-  transform: scale(1);
-}
+    /* SVG Grain Filter Overlay */
+    .grain-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.14;
+      mix-blend-mode: overlay;
+    }
 
-/* Video background variant */
-.chapter-bg.video-bg {
-  background-image: none !important;
-  filter: none;
-  overflow: hidden;
-}
-.chapter-bg.video-bg video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: brightness(0.55) saturate(0.8) contrast(1.05);
-  transform: scale(1.04);
-  transition: transform 1.4s ease-out, filter 0.8s ease;
-}
-.chapter.active .chapter-bg.video-bg video {
-  transform: scale(1);
-}
+    /* Red Scanlines */
+    #scanlines {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9998;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(139, 37, 0, 0.08) 50%,
+        rgba(139, 37, 0, 0.08)
+      );
+      background-size: 100% 4px;
+      opacity: 0.8;
+    }
 
-.chapter::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 70% 30%, transparent 20%, rgba(5,5,5,0.7) 100%),
-    linear-gradient(to top, rgba(5,5,5,0.92) 0%, rgba(5,5,5,0.3) 50%, transparent 80%);
-  z-index: 1;
-}
+    /* Vignette */
+    #vignette {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9997;
+      background: radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.88) 100%);
+    }
 
-.chapter::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 2;
-}
+    /* 3D WebGL Canvas */
+    #bg-canvas {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      height: 320px;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0.85;
+    }
 
-/* ── CONTENT AREA (LEFT-ALIGNED & CLEAR OF 3D) ── */
-.chapter-content {
-  position: relative;
-  z-index: 3;
-  padding: 0 6vw 10vh;
-  max-width: 620px;
-}
+    /* FIXED HEADER & MENU */
+    header {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      padding: 30px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      box-sizing: border-box;
+    }
 
-.chapter-content h1 {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(34px, 5vw, 64px);
-  letter-spacing: -0.01em;
-  line-height: 1.05;
-  margin-bottom: 20px;
-  color: var(--bone);
-  text-shadow: 0 2px 20px rgba(0,0,0,0.6);
-}
+    .brand {
+      font-family: var(--font-serif);
+      font-size: 0.95rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-.chapter-content p {
-  font-size: 16px;
-  line-height: 1.85;
-  color: var(--bone-dim);
-  margin-bottom: 34px;
-  max-width: 460px;
-  text-shadow: 0 1px 8px rgba(0,0,0,0.5);
-}
+    .brand::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--red-bright);
+      box-shadow: 0 0 8px var(--red-bright);
+      transform: rotate(45deg);
+    }
 
-/* ── INNER LINKS ── */
-.inner-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--nickel);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  padding-bottom: 2px;
-  transition: all 0.35s ease;
-  cursor: pointer;
-  background: none; border: none; font-family: var(--font-mono);
-}
-.inner-link::after {
-  content: '→';
-  transition: transform 0.35s ease;
-}
-.inner-link:hover {
-  color: var(--bone);
-  border-bottom-color: var(--nickel);
-}
-.inner-link:hover::after {
-  transform: translateX(4px);
-}
+    #header-links {
+      display: flex;
+      gap: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
 
-/* ── 3D RELIQUARY — fully visible, compact lower-right ── */
-#reliquary-stage {
-  position: fixed;
-  bottom: 3vh;
-  right: 3vw;
-  width: clamp(200px, 22vw, 320px);
-  height: clamp(200px, 22vw, 320px);
-  z-index: 10;
-  pointer-events: none;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
+    #header-links a {
+      color: var(--text);
+      text-decoration: none;
+      opacity: 0.6;
+      transition: opacity 0.2s, color 0.2s;
+      cursor: pointer;
+    }
 
-#three-viewport {
-  width: 100%;
-  height: 100%;
-}
+    #header-links a:hover, #header-links a.active {
+      opacity: 1;
+      color: var(--gold);
+    }
 
-.reliquary-header,
-.reliquary-footer {
-  display: none;
-}
+    .menu-toggle {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid rgba(201, 160, 80, 0.2);
+      transition: all 0.3s;
+      background: rgba(11, 9, 8, 0.6);
+      backdrop-filter: blur(4px);
+    }
 
-/* ── HEADER & TYPING NAV ── */
-header {
-  position: fixed;
-  top: 28px;
-  left: 28px;
-  right: 28px;
-  display: flex;
-  align-items: center;
-  z-index: 100;
-  pointer-events: none;
-}
+    .menu-toggle:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
 
-.menu-toggle {
-  pointer-events: auto;
-  width: 44px;
-  height: 44px;
-  background: rgba(5,5,5,0.4);
-  border: 1px solid var(--line-soft);
-  color: var(--bone);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-  transition: all 0.25s ease;
-  flex-shrink: 0;
-}
+    /* FULLSCREEN CHAPTER SYSTEM */
+    #chapters-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
 
-.menu-toggle:hover {
-  background: var(--accent-primary);
-  color: black;
-  box-shadow: 0 0 10px var(--accent-primary);
-  border-color: var(--accent-primary);
-}
+    .chapter {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.8s var(--transition), visibility 0.8s;
+      display: flex;
+      align-items: center;
+      padding: 0 8vw;
+      box-sizing: border-box;
+      z-index: 1;
+    }
 
-.header-typing-wrapper {
-  pointer-events: auto;
-  margin-left: 24px;
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: var(--accent-primary);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  font-family: var(--font-mono);
-  gap: 4px 0;
-}
+    .chapter.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 2;
+    }
 
-.header-typing-wrapper a {
-  color: var(--text-dim);
-  text-decoration: none;
-  margin-right: 18px;
-  position: relative;
-  transition: color 0.3s, text-shadow 0.3s;
-  cursor: pointer;
-}
+    .chapter-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center;
+      filter: contrast(115%) brightness(48%);
+      transform: scale(1.04);
+      transition: transform 1.8s var(--transition), filter 1.8s var(--transition);
+      z-index: -1;
+    }
 
-.header-typing-wrapper a:hover {
-  color: var(--text-main);
-  text-shadow: 0 0 5px var(--text-main);
-}
+    .chapter-bg video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
-/* ── PROGRESS & SCANLINES ── */
-#progress {
-  position: fixed;
-  bottom: 28px;
-  left: 6vw;
-  z-index: 50;
-  font-size: 11px;
-  letter-spacing: 0.25em;
-  font-family: var(--font-mono);
-  color: var(--bone-dim);
-  opacity: 0.6;
-  pointer-events: none;
-}
+    .chapter.active .chapter-bg {
+      transform: scale(1);
+      filter: contrast(120%) brightness(55%);
+    }
 
-#scanlines {
-  position: fixed;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg, transparent, transparent 2px,
-    rgba(255,0,0,0.025) 2px, rgba(255,0,0,0.025) 4px
-  );
-  opacity: 0.4;
-}
+    .chapter-content {
+      max-width: 620px;
+      transform: translateY(24px);
+      transition: transform 0.9s var(--transition) 0.15s;
+    }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 900px) {
-  #reliquary-stage {
-    width: clamp(140px, 36vw, 200px);
-    height: clamp(140px, 36vw, 200px);
-    bottom: 2vh;
-    right: 2vw;
-    opacity: 0.92;
-  }
-  .chapter-content {
-    padding: 0 5vw 14vh;
-    max-width: 100%;
-  }
-  .header-typing-wrapper {
-    font-size: 0.7rem;
-    letter-spacing: 1px;
-  }
-  .header-typing-wrapper a {
-    margin-right: 12px;
-  }
-}
+    .chapter.active .chapter-content {
+      transform: translateY(0);
+    }
 
-@media (max-width: 480px) {
-  #reliquary-stage {
-    width: 130px;
-    height: 130px;
-    bottom: 1.5vh;
-    right: 1.5vw;
-  }
-  header {
-    top: 16px;
-    left: 12px;
-    right: 12px;
-  }
-  .menu-toggle {
-    width: 38px;
-    height: 38px;
-  }
-}
-</style>
+    .chapter-num {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--gold);
+      letter-spacing: 0.25em;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 5vw, 4.2rem);
+      line-height: 1.05;
+      font-weight: 400;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #fff;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+
+    p {
+      font-size: clamp(1.1rem, 1.4vw, 1.35rem);
+      line-height: 1.6;
+      color: #d6ccbe;
+      margin-bottom: 34px;
+      font-weight: 300;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+    }
+
+    /* ACTION BUTTONS (NEXT & BACK) */
+    .chapter-nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .inner-link {
+      background: none;
+      border: none;
+      color: var(--gold);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      position: relative;
+    }
+
+    .inner-link::after {
+      content: '→';
+      transition: transform 0.3s ease;
+    }
+
+    .inner-link:hover::after {
+      transform: translateX(6px);
+    }
+
+    .inner-link.prev::before {
+      content: '←';
+      transition: transform 0.3s ease;
+    }
+
+    .inner-link.prev::after {
+      content: '';
+    }
+
+    .inner-link.prev:hover::before {
+      transform: translateX(-6px);
+    }
+
+    .inner-link.prev {
+      color: #9c9284;
+    }
+    .inner-link.prev:hover {
+      color: var(--text);
+    }
+
+    /* PROGRESS & CHAPTER COUNTER */
+    #progress-dock {
+      position: fixed;
+      bottom: 36px;
+      left: 40px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      z-index: 100;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .dots-wrapper {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .dot.active {
+      background: var(--gold);
+      box-shadow: 0 0 8px var(--gold);
+      transform: scale(1.25);
+    }
+
+    #nav-counter {
+      letter-spacing: 0.15em;
+      color: var(--gold-dim);
+    }
+
+    @media (max-width: 768px) {
+      header { padding: 20px; }
+      #header-links { display: none; }
+      #bg-canvas { width: 180px; height: 180px; bottom: 10px; right: 10px; }
+      #progress-dock { bottom: 20px; left: 20px; }
+      .chapter { padding: 0 24px; }
+      .chapter-nav-actions { gap: 14px; }
+    }
+  </style>
 </head>
 <body>
 
-<div id="scanlines"></div>
+  <!-- SVG FILTER FOR ANALOG NOISE GRAIN -->
+  <svg class="grain-overlay" xmlns="http://www.w3.org/2000/svg">
+    <filter id="noiseFilter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.75 0"/>
+    </filter>
+    <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+  </svg>
 
-<!-- ═══════ HEADER WITH TYPING NAV ═══════ -->
-<header>
-  <div class="menu-toggle" id="menuBtn" title="Chambers Index">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <!-- 3D ROTATING COIN / RELIQUARY -->
+  <div id="bg-canvas"></div>
+
+  <!-- HEADER -->
+  <header>
+    <a href="#" class="brand" onclick="showChapter(0); return false;">ATJ // MINERVA</a>
+    <nav id="header-links"></nav>
+    <button class="menu-toggle" id="menuBtn">MENU</button>
+  </header>
+
+  <!-- CHAPTERS -->
+  <main id="chapters-container">
+
+    <!-- CHAPTER I: PROFILE -->
+    <section class="chapter active" data-index="0">
+      <div class="chapter-bg" style="background-color:#1a0f0a; background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/smoking-anya-taylor-joy-dith.gif');"></div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 01</span>
+        <h1>The Geometry of Gaze</h1>
+        <p>A deity does not inhabit marble forever. Stone decays; bronze oxidizes; temples crumble to dust. To endure the modern centuries, the strategist required bone, breath, and an optic nerve capable of calculating trajectories in the dark.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link" data-goto="1">Track the transmission</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER II: MINERVA -->
+    <section class="chapter" data-index="1">
+      <div class="chapter-bg" style="background-color:#2a0a0a; background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/Athena-Minerva.png');"></div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 02</span>
+        <h1>Minerva in Iron</h1>
+        <p>When they carried her across the Atlantic from Buenos Aires to London, she went silent. For two years she refused the foreign tongue, betting that silence was an impenetrable blockade. The goddess took notice of the tactical refusal.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link prev" data-goto="0">Return</button>
+          <button class="inner-link" data-goto="2">Inspect the tongue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER III: REVERSE -->
+    <section class="chapter" data-index="2">
+      <div class="chapter-bg" style="background-color:#141a18; background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atj22-dith.gif');"></div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 03</span>
+        <h1>The Reverse of the Coin</h1>
+        <p>Athena was never soft; she was syntax and strategic architecture. She watched the girl master dialects not by mimicry, but by dismantling the cadence of every room she entered. Languages became weapons drawn and resheathed without friction.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link prev" data-goto="1">Return</button>
+          <button class="inner-link" data-goto="3">Trace the gaze</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER IV: CITADEL -->
+    <section class="chapter" data-index="3">
+      <div class="chapter-bg" style="background-color:#1c1018; background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atjcs-dith.gif');"></div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 04</span>
+        <h1>Citadel in the Skull</h1>
+        <p>They questioned the wide spacing of her eyes, failing to recognize an ocular design built for the battlefield. A hawk’s vision requires peripheral breadth—calculating every coordinate of the board before the opponent raises a hand.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link prev" data-goto="2">Return</button>
+          <button class="inner-link" data-goto="4">Enter the theater</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER V: VICTORY (VIDEO EMBED) -->
+    <section class="chapter" data-index="4">
+      <div class="chapter-bg" style="background-color:#181109;">
+        <video autoplay loop muted playsinline poster="https://raw.githubusercontent.com/ghostm68/666/main/atjx-dither.gif">
+          <source src="https://raw.githubusercontent.com/ghostm68/666/main/downtown_20260831_151005417.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 05</span>
+        <h1>Winged and Unarmored</h1>
+        <p>On a sidewalk in downtown Manhattan, raw and unscripted, she walked without rehearsed divinity. No armor, no dialogue. Just an unhurried presence carrying the weight of ancient victories in silence. The transmission was complete.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link prev" data-goto="3">Return</button>
+          <button class="inner-link" data-goto="5">Seal the reliquary</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER VI: ARCHIVE -->
+    <section class="chapter" data-index="5">
+      <div class="chapter-bg" style="background-color:#0d0d12; background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atjx-dither.gif');"></div>
+      <div class="chapter-content">
+        <span class="chapter-num">INDEX // 06</span>
+        <h1>The Reliquary Engine</h1>
+        <p>She is no longer merely an actress on celluloid; she is an active vessel. When the camera rolls, it is not performance—it is possession.</p>
+        <div class="chapter-nav-actions">
+          <button class="inner-link prev" data-goto="4">Return</button>
+          <button class="inner-link" data-goto="0">Restart transmission ↺</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- DOCK PROGRESS NAVIGATION -->
+  <div id="progress-dock">
+    <span id="nav-counter">01 / 06</span>
+    <div class="dots-wrapper" id="dots"></div>
   </div>
-  <div class="header-typing-wrapper" id="header-type-target"></div>
-</header>
 
-<!-- ═══════ 3D ARTIFACT RELIQUARY (LOWER RIGHT) ═══════ -->
-<aside id="reliquary-stage" aria-label="3D Reliquary Viewer">
-  <div id="three-viewport"></div>
-</aside>
+  <script>
+    /* ============================================================
+       CHAPTER DATA & MANAGEMENT
+    ============================================================ */
+    const menuLinks = [
+      { index: 0, text: "I. PROFILE" },
+      { index: 1, text: "II. MINERVA" },
+      { index: 2, text: "III. REVERSE" },
+      { index: 3, text: "IV. CITADEL" },
+      { index: 4, text: "V. VICTORY" },
+      { index: 5, text: "VI. ARCHIVE" }
+    ];
 
-<div id="progress" aria-live="polite">I / VI</div>
+    const chapters = document.querySelectorAll('.chapter');
+    const totalChapters = chapters.length;
+    let currentIndex = 0;
+    let isTransitioning = false;
 
-<!-- ═══════ CHAPTER I ═══════ -->
-<section class="chapter active" data-index="0">
-  <div class="chapter-bg" style="background-color:#1a1a1a;background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/smoking-anya-taylor-joy-dith.gif')"></div>
-  <div class="chapter-content">
-    <h1>The Profile</h1>
-    <p>A face struck in silver, then in celluloid. The eye never blinks; it calculates the distance between the temple and the amphitheater, asking whether two thousand years is any time at all.</p>
-    <button class="inner-link" data-goto="1">Inspect the coin</button>
-  </div>
-</section>
+    // Dots setup
+    const dotsContainer = document.getElementById('dots');
+    const counterDisplay = document.getElementById('nav-counter');
 
-<!-- ═══════ CHAPTER II ═══════ -->
-<section class="chapter" data-index="1">
-  <div class="chapter-bg" style="background-color:#2a0a0a;background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/Athena-Minerva.png')"></div>
-  <div class="chapter-content">
-    <h1>Minerva in Iron</h1>
-    <p>Not marble, but strategy. They carved her on the reverse of the denarius so soldiers could feel wisdom pressed against their ribs before the charge. She was never soft; she was architecture.</p>
-    <button class="inner-link" data-goto="2">Enter the engine</button>
-  </div>
-</section>
-
-<!-- ═══════ CHAPTER III ═══════ -->
-<section class="chapter" data-index="2">
-  <div class="chapter-bg" style="background-color:#1c1810;background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atj22-dith.gif')"></div>
-  <div class="chapter-content">
-    <h1>The Greasepaint Helm</h1>
-    <p>The helmet was lost somewhere in the desert, replaced by ax grease and blackened iron. But the jawline holds the same refusal. The machine roars where the chariot once turned.</p>
-    <button class="inner-link" data-goto="3">Find the study</button>
-  </div>
-</section>
-
-<!-- ═══════ CHAPTER IV ═══════ -->
-<section class="chapter" data-index="3">
-  <div class="chapter-bg" style="background-color:#1a2218;background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atjcs-dith.gif')"></div>
-  <div class="chapter-content">
-    <h1>The 64 Squares</h1>
-    <p>A ceiling painted with opening moves. She stares upward, moving wooden knights through mental plaster. In Rome, they called this divination; in Kentucky, they called it obsession.</p>
-    <button class="inner-link" data-goto="4">To the final relic</button>
-  </div>
-</section>
-
-<!-- ═══════ CHAPTER V ═══════ -->
-<section class="chapter" data-index="4">
-  <div class="chapter-bg" style="background-color:#181e14;background-image:url('https://raw.githubusercontent.com/ghostm68/666/main/atjx-dither.gif')"></div>
-  <div class="chapter-content">
-    <h1>The Unbroken Signal</h1>
-    <p>Gods do not die; they simply migrate to higher resolution screens. The owl sits in the rafters of the soundstage, listening to the clapperboard fall like a gavel.</p>
-    <button class="inner-link" data-goto="5">Open the reel</button>
-  </div>
-</section>
-
-<!-- ═══════ CHAPTER VI — VIDEO ═══════ -->
-<section class="chapter" data-index="5">
-  <div class="chapter-bg video-bg" style="background-color:#0a0a12;">
-    <video
-      muted
-      loop
-      playsinline
-      preload="auto"
-      poster="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&q=80"
-    >
-      <!-- Public-domain / freely usable sample film clip (Internet Archive) -->
-      <source src="https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4" type="video/mp4">
-    </video>
-  </div>
-  <div class="chapter-content">
-    <h1>The Moving Image</h1>
-    <p>Celluloid becomes signal; signal becomes chamber. The frame no longer holds still — it breathes, advances, forgets itself between cuts. What was once a coin now runs at twenty-four gods per second.</p>
-    <button class="inner-link" data-goto="0">Return to the profile</button>
-  </div>
-</section>
-
-<!-- ═══════ SCRIPTS ═══════ -->
-<script type="module">
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-
-/* ── 1. CHAPTER ENGINE ── */
-const chapters = document.querySelectorAll('.chapter');
-const progress = document.getElementById('progress');
-const roman = ['I','II','III','IV','V','VI'];
-let current = 0;
-
-function showChapter(index) {
-  if (index < 0 || index >= chapters.length) return;
-
-  // Pause any playing chapter videos when leaving
-  chapters[current].querySelectorAll('video').forEach(v => {
-    v.pause();
-  });
-
-  chapters[current].classList.remove('active');
-  chapters[index].classList.add('active');
-  current = index;
-  progress.textContent = roman[current] + ' / ' + roman[chapters.length - 1];
-
-  // Auto-play video in the new chapter (if present)
-  const vid = chapters[current].querySelector('video');
-  if (vid) {
-    vid.currentTime = 0;
-    vid.play().catch(() => {/* autoplay may be blocked until interaction */});
-  }
-
-  // Nudge the 3D model rotation on chapter change
-  if (window.templeModel) {
-    window.templeModel.rotation.y += 0.8;
-  }
-}
-
-document.querySelectorAll('.inner-link').forEach(link => {
-  link.addEventListener('click', () => {
-    showChapter(parseInt(link.dataset.goto));
-  });
-});
-
-/* ── 2. TYPING NAV ── */
-const menuBtn = document.getElementById('menuBtn');
-const headerTarget = document.getElementById('header-type-target');
-const menuLinks = [
-  { text: "I. PROFILE", index: 0 },
-  { text: "II. MINERVA", index: 1 },
-  { text: "III. HELMET", index: 2 },
-  { text: "IV. STRATEGY", index: 3 },
-  { text: "V. SIGNAL", index: 4 },
-  { text: "VI. REEL", index: 5 }
-];
-
-let isMenuOpen = false;
-let isTyping = false;
-let typeTimer = null;
-
-function closeMenu() {
-  clearTimeout(typeTimer);
-  isTyping = false;
-  isMenuOpen = false;
-  headerTarget.style.opacity = '0';
-  setTimeout(() => {
-    headerTarget.innerHTML = '';
-    headerTarget.style.opacity = '1';
-  }, 200);
-}
-
-function typeHeaderLinks() {
-  headerTarget.innerHTML = '';
-  headerTarget.style.opacity = '1';
-  isTyping = true;
-  let linkIdx = 0;
-  let charIdx = 0;
-
-  function createLink(data) {
-    const a = document.createElement('a');
-    a.dataset.goto = data.index;
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      showChapter(data.index);
-      closeMenu();
+    chapters.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = `dot ${i === 0 ? 'active' : ''}`;
+      dot.addEventListener('click', () => showChapter(i));
+      dotsContainer.appendChild(dot);
     });
-    return a;
-  }
 
-  let currentLink = createLink(menuLinks[0]);
-  headerTarget.appendChild(currentLink);
-
-  function step() {
-    if (linkIdx >= menuLinks.length) {
-      isTyping = false;
-      return;
+    function updateDock(index) {
+      counterDisplay.textContent = `0${index + 1} / 0${totalChapters}`;
+      document.querySelectorAll('.dot').forEach((d, i) => {
+        d.classList.toggle('active', i === index);
+      });
+      document.querySelectorAll('#header-links a').forEach((a, i) => {
+        a.classList.toggle('active', i === index);
+      });
     }
-    const data = menuLinks[linkIdx];
-    if (charIdx < data.text.length) {
-      currentLink.textContent += data.text.charAt(charIdx);
-      charIdx++;
-      typeTimer = setTimeout(step, 24);
-    } else {
-      linkIdx++;
-      charIdx = 0;
-      if (linkIdx < menuLinks.length) {
-        currentLink = createLink(menuLinks[linkIdx]);
-        headerTarget.appendChild(currentLink);
-        typeTimer = setTimeout(step, 50);
-      } else {
-        isTyping = false;
+
+    function showChapter(nextIndex) {
+      if (nextIndex < 0 || nextIndex >= totalChapters || nextIndex === currentIndex || isTransitioning) return;
+      isTransitioning = true;
+
+      // Play subtle synth tick
+      playTick();
+
+      chapters[currentIndex].classList.remove('active');
+      chapters[nextIndex].classList.add('active');
+
+      currentIndex = nextIndex;
+      updateDock(currentIndex);
+
+      setTimeout(() => {
+        isTransitioning = false;
+      }, 750);
+    }
+
+    // Direct chapter button clicks
+    document.querySelectorAll('[data-goto]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const dest = parseInt(e.currentTarget.getAttribute('data-goto'), 10);
+        showChapter(dest);
+      });
+    });
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+        showChapter((currentIndex + 1) % totalChapters);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        showChapter((currentIndex - 1 + totalChapters) % totalChapters);
       }
-    }
-  }
-  step();
-}
+    });
 
-menuBtn.addEventListener('click', () => {
-  if (isTyping) { closeMenu(); return; }
-  if (!isMenuOpen) { typeHeaderLinks(); isMenuOpen = true; }
-  else { closeMenu(); }
-});
+    // Touch gesture swipe
+    let touchStartY = 0;
+    window.addEventListener('touchstart', e => touchStartY = e.touches[0].clientY, {passive: true});
+    window.addEventListener('touchend', e => {
+      let delta = touchStartY - e.changedTouches[0].clientY;
+      if (Math.abs(delta) > 45) {
+        if (delta > 0) showChapter(currentIndex + 1);
+        else showChapter(currentIndex - 1);
+      }
+    }, {passive: true});
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowRight') showChapter(current + 1);
-  if (e.key === 'ArrowLeft') showChapter(current - 1);
-  if (e.key === 'Escape' && isMenuOpen) closeMenu();
-});
+    // Wheel navigation with throttle
+    let wheelThrottle = 0;
+    window.addEventListener('wheel', (e) => {
+      const now = Date.now();
+      if (now - wheelThrottle < 900) return;
+      if (Math.abs(e.deltaY) > 25) {
+        wheelThrottle = now;
+        if (e.deltaY > 0) showChapter(currentIndex + 1);
+        else showChapter(currentIndex - 1);
+      }
+    }, {passive: true});
 
-/* ── 3. THREE.JS 3D RELIQUARY ENGINE ── */
-(function initThreeReliquary() {
-  const container = document.getElementById('three-viewport');
-  if (!container) return;
 
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-  camera.position.set(0, 5, 20);
+    /* ============================================================
+       SNAPPY TYPEWRITER HEADER NAVIGATION
+    ============================================================ */
+    const headerTarget = document.getElementById('header-links');
+    const menuBtn = document.getElementById('menuBtn');
+    let isMenuOpen = false;
+    let typeTimer = null;
 
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.5;
-  container.appendChild(renderer.domElement);
+    function typeHeaderLinks() {
+      headerTarget.innerHTML = '';
+      headerTarget.style.opacity = '1';
+      let linkIdx = 0;
+      let charIdx = 0;
 
-  // Gallery Lighting
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x442222, 2.4);
-  scene.add(hemiLight);
+      function createLink(data) {
+        const a = document.createElement('a');
+        a.dataset.goto = data.index;
+        if (data.index === currentIndex) a.classList.add('active');
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          showChapter(data.index);
+        });
+        return a;
+      }
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
-  keyLight.position.set(20, 40, 30);
-  scene.add(keyLight);
+      let currentLink = createLink(menuLinks[0]);
+      headerTarget.appendChild(currentLink);
 
-  const redRimLight = new THREE.DirectionalLight(0xff2222, 1.4);
-  redRimLight.position.set(-20, -10, -20);
-  scene.add(redRimLight);
-
-  // Decoders (Draco + KTX2 + Meshopt)
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-
-  const ktx2Loader = new KTX2Loader()
-    .setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/')
-    .detectSupport(renderer);
-
-  const loader = new GLTFLoader();
-  loader.setDRACOLoader(dracoLoader);
-  loader.setKTX2Loader(ktx2Loader);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-
-  const modelUrl = 'https://cdn.jsdelivr.net/gh/ghostm68/inktwo@5b49dea5e290ea1b10c3efbef76876392d8115e9/detailled.glb';
-
-  loader.load(
-    modelUrl,
-    (gltf) => {
-      const model = gltf.scene;
-      window.templeModel = model;
-
-      model.traverse((child) => {
-        if (child.isMesh) {
-          if (child.geometry) child.geometry.computeVertexNormals();
-          if (child.material) {
-            child.material.side = THREE.DoubleSide;
-            child.material.roughness = 0.45;
-            child.material.metalness = 0.05;
+      function step() {
+        if (linkIdx >= menuLinks.length) return;
+        const data = menuLinks[linkIdx];
+        
+        // Output two characters per tick for rapid terminal feed
+        if (charIdx < data.text.length) {
+          const slice = data.text.substring(charIdx, charIdx + 2);
+          currentLink.textContent += slice;
+          charIdx += 2;
+          typeTimer = setTimeout(step, 10);
+        } else {
+          linkIdx++;
+          charIdx = 0;
+          if (linkIdx < menuLinks.length) {
+            currentLink = createLink(menuLinks[linkIdx]);
+            headerTarget.appendChild(currentLink);
+            typeTimer = setTimeout(step, 20);
           }
         }
-      });
-
-      // Auto-center geometry
-      const box = new THREE.Box3().setFromObject(model);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      model.position.sub(center);
-
-      // Fit model fully in view with a little breathing room
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const fov = camera.fov * (Math.PI / 180);
-      // Slightly more zoomed-out so the whole relic is visible in the smaller stage
-      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.15;
-      camera.position.set(cameraZ * 0.2, cameraZ * 0.12, cameraZ);
-      camera.lookAt(0, 0, 0);
-
-      scene.add(model);
-    },
-    undefined,
-    (err) => {
-      console.error("GLB Load Error:", err);
-    }
-  );
-
-  window.addEventListener('resize', () => {
-    if (!container) return;
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.clientWidth, container.clientHeight);
-  });
-
-  // Mouse-tilt tracking
-  let mouseX = 0, mouseY = 0;
-  window.addEventListener('mousemove', (e) => {
-    mouseX = (e.clientX / window.innerWidth - 0.5) * 0.3;
-    mouseY = (e.clientY / window.innerHeight - 0.5) * 0.3;
-  });
-
-  function animate() {
-    requestAnimationFrame(animate);
-
-    if (window.templeModel) {
-      // 1. Continuous smooth axial spin
-      window.templeModel.rotation.y += 0.0035;
-
-      // 2. Gentle mouse-tilt drift
-      window.templeModel.rotation.x = THREE.MathUtils.lerp(window.templeModel.rotation.x, mouseY, 0.04);
-      window.templeModel.rotation.z = THREE.MathUtils.lerp(window.templeModel.rotation.z, -mouseX * 0.4, 0.04);
+      }
+      step();
     }
 
-    renderer.render(scene, camera);
-  }
-  animate();
-})();
-</script>
+    menuBtn.addEventListener('click', () => {
+      isMenuOpen = !isMenuOpen;
+      clearTimeout(typeTimer);
+      if (isMenuOpen) {
+        menuBtn.textContent = 'CLOSE';
+        typeHeaderLinks();
+      } else {
+        menuBtn.textContent = 'MENU';
+        headerTarget.style.opacity = '0';
+        setTimeout(() => { headerTarget.innerHTML = ''; }, 300);
+      }
+    });
 
+
+    /* ============================================================
+       WEB AUDIO SYNTH ENGINE (SUBTLE CLICK/TICK FEEDBACK)
+    ============================================================ */
+    let audioCtx = null;
+    function playTick() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+
+    /* ============================================================
+       THREE.JS: PROCEDURAL ATHENA COIN / RELIQUARY
+    ============================================================ */
+    const canvasContainer = document.getElementById('bg-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.z = 4.8;
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(320, 320);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    canvasContainer.appendChild(renderer.domElement);
+
+    // Create Octagonal Coin / Talisman Geometry
+    const coinGeo = new THREE.CylinderGeometry(1.6, 1.6, 0.18, 8, 1);
+    const coinMat = new THREE.MeshStandardMaterial({
+      color: 0xc9a050,
+      metalness: 0.85,
+      roughness: 0.35,
+      wireframe: false
+    });
+
+    const innerCoreGeo = new THREE.IcosahedronGeometry(0.9, 0);
+    const innerCoreMat = new THREE.MeshStandardMaterial({
+      color: 0x8b2500,
+      metalness: 0.9,
+      roughness: 0.2,
+      wireframe: true
+    });
+
+    const coinGroup = new THREE.Group();
+    const coinMesh = new THREE.Mesh(coinGeo, coinMat);
+    const coreMesh = new THREE.Mesh(innerCoreGeo, innerCoreMat);
+
+    coinGroup.add(coinMesh);
+    coinGroup.add(coreMesh);
+    scene.add(coinGroup);
+
+    // Lighting
+    const ambLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffebd2, 2.2);
+    dirLight.position.set(3, 4, 3);
+    scene.add(dirLight);
+
+    const redRimLight = new THREE.PointLight(0xc83711, 3.5, 10);
+    redRimLight.position.set(-3, -2, -1);
+    scene.add(redRimLight);
+
+    // Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      coinGroup.rotation.y += 0.008;
+      coinGroup.rotation.x = Math.sin(Date.now() * 0.001) * 0.25 + 0.4;
+      coreMesh.rotation.y -= 0.012;
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
 </body>
 </html>
