@@ -77,7 +77,7 @@ const coverData = [
     tag: "COVER // 03. TOM WAITS LIVE",
     title: "Get Behind the Mule",
     desc: "Tom Waits Live Crossroads Grit Stomp 2025. Unpolished stomp box & raw room mic acoustics.",
-    src: "https://raw.githubusercontent.com/ghostm68/99/main/twoskinnygirlslivegetbehindthemule2025.mp3",
+    src: "twoskinnygirlslivegetbehindthemule2025.mp3",
     feed: "GET BEHIND THE MULE (LIVE)"
   },
   {
