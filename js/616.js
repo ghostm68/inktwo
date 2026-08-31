@@ -90,6 +90,7 @@ const coverData = [
 ];
 
 let currentCoverIdx = 0;
+let visualizerInitialized = false;
 
 function selectCover(idx) {
   currentCoverIdx = idx;
@@ -113,9 +114,9 @@ function selectCover(idx) {
   if (audio) {
     const wasPlaying = !audio.paused;
     audio.src = data.src;
+    audio.load();
     if (wasPlaying) {
-      if (vizAudioCtx && vizAudioCtx.state === 'suspended') vizAudioCtx.resume();
-      audio.play().catch(e => console.log(e));
+      audio.play().catch(e => console.log("Audio play error:", e));
       const btn = document.getElementById('play-cover-btn');
       if (btn) btn.textContent = '⏸ PAUSE';
     }
@@ -127,15 +128,16 @@ function togglePlayActiveCover() {
   const btn = document.getElementById('play-cover-btn');
   if (!audio) return;
 
-  initAudioViz();
-  if (vizAudioCtx && vizAudioCtx.state === 'suspended') {
-    vizAudioCtx.resume();
+  if (!visualizerInitialized) {
+    initVisualizer();
   }
 
   if (audio.paused) {
     audio.play().then(() => {
       if (btn) btn.textContent = '⏸ PAUSE';
-    }).catch(err => console.log("Cover playback error:", err));
+    }).catch(err => {
+      console.log("Audio play error:", err);
+    });
   } else {
     audio.pause();
     if (btn) btn.textContent = '▶ PLAY';
@@ -152,105 +154,73 @@ function downloadActiveCover() {
   document.body.removeChild(link);
 }
 
-// 6. Real-Time Audio Spectrum Visualizer
-let vizAudioCtx, analyser, source, dataArray;
-
-function initAudioViz() {
+// 6. Signature Glitch-Orb Canvas Visualizer (Matching SVG)
+function initVisualizer() {
+  const canvas = document.getElementById('sigil-canvas');
   const audio = document.getElementById('viz-audio');
-  const canvas = document.getElementById('sigil-canvas');
-  if (!audio || !canvas || vizAudioCtx) return;
-
-  vizAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  analyser = vizAudioCtx.createAnalyser();
-  source = vizAudioCtx.createMediaElementSource(audio);
-  source.connect(analyser);
-  analyser.connect(vizAudioCtx.destination);
-
-  analyser.fftSize = 256;
-  const bufferLength = analyser.frequencyBinCount;
-  dataArray = new Uint8Array(bufferLength);
-
-  drawLiveViz();
-}
-
-function drawLiveViz() {
-  const canvas = document.getElementById('sigil-canvas');
-  if (!canvas || !analyser) return;
+  if (!canvas || !audio) return;
   const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
 
-  requestAnimationFrame(drawLiveViz);
-  analyser.getByteFrequencyData(dataArray);
+  let phase = 0;
+  function drawSigil() {
+    requestAnimationFrame(drawSigil);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-  ctx.fillRect(0, 0, width, height);
+    const isPlaying = !audio.paused;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
 
-  // Red Spectrum Frequency Bars
-  const barWidth = (width / dataArray.length) * 2.5;
-  let barHeight;
-  let x = 0;
+    if (isPlaying) {
+      phase += 0.08;
+      ctx.strokeStyle = '#ff0033';
+      ctx.lineWidth = 1.5;
 
-  for (let i = 0; i < dataArray.length; i++) {
-    barHeight = dataArray[i] / 2;
-    const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
-    gradient.addColorStop(0, '#ff0000');
-    gradient.addColorStop(0.7, '#ff4444');
-    gradient.addColorStop(1, '#ff8888');
+      // Waveform Ring
+      ctx.beginPath();
+      for (let i = 0; i < 360; i += 4) {
+        const rad = (i * Math.PI) / 180;
+        const r = 50 + Math.sin(rad * 8 + phase) * 14 + Math.cos(rad * 4 - phase) * 8;
+        const x = cx + r * Math.cos(rad);
+        const y = cy + r * Math.sin(rad);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-    x += barWidth + 1;
+      // Central Sigil Star
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const a = (j * 4 * Math.PI) / 5 - Math.PI / 2 + phase * 0.3;
+        const sx = cx + 32 * Math.cos(a);
+        const sy = cy + 32 * Math.sin(a);
+        if (j === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      // Idle Reticle
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ff0033';
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, cy);
+      ctx.lineTo(cx + 10, cy);
+      ctx.moveTo(cx, cy - 10);
+      ctx.lineTo(cx, cy + 10);
+      ctx.stroke();
+    }
   }
-
-  // Center Oscilloscope Waveform Line
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  const sliceWidth = (width * 1.0) / dataArray.length;
-  let wx = 0;
-
-  for (let i = 0; i < dataArray.length; i++) {
-    const v = dataArray[i] / 128.0;
-    const y = (v * height) / 2;
-    if (i === 0) ctx.moveTo(wx, y);
-    else ctx.lineTo(wx, y);
-    wx += sliceWidth;
-  }
-  ctx.lineTo(width, height / 2);
-  ctx.stroke();
-
-  // Pulsing Beat Center Core
-  const centerSize = 8 + dataArray[10] / 12;
-  ctx.beginPath();
-  ctx.arc(width / 2, height / 2, centerSize, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(255, 0, 51, ${0.3 + dataArray[5] / 350})`;
-  ctx.fill();
-}
-
-function initStaticViz() {
-  const canvas = document.getElementById('sigil-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
-
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = '#330000';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 30; i++) {
-    ctx.beginPath();
-    ctx.moveTo(Math.random() * width, Math.random() * height);
-    ctx.lineTo(Math.random() * width, Math.random() * height);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = '#666';
-  ctx.font = '10px "VT323", monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('CLICK TO PLAY AUDIO', width / 2, height / 2);
+  drawSigil();
+  visualizerInitialized = true;
 }
 
 // 7. Footer System Message Rotator
@@ -280,7 +250,7 @@ function initFooterRotator() {
   }, 5000);
 }
 
-// 8. Master Bootstrap (Runs Once on Page Load)
+// 8. Master Bootstrap
 let activeKeiraAudio = null;
 let activeRow = null;
 
@@ -317,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Draw idle visualizer & start footer messages
-  initStaticViz();
+  initVisualizer();
   initFooterRotator();
 
   // Mobile Video Autoplay Engine
