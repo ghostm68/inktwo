@@ -342,6 +342,31 @@ startVideos();
 setTimeout(startVideos, 400);
 setTimeout(startVideos, 1200);
 setTimeout(startVideos, 2500);
+
+   function toggleTriangleExpand(frame) {
+  const video = frame.querySelector('video');
+  const isExpanded = frame.classList.toggle('expanded');
+
+  if (isExpanded) {
+    // Expanded → allow sound + show controls
+    video.muted = false;
+    video.controls = true;
+    video.play().catch(() => {});
+  } else {
+    // Collapsed → force mute again + hide controls + keep looping
+    video.muted = true;
+    video.controls = false;
+    video.play().catch(() => {});
+  }
+}
+
+// Optional: close when clicking outside
+document.addEventListener('click', (e) => {
+  const frame = document.getElementById('triangle-frame');
+  if (frame && frame.classList.contains('expanded') && !frame.contains(e.target)) {
+    toggleTriangleExpand(frame);
+  }
+});
    
   // Keira Sessions Slide Menu Audio Rows
   document.querySelectorAll(".audio-row").forEach(row => {
