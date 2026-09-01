@@ -298,18 +298,51 @@ document.addEventListener("DOMContentLoaded", () => {
   initFooterRotator();
 
   // Mobile Video Autoplay Engine
-  const startVideos = () => {
-    document.querySelectorAll("video").forEach(v => {
-      v.muted = true;
-      v.setAttribute("playsinline", "");
-      v.setAttribute("webkit-playsinline", "");
-      v.play().catch(() => {});
-    });
-  };
-  startVideos();
-  document.body.addEventListener('touchstart', startVideos, { once: true });
-  document.body.addEventListener('click', startVideos, { once: true });
+  // =========================================================
+// Mobile Video Autoplay Engine – hardened for triangle + loops
+// =========================================================
+const startVideos = () => {
+  const videos = document.querySelectorAll("video");
 
+  videos.forEach(v => {
+    // Critical attributes for iOS / Android
+    v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute("muted", "");
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
+    v.setAttribute("x5-playsinline", "");          // WeChat / some Android
+    v.playsInline = true;
+
+    // Force load if needed
+    if (v.readyState < 2) {
+      v.load();
+    }
+
+    // Attempt play
+    const playPromise = v.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        // Silently fail – will retry on next gesture
+        console.log("Video autoplay blocked:", err.message);
+      });
+    }
+  });
+};
+
+// Run as early as possible
+startVideos();
+
+// Retry on first real user interaction (required by iOS)
+["touchstart", "touchend", "click", "scroll"].forEach(evt => {
+  document.body.addEventListener(evt, startVideos, { once: true, passive: true });
+});
+
+// Extra safety: keep trying a few times after page load
+setTimeout(startVideos, 400);
+setTimeout(startVideos, 1200);
+setTimeout(startVideos, 2500);
+   
   // Keira Sessions Slide Menu Audio Rows
   document.querySelectorAll(".audio-row").forEach(row => {
     row.addEventListener("click", () => {
