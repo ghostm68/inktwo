@@ -2,6 +2,41 @@
    616.JS - WORDSTAR NEXUS MASTER JAVASCRIPT
    ========================================================= */
 
+// 0. Triangle Video Expand Engine
+function toggleTriangleExpand(frame, event) {
+  // If clicking directly on the video element while already expanded, don't collapse
+  if (event && frame.classList.contains('expanded') && event.target.tagName === 'VIDEO') {
+    return;
+  }
+
+  const video = frame.querySelector('video');
+  const isExpanded = frame.classList.toggle('expanded');
+
+  if (isExpanded) {
+    if (video) {
+      video.muted = false;
+      video.controls = true;
+      video.play().catch(() => {});
+    }
+  } else {
+    if (video) {
+      video.muted = true;
+      video.controls = false;
+      video.play().catch(() => {});
+    }
+  }
+}
+
+// Close triangle video when clicking outside
+document.addEventListener('click', (e) => {
+  const frame = document.getElementById('triangle-video-frame');
+  if (frame && frame.classList.contains('expanded')) {
+    if (!frame.contains(e.target)) {
+      toggleTriangleExpand(frame);
+    }
+  }
+});
+
 // 1. Menu Toggle
 function toggleMenu() {
   const overlay = document.getElementById('menu-overlay');
@@ -297,77 +332,50 @@ document.addEventListener("DOMContentLoaded", () => {
   initVisualizer();
   initFooterRotator();
 
-  // Mobile Video Autoplay Engine
-  // =========================================================
-// Mobile Video Autoplay Engine – hardened for triangle + loops
-// =========================================================
-const startVideos = () => {
-  const videos = document.querySelectorAll("video");
+  // Mobile Video Autoplay Engine – hardened for triangle + loops
+  const startVideos = () => {
+    const videos = document.querySelectorAll("video");
 
-  videos.forEach(v => {
-    // Critical attributes for iOS / Android
-    v.muted = true;
-    v.defaultMuted = true;
-    v.setAttribute("muted", "");
-    v.setAttribute("playsinline", "");
-    v.setAttribute("webkit-playsinline", "");
-    v.setAttribute("x5-playsinline", "");          // WeChat / some Android
-    v.playsInline = true;
+    videos.forEach(v => {
+      // Prevent resetting audio on expanded triangle video
+      if (v.closest('.triangle-video-frame.expanded')) return;
 
-    // Force load if needed
-    if (v.readyState < 2) {
-      v.load();
-    }
+      // Critical attributes for iOS / Android
+      v.muted = true;
+      v.defaultMuted = true;
+      v.setAttribute("muted", "");
+      v.setAttribute("playsinline", "");
+      v.setAttribute("webkit-playsinline", "");
+      v.setAttribute("x5-playsinline", "");
+      v.playsInline = true;
 
-    // Attempt play
-    const playPromise = v.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(err => {
-        // Silently fail – will retry on next gesture
-        console.log("Video autoplay blocked:", err.message);
-      });
-    }
+      // Force load if needed
+      if (v.readyState < 2) {
+        v.load();
+      }
+
+      // Attempt play
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.log("Video autoplay blocked:", err.message);
+        });
+      }
+    });
+  };
+
+  // Run initial video autoplay
+  startVideos();
+
+  // Retry on first real user interaction
+  ["touchstart", "touchend", "click", "scroll"].forEach(evt => {
+    document.body.addEventListener(evt, startVideos, { once: true, passive: true });
   });
-};
 
-// Run as early as possible
-startVideos();
+  setTimeout(startVideos, 400);
+  setTimeout(startVideos, 1200);
+  setTimeout(startVideos, 2500);
 
-// Retry on first real user interaction (required by iOS)
-["touchstart", "touchend", "click", "scroll"].forEach(evt => {
-  document.body.addEventListener(evt, startVideos, { once: true, passive: true });
-});
-
-// Extra safety: keep trying a few times after page load
-setTimeout(startVideos, 400);
-setTimeout(startVideos, 1200);
-setTimeout(startVideos, 2500);
-
-   function toggleTriangleExpand(frame) {
-  const video = frame.querySelector('video');
-  const isExpanded = frame.classList.toggle('expanded');
-
-  if (isExpanded) {
-    // Expanded → allow sound + show controls
-    video.muted = false;
-    video.controls = true;
-    video.play().catch(() => {});
-  } else {
-    // Collapsed → force mute again + hide controls + keep looping
-    video.muted = true;
-    video.controls = false;
-    video.play().catch(() => {});
-  }
-}
-
-// Optional: close when clicking outside
-document.addEventListener('click', (e) => {
-  const frame = document.getElementById('triangle-frame');
-  if (frame && frame.classList.contains('expanded') && !frame.contains(e.target)) {
-    toggleTriangleExpand(frame);
-  }
-});
-   
   // Keira Sessions Slide Menu Audio Rows
   document.querySelectorAll(".audio-row").forEach(row => {
     row.addEventListener("click", () => {
