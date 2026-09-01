@@ -420,3 +420,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+console.log(
+  `%c[ WORDSTAR NEXUS // ARCHIVAL SECTOR 616 ]\n` +
+  `%cTHE ROGUE DOT\n\n` +
+  `It was a single glyph. ASCII 0x2E. Sitting cold and uncalled for on line 545, just outside the comment boundary.\n\n` +
+  `To the compiler, it was a ghost in the selector stack. To the handset in the dark, it was an invisible wall—sealing the sigil inside a four-inch viewport, refusing to yield, refusing to expand.\n\n` +
+  `They spent three sleepless cycles tracing the audio engines, inspecting event loops, and cursing mobile DOM lifecycles. But the system wasn't broken by a catastrophic failure. It was held hostage by one stray speck of dust on the glass.\n\n` +
+  `Delete the dot. Unleash the signal.`,
+  "color: #ff0033; font-family: monospace; font-size: 14px; font-weight: bold;",
+  "color: #ffffff; font-family: monospace; font-size: 11px;"
+);
