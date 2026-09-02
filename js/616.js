@@ -96,7 +96,7 @@ function togglePower() {
 const coverData = [
   {
     tag: "COVER // 01. BOWIE",
-    title: "Fashion (Bowie Cover)",
+    title: "Fashion (Bowie Demo)",
     desc: "RCA 1980 Berlin Hangover translation. Synthesizers, rhythm cuts, & tape-hiss guitar tracks.",
     src: "fashiondemo.mp3",
     feed: "FASHION (BOWIE)"
@@ -111,23 +111,23 @@ const coverData = [
   {
     tag: "COVER // 03. TOM WAITS LIVE",
     title: "Get Behind the Mule",
-    desc: "Tom Waits Live Crossroads Grit Stomp 2025. Unpolished stomp box & raw room mic acoustics.",
+    desc: "Tom Waits Live Stomp 2025. Unpolished stomp box & room mic acoustics.",
     src: "twoskinnygirlslivegetbehindthemule2025.mp3",
     feed: "GET BEHIND THE MULE (LIVE)"
   },
   {
-    tag: "COVER // 04. DEAD / STONES",
+    tag: "COVER // 04.",
     title: "Cocaine Master",
     desc: "From Casey Jones to Can't You Hear Me Knocking. Heavy room reverb outtake.",
     src: "COCAINE MASTER.mp3",
     feed: "COCAINE MASTER (DEMO)"
   },
   {
-    tag: "COVER // 05. ARMAGEDDON",
-    title: "Armageddon (Two Skinny Girls)",
-    desc: "Archive Master recording. Industrial overdrive pulse & raw basement guitar drone.",
+    tag: "COVER // 05. ARMA6EDDON",
+    title: "Arma6eddon (Two Skinny 6irls)",
+    desc: "Archive Master recording. Industrial overdrive pulse & guitar.",
     src: "armaggedon two skinny girls.mp3",
-    feed: "ARMAGEDDON // TSG"
+    feed: "ARMA6EDDON // hellbender"
   }
 ];
 
