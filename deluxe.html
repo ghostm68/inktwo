@@ -427,6 +427,69 @@ em, i { font-style: italic; }
 @keyframes slow-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @keyframes glitch-shake { 0% { transform: translate(0) rotate(0deg); } 20% { transform: translate(-2px, 2px) rotate(-5deg); } 40% { transform: translate(-2px, -2px) rotate(5deg); } 60% { transform: translate(2px, 2px) rotate(-5deg); } 80% { transform: translate(2px, -2px) rotate(5deg); } 100% { transform: translate(0) rotate(0deg); } }
 </style>
+	<style>
+		:root {
+  --video-opacity: 0.40;
+}
+
+.crt-video-layer {
+  position: absolute;
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%;
+  opacity: var(--video-opacity);
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.4s ease;
+  overflow: hidden;
+}
+
+.crt-video-layer iframe {
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+  transform: scale(1.35); /* Zooms past black letterboxes and YouTube watermarks */
+  filter: contrast(1.4) brightness(0.7);
+}
+
+/* Ensure the textarea sits transparently over the video */
+#main-editor, #editor {
+  position: relative;
+  z-index: 5;
+  background: transparent !important;
+}
+	#editor-container {
+    position: relative;
+    overflow: hidden; /* Clips the iframe to the editor's borders */
+}
+
+.crt-video-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: var(--video-opacity, 0.40);
+    pointer-events: none; /* Allows mouse clicks to select and edit text */
+    z-index: 1;
+    overflow: hidden;
+}
+
+.crt-video-layer iframe {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.35); /* Zooms past YouTube letterboxing */
+    filter: contrast(1.4) brightness(0.7);
+}
+
+#editor {
+    position: relative;
+    z-index: 2; /* Sits directly above the video */
+    background: transparent !important;
+}	
+	</style>
 </head>
 <body>
 
@@ -575,39 +638,50 @@ em, i { font-style: italic; }
     </div>
 
     <div id="editor-container">
-        <div id="editor" contenteditable="true" spellcheck="true">
-            <p style="color: #888; font-style: italic;">
-                Welcome to INK REALM DELUXE<br><br>
-                
-                <strong>Stable Horde Image Generation:</strong><br>
-                • Select text describing the image you want<br>
-                • Choose a model from the dropdown<br>
-                • Click the ✨ button to generate via decentralized GPU network<br>
-                • No API keys, no credits, completely free<br><br>
-                
-                <strong>Getting Started:</strong><br>
-                • Select your favorite retro IBM font from the toolbar<br>
-                • Use formatting buttons for Bold, Italic, Underline, Strikethrough<br>
-                • Align your text: Left, Center, Right, or Justify<br><br>
-                
-                <strong>Adding Content:</strong><br>
-                • Upload images from your computer<br>
-                • Add code blocks for programming snippets<br>
-                • Change text color with the palette button<br><br>
-                
-                <strong>Saving & Export:</strong><br>
-                • Save - Auto-saves to your browser for recovery<br>
-                • Download TXT - Plain text file<br>
-                • Download PDF - Formatted document<br><br>
-                
-                <strong>Keyboard Shortcuts:</strong><br>
-                • Ctrl+B = Bold | Ctrl+I = Italic | Ctrl+U = Underline<br>
-                • Ctrl+Z = Undo | Ctrl+Y = Redo | Ctrl+S = Save<br><br>
-                
-                Start typing to replace this text...
-            </p>
-        </div>
+    <!-- Video Layer directly inside the container -->
+    <div class="crt-video-layer" id="video-layer">
+        <iframe 
+            id="video-iframe" 
+            src="https://www.youtube-nocookie.com/embed/ZabsF0aIE6k?autoplay=1&mute=1&controls=0&loop=1&playlist=ZabsF0aIE6k&playsinline=1" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            frameborder="0">
+        </iframe>
     </div>
+
+    <!-- Your Contenteditable Editor -->
+    <div id="editor" contenteditable="true" spellcheck="true">
+        <p style="color: #888; font-style: italic;">
+            Welcome to INK REALM DELUXE<br><br>
+            
+            <strong>Stable Horde Image Generation:</strong><br>
+            • Select text describing the image you want<br>
+            • Choose a model from the dropdown<br>
+            • Click the ✨ button to generate via decentralized GPU network<br>
+            • No API keys, no credits, completely free<br><br>
+            
+            <strong>Getting Started:</strong><br>
+            • Select your favorite retro IBM font from the toolbar<br>
+            • Use formatting buttons for Bold, Italic, Underline, Strikethrough<br>
+            • Align your text: Left, Center, Right, or Justify<br><br>
+            
+            <strong>Adding Content:</strong><br>
+            • Upload images from your computer<br>
+            • Add code blocks for programming snippets<br>
+            • Change text color with the palette button<br><br>
+            
+            <strong>Saving & Export:</strong><br>
+            • Save - Auto-saves to your browser for recovery<br>
+            • Download TXT - Plain text file<br>
+            • Download PDF - Formatted document<br><br>
+            
+            <strong>Keyboard Shortcuts:</strong><br>
+            • Ctrl+B = Bold | Ctrl+I = Italic | Ctrl+U = Underline<br>
+            • Ctrl+Z = Undo | Ctrl+Y = Redo | Ctrl+S = Save<br><br>
+            
+            Start typing to replace this text...
+        </p>
+    </div>
+</div>
 
     <div id="status-bar">
         <div id="quantum-status">Quantum circuit: Ready</div>
@@ -1025,6 +1099,56 @@ function insertImage(imageUrl, altText) {
     updateWordCount();
 });
 </script>
+<script>
+	let videoEnabled = true;
 
+function toggleVideoBackground() {
+  videoEnabled = !videoEnabled;
+  const vLayer = document.getElementById('video-layer');
+  const vLabel = document.getElementById('vbg-label');
+  const vBtn = document.getElementById('vbg-toggle');
+
+  if (videoEnabled) {
+    vLayer.style.opacity = 'var(--video-opacity)';
+    vLabel.textContent = 'ON';
+    vBtn.classList.add('active');
+  } else {
+    vLayer.style.opacity = '0';
+    vLabel.textContent = 'OFF';
+    vBtn.classList.remove('active');
+  }
+}
+
+function toggleVideoHUD() {
+  document.getElementById('video-hud').classList.toggle('show');
+}
+
+function applyVideoPreset(val) {
+  const customRow = document.getElementById('custom-vid-row');
+  if (val === 'custom') {
+    customRow.style.display = 'flex';
+    return;
+  }
+  customRow.style.display = 'none';
+  setIframeVideo(val);
+}
+
+function setCustomVideo(val) {
+  let id = val.trim();
+  if (id.includes('v=')) id = id.split('v=')[1].split('&')[0];
+  if (id.includes('youtu.be/')) id = id.split('youtu.be/')[1].split('?')[0];
+  setIframeVideo(id);
+}
+
+function setIframeVideo(id) {
+  const iframe = document.getElementById('video-iframe');
+  iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1`;
+}
+
+function setVideoOpacity(val) {
+  document.getElementById('val-vopacity').textContent = val;
+  document.documentElement.style.setProperty('--video-opacity', (val / 100).toFixed(2));
+}
+</script>
 </body>
 </html>
