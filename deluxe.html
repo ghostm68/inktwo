@@ -405,8 +405,8 @@ body { font-family: 'Noto Sans', sans-serif; background-color: #1a1a1a; color: #
 #quantum-status { font-style: italic; }
 #word-count { font-weight: bold; color: #ff0000; }
 
-.image-block { display: inline-block; max-width: 100%; margin: 10px 0; }
-.image-block img { max-width: 100%; height: auto; border: 1px solid #555; }
+.image-block { display: inline-block; max-width: 100%; margin: 10px 0; position: relative; z-index: 3; }
+.image-block img { max-width: 100%; height: auto; border: 2px solid #ff0000; box-shadow: 0 0 12px rgba(255,0,0,0.35); background: #111; }
 
 .code-block { background-color: #1a1a1a; border: 1px solid #ff0000; border-radius: 4px; padding: 15px; margin: 10px 0; font-family: 'Ac437 IBM MDA', monospace; color: #00ff00; overflow-x: auto; }
 
@@ -429,7 +429,7 @@ em, i { font-style: italic; }
 </style>
 	<style>
 		:root {
-  --video-opacity: 0.40;
+  --video-opacity: 0.32;
 }
 
 #editor-container {
@@ -444,23 +444,24 @@ em, i { font-style: italic; }
 
 .crt-video-layer {
   position: absolute;
-  top: 0; 
-  left: 0; 
-  width: 100%; 
+  inset: 0;
+  width: 100%;
   height: 100%;
-  opacity: var(--video-opacity);
+  opacity: var(--video-opacity, 0.32);
   pointer-events: none;
   z-index: 1;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
   overflow: hidden;
+  background: #000;
 }
 
 .crt-video-layer iframe {
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
-  transform: scale(1.35);
-  filter: contrast(1.4) brightness(0.7);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.28);
+  filter: contrast(1.35) brightness(0.65) saturate(0.9);
+  border: none;
 }
 
 #editor {
@@ -469,26 +470,56 @@ em, i { font-style: italic; }
   background: transparent !important;
 }
 
-/* Video HUD Popover Panel */
+/* Video HUD Popover Panel - themed */
 .hud-panel {
   display: none;
   position: fixed;
-  top: 60px;
-  right: 20px;
+  top: 58px;
+  right: 16px;
+  width: 280px;
   background: #111;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 14px;
-  z-index: 9999;
-  color: #eee;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.8);
-  font-family: inherit;
+  border: 1px solid #ff0033;
+  border-radius: 4px;
+  padding: 12px 14px;
+  z-index: 10000;
+  color: #e0e0e0;
+  box-shadow: 0 0 18px rgba(255, 0, 51, 0.25), 0 8px 24px rgba(0,0,0,0.7);
+  font-family: 'Noto Sans', sans-serif;
   font-size: 13px;
 }
 .hud-panel.show { display: block; }
-.hud-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 4px; }
-.hud-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.hud-row input[type="text"], .hud-row select { background: #222; border: 1px solid #555; color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 12px; }
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #333;
+  color: #ff0033;
+}
+.hud-header span:last-child { cursor: pointer; opacity: 0.7; }
+.hud-header span:last-child:hover { opacity: 1; }
+.hud-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.hud-row label { flex-shrink: 0; color: #aaa; }
+.hud-row input[type="text"],
+.hud-row select {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.hud-row input[type="range"] { flex: 1; accent-color: #ff0033; }
 	</style>
 </head>
 <body>
@@ -635,23 +666,25 @@ em, i { font-style: italic; }
         <div class="toolbar-group">
             <button id="copySelectedBlocks" title="Copy Text"><span class="material-symbols-outlined">content_copy</span></button>
         </div>
-    </div>
-<!-- Video Background Controls -->
+
+        <!-- Video Background Controls -->
         <div class="toolbar-group">
             <button id="vbg-toggle" onclick="toggleVideoBackground()" title="Toggle Video Background">
                 <span class="material-symbols-outlined">videocam</span>
-                <span id="vbg-label" style="font-size: 11px; margin-left: 2px;">ON</span>
+                <span id="vbg-label" style="font-size: 11px; margin-left: 2px; min-width: 22px;">ON</span>
             </button>
             <button onclick="toggleVideoHUD()" title="Video Deck Settings">
                 <span class="material-symbols-outlined">tune</span>
             </button>
 		</div>
+    </div>
+
     <div id="editor-container">
     <!-- Video Layer directly inside the container -->
     <div class="crt-video-layer" id="video-layer">
         <iframe 
             id="video-iframe" 
-            src="https://www.youtube-nocookie.com/embed/ZabsF0aIE6k?autoplay=1&mute=1&controls=0&loop=1&playlist=ZabsF0aIE6k&playsinline=1" 
+            src="https://www.youtube-nocookie.com/embed/ZabsF0aIE6k?autoplay=1&mute=1&controls=0&loop=1&playlist=ZabsF0aIE6k&playsinline=1&modestbranding=1&rel=0" 
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
             frameborder="0">
         </iframe>
@@ -888,8 +921,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editor.addEventListener('input', updateWordCount);
 
-    // STABLE HORDE IMAGE GENERATION
- // STABLE HORDE IMAGE GENERATION WITH POLLINATIONS FALLBACK
+    // STABLE HORDE IMAGE GENERATION WITH POLLINATIONS FALLBACK
+    // Both engines remain fully functional (as of Sep 2026)
 generateImage.addEventListener('click', async () => {
     const selectedText = window.getSelection().toString().trim();
     
@@ -908,7 +941,8 @@ generateImage.addEventListener('click', async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': '0000000000'
+                'apikey': '0000000000',
+                'Client-Agent': 'InkRealmDeluxe:1.1:ghostm68'
             },
             body: JSON.stringify({
                 prompt: selectedText,
@@ -929,7 +963,7 @@ generateImage.addEventListener('click', async () => {
         });
 
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({}));
             throw new Error(error.message || 'Horde rejected request');
         }
 
@@ -938,7 +972,7 @@ generateImage.addEventListener('click', async () => {
 
         // Poll with timeout check
         let attempts = 0;
-        const maxAttempts = 30; // 60 seconds max wait
+        const maxAttempts = 40; // ~80 seconds max wait
         
         while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 2000));
@@ -947,18 +981,23 @@ generateImage.addEventListener('click', async () => {
             const status = await statusRes.json();
             
             // Abort if wait is ridiculous
-            if (status.wait_time > 120) {
+            if (status.wait_time > 180) {
                 throw new Error('Horde overloaded');
             }
             
-            quantumStatus.textContent = `Generating... ${status.wait_time ? Math.round(status.wait_time) + 's' : 'processing'}`;
+            quantumStatus.textContent = `Generating... ${status.wait_time ? Math.round(status.wait_time) + 's' : 'processing'} (queue ${status.queue_position || 0})`;
             
             if (status.done) {
                 const resultRes = await fetch(`https://stablehorde.net/api/v2/generate/status/${jobId}`);
                 const result = await resultRes.json();
                 
                 if (result.generations && result.generations[0]) {
-                    insertImage(result.generations[0].img, selectedText);
+                    // Horde returns base64 or URL depending on worker; handle both
+                    const gen = result.generations[0];
+                    const imgSrc = gen.img.startsWith('http') ? gen.img : `data:image/webp;base64,${gen.img}`;
+                    insertImage(imgSrc, selectedText);
+                    quantumStatus.textContent = 'Image materialized via Stable Horde ✨';
+                    setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
                     return;
                 }
             }
@@ -973,7 +1012,7 @@ generateImage.addEventListener('click', async () => {
         quantumStatus.textContent = 'Horde busy - trying Pollinations...';
         
         try {
-            // Map Horde models to Pollinations equivalents
+            // Map Horde models to Pollinations equivalents (still valid 2026)
             const pollinationsModels = {
                 'Deliberate': 'flux',
                 'SDXL 1.0': 'flux',
@@ -991,11 +1030,11 @@ generateImage.addEventListener('click', async () => {
                 testImg.onload = resolve;
                 testImg.onerror = reject;
                 testImg.src = imageUrl;
-                setTimeout(() => reject(new Error('Pollinations timeout')), 30000);
+                setTimeout(() => reject(new Error('Pollinations timeout')), 35000);
             });
             
             insertImage(imageUrl, selectedText);
-            quantumStatus.textContent = 'Image materialized via mirror ✨';
+            quantumStatus.textContent = 'Image materialized via Pollinations mirror ✨';
             setTimeout(() => quantumStatus.textContent = 'Quantum circuit: Ready', 3000);
             
         } catch (pollError) {
@@ -1005,11 +1044,11 @@ generateImage.addEventListener('click', async () => {
     }
 });
 
-// Helper function to insert image
+// Helper function to insert image (sits cleanly above video layer)
 function insertImage(imageUrl, altText) {
     const wrapper = document.createElement('div');
     wrapper.className = 'image-block';
-    wrapper.innerHTML = `<img src="${imageUrl}" alt="${altText.replace(/"/g, '&quot;')}" style="max-width:100%;height:auto;border:2px solid #ff0000;box-shadow:0 0 10px rgba(255,0,0,0.3);"><p><br></p>`;
+    wrapper.innerHTML = `<img src="${imageUrl}" alt="${altText.replace(/"/g, '&quot;')}" style="max-width:100%;height:auto;"><p><br></p>`;
     
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
@@ -1019,6 +1058,8 @@ function insertImage(imageUrl, altText) {
     } else {
         editor.appendChild(wrapper);
     }
+    // Ensure image is visible above video
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
     // Save document
@@ -1110,24 +1151,56 @@ function insertImage(imageUrl, altText) {
 </script>
 <script>
 	let videoEnabled = true;
+const VIDEO_STORAGE_KEY = 'inkrealm_video_settings';
+
+function loadVideoSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(VIDEO_STORAGE_KEY) || '{}');
+    if (s.opacity != null) {
+      document.documentElement.style.setProperty('--video-opacity', (s.opacity / 100).toFixed(2));
+      const slider = document.getElementById('vid-opacity');
+      const label = document.getElementById('val-vopacity');
+      if (slider) slider.value = s.opacity;
+      if (label) label.textContent = s.opacity;
+    }
+    if (s.id) setIframeVideo(s.id, false);
+    if (s.enabled === false) {
+      videoEnabled = true; // force the toggle path so state is consistent
+      toggleVideoBackground();
+    }
+  } catch (e) {}
+}
+
+function saveVideoSettings(partial) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(VIDEO_STORAGE_KEY) || '{}');
+    localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify({ ...cur, ...partial }));
+  } catch (e) {}
+}
 
 function toggleVideoBackground() {
   videoEnabled = !videoEnabled;
   const vLayer = document.getElementById('video-layer');
   const vLabel = document.getElementById('vbg-label');
-  const vBtn = document.getElementById('vbg-toggle');
+  const iframe = document.getElementById('video-iframe');
 
-  if (vLayer) {
-    if (videoEnabled) {
-      vLayer.style.opacity = 'var(--video-opacity, 0.40)';
-      if (vLabel) vLabel.textContent = 'ON';
-      if (vBtn) vBtn.classList.add('active');
-    } else {
-      vLayer.style.opacity = '0';
-      if (vLabel) vLabel.textContent = 'OFF';
-      if (vBtn) vBtn.classList.remove('active');
+  if (!vLayer) return;
+
+  if (videoEnabled) {
+    vLayer.style.opacity = 'var(--video-opacity, 0.32)';
+    if (vLabel) vLabel.textContent = 'ON';
+    // restore src if we blanked it
+    if (iframe && (!iframe.src || iframe.src === 'about:blank' || !iframe.src.includes('embed'))) {
+      const last = (JSON.parse(localStorage.getItem(VIDEO_STORAGE_KEY) || '{}')).id || 'ZabsF0aIE6k';
+      setIframeVideo(last, false);
     }
+  } else {
+    vLayer.style.opacity = '0';
+    if (vLabel) vLabel.textContent = 'OFF';
+    // unload to stop decoding / save battery & data
+    if (iframe) iframe.src = 'about:blank';
   }
+  saveVideoSettings({ enabled: videoEnabled });
 }
 
 function toggleVideoHUD() {
@@ -1146,23 +1219,66 @@ function applyVideoPreset(val) {
 }
 
 function setCustomVideo(val) {
-  let id = val.trim();
+  let id = (val || '').trim();
   if (id.includes('v=')) id = id.split('v=')[1].split('&')[0];
-  if (id.includes('youtu.be/')) id = id.split('youtu.be/')[1].split('?')[0];
+  else if (id.includes('youtu.be/')) id = id.split('youtu.be/')[1].split('?')[0];
+  else if (id.includes('/embed/')) id = id.split('/embed/')[1].split('?')[0];
+  id = id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20);
+  if (id.length < 6) {
+    const qs = document.getElementById('quantum-status');
+    if (qs) {
+      qs.textContent = 'Invalid YouTube ID';
+      setTimeout(() => qs.textContent = 'Quantum circuit: Ready', 2500);
+    }
+    return;
+  }
   setIframeVideo(id);
 }
 
-function setIframeVideo(id) {
+function setIframeVideo(id, persist = true) {
   const iframe = document.getElementById('video-iframe');
-  if (iframe) {
-    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1`;
-  }
+  if (!iframe) return;
+  iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&modestbranding=1&rel=0`;
+  if (persist) saveVideoSettings({ id });
 }
 
 function setVideoOpacity(val) {
   const valLabel = document.getElementById('val-vopacity');
   if (valLabel) valLabel.textContent = val;
   document.documentElement.style.setProperty('--video-opacity', (val / 100).toFixed(2));
+  saveVideoSettings({ opacity: +val });
+}
+
+// Close HUD on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const hud = document.getElementById('video-hud');
+    if (hud && hud.classList.contains('show')) hud.classList.remove('show');
+  }
+});
+
+// Soft handling when tab is hidden (saves some resources)
+document.addEventListener('visibilitychange', () => {
+  const iframe = document.getElementById('video-iframe');
+  if (!iframe) return;
+  if (document.hidden) {
+    // leave running but you can uncomment the next line for aggressive battery saving
+    // if (!videoEnabled) return;
+  } else if (videoEnabled) {
+    const last = (JSON.parse(localStorage.getItem(VIDEO_STORAGE_KEY) || '{}')).id || 'ZabsF0aIE6k';
+    if (!iframe.src.includes(last) && iframe.src !== 'about:blank') {
+      // already has a valid src
+    } else if (iframe.src === 'about:blank' || !iframe.src.includes('embed')) {
+      setIframeVideo(last, false);
+    }
+  }
+});
+
+// Init after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadVideoSettings);
+} else {
+  loadVideoSettings();
 }
 </script>
 	<!-- Video Deck HUD Panel -->
@@ -1185,8 +1301,8 @@ function setVideoOpacity(val) {
     <input type="text" id="custom-yt-input" placeholder="e.g. ZabsF0aIE6k" onchange="setCustomVideo(this.value)">
   </div>
   <div class="hud-row">
-    <label>Opacity (<span id="val-vopacity">40</span>%):</label>
-    <input type="range" id="vid-opacity" min="5" max="100" step="1" value="40" oninput="setVideoOpacity(this.value)">
+    <label>Opacity (<span id="val-vopacity">32</span>%):</label>
+    <input type="range" id="vid-opacity" min="5" max="100" step="1" value="32" oninput="setVideoOpacity(this.value)">
   </div>
 </div>
 </body>
