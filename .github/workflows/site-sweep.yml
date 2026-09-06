@@ -1,0 +1,132 @@
+name: Full Ecosystem Health Sweep
+
+on:
+  schedule:
+    - cron: '0 12 * * 1' # Runs every Monday at noon UTC
+  workflow_dispatch:      # Manual trigger button in Actions tab
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright Engine
+        run: |
+          npm install playwright
+          npx playwright install --with-deps chromium
+
+      - name: Dynamic Sitemap Discovery & Portal Sweep
+        run: |
+          cat << 'EOF' > sweep.mjs
+          import { chromium } from 'playwright';
+
+          const SITEMAP_URL = 'https://inkrealm.info/sitemap';
+          const BASE_DOMAIN = 'inkrealm.info';
+
+          async function audit() {
+            const browser = await chromium.launch();
+            const discoveryPage = await browser.newPage();
+
+            console.log(`📡 Connecting to index registry: ${SITEMAP_URL}`);
+            
+            try {
+              await discoveryPage.goto(SITEMAP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+              await discoveryPage.waitForTimeout(3000); // Allow GSAP / transitions to hydrate DOM
+            } catch (err) {
+              console.error(`🚨 Failed to load sitemap hub: ${err.message}`);
+              await browser.close();
+              process.exit(1);
+            }
+
+            // 1. Scrape all valid links found on the sitemap page
+            const rawLinks = await discoveryPage.evaluate(() => {
+              return Array.from(document.querySelectorAll('a[href]'))
+                .map(a => a.href.trim())
+                .filter(href => href && !href.startsWith('mailto:') && !href.startsWith('tel:'));
+            });
+
+            await discoveryPage.close();
+
+            // 2. Filter & clean: keep inkrealm routes or core ecosystem sub-portals
+            const targetUrls = Array.from(new Set(rawLinks))
+              .map(url => url.split('#')[0].replace(/\/$/, '')) // strip hashes and trailing slashes
+              .filter(url => {
+                // Sweep all inkrealm.info pages, plus any direct internal routes
+                return url.includes(BASE_DOMAIN) && url !== SITEMAP_URL;
+              });
+
+            console.log(`\n🔍 Found ${targetUrls.length} ecosystem destinations from sitemap to audit:`);
+            targetUrls.forEach((u, i) => console.log(`   [${i + 1}] ${u}`));
+
+            if (targetUrls.length === 0) {
+              console.warn("⚠️ No portal links were extracted. Check sitemap selector structure.");
+              await browser.close();
+              return;
+            }
+
+            let failureCount = 0;
+
+            // 3. Audit each discovered portal
+            for (const url of targetUrls) {
+              console.log(`\n----------------------------------------`);
+              console.log(`Auditing: ${url}`);
+              console.log(`----------------------------------------`);
+
+              const page = await browser.newPage();
+              const pageIssues = [];
+
+              // Catch unhandled JS exceptions (syntax, undefined vars, null refs)
+              page.on('pageerror', err => pageIssues.push(`[JS ERROR] ${err.message}`));
+
+              // Catch console errors (Three.js WebGL shader errors, audio worklet crashes)
+              page.on('console', msg => {
+                if (msg.type() === 'error') pageIssues.push(`[CONSOLE] ${msg.text()}`);
+              });
+
+              // Catch dead CDNs, missing fonts, 404 assets, CORS blocks
+              page.on('requestfailed', req => {
+                pageIssues.push(`[FAILED ASSET] ${req.url()} (${req.failure()?.errorText || 'Failed'})`);
+              });
+
+              try {
+                const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
+                if (response && response.status() >= 400) {
+                  pageIssues.push(`[HTTP STATUS] Returned error code ${response.status()}`);
+                }
+                
+                // Wait 2.5s for WebGL / Web Audio canvas textures to initialize
+                await page.waitForTimeout(2500);
+
+              } catch (e) {
+                pageIssues.push(`[NAVIGATION FAIL] ${e.message}`);
+              }
+
+              if (pageIssues.length === 0) {
+                console.log(`  ✅ Clean: 0 errors.`);
+              } else {
+                failureCount += pageIssues.length;
+                pageIssues.forEach(err => console.error(`  ❌ ${err}`));
+              }
+
+              await page.close();
+            }
+
+            await browser.close();
+
+            console.log(`\n========================================`);
+            if (failureCount > 0) {
+              console.error(`🚨 Sweep finished: ${failureCount} failure(s) across ecosystem.`);
+              process.exit(1); // Fails GitHub Action and triggers alert email
+            } else {
+              console.log(`✨ All ${targetUrls.length} portals passed cleanly with zero runtime failures.`);
+            }
+          }
+
+          audit();
+          EOF
+
+          node sweep.mjs
