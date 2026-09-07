@@ -5,6 +5,13 @@ on:
     - cron: '0 12 * * 1' # Runs every Monday at noon UTC
   workflow_dispatch:      # Manual trigger button in Actions tab
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -14,9 +21,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
+
       - name: Install Playwright Engine
         run: |
-          npm install playwright
+          npm install playwright@1.63.0
+          # Always install OS deps; browsers are restored from cache when possible
           npx playwright install --with-deps chromium
 
       - name: Dynamic Sitemap Discovery & Portal Sweep
@@ -69,6 +84,7 @@ jobs:
             }
 
             let failureCount = 0;
+            const allIssues = [];
 
             // 3. Audit each discovered portal
             for (const url of targetUrls) {
@@ -109,7 +125,10 @@ jobs:
                 console.log(`  ✅ Clean: 0 errors.`);
               } else {
                 failureCount += pageIssues.length;
-                pageIssues.forEach(err => console.error(`  ❌ ${err}`));
+                pageIssues.forEach(err => {
+                  console.error(`  ❌ ${err}`);
+                  allIssues.push({ url, issue: err });
+                });
               }
 
               await page.close();
@@ -120,6 +139,9 @@ jobs:
             console.log(`\n========================================`);
             if (failureCount > 0) {
               console.error(`🚨 Sweep finished: ${failureCount} failure(s) across ecosystem.`);
+              // Write a simple summary file for the artifact
+              const fs = await import('fs');
+              fs.writeFileSync('audit-summary.json', JSON.stringify({ failureCount, issues: allIssues }, null, 2));
               process.exit(1); // Fails GitHub Action and triggers alert email
             } else {
               console.log(`✨ All ${targetUrls.length} portals passed cleanly with zero runtime failures.`);
@@ -130,3 +152,26 @@ jobs:
           EOF
 
           node sweep.mjs
+
+      - name: Upload audit summary (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecosystem-audit-summary
+          path: audit-summary.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Ecosystem Health Sweep" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f audit-summary.json ]; then
+            echo "### Failures detected" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat audit-summary.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All portals passed with zero runtime failures." >> $GITHUB_STEP_SUMMARY
+          fi
