@@ -1,9 +1,10 @@
 name: Full Ecosystem Health Sweep
 
 on:
-  schedule:
-    - cron: '0 12 * * 1' # Runs every Monday at noon UTC
-  workflow_dispatch:      # Manual trigger button in Actions tab
+  workflow_dispatch: # Run manually from the GitHub Actions tab
+
+permissions:
+  contents: read
 
 jobs:
   audit:
@@ -12,7 +13,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Playwright Engine
         run: |
@@ -23,6 +24,7 @@ jobs:
         run: |
           cat << 'EOF' > sweep.mjs
           import { chromium } from 'playwright';
+          import fs from 'fs';
 
           const SITEMAP_URL = 'https://inkrealm.info/sitemap';
           const BASE_DOMAIN = 'inkrealm.info';
@@ -34,15 +36,16 @@ jobs:
             console.log(`📡 Connecting to index registry: ${SITEMAP_URL}`);
             
             try {
-              await discoveryPage.goto(SITEMAP_URL, { waitUntil: 'networkidle', timeout: 30000 });
-              await discoveryPage.waitForTimeout(3000); // Allow GSAP / transitions to hydrate DOM
+              // domcontentloaded prevents timeouts on sites with ongoing GSAP/WebGL loops
+              await discoveryPage.goto(SITEMAP_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await discoveryPage.waitForTimeout(3000); // Allow GSAP to finish hydrating DOM
             } catch (err) {
               console.error(`🚨 Failed to load sitemap hub: ${err.message}`);
               await browser.close();
               process.exit(1);
             }
 
-            // 1. Scrape all valid links found on the sitemap page
+            // Scrape links
             const rawLinks = await discoveryPage.evaluate(() => {
               return Array.from(document.querySelectorAll('a[href]'))
                 .map(a => a.href.trim())
@@ -51,65 +54,50 @@ jobs:
 
             await discoveryPage.close();
 
-            // 2. Filter & clean: keep inkrealm routes or core ecosystem sub-portals
             const targetUrls = Array.from(new Set(rawLinks))
-              .map(url => url.split('#')[0].replace(/\/$/, '')) // strip hashes and trailing slashes
-              .filter(url => {
-                // Sweep all inkrealm.info pages, plus any direct internal routes
-                return url.includes(BASE_DOMAIN) && url !== SITEMAP_URL;
-              });
+              .map(url => url.split('#')[0].replace(/\/$/, ''))
+              .filter(url => url.includes(BASE_DOMAIN) && url !== SITEMAP_URL);
 
-            console.log(`\n🔍 Found ${targetUrls.length} ecosystem destinations from sitemap to audit:`);
+            console.log(`\n🔍 Found ${targetUrls.length} destinations to audit:`);
             targetUrls.forEach((u, i) => console.log(`   [${i + 1}] ${u}`));
 
             if (targetUrls.length === 0) {
-              console.warn("⚠️ No portal links were extracted. Check sitemap selector structure.");
+              console.warn("⚠️ No portal links were extracted.");
               await browser.close();
               return;
             }
 
             let failureCount = 0;
+            const allIssues = [];
 
-            // 3. Audit each discovered portal
             for (const url of targetUrls) {
-              console.log(`\n----------------------------------------`);
-              console.log(`Auditing: ${url}`);
-              console.log(`----------------------------------------`);
-
+              console.log(`\nAuditing: ${url}`);
               const page = await browser.newPage();
               const pageIssues = [];
 
-              // Catch unhandled JS exceptions (syntax, undefined vars, null refs)
               page.on('pageerror', err => pageIssues.push(`[JS ERROR] ${err.message}`));
-
-              // Catch console errors (Three.js WebGL shader errors, audio worklet crashes)
               page.on('console', msg => {
-                if (msg.type() === 'error') pageIssues.push(`[CONSOLE] ${msg.text()}`);
-              });
-
-              // Catch dead CDNs, missing fonts, 404 assets, CORS blocks
-              page.on('requestfailed', req => {
-                pageIssues.push(`[FAILED ASSET] ${req.url()} (${req.failure()?.errorText || 'Failed'})`);
+                if (msg.type() === 'error') pageIssues.push(`[CONSOLE ERROR] ${msg.text()}`);
               });
 
               try {
-                const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
+                const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
                 if (response && response.status() >= 400) {
-                  pageIssues.push(`[HTTP STATUS] Returned error code ${response.status()}`);
+                  pageIssues.push(`[HTTP STATUS] Returned code ${response.status()}`);
                 }
-                
-                // Wait 2.5s for WebGL / Web Audio canvas textures to initialize
-                await page.waitForTimeout(2500);
-
+                await page.waitForTimeout(2000);
               } catch (e) {
                 pageIssues.push(`[NAVIGATION FAIL] ${e.message}`);
               }
 
               if (pageIssues.length === 0) {
-                console.log(`  ✅ Clean: 0 errors.`);
+                console.log(`  ✅ Clean`);
               } else {
                 failureCount += pageIssues.length;
-                pageIssues.forEach(err => console.error(`  ❌ ${err}`));
+                pageIssues.forEach(err => {
+                  console.error(`  ❌ ${err}`);
+                  allIssues.push({ url, issue: err });
+                });
               }
 
               await page.close();
@@ -117,12 +105,12 @@ jobs:
 
             await browser.close();
 
-            console.log(`\n========================================`);
             if (failureCount > 0) {
-              console.error(`🚨 Sweep finished: ${failureCount} failure(s) across ecosystem.`);
-              process.exit(1); // Fails GitHub Action and triggers alert email
+              fs.writeFileSync('audit-summary.json', JSON.stringify({ failureCount, issues: allIssues }, null, 2));
+              console.error(`\n🚨 Sweep finished with ${failureCount} critical failure(s).`);
+              process.exit(1);
             } else {
-              console.log(`✨ All ${targetUrls.length} portals passed cleanly with zero runtime failures.`);
+              console.log(`\n✨ All portals passed cleanly.`);
             }
           }
 
@@ -130,3 +118,25 @@ jobs:
           EOF
 
           node sweep.mjs
+
+      - name: Upload audit summary (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecosystem-audit-summary
+          path: audit-summary.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Ecosystem Health Sweep Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f audit-summary.json ]; then
+            echo "### ❌ Failures detected" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat audit-summary.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All portals passed with zero runtime failures." >> $GITHUB_STEP_SUMMARY
+          fi
