@@ -50,56 +50,117 @@ function toggleArtifactZoom(el) {
   el.classList.toggle('expanded');
 }
 
-// 3. Robust Screenplay TTS Reader
-function toggleTTS(element, btn) {
+// --- TTS CORE ENGINE (Adapted from 516.js) ---
+let currentSpeech = null;
+let isSpeaking = false;
+
+// 1. Preferred Voice Selector (Fallback to clean English/Feminine voice)
+function getPreferredVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  // Prioritize clear feminine/standard voices (same as 516.js)
+  const femaleVoice = voices.find(v => {
+    const name = v.name.toLowerCase();
+    return name.includes('female') || name.includes('zira') || 
+           name.includes('samantha') || name.includes('karen') || 
+           name.includes('google uk english female') || name.includes('google us english female');
+  });
+
+  if (femaleVoice) return femaleVoice;
+
+  // Fallback: first English voice or system default
+  return voices.find(v => v.lang.startsWith('en')) || voices[0];
+}
+
+// 2. Main TTS Toggle Function
+function toggleTTS(textElement) {
   if (!('speechSynthesis' in window)) {
-    alert("Speech Synthesis is not supported in this browser.");
+    console.warn("TTS not supported.");
     return;
   }
 
-  // 1. If currently speaking, stop it
-  if (window.speechSynthesis.speaking) {
+  // Auto-discover the trigger button
+  const trigger = textElement.querySelector('.tts-trigger') || 
+                  (textElement.parentElement ? textElement.parentElement.querySelector('.tts-trigger') : null);
+
+  // Stop if already speaking
+  if (isSpeaking && currentSpeech) {
     window.speechSynthesis.cancel();
-    if (btn) btn.textContent = '▶ READ LYRICS';
+    isSpeaking = false;
+    if (trigger) {
+      trigger.classList.remove('speaking');
+      trigger.textContent = '▶';
+      trigger.title = 'Read aloud';
+    }
     return;
   }
 
-  // 2. Clear any frozen/stuck speech engine state (Chromium bugfix)
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.resume();
+  // Ensure voices are loaded (Chromium handshake fix from 516.js)
+  if (window.speechSynthesis.getVoices().length === 0) {
+    console.warn('Voices not loaded yet, retrying...');
+    if (trigger) trigger.textContent = '⌛';
+    setTimeout(() => toggleTTS(textElement), 200);
+    return;
+  }
 
-  // 3. Extract text specifically from the <pre> block
-  const target = element ? (element.querySelector('pre') || element) : document.querySelector('#editor pre');
-  let text = target ? (target.innerText || target.textContent) : '';
+  // Target text specifically from <pre> if available, else clean textElement
+  const target = textElement.querySelector('pre') || textElement;
+  let text = target.innerText || target.textContent;
   
-  // Clean up excessive whitespace and symbols
-  text = text.trim();
-  if (!text) {
-    console.warn("TTS: No readable text found.");
-    return;
+  // Clean out divider bars (================) so engine doesn't choke
+  text = text.replace(/={3,}/g, '').replace(/-{3,}/g, '').trim();
+
+  if (!text) return;
+
+  // Get preferred voice and build utterance
+  const voice = getPreferredVoice();
+  const utterance = new SpeechSynthesisUtterance(text);
+
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+    utterance.pitch = 1.2;
+    utterance.rate = 0.95;
+  } else {
+    utterance.lang = 'en-US';
+    utterance.pitch = 1.2;
+    utterance.rate = 1.0;
   }
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.95;
-  utterance.pitch = 0.9;
-
-  utterance.onstart = () => {
-    console.log("TTS playback started.");
-    if (btn) btn.textContent = '■ STOP';
+  // Event handlers
+  utterance.onstart = function() {
+    isSpeaking = true;
+    if (trigger) {
+      trigger.classList.add('speaking');
+      trigger.textContent = '⏸';
+      trigger.title = 'Stop reading';
+    }
+    currentSpeech = utterance;
   };
 
-  utterance.onend = () => {
-    console.log("TTS playback finished.");
-    if (btn) btn.textContent = '▶ READ LYRICS';
+  utterance.onend = utterance.onerror = function() {
+    isSpeaking = false;
+    if (trigger) {
+      trigger.classList.remove('speaking');
+      trigger.textContent = '▶';
+      trigger.title = 'Read aloud';
+    }
+    currentSpeech = null;
   };
 
-  utterance.onerror = (e) => {
-    console.error("TTS encountered an error:", e);
-    if (btn) btn.textContent = '▶ READ LYRICS';
-  };
-
-  // 4. Trigger speech
+  // Start speaking
   window.speechSynthesis.speak(utterance);
+}
+
+// 3. Warm up voices on page load
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.getVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
 }
 
 
