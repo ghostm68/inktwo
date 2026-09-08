@@ -50,19 +50,42 @@ function toggleArtifactZoom(el) {
   el.classList.toggle('expanded');
 }
 
-// 3. Simple Screenplay TTS Reader
-function toggleTTS(element) {
+// 3. Screenplay TTS Reader (Unified)
+function toggleTTS(element, btn) {
   if (!('speechSynthesis' in window)) return;
+
+  // If already playing, stop playback
   if (window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
+    if (btn) btn.textContent = '▶ PLAY NARRATION';
     return;
   }
-  const text = element.innerText || element.textContent;
+
+  // Extract text to read
+  const text = element ? (element.innerText || element.textContent) : '';
+  if (!text) return;
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.95;
   utterance.pitch = 0.9;
+
+  // Reset button state when speech finishes or encounters an error
+  utterance.onend = () => {
+    if (btn) btn.textContent = '▶ PLAY NARRATION';
+  };
+  utterance.onerror = () => {
+    if (btn) btn.textContent = '▶ PLAY NARRATION';
+  };
+
   window.speechSynthesis.speak(utterance);
+  if (btn) btn.textContent = '■ STOP';
 }
+
+function handleTTSClick(btn) {
+  const target = document.querySelector('#editor pre') || document.getElementById('editor');
+  toggleTTS(target, btn);
+}
+
 
 // 4. Power Core & 55Hz Retro Oscillator Hum
 let audioCtxHum, humOsc, isPowered = false;
