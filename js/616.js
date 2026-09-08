@@ -50,41 +50,58 @@ function toggleArtifactZoom(el) {
   el.classList.toggle('expanded');
 }
 
-// 3. Screenplay TTS Reader (Unified)
+// 3. Robust Screenplay TTS Reader
 function toggleTTS(element, btn) {
-  if (!('speechSynthesis' in window)) return;
-
-  // If already playing, stop playback
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    if (btn) btn.textContent = '▶ PLAY NARRATION';
+  if (!('speechSynthesis' in window)) {
+    alert("Speech Synthesis is not supported in this browser.");
     return;
   }
 
-  // Extract text to read
-  const text = element ? (element.innerText || element.textContent) : '';
-  if (!text) return;
+  // 1. If currently speaking, stop it
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    if (btn) btn.textContent = '▶ READ LYRICS';
+    return;
+  }
+
+  // 2. Clear any frozen/stuck speech engine state (Chromium bugfix)
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+
+  // 3. Extract text specifically from the <pre> block
+  const target = element ? (element.querySelector('pre') || element) : document.querySelector('#editor pre');
+  let text = target ? (target.innerText || target.textContent) : '';
+  
+  // Clean up excessive whitespace and symbols
+  text = text.trim();
+  if (!text) {
+    console.warn("TTS: No readable text found.");
+    return;
+  }
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.95;
   utterance.pitch = 0.9;
 
-  // Reset button state when speech finishes or encounters an error
+  utterance.onstart = () => {
+    console.log("TTS playback started.");
+    if (btn) btn.textContent = '■ STOP';
+  };
+
   utterance.onend = () => {
-    if (btn) btn.textContent = '▶ PLAY NARRATION';
-  };
-  utterance.onerror = () => {
-    if (btn) btn.textContent = '▶ PLAY NARRATION';
+    console.log("TTS playback finished.");
+    if (btn) btn.textContent = '▶ READ LYRICS';
   };
 
+  utterance.onerror = (e) => {
+    console.error("TTS encountered an error:", e);
+    if (btn) btn.textContent = '▶ READ LYRICS';
+  };
+
+  // 4. Trigger speech
   window.speechSynthesis.speak(utterance);
-  if (btn) btn.textContent = '■ STOP';
 }
 
-function handleTTSClick(btn) {
-  const target = document.querySelector('#editor pre') || document.getElementById('editor');
-  toggleTTS(target, btn);
-}
 
 
 // 4. Power Core & 55Hz Retro Oscillator Hum
