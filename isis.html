@@ -41,6 +41,10 @@
     button { font-family: inherit; cursor: pointer; }
     a { color: var(--mut); text-decoration: none; }
 
+    /* COMPLETELY REMOVE LEAFLET BRANDING & ATTRIBUTION */
+    .leaflet-control-attribution { display: none !important; }
+    .leaflet-container { background: #000 !important; }
+
     /* ================= 1. TOP NAVIGATION ================= */
     #topbar {
       height: 50px;
@@ -68,7 +72,7 @@
     .brandText { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
     .brandSub { font-size: 10px; color: var(--mut); letter-spacing: 3px; margin-left: 4px; }
 
-    /* GRAM SPARKLINE HEADER */
+    /* GRAM SPARKLINE HEADER (LAYER-1 NATIVE) */
     #gramChart { display: flex; align-items: center; gap: 10px; }
     #gramSym { font-weight: 800; color: var(--crimson-glow); font-size: 13px; }
     #gramPrice { font-size: 15px; font-weight: bold; }
@@ -100,6 +104,24 @@
     /* ================= 2. WORKSPACE ================= */
     #workspace { position: relative; flex: 1; height: calc(100vh - 78px); }
     #map { width: 100%; height: 100%; background: #000; }
+    .crosshair-cursor { cursor: crosshair !important; }
+
+    /* DRAW HUD INDICATOR OVER MAP */
+    #draw-hud {
+      display: none;
+      position: absolute;
+      top: 14px;
+      left: 140px;
+      background: rgba(13, 8, 10, 0.92);
+      border: 1px solid var(--crimson);
+      padding: 6px 12px;
+      font-size: 10px;
+      color: #ff9999;
+      letter-spacing: 1px;
+      z-index: 2000;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    }
+    #draw-hud b { color: #fff; }
 
     /* ================= 3. TOOLBAR DOCK ================= */
     #toolbar {
@@ -168,16 +190,16 @@
       border: 1px solid var(--line2);
       color: var(--txt);
       font-size: 10px;
-      padding: 5px 9px;
+      padding: 6px 9px;
       letter-spacing: 1px;
       text-align: left;
     }
-    .hud-btn:hover { border-color: var(--crimson); color: var(--crimson-glow); }
+    .hud-btn:hover, .hud-btn.active { border-color: var(--crimson); color: var(--crimson-glow); background: #24080b; }
 
     /* ================= 5. MONA WORD PROCESSOR DRAWER ================= */
     #notepadPanel {
       position: absolute; top: 12px; right: 12px; z-index: 3000;
-      width: 480px; height: 460px;
+      width: 520px; height: 480px;
       background: rgba(13, 8, 10, 0.98);
       border: 1px solid var(--crimson);
       box-shadow: 0 12px 35px rgba(0,0,0,0.92);
@@ -201,21 +223,15 @@
     .npFoot {
       display: flex; align-items: center; gap: 6px; padding: 7px 10px;
       border-top: 1px solid var(--line); background: #0a0607;
+      flex-wrap: wrap;
     }
     .npFoot button {
       background: var(--panel2); color: var(--txt); border: 1px solid var(--line2);
       font-size: 10px; padding: 4px 8px; letter-spacing: 1px;
     }
     .npFoot button:hover { border-color: var(--crimson); color: var(--crimson-glow); }
-    .npFoot button.exp-btn {
-      border-color: #57161b;
-      color: #ff9999;
-    }
-    .npFoot button.exp-btn:hover {
-      background: var(--crimson);
-      color: #000;
-      border-color: var(--crimson);
-    }
+    .npFoot button.exp-btn { border-color: #57161b; color: #ff9999; }
+    .npFoot button.exp-btn:hover { background: var(--crimson); color: #000; border-color: var(--crimson); }
 
     /* ================= 6. INTEL WIRE FOOTER ================= */
     #statusbar {
@@ -238,7 +254,7 @@
       </div>
 
       <!-- Live TON Gram Micro-Chart -->
-      <div id="gramChart" title="GRAM (The Open Network) - Live Keyless Feed">
+      <div id="gramChart" title="GRAM (Layer-1 Native Asset) - Live Market Telemetry">
         <span id="gramSym">GRAM</span>
         <span id="gramPrice">--</span>
         <span id="gramChange" class="up">--%</span>
@@ -257,6 +273,7 @@
 
   <!-- 2. MAIN WORKSPACE -->
   <div id="workspace">
+    <div id="draw-hud"></div>
     <div id="map"></div>
 
     <!-- LEFT TOOLBAR -->
@@ -286,7 +303,11 @@
       </div>
       <textarea id="notepad" spellcheck="false" placeholder="Enter tactical dossier notes... Buffer persists to local storage."></textarea>
       <div class="npFoot">
-        <!-- Mona Multi-Format Export Engine -->
+        <!-- Hidden file input for import -->
+        <input type="file" id="monaFileInput" accept=".txt,.bak,.wsd,.md,.doc,text/*" style="display:none;" />
+        
+        <!-- Action Buttons -->
+        <button class="exp-btn" onclick="document.getElementById('monaFileInput').click()">IMP .FILE</button>
         <button class="exp-btn" onclick="exportMona('txt')">EXP .TXT</button>
         <button class="exp-btn" onclick="exportMona('bak')">EXP .BAK</button>
         <button class="exp-btn" onclick="exportMona('wsd')">EXP .WSD</button>
@@ -299,7 +320,7 @@
 
   <!-- 3. INTEL WIRE FOOTER -->
   <footer id="statusbar">
-    <div id="ticker-marquee">FEED: <span>GRID INITIALIZED // ZERO KEYS CONFIGURED</span></div>
+    <div id="ticker-marquee">FEED: <span>INITIALIZING SENSOR MESH...</span></div>
     <div>DIRECT BROWSER RUNTIME | NO PROXY REQUIRED</div>
   </footer>
 
@@ -312,12 +333,17 @@
     }
     setInterval(tickClock, 1000); tickClock();
 
-    // ================= 2. MAP INITIALIZATION (ESRI Dark Canvas) =================
-    const map = L.map("map", { zoomControl: false, zoomSnap: 0.5 }).setView([22, 10], 2.5);
+    // ================= 2. MAP INITIALIZATION (Attribution Disabled) =================
+    const map = L.map("map", {
+      zoomControl: false,
+      zoomSnap: 0.5,
+      attributionControl: false // STRIPS LEAFLET BRANDING & LINKS
+    }).setView([22, 10], 2.5);
+
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
-      maxZoom: 16, attribution: "Esri Dark Canvas"
+      maxZoom: 16
     }).addTo(map);
 
     const layers = {
@@ -391,28 +417,49 @@
       }).bindPopup(`<b>MARITIME CHOKEPOINT</b><br><b>${ch.name}</b><br>${ch.note}`).addTo(layers.choke);
     });
 
-    // ================= 4. GRAM TOKEN SPARKLINE (DEXSCREENER) =================
+    // ================= 4. GRAM TOKEN LIVE SPARKLINE (MATCHES COINMARKETCAP) =================
     async function loadGramToken() {
-      const GRAM_TON = "EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z";
       try {
-        const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${GRAM_TON}`);
-        const d = await r.json();
-        if (d.pairs && d.pairs.length) {
-          const p = d.pairs[0];
-          const price = parseFloat(p.priceUsd);
-          const chg = parseFloat(p.priceChange.h24);
-          document.getElementById('gramPrice').innerText = `$${price.toFixed(4)}`;
-          const chgEl = document.getElementById('gramChange');
-          chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-          chgEl.className = chg >= 0 ? 'up' : 'down';
-          drawSparkline([price*0.96, price*0.98, price*0.97, price*1.01, price], chg >= 0);
-          return;
+        // Query Binance public spot ticker for TON/USDT
+        const tickerRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT");
+        if (!tickerRes.ok) throw new Error("Ticker error");
+        const ticker = await tickerRes.json();
+
+        const price = parseFloat(ticker.lastPrice);
+        const chg = parseFloat(ticker.priceChangePercent);
+
+        document.getElementById('gramPrice').innerText = `$${price.toFixed(2)}`;
+        const chgEl = document.getElementById('gramChange');
+        chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
+        chgEl.className = chg >= 0 ? 'up' : 'down';
+
+        // Query 24 hours of 1h candle closes for dynamic SVG wave
+        const klineRes = await fetch("https://api.binance.com/api/v3/klines?symbol=TONUSDT&interval=1h&limit=24");
+        if (klineRes.ok) {
+          const klines = await klineRes.json();
+          const closePrices = klines.map(c => parseFloat(c[4]));
+          drawSparkline(closePrices, chg >= 0);
         }
-      } catch(e) {}
-      document.getElementById('gramPrice').innerText = "$0.0071";
-      document.getElementById('gramChange').innerText = "+2.40%";
-      drawSparkline([1, 1.2, 1.1, 1.3, 1.25, 1.4], true);
+        return;
+      } catch (err) {
+        // Redundant CoinGecko fallback
+        try {
+          const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true");
+          const cgData = await cgRes.json();
+          const ton = cgData["the-open-network"];
+          if (ton) {
+            document.getElementById('gramPrice').innerText = `$${ton.usd.toFixed(2)}`;
+            const chg = ton.usd_24h_change;
+            const chgEl = document.getElementById('gramChange');
+            chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
+            chgEl.className = chg >= 0 ? 'up' : 'down';
+            drawSparkline([ton.usd * 0.98, ton.usd * 0.99, ton.usd, ton.usd], chg >= 0);
+            return;
+          }
+        } catch (e) {}
+      }
     }
+
     function drawSparkline(pts, up) {
       const svg = document.getElementById('gramSpark');
       const w = 140, h = 32, n = pts.length;
@@ -425,6 +472,9 @@
 
     // ================= 5. TOOL CONTROLLER & DRAWER =================
     let activeTool = "layers";
+    let drawMode = "pin"; // Default active drawing sub-mode
+    let drawPts = [];
+    let currentPolyline = null;
     const tools = {};
 
     tools.layers = () => `
@@ -467,18 +517,59 @@
       </div>
     `;
 
-    let drawMode = null;
+    // Overhauled Interactive Drawing Tool
     tools.draw = () => `
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="hud-btn" onclick="drawMode='marker'">PIN</button>
-        <button class="hud-btn" onclick="drawMode='line'">LINE</button>
-        <button class="hud-btn" onclick="layers.draw.clearLayers(); drawPts=[];">PURGE</button>
+      <div style="font-size:11px; margin-bottom:10px; color:var(--mut);">
+        Select a tool, then click directly on the map to plot tactical vectors:
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="hud-btn ${drawMode==='pin'?'active':''}" id="dm-pin" onclick="setDrawMode('pin')">⊙ MARKER PIN (SINGLE CLICK)</button>
+        <button class="hud-btn ${drawMode==='line'?'active':''}" id="dm-line" onclick="setDrawMode('line')">⇁ VECTOR LINE (CONNECT POINTS)</button>
+        <button class="hud-btn" onclick="finishLine()">✓ FINISH CURRENT LINE</button>
+        <button class="hud-btn" style="border-color:#57161b;" onclick="clearDrawings()">✕ PURGE ALL DRAWINGS</button>
       </div>
     `;
 
     function renderPanel(tool) {
       document.getElementById('spTitle').innerText = tool.toUpperCase();
       document.getElementById('spContent').innerHTML = tools[tool] ? tools[tool]() : '';
+
+      // Update Cursor & HUD banner when draw is opened/closed
+      const drawHud = document.getElementById('draw-hud');
+      const mapContainer = document.getElementById('map');
+      if (tool === 'draw') {
+        mapContainer.classList.add('crosshair-cursor');
+        drawHud.style.display = 'block';
+        updateDrawHud();
+      } else {
+        mapContainer.classList.remove('crosshair-cursor');
+        drawHud.style.display = 'none';
+      }
+    }
+
+    function setDrawMode(mode) {
+      drawMode = mode;
+      finishLine();
+      document.querySelectorAll('#spContent .hud-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`dm-${mode}`);
+      if (activeBtn) activeBtn.classList.add('active');
+      updateDrawHud();
+    }
+
+    function updateDrawHud() {
+      const hud = document.getElementById('draw-hud');
+      if (drawMode === 'pin') hud.innerHTML = `DRAW ACTIVE: <b>TACTICAL PIN</b> (CLICK MAP TO DROP)`;
+      if (drawMode === 'line') hud.innerHTML = `DRAW ACTIVE: <b>VECTOR LINE</b> (CLICK POINTS, THEN CLICK 'FINISH')`;
+    }
+
+    function finishLine() {
+      drawPts = [];
+      currentPolyline = null;
+    }
+
+    function clearDrawings() {
+      layers.draw.clearLayers();
+      finishLine();
     }
 
     document.querySelectorAll('#toolbar button').forEach(b => {
@@ -488,6 +579,8 @@
           document.getElementById('sidePanel').classList.add('closed');
           b.classList.remove('active');
           activeTool = null;
+          document.getElementById('map').classList.remove('crosshair-cursor');
+          document.getElementById('draw-hud').style.display = 'none';
           return;
         }
         document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
@@ -501,6 +594,8 @@
     document.getElementById('spClose').addEventListener('click', () => {
       document.getElementById('sidePanel').classList.add('closed');
       document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
+      document.getElementById('map').classList.remove('crosshair-cursor');
+      document.getElementById('draw-hud').style.display = 'none';
       activeTool = null;
     });
 
@@ -510,10 +605,32 @@
       else map.addLayer(layers[layer]);
     }
 
-    // Map Route & Draw Handlers
-    let drawPts = [];
+    // Map Click Handlers for Route & Draw
     map.on('click', async (e) => {
-      if (activeTool === 'route') {
+      if (activeTool === 'draw') {
+        if (drawMode === 'pin') {
+          // Drop pulsing tactical pin
+          L.circleMarker(e.latlng, {
+            radius: 6,
+            fillColor: "#e61c1c",
+            color: "#fff",
+            weight: 2,
+            fillOpacity: 0.9
+          }).bindPopup(`<b style="color:#e61c1c;">TACTICAL WAYPOINT</b><br>${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`).addTo(layers.draw);
+        } else if (drawMode === 'line') {
+          // Connect tactical vector line
+          drawPts.push(e.latlng);
+          if (drawPts.length === 1) {
+            L.circleMarker(e.latlng, { radius: 3, color: '#e61c1c' }).addTo(layers.draw);
+          } else {
+            if (!currentPolyline) {
+              currentPolyline = L.polyline(drawPts, { color: '#e61c1c', weight: 2.5, dashArray: '4 4' }).addTo(layers.draw);
+            } else {
+              currentPolyline.setLatLngs(drawPts);
+            }
+          }
+        }
+      } else if (activeTool === 'route') {
         routeNodes.push(e.latlng);
         L.circleMarker(e.latlng, { radius: 5, color: '#ffd24a' }).addTo(layers.routes);
         if (routeNodes.length === 2) {
@@ -529,23 +646,17 @@
           } catch(err) {}
           routeNodes = [];
         }
-      } else if (activeTool === 'draw') {
-        if (drawMode === 'marker') {
-          L.circleMarker(e.latlng, { radius: 6, color: '#e61c1c' }).addTo(layers.draw);
-        } else if (drawMode === 'line') {
-          drawPts.push(e.latlng);
-          if (drawPts.length >= 2) L.polyline(drawPts, { color: '#e61c1c', weight: 2 }).addTo(layers.draw);
-        }
       }
     });
 
     renderPanel('layers');
 
-    // ================= 6. MONA PWP EXPORT ENGINE =================
+    // ================= 6. MONA PWP EDITOR & IMPORT/EXPORT ENGINE =================
     const npBtn = document.getElementById('notepadToggleBtn');
     const npPanel = document.getElementById('notepadPanel');
     const np = document.getElementById('notepad');
     const npMeta = document.getElementById('npMeta');
+    const fileInput = document.getElementById('monaFileInput');
 
     np.value = localStorage.getItem('ISIS_MONA_BUFFER') || '';
     updateMonaMeta();
@@ -570,7 +681,21 @@
     }
     np.addEventListener('keyup', updateMonaMeta);
 
-    // Multi-format export (Mona retro engine)
+    // Mona File Import Action
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        np.value = evt.target.result;
+        localStorage.setItem('ISIS_MONA_BUFFER', np.value);
+        updateMonaMeta();
+        document.getElementById('npSaveStatus').innerText = "IMPORTED";
+      };
+      reader.readAsText(file);
+    });
+
+    // Mona File Export Actions
     function exportMona(ext) {
       const blob = new Blob([np.value], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
@@ -596,9 +721,9 @@
       }
     }
 
-    // ================= 7. NEWS TICKER =================
+    // ================= 7. NEWS WIRE TICKER =================
     const alerts = [
-      "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA DEXSCREENER",
+      "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
       "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
       "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H"
     ];
