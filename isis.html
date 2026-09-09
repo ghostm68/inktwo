@@ -410,6 +410,67 @@
       }
       #statusbar div:last-child { display: none; } /* Hide secondary runtime disclaimer */
     }  
+	.gyro-container-mini {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  perspective: 400px;
+  transform-style: preserve-3d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gyro-ring-mini {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.gyro-ring-mini-1 {
+  border: 1px solid var(--crimson);
+  animation: gyroRotate1 3.5s linear infinite;
+}
+.gyro-ring-mini-2 {
+  border: 1px solid rgba(255, 77, 77, 0.75);
+  inset: 2px;
+  animation: gyroRotate2 2.8s linear infinite reverse;
+}
+.gyro-ring-mini-3 {
+  border: 1px solid rgba(255, 210, 74, 0.6);
+  inset: 4px;
+  animation: gyroRotate3 4.5s linear infinite;
+}
+
+.gyro-rotator-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.gyro-anchor-logo-mini {
+  width: 11px;
+  height: 11px;
+  filter: drop-shadow(0 0 3px var(--crimson-glow));
+  pointer-events: none;
+}
+
+@keyframes gyroRotate1 {
+  0% { transform: rotateX(65deg) rotateY(20deg) rotateZ(0deg); }
+  100% { transform: rotateX(65deg) rotateY(20deg) rotateZ(360deg); }
+}
+@keyframes gyroRotate2 {
+  0% { transform: rotateX(25deg) rotateY(70deg) rotateZ(0deg); }
+  100% { transform: rotateX(25deg) rotateY(70deg) rotateZ(360deg); }
+}
+@keyframes gyroRotate3 {
+  0% { transform: rotateX(50deg) rotateY(50deg) rotateZ(0deg); }
+  100% { transform: rotateX(50deg) rotateY(50deg) rotateZ(360deg); }
+}  
   </style>
 </head>
 <body>
@@ -420,7 +481,14 @@
   <header id="topbar">
     <div id="brand">
       <div id="brandName">
-        <div class="glyph"></div>
+        <div class="gyro-container-mini">
+  <div class="gyro-ring-mini gyro-ring-mini-1"></div>
+  <div class="gyro-ring-mini gyro-ring-mini-2"></div>
+  <div class="gyro-ring-mini gyro-ring-mini-3"></div>
+  <div class="gyro-rotator-mini">
+    <img src="https://wordstar.nexus/svg/favicon.svg" class="gyro-anchor-logo-mini" alt="*">
+  </div>
+</div>
         <span class="brandText">ISIS<span class="brandSub">INTEL</span></span>
       </div>
 
@@ -452,7 +520,7 @@
 
     <!-- LEFT TOOLBAR -->
     <nav id="toolbar">
-      <button data-tool="layers" class="active"><span>⌂</span>LAYERS</button>
+      <button data-tool="layers"><span>⌂</span>LAYERS</button>
       <button data-tool="sectors"><span>◎</span>SECTORS</button>
       <button data-tool="space"><span>✦</span>ORBIT</button>
       <button data-tool="choke"><span>⚓</span>MARITIME</button>
@@ -491,7 +559,7 @@
     </div>
 
     <!-- SLIDING FLYOUT DRAWER (OPENS AT 312px TO SIT BESIDE THE VIDEO) -->
-    <aside id="sidePanel">
+    <aside id="sidePanel" class="closed">
       <div class="spHead">
         <span class="t" id="spTitle">INTEL LAYERS</span>
         <span class="x" id="spClose">&#10005;</span>
@@ -744,7 +812,7 @@
     }
 
     // ================= 6. TOOL CONTROLLER & RESTORED SECTIONS =================
-    let activeTool = "layers";
+    let activeTool = null;
     let drawMode = "pin";
     let drawPts = [];
     let currentPolyline = null;
@@ -812,7 +880,7 @@
       ${commonPanelFooter()}
     `;
 
-    tools.draw = () => `
+  tools.draw = () => `
       <div style="font-size:11px; margin-bottom:8px; color:var(--mut);">
         Select a tool, then click directly on the map:
       </div>
@@ -825,6 +893,7 @@
       ${commonPanelFooter()}
     `;
 
+    // RESTORED FUNCTION DECLARATION:
     function renderPanel(tool) {
       document.getElementById('spTitle').innerText = tool.toUpperCase();
       document.getElementById('spContent').innerHTML = tools[tool] ? tools[tool]() : '';
