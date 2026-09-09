@@ -1064,3 +1064,48 @@ console.log(
   "color: #ff0033; font-family: monospace; font-size: 14px; font-weight: bold;",
   "color: #ffffff; font-family: monospace; font-size: 11px;"
 );
+
+/* =========================================================
+   FOLIO DECK – magazine-style spin / page advance
+   ========================================================= */
+let folioCurrentIndex = 0;
+let folioIsAnimating = false;
+
+function advanceFolioPage() {
+  if (folioIsAnimating) return;
+  const deck = document.getElementById('folioDeck') || document.getElementById('beyondNoiseDeck');
+  if (!deck) return;
+  const pages = deck.querySelectorAll('.folio-page, .bnoise-page');
+  if (!pages.length) return;
+
+  folioIsAnimating = true;
+  const current = pages[folioCurrentIndex];
+  current.classList.remove('active');
+  current.classList.add('spinning-out');
+
+  folioCurrentIndex = (folioCurrentIndex + 1) % pages.length;
+  const next = pages[folioCurrentIndex];
+
+  // slight delay so the outgoing spin is visible
+  setTimeout(() => {
+    current.classList.remove('spinning-out');
+    current.style.display = 'none';
+    next.style.display = 'flex';
+    // force reflow then activate
+    void next.offsetWidth;
+    next.classList.add('active');
+    folioIsAnimating = false;
+  }, 280);
+}
+
+function toggleFolioExpand(event) {
+  if (event) event.stopPropagation();
+  const deck = document.getElementById('folioDeck') || document.getElementById('beyondNoiseDeck');
+  if (deck) deck.classList.toggle('is-expanded');
+}
+
+// keep legacy names working so existing HTML still functions
+window.advanceBnoisePage = advanceFolioPage;
+window.toggleBnoiseExpand = toggleFolioExpand;
+window.advanceFolioPage = advanceFolioPage;
+window.toggleFolioExpand = toggleFolioExpand;
