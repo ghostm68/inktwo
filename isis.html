@@ -167,9 +167,49 @@
       font-weight: bold;
     }
 
-    /* ================= 4. SLIDING FLYOUT DRAWER ================= */
+    /* ================= 4. PERMANENT OPTICAL FEED BOX (UNDER DRAW) ================= */
+    #optical-feed-box {
+      position: absolute;
+      top: 236px;
+      left: 12px;
+      width: 290px;
+      z-index: 2000;
+      background: rgba(13, 8, 10, 0.96);
+      border: 1px solid var(--crimson);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+    }
+    .ofb-head {
+      background: #17090c;
+      padding: 5px 8px;
+      border-bottom: 1px solid var(--crimson-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      letter-spacing: 1px;
+    }
+    .ofb-head b { color: var(--crimson-glow); }
+    .ofb-body {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .ofb-minimized .ofb-body { display: none; }
+    .ofb-controls {
+      display: flex;
+      gap: 4px;
+      padding: 4px 6px;
+      width: 100%;
+      background: #080405;
+      border-top: 1px solid var(--line2);
+    }
+
+    /* ================= 5. SLIDING FLYOUT DRAWER (OFFSET NEXT TO FEED) ================= */
     #sidePanel {
-      position: absolute; top: 12px; bottom: 12px; left: 124px; z-index: 1999;
+      position: absolute; top: 12px; bottom: 12px; left: 312px; z-index: 1999;
       width: 312px;
       background: rgba(13, 8, 10, 0.96);
       border: 1px solid var(--crimson);
@@ -189,7 +229,6 @@
     .spHead .x:hover { color: var(--crimson-glow); }
     .spBody { padding: 12px; overflow-y: auto; flex: 1; }
 
-    /* Side-group & Side-item Styling */
     .side-group { border-top: 1px solid var(--line2); padding-top: 8px; margin-top: 10px; }
     .side-group-title { font-size: 9px; color: var(--mut); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase; }
     .side-item {
@@ -219,7 +258,7 @@
     }
     .hud-btn:hover, .hud-btn.active { border-color: var(--crimson); color: var(--crimson-glow); background: #24080b; }
 
-    /* ================= 5. MONA WORD PROCESSOR DRAWER ================= */
+    /* ================= 6. MONA WORD PROCESSOR DRAWER ================= */
     #notepadPanel {
       position: absolute; top: 12px; right: 12px; z-index: 3000;
       width: 540px; height: 490px;
@@ -263,7 +302,7 @@
       box-shadow: 0 0 8px var(--crimson);
     }
 
-    /* ================= 6. INTEL WIRE FOOTER ================= */
+    /* ================= 7. INTEL WIRE FOOTER ================= */
     #statusbar {
       height: 28px; background: #050304; border-top: 1px solid var(--crimson);
       display: flex; align-items: center; justify-content: space-between;
@@ -319,7 +358,37 @@
       <button data-tool="draw"><span>✎</span>DRAW</button>
     </nav>
 
-    <!-- SLIDING FLYOUT DRAWER -->
+    <!-- PERMANENT 288x188 OPTICAL FEED BOX (MOUNTED DIRECTLY UNDER DRAW) -->
+    <div id="optical-feed-box">
+      <div class="ofb-head">
+        <span>OPTICAL // <b>SURVEILLANCE FEED</b></span>
+        <div>
+          <span id="feedSaveStatus" style="color:var(--crimson-glow); margin-right:6px;">LIVE</span>
+          <button style="background:transparent; border:none; color:var(--mut); font-family:var(--mono);" onclick="toggleFeedBox()">[_]</button>
+        </div>
+      </div>
+      <div class="ofb-body">
+        <div style="width: 288px; height: 188px; background: #000; overflow: hidden; position: relative;">
+          <!-- Default Live NASA ISS Space / Earth Video Stream -->
+          <iframe 
+            id="opticalFrame"
+            src="https://www.youtube-nocookie.com/embed/xRPjKOmds4o?autoplay=1&mute=1&controls=0&loop=1" 
+            style="width: 288px; height: 188px; border: 0; filter: grayscale(100%) contrast(135%) brightness(90%); background:#000;"
+            allow="autoplay; encrypted-media" 
+            allowfullscreen>
+          </iframe>
+        </div>
+        <div class="ofb-controls">
+          <input type="text" id="frameSrcInput" placeholder="ENTER RTSP/CCTV/EMBED URL..." 
+            value=""
+            style="flex:1; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:9px; padding:3px 5px;"
+            oninput="saveOpticalFeedUrl(this.value);" />
+          <button class="hud-btn" style="width:auto; padding:2px 7px;" onclick="saveOpticalFeedUrl(document.getElementById('frameSrcInput').value)">LOCK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDING FLYOUT DRAWER (OPENS AT 312px TO SIT BESIDE THE VIDEO) -->
     <aside id="sidePanel">
       <div class="spHead">
         <span class="t" id="spTitle">INTEL LAYERS</span>
@@ -412,6 +481,12 @@
       cross.classList.toggle('grid-off');
       btn.innerText = cross.classList.contains('grid-off') ? "[ ] TACTICAL CROSS" : "[x] TACTICAL CROSS";
       btn.classList.toggle('active', !cross.classList.contains('grid-off'));
+    }
+
+    // Toggle Minimize on Optical Box
+    function toggleFeedBox() {
+      const box = document.getElementById('optical-feed-box');
+      box.classList.toggle('ofb-minimized');
     }
 
     // ================= 2. MAP ENGINE (Attribution Disabled) =================
@@ -543,7 +618,30 @@
     }
     loadGramToken(); setInterval(loadGramToken, 60000);
 
-    // ================= 5. TOOL CONTROLLER & OPTICAL FEED URL LOCALSTORAGE =================
+    // ================= 5. OPTICAL FEED URL LOCALSTORAGE INITIALIZATION =================
+    function initOpticalFeed() {
+      const saved = localStorage.getItem('ISIS_FEED_URL');
+      if (saved) {
+        document.getElementById('frameSrcInput').value = saved;
+        document.getElementById('opticalFrame').src = saved;
+      }
+    }
+    initOpticalFeed();
+
+    function saveOpticalFeedUrl(url) {
+      url = url.trim();
+      localStorage.setItem('ISIS_FEED_URL', url);
+      const frame = document.getElementById('opticalFrame');
+      if (frame && url && frame.src !== url) frame.src = url;
+      const status = document.getElementById('feedSaveStatus');
+      if (status) {
+        status.innerText = "SAVED";
+        status.style.color = "#38ef7d";
+        setTimeout(() => { if (status) { status.innerText = "LIVE"; status.style.color = "var(--crimson-glow)"; } }, 2000);
+      }
+    }
+
+    // ================= 6. TOOL CONTROLLER & RESTORED SECTIONS =================
     let activeTool = "layers";
     let drawMode = "pin";
     let drawPts = [];
@@ -612,7 +710,6 @@
       ${commonPanelFooter()}
     `;
 
-    // Overhauled DRAW Tool + 288x188 GRAYSCALE IFRAME BOX WITH URL LOCALSTORAGE
     tools.draw = () => `
       <div style="font-size:11px; margin-bottom:8px; color:var(--mut);">
         Select a tool, then click directly on the map:
@@ -623,45 +720,8 @@
         <button class="hud-btn" onclick="finishLine()">✓ FINISH CURRENT LINE</button>
         <button class="hud-btn" style="border-color:#57161b;" onclick="clearDrawings()">✕ PURGE DRAWINGS</button>
       </div>
-
-      <!-- RESIZED 288x188 GRAYSCALE IFRAME BOX -->
-      <div style="margin-top: 12px; border-top: 1px solid var(--line2); padding-top: 8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <span style="font-size:9px; color:var(--mut); letter-spacing:1px;">// OPTICAL FEED / SURVEILLANCE</span>
-          <span id="feedSaveStatus" style="font-size:8px; color:var(--crimson-glow);">DISK SYNCED</span>
-        </div>
-        <div style="width: 288px; height: 188px; border: 1px solid var(--crimson); background: #000; overflow: hidden; position: relative;">
-          <iframe 
-            id="opticalFrame"
-            src="${localStorage.getItem('ISIS_FEED_URL') || 'about:blank'}" 
-            style="width: 288px; height: 188px; border: 0; filter: grayscale(100%) contrast(125%) brightness(90%); background:#050304;"
-            allowfullscreen>
-          </iframe>
-        </div>
-        <div style="display:flex; gap:4px; margin-top:4px;">
-          <input type="text" id="frameSrcInput" placeholder="ENTER FEED URL..." 
-            value="${localStorage.getItem('ISIS_FEED_URL') || ''}"
-            style="flex:1; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:10px; padding:3px 6px;"
-            oninput="saveOpticalFeedUrl(this.value);" />
-          <button class="hud-btn" style="width:auto; padding:3px 8px;" onclick="saveOpticalFeedUrl(document.getElementById('frameSrcInput').value)">LOCK</button>
-        </div>
-      </div>
-
       ${commonPanelFooter()}
     `;
-
-    function saveOpticalFeedUrl(url) {
-      url = url.trim();
-      localStorage.setItem('ISIS_FEED_URL', url);
-      const frame = document.getElementById('opticalFrame');
-      if (frame && frame.src !== url) frame.src = url || 'about:blank';
-      const status = document.getElementById('feedSaveStatus');
-      if (status) {
-        status.innerText = "SAVED TO DISK";
-        status.style.color = "#38ef7d";
-        setTimeout(() => { if (status) { status.innerText = "DISK SYNCED"; status.style.color = "var(--crimson-glow)"; } }, 2000);
-      }
-    }
 
     function renderPanel(tool) {
       document.getElementById('spTitle').innerText = tool.toUpperCase();
@@ -742,7 +802,7 @@
       }
     }
 
-    // Map Click Handler for Route & Draw
+    // Map Drawing Handler
     map.on('click', async (e) => {
       if (activeTool === 'draw') {
         playSolenoid(160, 0.02);
@@ -781,16 +841,13 @@
       }
     });
 
-    renderPanel('layers');
-
-    // ================= 6. MONA PWP EDITOR & URL HASH COMPRESSION ENGINE =================
+    // ================= 7. MONA PWP EDITOR & URL HASH COMPRESSION ENGINE =================
     const npBtn = document.getElementById('notepadToggleBtn');
     const npPanel = document.getElementById('notepadPanel');
     const np = document.getElementById('notepad');
     const npMeta = document.getElementById('npMeta');
     const fileInput = document.getElementById('monaFileInput');
 
-    // Restore text: Check #hash first (inkrealm.info/mona signature feature), else check localStorage
     async function initMonaBuffer() {
       const restoredFromHash = await restoreFromUrlHash();
       if (!restoredFromHash) {
@@ -820,7 +877,6 @@
     }
     np.addEventListener('keyup', updateMonaMeta);
 
-    // Mona URL Hash Engine (Native deflate-raw compression directly in the address bar)
     async function compressToUrlHash() {
       playSolenoid(240, 0.04);
       const text = np.value;
@@ -871,7 +927,6 @@
 
     initMonaBuffer();
 
-    // File Import Action
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -885,7 +940,6 @@
       reader.readAsText(file);
     });
 
-    // Multi-format Export Actions
     function exportMona(ext) {
       playSolenoid(220, 0.04);
       const blob = new Blob([np.value], { type: 'text/plain;charset=utf-8' });
@@ -907,13 +961,12 @@
       if (confirm("PURGE DOSSIER BUFFER?")) {
         np.value = '';
         localStorage.removeItem('ISIS_MONA_BUFFER');
-        history.replaceState(null, null, ' '); // Clears #hash without page reload
+        history.replaceState(null, null, ' ');
         updateMonaMeta();
         document.getElementById('npSaveStatus').innerText = "PURGED";
       }
     }
 
-    // Voice Input SpeechRecognition Engine
     let recognition = null;
     let isListening = false;
 
@@ -990,7 +1043,7 @@
       document.getElementById('npSaveStatus').innerText = "VOICE INPUT";
     }
 
-    // ================= 7. NEWS WIRE TICKER =================
+    // ================= 8. NEWS WIRE TICKER =================
     const alerts = [
       "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
       "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
