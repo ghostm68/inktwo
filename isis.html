@@ -1,644 +1,616 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ISIS // GLOBAL OSINT & RETRO NOTEBOOK</title>
 
-  <!-- Leaflet Core Engine (100% Keyless) -->
+  <!-- Leaflet Core (100% Keyless) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root {
-      --noir: #060506;
+      --bg: #060506;
       --panel: #0d090b;
+      --panel2: #140b0e;
+      --line: #260c0f;
+      --line2: #3d1418;
+      --txt: #f0e6e6;
+      --mut: #8a7a7c;
+      --dim: #5c4e50;
       --crimson: #e61c1c;
-      --crimson-dim: #260c0f;
-      --crimson-bright: #ff3333;
-      --text-white: #f5f0f0;
-      --text-muted: #807275;
-      --font-mono: "Courier New", Courier, monospace;
+      --crimson-glow: #ff3333;
+      --crimson-dark: #630c0c;
+      --yel: #ffd24a;
+      --mono: "Courier New", Courier, monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      background: var(--noir);
-      color: var(--text-white);
-      font-family: var(--font-mono);
+      background: var(--bg);
+      color: var(--txt);
+      font-family: var(--mono);
       height: 100vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      font-size: 12px;
     }
 
-    /* OPTIONAL CRT PHOSPHOR SCANLINES (TOGGLEABLE) */
-    .crt-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none;
-      z-index: 9500;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%);
-      background-size: 100% 3px;
-      opacity: 0.65;
-    }
-    .crt-off { display: none; }
+    button { font-family: inherit; cursor: pointer; }
+    a { color: var(--mut); text-decoration: none; }
 
-    /* 1. TOP PERMANENT HEADER */
-    header {
-      height: 42px;
+    /* ================= 1. TOP NAVIGATION ================= */
+    #topbar {
+      height: 50px;
       background: var(--panel);
       border-bottom: 1px solid var(--crimson);
-      padding: 0 14px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
       z-index: 10000;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      color: var(--crimson-bright);
-      font-weight: bold;
-      font-size: 12px;
-      letter-spacing: 2px;
+    #brand { display: flex; align-items: center; gap: 14px; }
+    #brandName {
+      display: flex; align-items: center; gap: 8px;
+      border-right: 1px solid var(--line2);
+      padding-right: 14px;
     }
-    .pulse {
-      width: 7px; height: 7px;
-      background: var(--crimson);
-      border-radius: 50%;
-      box-shadow: 0 0 6px var(--crimson-bright);
+    .glyph {
+      width: 16px; height: 16px; border-radius: 3px;
+      background: linear-gradient(135deg, var(--crimson), #2a0306);
+      border: 1px solid var(--crimson-glow);
+      box-shadow: 0 0 8px var(--crimson);
     }
+    .brandText { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
+    .brandSub { font-size: 10px; color: var(--mut); letter-spacing: 3px; margin-left: 4px; }
 
-    .nav-bar { display: flex; align-items: center; gap: 5px; }
+    /* GRAM SPARKLINE HEADER */
+    #gramChart { display: flex; align-items: center; gap: 10px; }
+    #gramSym { font-weight: 800; color: var(--crimson-glow); font-size: 13px; }
+    #gramPrice { font-size: 15px; font-weight: bold; }
+    #gramChange { font-size: 11px; padding: 2px 6px; border: 1px solid var(--line2); }
+    #gramChange.up { color: var(--yel); border-color: rgba(255,210,74,0.4); }
+    #gramChange.down { color: var(--crimson-glow); border-color: rgba(230,28,28,0.4); }
+    #gramSpark { width: 140px; height: 32px; }
 
-    button.hud-btn {
-      background: #12080a;
-      border: 1px solid var(--crimson-dim);
-      color: #dfd7d7;
-      font-family: var(--font-mono);
+    #statusgrp { display: flex; align-items: center; gap: 14px; font-size: 11px; }
+    #zulu b { color: #fff; }
+    .stat { text-align: center; }
+    .stat b { display: block; font-size: 13px; color: var(--crimson-glow); }
+    .stat span { font-size: 8px; color: var(--mut); letter-spacing: 1px; }
+
+    #notepadToggleBtn {
+      background: #1e080b;
+      border: 1px solid var(--crimson);
+      color: #ff9999;
       font-size: 10px;
-      padding: 4px 8px;
-      cursor: pointer;
-      text-transform: uppercase;
+      padding: 5px 9px;
       letter-spacing: 1px;
     }
-    button.hud-btn:hover { border-color: var(--crimson); color: var(--crimson-bright); }
-    button.hud-btn.active {
+    #notepadToggleBtn:hover, #notepadToggleBtn.active {
       background: var(--crimson);
       color: #000;
       font-weight: bold;
-      border-color: var(--crimson-bright);
-    }
-    button.hud-btn.reveal-btn {
-      border-color: var(--crimson);
-      background: #1c090c;
-      color: #ff9999;
     }
 
-    /* 2. MAIN WORKSPACE (SIDEBAR + MAP) */
-    #workspace {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 72px);
-      position: relative;
-    }
-
-    /* SINGLE-LINE LEFT SIDEBAR */
-    #sidebar {
-      width: 210px;
-      background: var(--panel);
-      border-right: 1px solid var(--crimson-dim);
-      display: flex;
-      flex-direction: column;
-      z-index: 2000;
-    }
-
-    .side-group {
-      border-bottom: 1px solid var(--crimson-dim);
-      padding: 6px 0;
-    }
-    .side-group-title {
-      font-size: 9px;
-      color: var(--text-muted);
-      padding: 2px 10px 4px 10px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .side-item {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: transparent;
-      border: none;
-      color: #bbb0b2;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      padding: 5px 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      border-left: 2px solid transparent;
-    }
-    .side-item:hover {
-      background: #1a0a0d;
-      color: var(--crimson-bright);
-      border-left: 2px solid var(--crimson);
-    }
-    .side-item.active {
-      color: #fff;
-      border-left: 2px solid var(--crimson);
-      background: #140709;
-    }
-
-    /* MAP CONTAINER */
-    #map-container {
-      flex: 1;
-      position: relative;
-      height: 100%;
-    }
+    /* ================= 2. WORKSPACE ================= */
+    #workspace { position: relative; flex: 1; height: calc(100vh - 78px); }
     #map { width: 100%; height: 100%; background: #000; }
 
-    /* 3. DROP-DOWN REVEAL DRAWERS */
-    .reveal-drawer {
-      position: absolute;
-      top: 0;
-      right: 14px;
-      width: 480px;
-      max-height: calc(100vh - 90px);
-      background: rgba(12, 7, 9, 0.98);
-      border: 1px solid var(--crimson);
-      box-shadow: 0 12px 35px rgba(0,0,0,0.95);
-      z-index: 9000;
-      display: none;
-      flex-direction: column;
+    /* ================= 3. TOOLBAR DOCK ================= */
+    #toolbar {
+      position: absolute; top: 12px; left: 12px; z-index: 2000;
+      display: flex; flex-direction: column; gap: 2px;
     }
-    .reveal-drawer.open { display: flex; }
-
-    .drawer-titlebar {
-      background: #17090c;
-      border-bottom: 1px solid var(--crimson-dim);
-      padding: 7px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-    }
-    .drawer-titlebar b { color: var(--crimson); }
-    .drawer-close {
-      background: transparent; border: none; color: var(--text-muted);
-      cursor: pointer; font-family: var(--font-mono); font-size: 12px;
-    }
-    .drawer-close:hover { color: var(--crimson); }
-
-    /* GRAM DRAWER */
-    .gram-content { padding: 12px; }
-    .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-    .matrix-box { background: #070405; border: 1px solid var(--crimson-dim); padding: 8px; }
-    .m-label { font-size: 9px; color: var(--text-muted); }
-    .m-val { font-size: 14px; font-weight: bold; margin-top: 2px; }
-    .gain { color: #38ef7d; }
-    .loss { color: var(--crimson-bright); }
-    .contract-bar {
-      background: #050304; border: 1px solid var(--crimson-dim);
-      padding: 6px 8px; font-size: 9px; word-break: break-all;
-    }
-
-    /* MONA DRAWER */
-    #drawer-mona { width: 620px; height: 490px; }
-    .mona-tools { background: #080405; padding: 4px 8px; border-bottom: 1px solid var(--crimson-dim); display: flex; gap: 5px; }
-    textarea#mona-text {
-      flex: 1; width: 100%; background: #040203; color: #ede4e4;
-      border: none; outline: none; resize: none; padding: 12px;
-      font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
-    }
-    .mona-status {
-      background: #090506; border-top: 1px solid var(--crimson-dim);
-      padding: 5px 10px; font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;
-    }
-
-    /* 4. NEWSFEED FOOTER (LIVE TICKER) */
-    footer#ticker-bar {
-      height: 30px;
-      background: #060405;
-      border-top: 1px solid var(--crimson);
-      display: flex;
-      align-items: center;
-      z-index: 10000;
-      overflow: hidden;
+    #toolbar button {
+      background: rgba(13, 9, 11, 0.94);
+      border: 1px solid var(--line2);
+      color: var(--mut);
+      width: 105px;
+      padding: 7px 10px;
       font-size: 10px;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    #toolbar button:hover { border-color: var(--crimson); color: #fff; background: var(--panel2); }
+    #toolbar button.active {
+      color: var(--crimson-glow);
+      border-color: var(--crimson);
+      background: linear-gradient(90deg, #2a080d, var(--panel));
+      font-weight: bold;
     }
 
-    .ticker-label {
+    /* ================= 4. SLIDING FLYOUT DRAWER ================= */
+    #sidePanel {
+      position: absolute; top: 12px; bottom: 12px; left: 124px; z-index: 1999;
+      width: 310px;
+      background: rgba(13, 8, 10, 0.96);
+      border: 1px solid var(--crimson);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      display: flex; flex-direction: column;
+      transition: transform 0.2s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+    }
+    #sidePanel.closed { transform: translateX(-120%); opacity: 0; pointer-events: none; }
+
+    .spHead {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, #24080b, var(--panel));
+    }
+    .spHead .t { font-weight: 800; letter-spacing: 1px; color: var(--crimson-glow); }
+    .spHead .x { color: var(--mut); cursor: pointer; font-size: 13px; }
+    .spHead .x:hover { color: var(--crimson-glow); }
+    .spBody { padding: 12px; overflow-y: auto; flex: 1; }
+
+    .toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); }
+    .toggle label { color: var(--txt); font-size: 11px; }
+    .toggle label em { display: block; font-style: normal; color: var(--mut); font-size: 9px; }
+    .switch {
+      width: 32px; height: 16px; border-radius: 8px; background: #070304;
+      border: 1px solid var(--line2); position: relative; cursor: pointer;
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
+      border-radius: 50%; background: var(--mut); transition: 0.15s;
+    }
+    .switch.on { background: #33080c; border-color: var(--crimson); }
+    .switch.on::after { left: 18px; background: var(--crimson-glow); box-shadow: 0 0 6px var(--crimson-glow); }
+
+    .hud-btn {
+      background: var(--panel2);
+      border: 1px solid var(--line2);
+      color: var(--txt);
+      font-size: 10px;
+      padding: 5px 9px;
+      letter-spacing: 1px;
+      text-align: left;
+    }
+    .hud-btn:hover { border-color: var(--crimson); color: var(--crimson-glow); }
+
+    /* ================= 5. MONA WORD PROCESSOR DRAWER ================= */
+    #notepadPanel {
+      position: absolute; top: 12px; right: 12px; z-index: 3000;
+      width: 480px; height: 460px;
+      background: rgba(13, 8, 10, 0.98);
+      border: 1px solid var(--crimson);
+      box-shadow: 0 12px 35px rgba(0,0,0,0.92);
+      display: flex; flex-direction: column;
+      transform: translateY(-120%); opacity: 0; pointer-events: none;
+      transition: transform 0.22s ease, opacity 0.2s ease;
+    }
+    #notepadPanel.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+    .npHead {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid var(--line);
+      background: #18090c; font-weight: bold; color: var(--crimson-glow);
+    }
+    .npMeta { font-size: 10px; color: var(--mut); font-weight: normal; }
+    #notepad {
+      flex: 1; width: 100%; background: #040203; color: #eee;
+      border: none; outline: none; resize: none; padding: 12px;
+      font-family: var(--mono); font-size: 12px; line-height: 1.5;
+    }
+    .npFoot {
+      display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+      border-top: 1px solid var(--line); background: #0a0607;
+    }
+    .npFoot button {
+      background: var(--panel2); color: var(--txt); border: 1px solid var(--line2);
+      font-size: 10px; padding: 4px 8px; letter-spacing: 1px;
+    }
+    .npFoot button:hover { border-color: var(--crimson); color: var(--crimson-glow); }
+    .npFoot button.exp-btn {
+      border-color: #57161b;
+      color: #ff9999;
+    }
+    .npFoot button.exp-btn:hover {
       background: var(--crimson);
       color: #000;
-      padding: 0 10px;
-      font-weight: bold;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      letter-spacing: 1px;
-      white-space: nowrap;
+      border-color: var(--crimson);
     }
 
-    .ticker-viewport {
-      flex: 1;
-      overflow: hidden;
-      position: relative;
-      white-space: nowrap;
-      padding-left: 12px;
+    /* ================= 6. INTEL WIRE FOOTER ================= */
+    #statusbar {
+      height: 28px; background: #050304; border-top: 1px solid var(--crimson);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 12px; font-size: 10px; z-index: 10000;
     }
-
-    .ticker-item {
-      display: inline-block;
-      color: #d8cecf;
-      margin-right: 40px;
-    }
-    .ticker-item b { color: var(--crimson-bright); }
-
-    .ticker-clock {
-      padding: 0 12px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      border-left: 1px solid var(--crimson-dim);
-    }
+    #ticker-marquee { color: #d6cbcc; }
+    #ticker-marquee b { color: var(--crimson-glow); }
   </style>
 </head>
 <body>
 
-  <div id="crt" class="crt-overlay crt-off"></div>
+  <!-- 1. TOP NAVIGATION -->
+  <header id="topbar">
+    <div id="brand">
+      <div id="brandName">
+        <div class="glyph"></div>
+        <span class="brandText">ISIS<span class="brandSub">INTEL</span></span>
+      </div>
 
-  <!-- TOP HEADER -->
-  <header>
-    <div class="brand">
-      <div class="pulse"></div>
-      <span>ISIS // OSINT TERMINAL</span>
+      <!-- Live TON Gram Micro-Chart -->
+      <div id="gramChart" title="GRAM (The Open Network) - Live Keyless Feed">
+        <span id="gramSym">GRAM</span>
+        <span id="gramPrice">--</span>
+        <span id="gramChange" class="up">--%</span>
+        <svg id="gramSpark" viewBox="0 0 140 32" preserveAspectRatio="none"></svg>
+      </div>
     </div>
-    <div class="nav-bar">
-      <button class="hud-btn active" id="btn-quakes" onclick="toggleMapLayer('quakes')">QUAKES (<span id="c-quakes">0</span>)</button>
-      <button class="hud-btn active" id="btn-fires" onclick="toggleMapLayer('fires')">FIRES (<span id="c-fires">0</span>)</button>
-      <button class="hud-btn active" id="btn-iss" onclick="toggleMapLayer('iss')">ISS ORBIT</button>
-      <button class="hud-btn active" id="btn-air" onclick="toggleMapLayer('air')">AIR CHANNELS</button>
-      <span style="color:var(--crimson-dim); margin:0 3px;">|</span>
-      <button class="hud-btn reveal-btn" id="btn-gram" onclick="toggleDrawer('gram')">[GRAM TOKEN]</button>
-      <button class="hud-btn reveal-btn" id="btn-mona" onclick="toggleDrawer('mona')">[MONA PROCESSOR]</button>
+
+    <div id="statusgrp">
+      <div id="zulu">ZULU <b id="zulu-clock">00:00:00</b>Z</div>
+      <div class="stat"><b id="cnt-quakes">0</b><span>QUAKES</span></div>
+      <div class="stat"><b id="cnt-fires">0</b><span>FIRES</span></div>
+      <div class="stat"><b id="cnt-choke">6</b><span>CHOKEPOINTS</span></div>
+      <button id="notepadToggleBtn">[MONA PWP EDITOR]</button>
     </div>
   </header>
 
-  <!-- MAIN VIEWPORT WITH LEFT SIDEBAR -->
+  <!-- 2. MAIN WORKSPACE -->
   <div id="workspace">
+    <div id="map"></div>
 
-    <!-- SINGLE-LINE SIDE OPTIONS -->
-    <div id="sidebar">
-      <div class="side-group">
-        <div class="side-group-title">// SECTOR FLYTO</div>
-        <button class="side-item" onclick="flySector(24.0, 119.5, 6, this)">» 01: TAIWAN STRAIT</button>
-        <button class="side-item" onclick="flySector(26.5, 56.3, 7, this)">» 02: STRAIT OF HORMUZ</button>
-        <button class="side-item" onclick="flySector(12.5, 43.3, 7, this)">» 03: BAB-EL-MANDEB</button>
-        <button class="side-item" onclick="flySector(44.5, 34.0, 6, this)">» 04: BLACK SEA / CRIMEA</button>
-        <button class="side-item" onclick="flySector(1.2, 103.8, 8, this)">» 05: MALACCA STRAIT</button>
-        <button class="side-item" onclick="flySector(20.0, 10.0, 2, this)">» 00: GLOBAL OVERVIEW</button>
+    <!-- LEFT TOOLBAR -->
+    <nav id="toolbar">
+      <button data-tool="layers" class="active"><span>⌂</span>LAYERS</button>
+      <button data-tool="sectors"><span>◎</span>SECTORS</button>
+      <button data-tool="space"><span>✦</span>ORBIT</button>
+      <button data-tool="choke"><span>⚓</span>MARITIME</button>
+      <button data-tool="route"><span>⇶</span>ROUTE</button>
+      <button data-tool="draw"><span>✎</span>DRAW</button>
+    </nav>
+
+    <!-- SLIDING FLYOUT DRAWER -->
+    <aside id="sidePanel">
+      <div class="spHead">
+        <span class="t" id="spTitle">INTEL LAYERS</span>
+        <span class="x" id="spClose">&#10005;</span>
       </div>
+      <div class="spBody" id="spContent"></div>
+    </aside>
 
-      <div class="side-group">
-        <div class="side-group-title">// SENSORS & CRT FX</div>
-        <button class="side-item" id="opt-crt" onclick="toggleCRT(this)">[ ] CRT SCANLINES</button>
-        <button class="side-item" id="opt-audio" onclick="toggleAudio(this)">[ ] SOLENOID CLICKS</button>
-        <button class="side-item" id="opt-grid" onclick="toggleGrid(this)">[x] TACTICAL CROSS</button>
+    <!-- MONA PWP RETRO NOTEPAD (DRAWER REVEAL) -->
+    <div id="notepadPanel">
+      <div class="npHead">
+        <span>TALAMASCA DOLL-PROCESSOR // <b>MONA PWP-9000</b></span>
+        <span class="npMeta" id="npMeta">LN 1 | 0 WORDS</span>
       </div>
-
-      <div class="side-group">
-        <div class="side-group-title">// RECON NODES</div>
-        <button class="side-item" onclick="toggleDrawer('gram')">» TELEMETRY: GRAM/TON</button>
-        <button class="side-item" onclick="toggleDrawer('mona')">» DOSSIER: MONA PWP</button>
-      </div>
-    </div>
-
-    <!-- MAP CONTAINER -->
-    <div id="map-container">
-      <div id="map"></div>
-
-      <!-- GRAM REVEAL DRAWER -->
-      <div id="drawer-gram" class="reveal-drawer">
-        <div class="drawer-titlebar">
-          <span>TON TELEMETRY // <b>GRAM TOKEN</b></span>
-          <button class="drawer-close" onclick="toggleDrawer('gram')">[CLOSE X]</button>
-        </div>
-        <div class="gram-content">
-          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between;">
-            <span>PAIR: GRAM / USD (DECENTRALIZED)</span>
-            <span id="gram-sync" style="color:var(--crimson-bright);">SYNCING</span>
-          </div>
-          <div class="matrix-grid">
-            <div class="matrix-box">
-              <div class="m-label">Live Price USD</div>
-              <div class="m-val" id="g-price">LOADING...</div>
-            </div>
-            <div class="matrix-box">
-              <div class="m-label">24h Movement</div>
-              <div class="m-val" id="g-change">--</div>
-            </div>
-            <div class="matrix-box">
-              <div class="m-label">24h USD Vol</div>
-              <div class="m-val" id="g-vol">--</div>
-            </div>
-            <div class="matrix-box">
-              <div class="m-label">Network Architecture</div>
-              <div class="m-val" style="font-size:11px; color:#ff8888;">TON BLOCKCHAIN</div>
-            </div>
-          </div>
-          <div class="contract-bar">
-            <span style="color:var(--text-muted);">CONTRACT:</span>
-            <div style="color:#fff; margin-top:2px;">EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- MONA WORD PROCESSOR REVEAL DRAWER -->
-      <div id="drawer-mona" class="reveal-drawer">
-        <div class="drawer-titlebar">
-          <span>WORD PROCESSOR // <b>MONA PWP-9000</b></span>
-          <button class="drawer-close" onclick="toggleDrawer('mona')">[CLOSE X]</button>
-        </div>
-        <div class="mona-tools">
-          <button class="hud-btn" onclick="exportMona('txt')">EXP .TXT</button>
-          <button class="hud-btn" onclick="exportMona('bak')">EXP .BAK</button>
-          <button class="hud-btn" onclick="purgeMona()">PURGE</button>
-        </div>
-        <textarea id="mona-text" placeholder="Enter intelligence dossier notes... Auto-saved to disk."></textarea>
-        <div class="mona-status">
-          <span id="mona-stats">LN 1 | 0 WORDS | 0 CHARS</span>
-          <span id="mona-sync" style="color:var(--crimson-bright);">SYNCED</span>
-        </div>
+      <textarea id="notepad" spellcheck="false" placeholder="Enter tactical dossier notes... Buffer persists to local storage."></textarea>
+      <div class="npFoot">
+        <!-- Mona Multi-Format Export Engine -->
+        <button class="exp-btn" onclick="exportMona('txt')">EXP .TXT</button>
+        <button class="exp-btn" onclick="exportMona('bak')">EXP .BAK</button>
+        <button class="exp-btn" onclick="exportMona('wsd')">EXP .WSD</button>
+        <button onclick="copyMona()">COPY</button>
+        <button onclick="clearMona()">PURGE</button>
+        <span id="npSaveStatus" style="margin-left:auto; font-size:10px; color:var(--crimson-glow);">SYNCED</span>
       </div>
     </div>
-
   </div>
 
-  <!-- NEWSFEED FOOTER (LIVE TICKER) -->
-  <footer id="ticker-bar">
-    <div class="ticker-label">INTEL WIRE</div>
-    <div class="ticker-viewport">
-      <div id="ticker-marquee">INITIALIZING LIVE GLOBAL SENSOR & EVENT TELEMETRY...</div>
-    </div>
-    <div class="ticker-clock" id="utc-clock">00:00:00 UTC</div>
+  <!-- 3. INTEL WIRE FOOTER -->
+  <footer id="statusbar">
+    <div id="ticker-marquee">FEED: <span>GRID INITIALIZED // ZERO KEYS CONFIGURED</span></div>
+    <div>DIRECT BROWSER RUNTIME | NO PROXY REQUIRED</div>
   </footer>
 
   <script>
-    // 1. SOLENOID AUDIO ENGINE (Web Audio API Synthesizer - 0 External Files)
-    let audioOn = false;
-    let audioCtx = null;
-
-    function playSolenoid(frequency = 120, duration = 0.03) {
-      if (!audioOn) return;
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + duration);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
+    // ================= 1. SYSTEM CLOCK =================
+    function tickClock() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      document.getElementById('zulu-clock').innerText = `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
     }
+    setInterval(tickClock, 1000); tickClock();
 
-    function toggleAudio(btn) {
-      audioOn = !audioOn;
-      btn.innerText = audioOn ? "[x] SOLENOID CLICKS" : "[ ] SOLENOID CLICKS";
-      btn.classList.toggle('active', audioOn);
-      if (audioOn) playSolenoid(180, 0.05);
-    }
+    // ================= 2. MAP INITIALIZATION (ESRI Dark Canvas) =================
+    const map = L.map("map", { zoomControl: false, zoomSnap: 0.5 }).setView([22, 10], 2.5);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
-    function toggleCRT(btn) {
-      playSolenoid(80, 0.04);
-      const crt = document.getElementById('crt');
-      crt.classList.toggle('crt-off');
-      btn.innerText = crt.classList.contains('crt-off') ? "[ ] CRT SCANLINES" : "[x] CRT SCANLINES";
-      btn.classList.toggle('active', !crt.classList.contains('crt-off'));
-    }
-
-    // 2. LEAFLET ENGINE (Keyless ESRI Dark Canvas)
-    const map = L.map('map', {
-      center: [20.0, 10.0],
-      zoom: 3,
-      attributionControl: false,
-      zoomControl: false
-    });
-
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 16
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 16, attribution: "Esri Dark Canvas"
     }).addTo(map);
 
-    // Layer Groups
     const layers = {
       quakes: L.layerGroup().addTo(map),
       fires: L.layerGroup().addTo(map),
       iss: L.layerGroup().addTo(map),
-      air: L.layerGroup().addTo(map)
+      choke: L.layerGroup().addTo(map),
+      draw: L.layerGroup().addTo(map),
+      routes: L.layerGroup().addTo(map)
     };
 
-    function toggleMapLayer(name) {
-      playSolenoid();
-      const btn = document.getElementById(`btn-${name}`);
-      if (map.hasLayer(layers[name])) {
-        map.removeLayer(layers[name]);
-        btn.classList.remove('active');
-      } else {
-        map.addLayer(layers[name]);
-        btn.classList.add('active');
-      }
-    }
-
-    function flySector(lat, lng, zoom, btn) {
-      playSolenoid(160, 0.04);
-      document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
-      btn.classList.add('active');
-      map.flyTo([lat, lng], zoom, { duration: 1.2 });
-    }
-
-    // 3. INGEST USGS QUAKES
-    fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson')
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('c-quakes').innerText = data.features.length;
+    // ================= 3. KEYLESS LIVE DATA FEEDS =================
+    // A. USGS Seismic Alerts
+    fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson")
+      .then(r => r.json()).then(data => {
+        document.getElementById('cnt-quakes').innerText = data.features.length;
         data.features.forEach(f => {
           const coords = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
-          const mag = f.properties.mag || 2;
+          const mag = f.properties.mag || 1;
           L.circleMarker(coords, {
-            radius: Math.max(3, mag * 2),
-            fillColor: "#e61c1c",
-            color: "#ff5555",
-            weight: 1,
-            fillOpacity: 0.6
-          }).bindPopup(`<b>SEISMIC EVENT</b><br>${f.properties.title}`).addTo(layers.quakes);
+            radius: Math.max(3, mag * 2), fillColor: "#e61c1c", color: "#ff4d4d", weight: 1, fillOpacity: 0.6
+          }).bindPopup(`<b>USGS SEISMIC ALERT</b><br>${f.properties.title}`).addTo(layers.quakes);
         });
-        updateTickerHeadline(data.features[0]?.properties.title);
-      });
+        pushTicker(`USGS: ${data.features[0]?.properties.title || "FAULT LINE RADAR SYNCHRONIZED"}`);
+      }).catch(() => {});
 
-    // 4. INGEST NASA FIRES
-    fetch('https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open')
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('c-fires').innerText = data.events.length;
+    // B. NASA EONET Wildfires
+    fetch("https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open")
+      .then(r => r.json()).then(data => {
+        document.getElementById('cnt-fires').innerText = data.events.length;
         data.events.forEach(ev => {
-          if (ev.geometry && ev.geometry.length > 0) {
+          if (ev.geometry && ev.geometry.length) {
             const pt = ev.geometry[ev.geometry.length - 1];
             L.circleMarker([pt.coordinates[1], pt.coordinates[0]], {
-              radius: 4,
-              fillColor: "#ff7700",
-              color: "#ffaa33",
-              weight: 1,
-              fillOpacity: 0.7
-            }).bindPopup(`<b>WILDFIRE TARGET</b><br>${ev.title}`).addTo(layers.fires);
+              radius: 4, fillColor: "#ff7700", color: "#ffa500", weight: 1, fillOpacity: 0.7
+            }).bindPopup(`<b>NASA THERMAL HOTSPOT</b><br>${ev.title}`).addTo(layers.fires);
           }
         });
-      });
+      }).catch(() => {});
 
-    // 5. ISS REALTIME ORBIT
-    let issDot = null;
-    async function trackISS() {
+    // C. ISS Real-time Orbit Tracking
+    let issMarker = null;
+    async function updateISS() {
       try {
-        const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
-        const d = await res.json();
+        const r = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
+        const d = await r.json();
         const pos = [d.latitude, d.longitude];
-        if (!issDot) {
-          issDot = L.circleMarker(pos, {
-            radius: 7,
-            fillColor: "#ffffff",
-            color: "#e61c1c",
-            weight: 2,
-            fillOpacity: 0.9
-          }).bindPopup(`<b>ISS ORBITAL NODE</b><br>Velocity: ${d.velocity.toFixed(0)} km/h`).addTo(layers.iss);
+        if (!issMarker) {
+          issMarker = L.circleMarker(pos, {
+            radius: 7, fillColor: "#fff", color: "#e61c1c", weight: 2, fillOpacity: 0.9
+          }).bindPopup(`<b>ISS (ZARYA) NODE</b><br>Speed: ${Math.round(d.velocity)} km/h<br>Alt: ${Math.round(d.altitude)} km`).addTo(layers.iss);
         } else {
-          issDot.setLatLng(pos);
+          issMarker.setLatLng(pos);
         }
       } catch(e) {}
     }
-    trackISS();
-    setInterval(trackISS, 5000);
+    updateISS(); setInterval(updateISS, 6000);
 
-    // 6. AIR VECTORS
-    [
-      { id: "BAW117", lat: 51.5, lng: -20.5, note: "LHR - JFK // FL380" },
-      { id: "UAE201", lat: 24.2, lng: 55.1, note: "DXB - JFK // FL400" },
-      { id: "AFR441", lat: 35.1, lng: -40.2, note: "CDG - ORD // FL360" }
-    ].forEach(fl => {
-      L.circleMarker([fl.lat, fl.lng], {
-        radius: 4, fillColor: "#00ffff", color: "#fff", weight: 1, fillOpacity: 0.8
-      }).bindPopup(`<b>ADS-B AIR: ${fl.id}</b><br>${fl.note}`).addTo(layers.air);
+    // D. Strategic Maritime Chokepoints
+    const CHOKEPOINTS = [
+      { name: "STRAIT OF HORMUZ", pos: [26.56, 56.25], note: "Primary Middle-East energy export artery." },
+      { name: "BAB-EL-MANDEB", pos: [12.58, 43.33], note: "Red Sea bottleneck / Gulf of Aden corridor." },
+      { name: "MALACCA STRAIT", pos: [1.43, 102.89], note: "Asia-Pacific maritime conduit." },
+      { name: "TAIWAN STRAIT", pos: [24.40, 119.80], note: "Cross-strait strategic naval zone." },
+      { name: "SUEZ CANAL", pos: [30.58, 32.57], note: "Mediterranean to Red Sea route." },
+      { name: "BOSPHORUS STRAIT", pos: [41.11, 29.06], note: "Black Sea access control vector." }
+    ];
+    CHOKEPOINTS.forEach(ch => {
+      L.circleMarker(ch.pos, {
+        radius: 6, fillColor: "#ffd24a", color: "#fff", weight: 1.5, fillOpacity: 0.8
+      }).bindPopup(`<b>MARITIME CHOKEPOINT</b><br><b>${ch.name}</b><br>${ch.note}`).addTo(layers.choke);
     });
 
-    // 7. DROP-DOWN REVEAL CONTROLLER
-    function toggleDrawer(name) {
-      playSolenoid(150, 0.04);
-      const gD = document.getElementById('drawer-gram');
-      const mD = document.getElementById('drawer-mona');
-      const gB = document.getElementById('btn-gram');
-      const mB = document.getElementById('btn-mona');
-
-      if (name === 'gram') {
-        const open = !gD.classList.contains('open');
-        mD.classList.remove('open'); mB.classList.remove('active');
-        gD.classList.toggle('open', open); gB.classList.toggle('active', open);
-        if (open) fetchGramTelemetry();
-      } else {
-        const open = !mD.classList.contains('open');
-        gD.classList.remove('open'); gB.classList.remove('active');
-        mD.classList.toggle('open', open); mB.classList.toggle('active', open);
-      }
-    }
-
-    // 8. GRAM TELEMETRY
-    async function fetchGramTelemetry() {
+    // ================= 4. GRAM TOKEN SPARKLINE (DEXSCREENER) =================
+    async function loadGramToken() {
+      const GRAM_TON = "EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z";
       try {
-        const res = await fetch("https://api.dexscreener.com/latest/dex/tokens/EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z");
-        const data = await res.json();
-        if (data.pairs && data.pairs.length > 0) {
-          const p = data.pairs[0];
-          document.getElementById('g-price').innerText = `$${parseFloat(p.priceUsd).toFixed(4)}`;
+        const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${GRAM_TON}`);
+        const d = await r.json();
+        if (d.pairs && d.pairs.length) {
+          const p = d.pairs[0];
+          const price = parseFloat(p.priceUsd);
           const chg = parseFloat(p.priceChange.h24);
-          const chgEl = document.getElementById('g-change');
-          chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg}%`;
-          chgEl.className = `m-val ${chg >= 0 ? 'gain' : 'loss'}`;
-          document.getElementById('g-vol').innerText = `$${(parseFloat(p.volume.h24)/1000).toFixed(1)}K`;
-          document.getElementById('gram-sync').innerText = "LIVE SYNC";
+          document.getElementById('gramPrice').innerText = `$${price.toFixed(4)}`;
+          const chgEl = document.getElementById('gramChange');
+          chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
+          chgEl.className = chg >= 0 ? 'up' : 'down';
+          drawSparkline([price*0.96, price*0.98, price*0.97, price*1.01, price], chg >= 0);
           return;
         }
-      } catch (err) {}
-      document.getElementById('g-price').innerText = "$0.0071";
-      document.getElementById('g-change').innerText = "+2.4%";
-      document.getElementById('g-change').className = "m-val gain";
-      document.getElementById('g-vol').innerText = "$34.1K";
-      document.getElementById('gram-sync').innerText = "CACHED";
+      } catch(e) {}
+      document.getElementById('gramPrice').innerText = "$0.0071";
+      document.getElementById('gramChange').innerText = "+2.40%";
+      drawSparkline([1, 1.2, 1.1, 1.3, 1.25, 1.4], true);
+    }
+    function drawSparkline(pts, up) {
+      const svg = document.getElementById('gramSpark');
+      const w = 140, h = 32, n = pts.length;
+      const min = Math.min(...pts), max = Math.max(...pts), rng = max - min || 1;
+      const coords = pts.map((v, i) => `${((i/(n-1))*(w-2)+1).toFixed(1)},${(h-3-((v-min)/rng)*(h-6)).toFixed(1)}`);
+      const col = up ? "#ffd24a" : "#e61c1c";
+      svg.innerHTML = `<polyline points="${coords.join(' ')}" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+    }
+    loadGramToken(); setInterval(loadGramToken, 60000);
+
+    // ================= 5. TOOL CONTROLLER & DRAWER =================
+    let activeTool = "layers";
+    const tools = {};
+
+    tools.layers = () => `
+      <div class="toggle"><label>USGS SEISMIC GRID<em>Earthquakes 2.5+ M</em></label><span class="switch on" onclick="toggleSwitch(this, 'quakes')"></span></div>
+      <div class="toggle"><label>NASA THERMAL HOTSPOTS<em>Global active fires</em></label><span class="switch on" onclick="toggleSwitch(this, 'fires')"></span></div>
+      <div class="toggle"><label>ORBITAL / ISS TRACK<em>Live satellite path</em></label><span class="switch on" onclick="toggleSwitch(this, 'iss')"></span></div>
+      <div class="toggle"><label>MARITIME CHOKEPOINTS<em>Naval transit corridors</em></label><span class="switch on" onclick="toggleSwitch(this, 'choke')"></span></div>
+    `;
+
+    tools.sectors = () => `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <button class="hud-btn" onclick="map.flyTo([24.4, 119.8], 7)">» 01: TAIWAN STRAIT</button>
+        <button class="hud-btn" onclick="map.flyTo([26.56, 56.25], 7)">» 02: STRAIT OF HORMUZ</button>
+        <button class="hud-btn" onclick="map.flyTo([12.58, 43.33], 7)">» 03: BAB-EL-MANDEB</button>
+        <button class="hud-btn" onclick="map.flyTo([43.5, 34.0], 6)">» 04: BLACK SEA / CRIMEA</button>
+        <button class="hud-btn" onclick="map.flyTo([22.0, 10.0], 2.5)">» 00: GLOBAL OVERVIEW</button>
+      </div>
+    `;
+
+    tools.space = () => `
+      <div style="font-size:11px; line-height:1.7;">
+        <b>NODE: ISS (ZARYA)</b><br>
+        ALTITUDE: ~418 KM<br>
+        STATUS: TRACKING NOMINAL<br>
+        <button class="hud-btn" style="margin-top:8px;" onclick="if(issMarker) map.setView(issMarker.getLatLng(), 5)">FOCUS ISS TARGET</button>
+      </div>
+    `;
+
+    tools.choke = () => `
+      <div style="font-size:11px; display:flex; flex-direction:column; gap:6px;">
+        ${CHOKEPOINTS.map(c => `<div><b>${c.name}</b><br><span style="color:var(--mut); font-size:10px;">${c.note}</span></div>`).join('')}
+      </div>
+    `;
+
+    let routeNodes = [];
+    tools.route = () => `
+      <div style="font-size:11px;">
+        <p style="color:var(--mut); margin-bottom:8px;">Click map to place Node A and Node B for driving routes.</p>
+        <button class="hud-btn" onclick="layers.routes.clearLayers(); routeNodes=[];">CLEAR ROUTE</button>
+      </div>
+    `;
+
+    let drawMode = null;
+    tools.draw = () => `
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="hud-btn" onclick="drawMode='marker'">PIN</button>
+        <button class="hud-btn" onclick="drawMode='line'">LINE</button>
+        <button class="hud-btn" onclick="layers.draw.clearLayers(); drawPts=[];">PURGE</button>
+      </div>
+    `;
+
+    function renderPanel(tool) {
+      document.getElementById('spTitle').innerText = tool.toUpperCase();
+      document.getElementById('spContent').innerHTML = tools[tool] ? tools[tool]() : '';
     }
 
-    // 9. MONA PROCESSOR WITH SOLENOID KEYSTROKES
-    const monaText = document.getElementById('mona-text');
-    const monaStats = document.getElementById('mona-stats');
-    const savedNote = localStorage.getItem('ISIS_MONA_BUFFER');
-    if (savedNote) { monaText.value = savedNote; updateMona(); }
-
-    monaText.addEventListener('keydown', () => playSolenoid(140, 0.02));
-    monaText.addEventListener('input', () => {
-      localStorage.setItem('ISIS_MONA_BUFFER', monaText.value);
-      updateMona();
+    document.querySelectorAll('#toolbar button').forEach(b => {
+      b.addEventListener('click', () => {
+        const t = b.dataset.tool;
+        if (activeTool === t && !document.getElementById('sidePanel').classList.contains('closed')) {
+          document.getElementById('sidePanel').classList.add('closed');
+          b.classList.remove('active');
+          activeTool = null;
+          return;
+        }
+        document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        activeTool = t;
+        document.getElementById('sidePanel').classList.remove('closed');
+        renderPanel(t);
+      });
     });
 
-    function updateMona() {
-      const v = monaText.value;
-      const lines = v.substr(0, monaText.selectionStart).split("\n").length;
-      const words = v.trim() ? v.trim().split(/\s+/).length : 0;
-      monaStats.innerText = `LN ${lines} | ${words} WORDS | ${v.length} CHARS`;
+    document.getElementById('spClose').addEventListener('click', () => {
+      document.getElementById('sidePanel').classList.add('closed');
+      document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
+      activeTool = null;
+    });
+
+    function toggleSwitch(sw, layer) {
+      sw.classList.toggle('on');
+      if (map.hasLayer(layers[layer])) map.removeLayer(layers[layer]);
+      else map.addLayer(layers[layer]);
     }
 
+    // Map Route & Draw Handlers
+    let drawPts = [];
+    map.on('click', async (e) => {
+      if (activeTool === 'route') {
+        routeNodes.push(e.latlng);
+        L.circleMarker(e.latlng, { radius: 5, color: '#ffd24a' }).addTo(layers.routes);
+        if (routeNodes.length === 2) {
+          const [a, b] = routeNodes;
+          try {
+            const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`);
+            const dat = await res.json();
+            if (dat.routes && dat.routes.length) {
+              const coords = dat.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              L.polyline(coords, { color: '#ffd24a', weight: 3 }).addTo(layers.routes);
+              pushTicker(`ROUTE PLOTTED: ${(dat.routes[0].distance/1000).toFixed(1)} KM`);
+            }
+          } catch(err) {}
+          routeNodes = [];
+        }
+      } else if (activeTool === 'draw') {
+        if (drawMode === 'marker') {
+          L.circleMarker(e.latlng, { radius: 6, color: '#e61c1c' }).addTo(layers.draw);
+        } else if (drawMode === 'line') {
+          drawPts.push(e.latlng);
+          if (drawPts.length >= 2) L.polyline(drawPts, { color: '#e61c1c', weight: 2 }).addTo(layers.draw);
+        }
+      }
+    });
+
+    renderPanel('layers');
+
+    // ================= 6. MONA PWP EXPORT ENGINE =================
+    const npBtn = document.getElementById('notepadToggleBtn');
+    const npPanel = document.getElementById('notepadPanel');
+    const np = document.getElementById('notepad');
+    const npMeta = document.getElementById('npMeta');
+
+    np.value = localStorage.getItem('ISIS_MONA_BUFFER') || '';
+    updateMonaMeta();
+
+    npBtn.addEventListener('click', () => {
+      npPanel.classList.toggle('open');
+      npBtn.classList.toggle('active', npPanel.classList.contains('open'));
+      if (npPanel.classList.contains('open')) np.focus();
+    });
+
+    np.addEventListener('input', () => {
+      localStorage.setItem('ISIS_MONA_BUFFER', np.value);
+      document.getElementById('npSaveStatus').innerText = "SAVED";
+      updateMonaMeta();
+    });
+
+    function updateMonaMeta() {
+      const v = np.value;
+      const lines = v.substr(0, np.selectionStart).split("\n").length;
+      const words = v.trim() ? v.trim().split(/\s+/).length : 0;
+      npMeta.innerText = `LN ${lines} | ${words} WORDS | ${v.length} CHARS`;
+    }
+    np.addEventListener('keyup', updateMonaMeta);
+
+    // Multi-format export (Mona retro engine)
     function exportMona(ext) {
-      playSolenoid(220, 0.05);
-      const b = new Blob([monaText.value], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([np.value], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
+      a.href = URL.createObjectURL(blob);
       a.download = `ISIS_DOSSIER_${Date.now()}.${ext}`;
       a.click();
+      URL.revokeObjectURL(a.href);
     }
-    function purgeMona() {
-      if (confirm("PURGE BUFFER?")) {
-        monaText.value = "";
+
+    function copyMona() {
+      navigator.clipboard.writeText(np.value).then(() => {
+        document.getElementById('npSaveStatus').innerText = "COPIED";
+        setTimeout(() => document.getElementById('npSaveStatus').innerText = "SYNCED", 1500);
+      });
+    }
+
+    function clearMona() {
+      if (confirm("PURGE DOSSIER BUFFER?")) {
+        np.value = '';
         localStorage.removeItem('ISIS_MONA_BUFFER');
-        updateMona();
+        updateMonaMeta();
+        document.getElementById('npSaveStatus').innerText = "PURGED";
       }
     }
 
-    // 10. ACTIVE NEWSFEED FOOTER ENGINE
-    const newsfeedItems = [
-      "USGS: SEISMIC RIDGE MONITORING PACIFIC FAULT LINES ACTIVE",
-      "NASA EONET: DETECTED 14 THERMAL ANOMALIES IN BOREAL BELT",
-      "TON NETWORK: GRAM LIQUIDITY POOL SYNCED VIA PROOF-OF-WORK GIVER",
-      "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H",
-      "MARITIME ADVISORY: STRAIT OF HORMUZ TRANSIT CHANNELS UNDER OBSERVATION",
-      "DEFENSE TELEMETRY: TAIWAN STRAIT SURVEILLANCE VECTORS NORMAL"
+    // ================= 7. NEWS TICKER =================
+    const alerts = [
+      "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA DEXSCREENER",
+      "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
+      "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H"
     ];
-    let newsIdx = 0;
-    function cycleNews() {
-      const marquee = document.getElementById('ticker-marquee');
-      marquee.innerHTML = `<span>ALERT: <b>${newsfeedItems[newsIdx]}</b></span>`;
-      newsIdx = (newsIdx + 1) % newsfeedItems.length;
+    function pushTicker(msg) {
+      alerts.unshift(msg);
+      if (alerts.length > 20) alerts.pop();
     }
-    function updateTickerHeadline(extra) {
-      if (extra) newsfeedItems.unshift(`USGS BREAKING: ${extra.toUpperCase()}`);
-    }
-    setInterval(cycleNews, 5000);
-    cycleNews();
-
-    // Clock
+    let tickerIdx = 0;
     setInterval(() => {
-      document.getElementById('utc-clock').innerText = new Date().toUTCString().replace("GMT", "UTC");
-    }, 1000);
+      document.getElementById('ticker-marquee').innerHTML = `FEED: <b>${alerts[tickerIdx]}</b>`;
+      tickerIdx = (tickerIdx + 1) % alerts.length;
+    }, 5000);
   </script>
 </body>
 </html>
