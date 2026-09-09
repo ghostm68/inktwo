@@ -763,12 +763,12 @@ const coverData = [
     src: "armaggedon two skinny girls.mp3",
     feed: "ARMA6EDDON // hellbender"
   },
-     {
+ {
     tag: "COVER // 06. Some Like it Hot",
     title: "Some like it hot (Two Skinny 6irls)",
     desc: "orchestrated recording. film score.",
     src: "some like it alt m.mp3",
-    feed: "SOme Like it Hot // ost"
+    feed: "Some Like it Hot // ost"
   }
 ];
 
