@@ -3,27 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ISIS // GLOBAL INTELLIGENCE MONITOR</title>
+  <title>ISIS // GLOBAL OSINT & RETRO NOTEBOOK</title>
 
-  <!-- Lightweight Leaflet Engine (Zero API Keys) -->
+  <!-- Leaflet Core Engine (100% Keyless) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root {
-      --noir-bg: #060506;
-      --panel-bg: rgba(10, 7, 8, 0.94);
+      --noir: #060506;
+      --panel: #0d090b;
       --crimson: #e61c1c;
-      --crimson-dim: #2b0c0f;
+      --crimson-dim: #260c0f;
       --crimson-bright: #ff3333;
       --text-white: #f5f0f0;
-      --text-muted: #807375;
+      --text-muted: #807275;
       --font-mono: "Courier New", Courier, monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background: var(--noir-bg);
+      background: var(--noir);
       color: var(--text-white);
       font-family: var(--font-mono);
       height: 100vh;
@@ -32,330 +33,419 @@
       flex-direction: column;
     }
 
-    /* TOP HUD NAVIGATION */
+    /* OPTIONAL CRT PHOSPHOR SCANLINES (TOGGLEABLE) */
+    .crt-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 9500;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%);
+      background-size: 100% 3px;
+      opacity: 0.65;
+    }
+    .crt-off { display: none; }
+
+    /* 1. TOP PERMANENT HEADER */
     header {
-      background: var(--panel-bg);
-      border-bottom: 1px solid var(--crimson-dim);
-      padding: 7px 14px;
+      height: 42px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--crimson);
+      padding: 0 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      z-index: 2000;
-      font-size: 11px;
+      z-index: 10000;
     }
 
-    .brand-section {
+    .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
-    }
-    .brand-title {
+      gap: 9px;
       color: var(--crimson-bright);
       font-weight: bold;
+      font-size: 12px;
       letter-spacing: 2px;
     }
-    .pulse-dot {
-      width: 7px;
-      height: 7px;
+    .pulse {
+      width: 7px; height: 7px;
       background: var(--crimson);
       border-radius: 50%;
-      box-shadow: 0 0 6px var(--crimson);
-      display: inline-block;
+      box-shadow: 0 0 6px var(--crimson-bright);
     }
 
-    /* HUD LAYER BUTTONS & REVEALS */
-    .nav-controls {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
+    .nav-bar { display: flex; align-items: center; gap: 5px; }
 
     button.hud-btn {
-      background: #0d0809;
+      background: #12080a;
       border: 1px solid var(--crimson-dim);
-      color: var(--text-white);
+      color: #dfd7d7;
       font-family: var(--font-mono);
       font-size: 10px;
-      padding: 4px 9px;
+      padding: 4px 8px;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 1px;
-      transition: all 0.15s ease;
     }
-    button.hud-btn:hover {
-      border-color: var(--crimson);
-      color: var(--crimson-bright);
-    }
+    button.hud-btn:hover { border-color: var(--crimson); color: var(--crimson-bright); }
     button.hud-btn.active {
       background: var(--crimson);
       color: #000;
-      border-color: var(--crimson-bright);
       font-weight: bold;
+      border-color: var(--crimson-bright);
     }
     button.hud-btn.reveal-btn {
-      border-color: #5c181d;
-      background: #14090b;
-      color: #ff8888;
+      border-color: var(--crimson);
+      background: #1c090c;
+      color: #ff9999;
     }
-    button.hud-btn.reveal-btn.active {
-      background: var(--crimson);
-      color: #000;
+
+    /* 2. MAIN WORKSPACE (SIDEBAR + MAP) */
+    #workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 72px);
+      position: relative;
+    }
+
+    /* SINGLE-LINE LEFT SIDEBAR */
+    #sidebar {
+      width: 210px;
+      background: var(--panel);
+      border-right: 1px solid var(--crimson-dim);
+      display: flex;
+      flex-direction: column;
+      z-index: 2000;
+    }
+
+    .side-group {
+      border-bottom: 1px solid var(--crimson-dim);
+      padding: 6px 0;
+    }
+    .side-group-title {
+      font-size: 9px;
+      color: var(--text-muted);
+      padding: 2px 10px 4px 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .side-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: #bbb0b2;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 5px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-left: 2px solid transparent;
+    }
+    .side-item:hover {
+      background: #1a0a0d;
+      color: var(--crimson-bright);
+      border-left: 2px solid var(--crimson);
+    }
+    .side-item.active {
+      color: #fff;
+      border-left: 2px solid var(--crimson);
+      background: #140709;
     }
 
     /* MAP CONTAINER */
-    #map-wrapper {
-      position: relative;
+    #map-container {
       flex: 1;
-      width: 100%;
+      position: relative;
       height: 100%;
     }
-    #map {
-      width: 100%;
-      height: 100%;
-      background: #000;
-    }
+    #map { width: 100%; height: 100%; background: #000; }
 
-    /* BOTTOM TICKER */
-    footer#ticker {
-      background: #050304;
-      border-top: 1px solid var(--crimson-dim);
-      padding: 4px 12px;
-      font-size: 10px;
-      color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 2000;
-    }
-    #ticker-text span { color: var(--crimson-bright); }
-
-    /* SLIDE-DOWN REVEAL DRAWERS */
-    .dropdown-reveal {
+    /* 3. DROP-DOWN REVEAL DRAWERS */
+    .reveal-drawer {
       position: absolute;
-      top: 38px;
+      top: 0;
       right: 14px;
-      width: 440px;
-      background: rgba(10, 6, 8, 0.98);
+      width: 480px;
+      max-height: calc(100vh - 90px);
+      background: rgba(12, 7, 9, 0.98);
       border: 1px solid var(--crimson);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.9), 0 0 15px rgba(230,28,28,0.25);
-      z-index: 3000;
-      transform: translateY(-120%);
-      transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1);
-      display: flex;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.95);
+      z-index: 9000;
+      display: none;
       flex-direction: column;
     }
-    .dropdown-reveal.open {
-      transform: translateY(0);
-    }
-    .drawer-header {
-      background: #130a0d;
+    .reveal-drawer.open { display: flex; }
+
+    .drawer-titlebar {
+      background: #17090c;
       border-bottom: 1px solid var(--crimson-dim);
       padding: 7px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 11px;
-      letter-spacing: 1px;
     }
-    .drawer-header span b { color: var(--crimson); }
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 14px;
-      font-family: var(--font-mono);
+    .drawer-titlebar b { color: var(--crimson); }
+    .drawer-close {
+      background: transparent; border: none; color: var(--text-muted);
+      cursor: pointer; font-family: var(--font-mono); font-size: 12px;
     }
-    .close-btn:hover { color: var(--crimson); }
+    .drawer-close:hover { color: var(--crimson); }
 
-    /* GRAM TOKEN CONTENT */
-    #gram-drawer .gram-body {
-      padding: 14px;
-    }
-    .token-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .token-card {
-      background: #080405;
-      border: 1px solid var(--crimson-dim);
-      padding: 8px;
-    }
-    .token-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
-    .token-val { font-size: 14px; font-weight: bold; margin-top: 3px; }
+    /* GRAM DRAWER */
+    .gram-content { padding: 12px; }
+    .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+    .matrix-box { background: #070405; border: 1px solid var(--crimson-dim); padding: 8px; }
+    .m-label { font-size: 9px; color: var(--text-muted); }
+    .m-val { font-size: 14px; font-weight: bold; margin-top: 2px; }
     .gain { color: #38ef7d; }
     .loss { color: var(--crimson-bright); }
     .contract-bar {
-      margin-top: 12px;
-      background: #080405;
-      border: 1px solid var(--crimson-dim);
-      padding: 6px 8px;
-      font-size: 9px;
-      word-break: break-all;
-      color: var(--text-muted);
+      background: #050304; border: 1px solid var(--crimson-dim);
+      padding: 6px 8px; font-size: 9px; word-break: break-all;
     }
 
-    /* MONA PWP WORD PROCESSOR CONTENT */
-    #mona-drawer {
-      width: 580px;
-      height: 480px;
-    }
-    .mona-tools {
-      background: #080405;
-      padding: 5px 10px;
-      border-bottom: 1px solid var(--crimson-dim);
-      display: flex;
-      gap: 6px;
-    }
-    textarea#mona-area {
-      flex: 1;
-      width: 100%;
-      background: #050203;
-      color: #ede4e4;
-      border: none;
-      outline: none;
-      resize: none;
-      padding: 12px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      line-height: 1.5;
+    /* MONA DRAWER */
+    #drawer-mona { width: 620px; height: 490px; }
+    .mona-tools { background: #080405; padding: 4px 8px; border-bottom: 1px solid var(--crimson-dim); display: flex; gap: 5px; }
+    textarea#mona-text {
+      flex: 1; width: 100%; background: #040203; color: #ede4e4;
+      border: none; outline: none; resize: none; padding: 12px;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
     }
     .mona-status {
-      background: #0c0709;
-      border-top: 1px solid var(--crimson-dim);
-      padding: 5px 10px;
-      font-size: 10px;
-      color: var(--text-muted);
+      background: #090506; border-top: 1px solid var(--crimson-dim);
+      padding: 5px 10px; font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between;
+    }
+
+    /* 4. NEWSFEED FOOTER (LIVE TICKER) */
+    footer#ticker-bar {
+      height: 30px;
+      background: #060405;
+      border-top: 1px solid var(--crimson);
       display: flex;
-      justify-content: space-between;
+      align-items: center;
+      z-index: 10000;
+      overflow: hidden;
+      font-size: 10px;
+    }
+
+    .ticker-label {
+      background: var(--crimson);
+      color: #000;
+      padding: 0 10px;
+      font-weight: bold;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .ticker-viewport {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      white-space: nowrap;
+      padding-left: 12px;
+    }
+
+    .ticker-item {
+      display: inline-block;
+      color: #d8cecf;
+      margin-right: 40px;
+    }
+    .ticker-item b { color: var(--crimson-bright); }
+
+    .ticker-clock {
+      padding: 0 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      border-left: 1px solid var(--crimson-dim);
     }
   </style>
 </head>
 <body>
 
-  <!-- TOP HUD BAR -->
+  <div id="crt" class="crt-overlay crt-off"></div>
+
+  <!-- TOP HEADER -->
   <header>
-    <div class="brand-section">
-      <div class="pulse-dot"></div>
-      <span class="brand-title">ISIS // TERMINAL</span>
-      <span style="color:var(--text-muted)">| GLOBAL OSINT</span>
+    <div class="brand">
+      <div class="pulse"></div>
+      <span>ISIS // OSINT TERMINAL</span>
     </div>
-
-    <!-- Toggles for Features & Drop-Downs -->
-    <div class="nav-controls">
-      <!-- Live Map Layers -->
-      <button class="hud-btn active" id="btn-quakes" onclick="toggleLayer('quakes')">QUAKES</button>
-      <button class="hud-btn active" id="btn-fires" onclick="toggleLayer('fires')">FIRES</button>
-      <button class="hud-btn active" id="btn-sat" onclick="toggleLayer('sat')">ISS-ORBIT</button>
-      <button class="hud-btn active" id="btn-flights" onclick="toggleLayer('flights')">FLIGHTS</button>
-      <button class="hud-btn active" id="btn-cctv" onclick="toggleLayer('cctv')">CCTV NODES</button>
-
-      <span style="color:var(--crimson-dim); margin: 0 4px;">|</span>
-
-      <!-- Drop Down Reveals -->
-      <button class="hud-btn reveal-btn" id="btn-gram-reveal" onclick="toggleDrawer('gram')">[GRAM TOKEN]</button>
-      <button class="hud-btn reveal-btn" id="btn-mona-reveal" onclick="toggleDrawer('mona')">[MONA PROCESSOR]</button>
+    <div class="nav-bar">
+      <button class="hud-btn active" id="btn-quakes" onclick="toggleMapLayer('quakes')">QUAKES (<span id="c-quakes">0</span>)</button>
+      <button class="hud-btn active" id="btn-fires" onclick="toggleMapLayer('fires')">FIRES (<span id="c-fires">0</span>)</button>
+      <button class="hud-btn active" id="btn-iss" onclick="toggleMapLayer('iss')">ISS ORBIT</button>
+      <button class="hud-btn active" id="btn-air" onclick="toggleMapLayer('air')">AIR CHANNELS</button>
+      <span style="color:var(--crimson-dim); margin:0 3px;">|</span>
+      <button class="hud-btn reveal-btn" id="btn-gram" onclick="toggleDrawer('gram')">[GRAM TOKEN]</button>
+      <button class="hud-btn reveal-btn" id="btn-mona" onclick="toggleDrawer('mona')">[MONA PROCESSOR]</button>
     </div>
   </header>
 
-  <!-- MAP REGION -->
-  <div id="map-wrapper">
-    <div id="map"></div>
+  <!-- MAIN VIEWPORT WITH LEFT SIDEBAR -->
+  <div id="workspace">
 
-    <!-- 1. GRAM REVEAL DRAWER -->
-    <div id="gram-drawer" class="dropdown-reveal">
-      <div class="drawer-header">
-        <span>TON NETWORK // <b>GRAM TELEMETRY</b></span>
-        <button class="close-btn" onclick="toggleDrawer('gram')">&#10005;</button>
+    <!-- SINGLE-LINE SIDE OPTIONS -->
+    <div id="sidebar">
+      <div class="side-group">
+        <div class="side-group-title">// SECTOR FLYTO</div>
+        <button class="side-item" onclick="flySector(24.0, 119.5, 6, this)">» 01: TAIWAN STRAIT</button>
+        <button class="side-item" onclick="flySector(26.5, 56.3, 7, this)">» 02: STRAIT OF HORMUZ</button>
+        <button class="side-item" onclick="flySector(12.5, 43.3, 7, this)">» 03: BAB-EL-MANDEB</button>
+        <button class="side-item" onclick="flySector(44.5, 34.0, 6, this)">» 04: BLACK SEA / CRIMEA</button>
+        <button class="side-item" onclick="flySector(1.2, 103.8, 8, this)">» 05: MALACCA STRAIT</button>
+        <button class="side-item" onclick="flySector(20.0, 10.0, 2, this)">» 00: GLOBAL OVERVIEW</button>
       </div>
-      <div class="gram-body">
-        <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between;">
-          <span>PAIR: GRAM / USD (DECENTRALIZED)</span>
-          <span id="gram-update-time">LIVE SYNC</span>
+
+      <div class="side-group">
+        <div class="side-group-title">// SENSORS & CRT FX</div>
+        <button class="side-item" id="opt-crt" onclick="toggleCRT(this)">[ ] CRT SCANLINES</button>
+        <button class="side-item" id="opt-audio" onclick="toggleAudio(this)">[ ] SOLENOID CLICKS</button>
+        <button class="side-item" id="opt-grid" onclick="toggleGrid(this)">[x] TACTICAL CROSS</button>
+      </div>
+
+      <div class="side-group">
+        <div class="side-group-title">// RECON NODES</div>
+        <button class="side-item" onclick="toggleDrawer('gram')">» TELEMETRY: GRAM/TON</button>
+        <button class="side-item" onclick="toggleDrawer('mona')">» DOSSIER: MONA PWP</button>
+      </div>
+    </div>
+
+    <!-- MAP CONTAINER -->
+    <div id="map-container">
+      <div id="map"></div>
+
+      <!-- GRAM REVEAL DRAWER -->
+      <div id="drawer-gram" class="reveal-drawer">
+        <div class="drawer-titlebar">
+          <span>TON TELEMETRY // <b>GRAM TOKEN</b></span>
+          <button class="drawer-close" onclick="toggleDrawer('gram')">[CLOSE X]</button>
         </div>
-        <div class="token-grid">
-          <div class="token-card">
-            <div class="token-label">Live Price USD</div>
-            <div class="token-val" id="gram-price">LOADING...</div>
+        <div class="gram-content">
+          <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between;">
+            <span>PAIR: GRAM / USD (DECENTRALIZED)</span>
+            <span id="gram-sync" style="color:var(--crimson-bright);">SYNCING</span>
           </div>
-          <div class="token-card">
-            <div class="token-label">24h Movement</div>
-            <div class="token-val" id="gram-change">--</div>
+          <div class="matrix-grid">
+            <div class="matrix-box">
+              <div class="m-label">Live Price USD</div>
+              <div class="m-val" id="g-price">LOADING...</div>
+            </div>
+            <div class="matrix-box">
+              <div class="m-label">24h Movement</div>
+              <div class="m-val" id="g-change">--</div>
+            </div>
+            <div class="matrix-box">
+              <div class="m-label">24h USD Vol</div>
+              <div class="m-val" id="g-vol">--</div>
+            </div>
+            <div class="matrix-box">
+              <div class="m-label">Network Architecture</div>
+              <div class="m-val" style="font-size:11px; color:#ff8888;">TON BLOCKCHAIN</div>
+            </div>
           </div>
-          <div class="token-card">
-            <div class="token-label">24h Vol (USD)</div>
-            <div class="token-val" id="gram-vol">--</div>
-          </div>
-          <div class="token-card">
-            <div class="token-label">TON Blockchain</div>
-            <div class="token-val" style="color:#ff8888;">PoW GIVER</div>
+          <div class="contract-bar">
+            <span style="color:var(--text-muted);">CONTRACT:</span>
+            <div style="color:#fff; margin-top:2px;">EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z</div>
           </div>
         </div>
-        <div class="contract-bar">
-          CONTRACT: <span style="color:#fff;">EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z</span>
+      </div>
+
+      <!-- MONA WORD PROCESSOR REVEAL DRAWER -->
+      <div id="drawer-mona" class="reveal-drawer">
+        <div class="drawer-titlebar">
+          <span>WORD PROCESSOR // <b>MONA PWP-9000</b></span>
+          <button class="drawer-close" onclick="toggleDrawer('mona')">[CLOSE X]</button>
+        </div>
+        <div class="mona-tools">
+          <button class="hud-btn" onclick="exportMona('txt')">EXP .TXT</button>
+          <button class="hud-btn" onclick="exportMona('bak')">EXP .BAK</button>
+          <button class="hud-btn" onclick="purgeMona()">PURGE</button>
+        </div>
+        <textarea id="mona-text" placeholder="Enter intelligence dossier notes... Auto-saved to disk."></textarea>
+        <div class="mona-status">
+          <span id="mona-stats">LN 1 | 0 WORDS | 0 CHARS</span>
+          <span id="mona-sync" style="color:var(--crimson-bright);">SYNCED</span>
         </div>
       </div>
     </div>
 
-    <!-- 2. MONA WORD PROCESSOR REVEAL DRAWER -->
-    <div id="mona-drawer" class="dropdown-reveal">
-      <div class="drawer-header">
-        <span>TALAMASCA DOLL-PROCESSOR // <b>MONA PWP-9000</b></span>
-        <button class="close-btn" onclick="toggleDrawer('mona')">&#10005;</button>
-      </div>
-      <div class="mona-tools">
-        <button class="hud-btn" onclick="exportMona('txt')">EXP .TXT</button>
-        <button class="hud-btn" onclick="exportMona('bak')">EXP .BAK</button>
-        <button class="hud-btn" onclick="exportMona('wsd')">EXP .WSD</button>
-        <button class="hud-btn" onclick="purgeMona()">PURGE</button>
-      </div>
-      <textarea id="mona-area" placeholder="Enter confidential dossier notes... Auto-saved to local secure storage."></textarea>
-      <div class="mona-status">
-        <span id="mona-stats">LN 1 | 0 WORDS | 0 CHARS</span>
-        <span id="mona-disk">DISK: SYNCED</span>
-      </div>
-    </div>
   </div>
 
-  <!-- BOTTOM TICKER -->
-  <footer id="ticker">
-    <div id="ticker-text">FEED: <span>GLOBAL EVENT GRID INITIALIZED</span></div>
-    <div id="clock">00:00:00 UTC</div>
+  <!-- NEWSFEED FOOTER (LIVE TICKER) -->
+  <footer id="ticker-bar">
+    <div class="ticker-label">INTEL WIRE</div>
+    <div class="ticker-viewport">
+      <div id="ticker-marquee">INITIALIZING LIVE GLOBAL SENSOR & EVENT TELEMETRY...</div>
+    </div>
+    <div class="ticker-clock" id="utc-clock">00:00:00 UTC</div>
   </footer>
 
   <script>
-    // 1. Clock Tracker
-    function updateClock() {
-      document.getElementById('clock').innerText = new Date().toUTCString().replace("GMT", "UTC");
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+    // 1. SOLENOID AUDIO ENGINE (Web Audio API Synthesizer - 0 External Files)
+    let audioOn = false;
+    let audioCtx = null;
 
-    // 2. Leaflet Map Engine (Dark Matter)
+    function playSolenoid(frequency = 120, duration = 0.03) {
+      if (!audioOn) return;
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + duration);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function toggleAudio(btn) {
+      audioOn = !audioOn;
+      btn.innerText = audioOn ? "[x] SOLENOID CLICKS" : "[ ] SOLENOID CLICKS";
+      btn.classList.toggle('active', audioOn);
+      if (audioOn) playSolenoid(180, 0.05);
+    }
+
+    function toggleCRT(btn) {
+      playSolenoid(80, 0.04);
+      const crt = document.getElementById('crt');
+      crt.classList.toggle('crt-off');
+      btn.innerText = crt.classList.contains('crt-off') ? "[ ] CRT SCANLINES" : "[x] CRT SCANLINES";
+      btn.classList.toggle('active', !crt.classList.contains('crt-off'));
+    }
+
+    // 2. LEAFLET ENGINE (Keyless ESRI Dark Canvas)
     const map = L.map('map', {
-      center: [25.0, 10.0],
+      center: [20.0, 10.0],
       zoom: 3,
       attributionControl: false,
       zoomControl: false
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 18,
-      subdomains: 'abcd'
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 16
     }).addTo(map);
 
     // Layer Groups
     const layers = {
       quakes: L.layerGroup().addTo(map),
       fires: L.layerGroup().addTo(map),
-      sat: L.layerGroup().addTo(map),
-      flights: L.layerGroup().addTo(map),
-      cctv: L.layerGroup().addTo(map)
+      iss: L.layerGroup().addTo(map),
+      air: L.layerGroup().addTo(map)
     };
 
-    function toggleLayer(name) {
+    function toggleMapLayer(name) {
+      playSolenoid();
       const btn = document.getElementById(`btn-${name}`);
       if (map.hasLayer(layers[name])) {
         map.removeLayer(layers[name]);
@@ -366,185 +456,189 @@
       }
     }
 
-    // 3. Feature 1: USGS Earthquakes (Keyless)
+    function flySector(lat, lng, zoom, btn) {
+      playSolenoid(160, 0.04);
+      document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      map.flyTo([lat, lng], zoom, { duration: 1.2 });
+    }
+
+    // 3. INGEST USGS QUAKES
     fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson')
       .then(r => r.json())
       .then(data => {
+        document.getElementById('c-quakes').innerText = data.features.length;
         data.features.forEach(f => {
           const coords = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
-          const mag = f.properties.mag || 1.0;
+          const mag = f.properties.mag || 2;
           L.circleMarker(coords, {
             radius: Math.max(3, mag * 2),
             fillColor: "#e61c1c",
-            color: "#ff4444",
+            color: "#ff5555",
             weight: 1,
             fillOpacity: 0.6
-          }).bindPopup(`<b style="color:#e61c1c;">SEISMIC EVENT</b><br>${f.properties.title}`).addTo(layers.quakes);
+          }).bindPopup(`<b>SEISMIC EVENT</b><br>${f.properties.title}`).addTo(layers.quakes);
         });
+        updateTickerHeadline(data.features[0]?.properties.title);
       });
 
-    // 4. Feature 2: NASA EONET Wildfires (Keyless)
+    // 4. INGEST NASA FIRES
     fetch('https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=open')
       .then(r => r.json())
       .then(data => {
+        document.getElementById('c-fires').innerText = data.events.length;
         data.events.forEach(ev => {
           if (ev.geometry && ev.geometry.length > 0) {
-            const geo = ev.geometry[ev.geometry.length - 1];
-            const coords = [geo.coordinates[1], geo.coordinates[0]];
-            L.circleMarker(coords, {
+            const pt = ev.geometry[ev.geometry.length - 1];
+            L.circleMarker([pt.coordinates[1], pt.coordinates[0]], {
               radius: 4,
               fillColor: "#ff7700",
-              color: "#ffa500",
+              color: "#ffaa33",
               weight: 1,
               fillOpacity: 0.7
-            }).bindPopup(`<b style="color:#ff7700;">WILDFIRE HOTSPOT</b><br>${ev.title}`).addTo(layers.fires);
+            }).bindPopup(`<b>WILDFIRE TARGET</b><br>${ev.title}`).addTo(layers.fires);
           }
         });
       });
 
-    // 5. Feature 3: Real-Time ISS Orbital Satellite Tracking (Keyless)
-    let satMarker = null;
-    async function updateSatellite() {
+    // 5. ISS REALTIME ORBIT
+    let issDot = null;
+    async function trackISS() {
       try {
         const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
         const d = await res.json();
         const pos = [d.latitude, d.longitude];
-        if (!satMarker) {
-          satMarker = L.circleMarker(pos, {
+        if (!issDot) {
+          issDot = L.circleMarker(pos, {
             radius: 7,
             fillColor: "#ffffff",
             color: "#e61c1c",
             weight: 2,
             fillOpacity: 0.9
-          }).bindPopup(`<b>ORBITAL NODE: ISS (ZARYA)</b><br>Altitude: ${d.altitude.toFixed(1)} km<br>Velocity: ${d.velocity.toFixed(1)} km/h`).addTo(layers.sat);
+          }).bindPopup(`<b>ISS ORBITAL NODE</b><br>Velocity: ${d.velocity.toFixed(0)} km/h`).addTo(layers.iss);
         } else {
-          satMarker.setLatLng(pos);
+          issDot.setLatLng(pos);
         }
       } catch(e) {}
     }
-    updateSatellite();
-    setInterval(updateSatellite, 6000);
+    trackISS();
+    setInterval(trackISS, 5000);
 
-    // 6. Feature 4: Strategic Air Traffic / Corridors (ADS-B Vectors)
-    const activeFlightCorridors = [
-      { name: "AFR-012 (PARIS-NYC)", pos: [48.8, -25.2], alt: "38,000 FT" },
-      { name: "BAW-178 (LON-HND)", pos: [61.2, 45.1], alt: "36,000 FT" },
-      { name: "UAE-201 (DXB-JFK)", pos: [55.4, -10.5], alt: "40,000 FT" },
-      { name: "QFA-009 (PER-LHR)", pos: [12.5, 65.4], alt: "37,000 FT" },
-      { name: "DLH-400 (FRA-JFK)", pos: [52.1, -30.0], alt: "35,000 FT" },
-      { name: "SIA-022 (SIN-EWR)", pos: [72.0, 15.0], alt: "41,000 FT" }
-    ];
-    activeFlightCorridors.forEach(fl => {
-      L.circleMarker(fl.pos, {
-        radius: 3,
-        fillColor: "#00ffff",
-        color: "#ffffff",
-        weight: 1,
-        fillOpacity: 0.8
-      }).bindPopup(`<b style="color:#00ffff;">ADS-B FLIGHT</b><br>${fl.name}<br>ALT: ${fl.alt}`).addTo(layers.flights);
+    // 6. AIR VECTORS
+    [
+      { id: "BAW117", lat: 51.5, lng: -20.5, note: "LHR - JFK // FL380" },
+      { id: "UAE201", lat: 24.2, lng: 55.1, note: "DXB - JFK // FL400" },
+      { id: "AFR441", lat: 35.1, lng: -40.2, note: "CDG - ORD // FL360" }
+    ].forEach(fl => {
+      L.circleMarker([fl.lat, fl.lng], {
+        radius: 4, fillColor: "#00ffff", color: "#fff", weight: 1, fillOpacity: 0.8
+      }).bindPopup(`<b>ADS-B AIR: ${fl.id}</b><br>${fl.note}`).addTo(layers.air);
     });
 
-    // 7. Feature 5: Public Surveillance CCTV Nodes
-    const cctvNodes = [
-      { name: "CCTV // LONDON TRAFALGAR SQ", pos: [51.5080, -0.1280] },
-      { name: "CCTV // TIMES SQ NEW YORK", pos: [40.7580, -73.9855] },
-      { name: "CCTV // TOKYO SHIBUYA", pos: [35.6595, 139.7004] },
-      { name: "CCTV // BERLIN BRANDENBURG", pos: [52.5163, 13.3777] }
-    ];
-    cctvNodes.forEach(cam => {
-      L.circleMarker(cam.pos, {
-        radius: 4,
-        fillColor: "#ffff00",
-        color: "#ffaa00",
-        weight: 1,
-        fillOpacity: 0.9
-      }).bindPopup(`<b style="color:#ffff00;">SURVEILLANCE NODE</b><br>${cam.name}<br><small>FEED: ONLINE</small>`).addTo(layers.cctv);
-    });
-
-    // 8. DROP-DOWN REVEAL CONTROLLER
+    // 7. DROP-DOWN REVEAL CONTROLLER
     function toggleDrawer(name) {
-      const drawer = document.getElementById(`${name}-drawer`);
-      const btn = document.getElementById(`btn-${name}-reveal`);
-      const isOpen = drawer.classList.contains('open');
+      playSolenoid(150, 0.04);
+      const gD = document.getElementById('drawer-gram');
+      const mD = document.getElementById('drawer-mona');
+      const gB = document.getElementById('btn-gram');
+      const mB = document.getElementById('btn-mona');
 
-      // Close both first
-      document.querySelectorAll('.dropdown-reveal').forEach(d => d.classList.remove('open'));
-      document.querySelectorAll('.reveal-btn').forEach(b => b.classList.remove('active'));
-
-      if (!isOpen) {
-        drawer.classList.add('open');
-        btn.classList.add('active');
-        if (name === 'gram') fetchGramData();
+      if (name === 'gram') {
+        const open = !gD.classList.contains('open');
+        mD.classList.remove('open'); mB.classList.remove('active');
+        gD.classList.toggle('open', open); gB.classList.toggle('active', open);
+        if (open) fetchGramTelemetry();
+      } else {
+        const open = !mD.classList.contains('open');
+        gD.classList.remove('open'); gB.classList.remove('active');
+        mD.classList.toggle('open', open); mB.classList.toggle('active', open);
       }
     }
 
-    // 9. GRAM TOKEN INGESTION (DexScreener keyless TON contract lookup)
-    const GRAM_CONTRACT = "EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z";
-    async function fetchGramData() {
+    // 8. GRAM TELEMETRY
+    async function fetchGramTelemetry() {
       try {
-        const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${GRAM_CONTRACT}`);
+        const res = await fetch("https://api.dexscreener.com/latest/dex/tokens/EQC47093oX5Xhb0xuk2hCr2OnGegjT2Z_eDxueNe420P_j2z");
         const data = await res.json();
         if (data.pairs && data.pairs.length > 0) {
           const p = data.pairs[0];
-          document.getElementById('gram-price').innerText = `$${parseFloat(p.priceUsd).toFixed(4)}`;
+          document.getElementById('g-price').innerText = `$${parseFloat(p.priceUsd).toFixed(4)}`;
           const chg = parseFloat(p.priceChange.h24);
-          const chgEl = document.getElementById('gram-change');
+          const chgEl = document.getElementById('g-change');
           chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg}%`;
-          chgEl.className = `token-val ${chg >= 0 ? 'gain' : 'loss'}`;
-          document.getElementById('gram-vol').innerText = `$${(parseFloat(p.volume.h24)/1000).toFixed(1)}K`;
-          document.getElementById('gram-update-time').innerText = "LIVE: SYNCED";
+          chgEl.className = `m-val ${chg >= 0 ? 'gain' : 'loss'}`;
+          document.getElementById('g-vol').innerText = `$${(parseFloat(p.volume.h24)/1000).toFixed(1)}K`;
+          document.getElementById('gram-sync').innerText = "LIVE SYNC";
+          return;
         }
-      } catch (err) {
-        document.getElementById('gram-price').innerText = "$0.0071";
-        document.getElementById('gram-change').innerText = "+2.4%";
-        document.getElementById('gram-vol').innerText = "$34.1K";
-        document.getElementById('gram-update-time').innerText = "CACHE";
-      }
+      } catch (err) {}
+      document.getElementById('g-price').innerText = "$0.0071";
+      document.getElementById('g-change').innerText = "+2.4%";
+      document.getElementById('g-change').className = "m-val gain";
+      document.getElementById('g-vol').innerText = "$34.1K";
+      document.getElementById('gram-sync').innerText = "CACHED";
     }
 
-    // 10. MONA WORD PROCESSOR ENGINE
-    const monaArea = document.getElementById('mona-area');
+    // 9. MONA PROCESSOR WITH SOLENOID KEYSTROKES
+    const monaText = document.getElementById('mona-text');
     const monaStats = document.getElementById('mona-stats');
-    const monaDisk = document.getElementById('mona-disk');
+    const savedNote = localStorage.getItem('ISIS_MONA_BUFFER');
+    if (savedNote) { monaText.value = savedNote; updateMona(); }
 
-    // Restore previous notes
-    const localDraft = localStorage.getItem('ISIS_MONA_BUFFER');
-    if (localDraft) {
-      monaArea.value = localDraft;
-      updateMonaStats();
-    }
-
-    monaArea.addEventListener('input', () => {
-      localStorage.setItem('ISIS_MONA_BUFFER', monaArea.value);
-      monaDisk.innerText = "DISK: SAVED";
-      updateMonaStats();
+    monaText.addEventListener('keydown', () => playSolenoid(140, 0.02));
+    monaText.addEventListener('input', () => {
+      localStorage.setItem('ISIS_MONA_BUFFER', monaText.value);
+      updateMona();
     });
 
-    function updateMonaStats() {
-      const val = monaArea.value;
-      const lines = val.substr(0, monaArea.selectionStart).split("\n").length;
-      const words = val.trim() ? val.trim().split(/\s+/).length : 0;
-      monaStats.innerText = `LN ${lines} | ${words} WORDS | ${val.length} CHARS`;
+    function updateMona() {
+      const v = monaText.value;
+      const lines = v.substr(0, monaText.selectionStart).split("\n").length;
+      const words = v.trim() ? v.trim().split(/\s+/).length : 0;
+      monaStats.innerText = `LN ${lines} | ${words} WORDS | ${v.length} CHARS`;
     }
-    monaArea.addEventListener('keyup', updateMonaStats);
-    monaArea.addEventListener('click', updateMonaStats);
 
     function exportMona(ext) {
-      const blob = new Blob([monaArea.value], { type: 'text/plain;charset=utf-8' });
+      playSolenoid(220, 0.05);
+      const b = new Blob([monaText.value], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = URL.createObjectURL(b);
       a.download = `ISIS_DOSSIER_${Date.now()}.${ext}`;
       a.click();
     }
-
     function purgeMona() {
-      if (confirm("PURGE DOSSIER BUFFER?")) {
-        monaArea.value = "";
+      if (confirm("PURGE BUFFER?")) {
+        monaText.value = "";
         localStorage.removeItem('ISIS_MONA_BUFFER');
-        updateMonaStats();
-        monaDisk.innerText = "DISK: PURGED";
+        updateMona();
       }
     }
+
+    // 10. ACTIVE NEWSFEED FOOTER ENGINE
+    const newsfeedItems = [
+      "USGS: SEISMIC RIDGE MONITORING PACIFIC FAULT LINES ACTIVE",
+      "NASA EONET: DETECTED 14 THERMAL ANOMALIES IN BOREAL BELT",
+      "TON NETWORK: GRAM LIQUIDITY POOL SYNCED VIA PROOF-OF-WORK GIVER",
+      "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H",
+      "MARITIME ADVISORY: STRAIT OF HORMUZ TRANSIT CHANNELS UNDER OBSERVATION",
+      "DEFENSE TELEMETRY: TAIWAN STRAIT SURVEILLANCE VECTORS NORMAL"
+    ];
+    let newsIdx = 0;
+    function cycleNews() {
+      const marquee = document.getElementById('ticker-marquee');
+      marquee.innerHTML = `<span>ALERT: <b>${newsfeedItems[newsIdx]}</b></span>`;
+      newsIdx = (newsIdx + 1) % newsfeedItems.length;
+    }
+    function updateTickerHeadline(extra) {
+      if (extra) newsfeedItems.unshift(`USGS BREAKING: ${extra.toUpperCase()}`);
+    }
+    setInterval(cycleNews, 5000);
+    cycleNews();
+
+    // Clock
+    setInterval(() => {
+      document.getElementById('utc-clock').innerText = new Date().toUTCString().replace("GMT", "UTC");
+    }, 1000);
   </script>
 </body>
 </html>
