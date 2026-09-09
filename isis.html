@@ -55,7 +55,7 @@
     }
     .crt-off { display: none; }
 
-    /* TACTICAL CROSS OVERLAY OVER MAP */
+    /* TACTICAL CROSS OVERLAY */
     #tactical-cross {
       position: absolute; inset: 0; pointer-events: none; z-index: 1500;
       background:
@@ -189,7 +189,7 @@
     .spHead .x:hover { color: var(--crimson-glow); }
     .spBody { padding: 12px; overflow-y: auto; flex: 1; }
 
-    /* Side-group & Side-item Styling (Restored) */
+    /* Side-group & Side-item Styling */
     .side-group { border-top: 1px solid var(--line2); padding-top: 8px; margin-top: 10px; }
     .side-group-title { font-size: 9px; color: var(--mut); letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase; }
     .side-item {
@@ -244,18 +244,17 @@
       font-family: var(--mono); font-size: 12px; line-height: 1.5;
     }
     .npFoot {
-      display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+      display: flex; align-items: center; gap: 5px; padding: 7px 10px;
       border-top: 1px solid var(--line); background: #0a0607; flex-wrap: wrap;
     }
     .npFoot button {
       background: var(--panel2); color: var(--txt); border: 1px solid var(--line2);
-      font-size: 10px; padding: 4px 8px; letter-spacing: 1px;
+      font-size: 10px; padding: 4px 7px; letter-spacing: 1px;
     }
     .npFoot button:hover { border-color: var(--crimson); color: var(--crimson-glow); }
     .npFoot button.exp-btn { border-color: #57161b; color: #ff9999; }
     .npFoot button.exp-btn:hover { background: var(--crimson); color: #000; border-color: var(--crimson); }
     
-    /* Voice button pulsing state */
     button#voiceButton.recording {
       background: var(--crimson);
       color: #000;
@@ -276,7 +275,6 @@
 </head>
 <body>
 
-  <!-- CRT SCANLINES & TACTICAL CROSS OVERLAYS -->
   <div id="crt" class="crt-overlay crt-off"></div>
 
   <!-- 1. TOP NAVIGATION -->
@@ -336,15 +334,19 @@
         <span>TALAMASCA DOLL-PROCESSOR // <b>MONA PWP-9000</b></span>
         <span class="npMeta" id="npMeta">LN 1 | 0 WORDS</span>
       </div>
-      <textarea id="notepad" spellcheck="false" placeholder="Enter tactical notes or speak via Voice Input... Buffer persists to local storage."></textarea>
+      <textarea id="notepad" spellcheck="false" placeholder="Enter tactical notes, speak via Voice Input, or sync to #URL... Auto-saved to local storage."></textarea>
       <div class="npFoot">
         <input type="file" id="monaFileInput" accept=".txt,.bak,.wsd,.md,.doc,text/*" style="display:none;" />
         
-        <!-- Action Buttons -->
+        <!-- File Actions -->
         <button class="exp-btn" onclick="document.getElementById('monaFileInput').click()">IMP .FILE</button>
         <button class="exp-btn" onclick="exportMona('txt')">EXP .TXT</button>
         <button class="exp-btn" onclick="exportMona('bak')">EXP .BAK</button>
         <button class="exp-btn" onclick="exportMona('wsd')">EXP .WSD</button>
+        
+        <!-- URL Hash Compression & Share (From inkrealm.info/mona) -->
+        <button class="exp-btn" onclick="compressToUrlHash()">[SHARE #URL]</button>
+
         <button onclick="copyMona()">COPY</button>
         <button onclick="clearMona()">PURGE</button>
         
@@ -363,7 +365,7 @@
   </footer>
 
   <script>
-    // ================= 1. SYSTEM CLOCK & SOLENOID ENGINE =================
+    // ================= 1. SYSTEM CLOCK & SOLENOID AUDIO =================
     function tickClock() {
       const d = new Date();
       const p = n => String(n).padStart(2, '0');
@@ -412,11 +414,11 @@
       btn.classList.toggle('active', !cross.classList.contains('grid-off'));
     }
 
-    // ================= 2. MAP INITIALIZATION (Attribution Disabled) =================
+    // ================= 2. MAP ENGINE (Attribution Disabled) =================
     const map = L.map("map", {
       zoomControl: false,
       zoomSnap: 0.5,
-      attributionControl: false // STRIPS LEAFLET BRANDING & LINKS
+      attributionControl: false // STRIPS LEAFLET WATERMARK
     }).setView([22, 10], 2.5);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -541,14 +543,13 @@
     }
     loadGramToken(); setInterval(loadGramToken, 60000);
 
-    // ================= 5. TOOL CONTROLLER & RESTORED SECTIONS =================
+    // ================= 5. TOOL CONTROLLER & OPTICAL FEED URL LOCALSTORAGE =================
     let activeTool = "layers";
     let drawMode = "pin";
     let drawPts = [];
     let currentPolyline = null;
     const tools = {};
 
-    // Persistent footer attached to every panel view: SENSORS + RECON
     function commonPanelFooter() {
       return `
         <div class="side-group">
@@ -611,7 +612,7 @@
       ${commonPanelFooter()}
     `;
 
-    // Overhauled DRAW Tool + 288x188 GRAYSCALE IFRAME BOX
+    // Overhauled DRAW Tool + 288x188 GRAYSCALE IFRAME BOX WITH URL LOCALSTORAGE
     tools.draw = () => `
       <div style="font-size:11px; margin-bottom:8px; color:var(--mut);">
         Select a tool, then click directly on the map:
@@ -625,22 +626,42 @@
 
       <!-- RESIZED 288x188 GRAYSCALE IFRAME BOX -->
       <div style="margin-top: 12px; border-top: 1px solid var(--line2); padding-top: 8px;">
-        <div style="font-size:9px; color:var(--mut); margin-bottom:4px; letter-spacing:1px;">// OPTICAL FEED / SURVEILLANCE</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:9px; color:var(--mut); letter-spacing:1px;">// OPTICAL FEED / SURVEILLANCE</span>
+          <span id="feedSaveStatus" style="font-size:8px; color:var(--crimson-glow);">DISK SYNCED</span>
+        </div>
         <div style="width: 288px; height: 188px; border: 1px solid var(--crimson); background: #000; overflow: hidden; position: relative;">
           <iframe 
             id="opticalFrame"
-            src="about:blank" 
+            src="${localStorage.getItem('ISIS_FEED_URL') || 'about:blank'}" 
             style="width: 288px; height: 188px; border: 0; filter: grayscale(100%) contrast(125%) brightness(90%); background:#050304;"
             allowfullscreen>
           </iframe>
         </div>
-        <input type="text" id="frameSrcInput" placeholder="ENTER FEED URL..." 
-          style="width:288px; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:10px; padding:3px 6px; margin-top:4px;"
-          onchange="document.getElementById('opticalFrame').src = this.value;" />
+        <div style="display:flex; gap:4px; margin-top:4px;">
+          <input type="text" id="frameSrcInput" placeholder="ENTER FEED URL..." 
+            value="${localStorage.getItem('ISIS_FEED_URL') || ''}"
+            style="flex:1; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:10px; padding:3px 6px;"
+            oninput="saveOpticalFeedUrl(this.value);" />
+          <button class="hud-btn" style="width:auto; padding:3px 8px;" onclick="saveOpticalFeedUrl(document.getElementById('frameSrcInput').value)">LOCK</button>
+        </div>
       </div>
 
       ${commonPanelFooter()}
     `;
+
+    function saveOpticalFeedUrl(url) {
+      url = url.trim();
+      localStorage.setItem('ISIS_FEED_URL', url);
+      const frame = document.getElementById('opticalFrame');
+      if (frame && frame.src !== url) frame.src = url || 'about:blank';
+      const status = document.getElementById('feedSaveStatus');
+      if (status) {
+        status.innerText = "SAVED TO DISK";
+        status.style.color = "#38ef7d";
+        setTimeout(() => { if (status) { status.innerText = "DISK SYNCED"; status.style.color = "var(--crimson-glow)"; } }, 2000);
+      }
+    }
 
     function renderPanel(tool) {
       document.getElementById('spTitle').innerText = tool.toUpperCase();
@@ -709,7 +730,6 @@
       else map.addLayer(layers[layer]);
     }
 
-    // Toggle Drawer Shortcuts (For RECON NODES)
     function toggleDrawer(name) {
       if (name === 'mona') {
         const npPanel = document.getElementById('notepadPanel');
@@ -722,7 +742,7 @@
       }
     }
 
-    // Map Drawing Handler
+    // Map Click Handler for Route & Draw
     map.on('click', async (e) => {
       if (activeTool === 'draw') {
         playSolenoid(160, 0.02);
@@ -763,15 +783,21 @@
 
     renderPanel('layers');
 
-    // ================= 6. MONA PWP EDITOR & SPEECH-TO-TEXT ENGINE =================
+    // ================= 6. MONA PWP EDITOR & URL HASH COMPRESSION ENGINE =================
     const npBtn = document.getElementById('notepadToggleBtn');
     const npPanel = document.getElementById('notepadPanel');
     const np = document.getElementById('notepad');
     const npMeta = document.getElementById('npMeta');
     const fileInput = document.getElementById('monaFileInput');
 
-    np.value = localStorage.getItem('ISIS_MONA_BUFFER') || '';
-    updateMonaMeta();
+    // Restore text: Check #hash first (inkrealm.info/mona signature feature), else check localStorage
+    async function initMonaBuffer() {
+      const restoredFromHash = await restoreFromUrlHash();
+      if (!restoredFromHash) {
+        np.value = localStorage.getItem('ISIS_MONA_BUFFER') || '';
+        updateMonaMeta();
+      }
+    }
 
     npBtn.addEventListener('click', () => {
       npPanel.classList.toggle('open');
@@ -794,7 +820,58 @@
     }
     np.addEventListener('keyup', updateMonaMeta);
 
-    // Mona File Import Action
+    // Mona URL Hash Engine (Native deflate-raw compression directly in the address bar)
+    async function compressToUrlHash() {
+      playSolenoid(240, 0.04);
+      const text = np.value;
+      if (!text) return;
+      try {
+        const stream = new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        const buffer = await new Response(stream).arrayBuffer();
+        const binary = String.fromCharCode(...new Uint8Array(buffer));
+        const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        window.location.hash = base64;
+        navigator.clipboard.writeText(window.location.href);
+        document.getElementById('npSaveStatus').innerText = "URL LINK COPIED";
+        setTimeout(() => document.getElementById('npSaveStatus').innerText = "SYNCED", 2000);
+      } catch(e) {
+        window.location.hash = encodeURIComponent(text.slice(0, 800));
+        document.getElementById('npSaveStatus').innerText = "URL HASH SET";
+      }
+    }
+
+    async function restoreFromUrlHash() {
+      if (window.location.hash && window.location.hash.length > 1) {
+        const hash = window.location.hash.slice(1);
+        try {
+          let base64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+          while (base64.length % 4) base64 += '=';
+          const binary = atob(base64);
+          const bytes = new Uint8Array([...binary].map(c => c.charCodeAt(0)));
+          const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+          const decompressed = await new Response(stream).text();
+          if (decompressed) {
+            np.value = decompressed;
+            localStorage.setItem('ISIS_MONA_BUFFER', np.value);
+            updateMonaMeta();
+            document.getElementById('npSaveStatus').innerText = "RESTORED #URL";
+            return true;
+          }
+        } catch(e) {
+          try {
+            np.value = decodeURIComponent(hash);
+            localStorage.setItem('ISIS_MONA_BUFFER', np.value);
+            updateMonaMeta();
+            return true;
+          } catch(e2) {}
+        }
+      }
+      return false;
+    }
+
+    initMonaBuffer();
+
+    // File Import Action
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -830,12 +907,13 @@
       if (confirm("PURGE DOSSIER BUFFER?")) {
         np.value = '';
         localStorage.removeItem('ISIS_MONA_BUFFER');
+        history.replaceState(null, null, ' '); // Clears #hash without page reload
         updateMonaMeta();
         document.getElementById('npSaveStatus').innerText = "PURGED";
       }
     }
 
-    // Voice Input SpeechRecognition Engine (from inkrealm.info/trix)
+    // Voice Input SpeechRecognition Engine
     let recognition = null;
     let isListening = false;
 
