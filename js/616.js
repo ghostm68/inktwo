@@ -1075,27 +1075,35 @@ function advanceFolioPage() {
   if (folioIsAnimating) return;
   const deck = document.getElementById('folioDeck') || document.getElementById('beyondNoiseDeck');
   if (!deck) return;
-  const pages = deck.querySelectorAll('.folio-page, .bnoise-page');
+  const pages = Array.from(deck.querySelectorAll('.folio-page, .bnoise-page'));
   if (!pages.length) return;
 
   folioIsAnimating = true;
   const current = pages[folioCurrentIndex];
+  const nextIndex = (folioCurrentIndex + 1) % pages.length;
+  const next = pages[nextIndex];
+
+  // spin current out
   current.classList.remove('active');
   current.classList.add('spinning-out');
 
-  folioCurrentIndex = (folioCurrentIndex + 1) % pages.length;
-  const next = pages[folioCurrentIndex];
+  // prepare next (start from rotated position)
+  next.classList.remove('spinning-out');
+  next.classList.add('folio-enter');
 
-  // slight delay so the outgoing spin is visible
+  // next frame: flip next into view
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      next.classList.remove('folio-enter');
+      next.classList.add('active');
+    });
+  });
+
   setTimeout(() => {
     current.classList.remove('spinning-out');
-    current.style.display = 'none';
-    next.style.display = 'flex';
-    // force reflow then activate
-    void next.offsetWidth;
-    next.classList.add('active');
+    folioCurrentIndex = nextIndex;
     folioIsAnimating = false;
-  }, 280);
+  }, 560);
 }
 
 function toggleFolioExpand(event) {
@@ -1104,7 +1112,7 @@ function toggleFolioExpand(event) {
   if (deck) deck.classList.toggle('is-expanded');
 }
 
-// keep legacy names working so existing HTML still functions
+// legacy aliases
 window.advanceBnoisePage = advanceFolioPage;
 window.toggleBnoiseExpand = toggleFolioExpand;
 window.advanceFolioPage = advanceFolioPage;
