@@ -540,13 +540,15 @@
     <div id="map"></div>
 
     <!-- LEFT TOOLBAR -->
-    <nav id="toolbar">
+<nav id="toolbar">
       <button data-tool="layers"><span>⌂</span>LAYERS</button>
       <button data-tool="sectors"><span>◎</span>SECTORS</button>
       <button data-tool="space"><span>✦</span>ORBIT</button>
       <button data-tool="choke"><span>⚓</span>MARITIME</button>
       <button data-tool="route"><span>⇶</span>ROUTE</button>
       <button data-tool="draw"><span>✎</span>DRAW</button>
+      <button data-tool="targets"><span>⌖</span>TARGETS</button>
+      <button data-tool="radar"><span>✈</span>RADAR</button>
     </nav>
 
     <!-- PERMANENT 288x188 OPTICAL FEED BOX (MOUNTED DIRECTLY UNDER DRAW) -->
@@ -711,8 +713,10 @@
       fires: L.layerGroup().addTo(map),
       iss: L.layerGroup().addTo(map),
       choke: L.layerGroup().addTo(map),
+	 radar: L.layerGroup().addTo(map),
       draw: L.layerGroup().addTo(map),
       routes: L.layerGroup().addTo(map)
+	  
     };
 
     // ================= 3. KEYLESS LIVE DATA FEEDS =================
@@ -927,6 +931,56 @@
       ${commonPanelFooter()}
     `;
 
+	 // Add to your tool view definitions:
+    tools.targets = () => {
+      // Trigger the API fetch once the DOM element is inserted
+      setTimeout(loadFbiTargets, 50);
+
+      return `
+        <div style="font-size:10px; margin-bottom:8px; color:var(--mut); letter-spacing:1px;">
+          FEDERAL APPREHENSION // <b>WATCHLIST</b>
+        </div>
+        <div id="targets-list" style="display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto;">
+          <span style="color:var(--yel); font-size:10px;">INTERCEPTING COLD DATABASE...</span>
+        </div>
+        ${commonPanelFooter ? commonPanelFooter() : ''}
+      `;
+    };
+
+    // The fetch function that talks directly to api.fbi.gov
+    async function loadFbiTargets() {
+      const container = document.getElementById('targets-list');
+      if (!container) return;
+
+      try {
+        const res = await fetch('https://api.fbi.gov/wanted/v1/list?pageSize=8');
+        const data = await res.json();
+
+        container.innerHTML = data.items.map(t => {
+          const photo = t.images && t.images.length ? t.images[0].thumb : '';
+          return `
+            <div style="border:1px solid var(--line); background:#0a0607; padding:6px; display:flex; gap:8px;">
+              ${photo ? `<img src="${photo}" style="width:45px; height:55px; object-fit:cover; border:1px solid var(--crimson-dark); filter:grayscale(80%);" />` : ''}
+              <div style="flex:1; overflow:hidden;">
+                <div style="color:var(--crimson-glow); font-weight:bold; font-size:10px; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${t.title}
+                </div>
+                <div style="color:#888; font-size:8px; margin:2px 0;">
+                  ${t.subjects ? t.subjects.slice(0,2).join(' | ') : 'WARRANT ISSUED'}
+                </div>
+                <div style="color:var(--yel); font-size:8px;">
+                  ${t.reward_text ? 'BOUNTY ACTIVE' : 'NO REWARD DATA'}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.warn('FBI Feed Severed:', err);
+        container.innerHTML = `<span style="color:var(--crimson); font-size:10px;">FEED SEVERED // CONNECTION REFUSED</span>`;
+      }
+    } 
     // RESTORED FUNCTION DECLARATION:
     function renderPanel(tool) {
       document.getElementById('spTitle').innerText = tool.toUpperCase();
@@ -1045,7 +1099,123 @@
         }
       }
     });
+// ================= AIRSPACE RADAR ENGINE (OPENSKY) =================
+    let radarInterval = null;
+    let cachedFlights = [];
 
+    async function scanAirspace() {
+      const b = map.getBounds();
+      // Scope to current map viewport to avoid massive payloads
+      const targetUrl = `https://opensky-network.org/api/states/all?lamin=${b.getSouth().toFixed(2)}&lomin=${b.getWest().toFixed(2)}&lamax=${b.getNorth().toFixed(2)}&lomax=${b.getEast().toFixed(2)}`;
+      
+      // Route via keyless open CORS gateway
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+
+      try {
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        layers.radar.clearLayers();
+        cachedFlights = (data.states || []).filter(s => s[5] !== null && s[6] !== null);
+
+        cachedFlights.forEach(s => {
+          const callsign = (s[1] || 'UNKNOWN').trim();
+          const country = s[2] || 'UNKNOWN';
+          const lng = s[5];
+          const lat = s[6];
+          const altFt = s[7] ? Math.round(s[7] * 3.28084) : 0; // meters to feet
+          const speedKts = s[9] ? Math.round(s[9] * 1.94384) : 0; // m/s to knots
+          const heading = s[10] || 0;
+          const squawk = s[14] || '----';
+
+          // Critical Transponder Emergency Intercept
+          if (squawk === '7700' || squawk === '7600' || squawk === '7500') {
+            if (typeof pushTicker === 'function') {
+              pushTicker(`AIR ALERT // SQUAWK ${squawk} [${callsign}] ALT:${altFt}FT`);
+            }
+          }
+
+          // Directional aircraft chevron rotated by compass heading
+          const planeIcon = L.divIcon({
+            className: 'aircraft-marker',
+            html: `<div style="transform: rotate(${heading}deg); color: ${squawk === '7700' ? 'var(--yel)' : 'var(--crimson-glow)'}; font-size: 13px; font-weight: bold; text-shadow: 0 0 4px #000; line-height: 1;">▲</div>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+          });
+
+          const marker = L.marker([lat, lng], { icon: planeIcon });
+          marker.bindPopup(`
+            <div style="font-family:var(--mono); font-size:10px; background:#0d080a; color:#eee; padding:6px; border:1px solid var(--crimson);">
+              <div style="color:var(--crimson-glow); font-weight:bold; font-size:11px;">ACFT // ${callsign}</div>
+              <div style="color:#888; font-size:9px;">ORIGIN: ${country.toUpperCase()}</div>
+              <div style="margin-top:4px;">ALT: <span style="color:#fff;">${altFt.toLocaleString()} FT</span></div>
+              <div>SPD: <span style="color:#fff;">${speedKts} KTS</span></div>
+              <div>HDG: <span style="color:#fff;">${Math.round(heading)}°</span></div>
+              <div>SQUAWK: <span style="color:${squawk === '7700' ? 'var(--yel)' : '#aaa'};">${squawk}</span></div>
+            </div>
+          `);
+
+          layers.radar.addLayer(marker);
+        });
+
+        // Update side panel if currently open
+        renderRadarList();
+
+      } catch (err) {
+        console.warn('Radar intercept timeout/fail:', err);
+      }
+    }
+
+    // Connect to ISIS Tool System
+    tools.radar = () => {
+      setTimeout(() => {
+        scanAirspace();
+        // 15-second polling interval to respect rate limits
+        if (!radarInterval) radarInterval = setInterval(scanAirspace, 15000);
+      }, 50);
+
+      return `
+        <div style="font-size:10px; margin-bottom:8px; color:var(--mut); letter-spacing:1px; display:flex; justify-content:space-between; align-items:center;">
+          <span>AIRSPACE INTERCEPT // <b>ADS-B</b></span>
+          <button class="hud-btn" style="padding:2px 6px; font-size:9px;" onclick="scanAirspace()">PING</button>
+        </div>
+        <div id="radar-contacts-container">
+          <span style="color:var(--yel); font-size:10px;">SWEEPING ACTIVE SECTOR...</span>
+        </div>
+        ${typeof commonPanelFooter === 'function' ? commonPanelFooter() : ''}
+      `;
+    };
+
+    function renderRadarList() {
+      const container = document.getElementById('radar-contacts-container');
+      if (!container) return;
+
+      if (!cachedFlights.length) {
+        container.innerHTML = `<span style="color:var(--mut); font-size:10px;">NO TRANSPONDERS DETECTED IN ACTIVE VIEWPORT</span>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="font-size:9px; color:var(--mut); margin-bottom:6px;">CONTACTS IN VIEWPORT: <b>${cachedFlights.length}</b></div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-height:450px; overflow-y:auto;">
+          ${cachedFlights.slice(0, 15).map(s => `
+            <div style="border:1px solid var(--line); background:#0a0607; padding:5px; font-size:9px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--crimson-glow); font-weight:bold;">${(s[1] || 'UNTITLED').trim()}</span>
+                <span style="color:var(--yel);">${s[14] || '----'}</span>
+              </div>
+              <div style="color:#888; font-size:8px;">${s[2] || 'INTL'}</div>
+              <div style="color:#ccc; margin-top:2px;">
+                ${s[7] ? Math.round(s[7]*3.28084).toLocaleString() + ' FT' : 'GND'} | 
+                ${s[9] ? Math.round(s[9]*1.94384) + ' KTS' : '0 KTS'} | 
+                ${Math.round(s[10] || 0)}°
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
     // ================= 7. MONA PWP EDITOR & URL HASH COMPRESSION ENGINE =================
     const npBtn = document.getElementById('notepadToggleBtn');
     const npPanel = document.getElementById('notepadPanel');
@@ -1249,20 +1419,23 @@
     }
 
     // ================= 8. NEWS WIRE TICKER =================
-    const alerts = [
-      "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
-      "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
-      "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H"
-    ];
-    function pushTicker(msg) {
-      alerts.unshift(msg);
-      if (alerts.length > 20) alerts.pop();
-    }
-    let tickerIdx = 0;
-    setInterval(() => {
-      document.getElementById('ticker-marquee').innerHTML = `FEED: <b>${alerts[tickerIdx]}</b>`;
-      tickerIdx = (tickerIdx + 1) % alerts.length;
-    }, 5000);
+  // Drop inside Section 8 in isis.html:
+async function syncLiveWire() {
+  try {
+    const res = await fetch('https://www.reddit.com/r/worldnews/hot.json?limit=15');
+    const data = await res.json();
+    data.data.children.forEach(post => {
+      // Strips flairs and pushes into your existing pushTicker() queue
+      if (!post.data.stickied) {
+        pushTicker(`WIRE // ${post.data.title.toUpperCase()}`);
+      }
+    });
+  } catch(e) {
+    console.warn("Wire sync drop:", e);
+  }
+}
+syncLiveWire();
+setInterval(syncLiveWire, 300000); // refresh every 5 min
 	// ================= 5b. NEKOS.BEST INTERCEPT FEED =================
     const ANIME_CATEGORIES = ['neko', 'waifu', 'kitsune', 'hug', 'pat', 'smile', 'dance', 'poke'];
     let animeInterval = null;
