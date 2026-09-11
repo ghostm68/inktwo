@@ -855,10 +855,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // ================================================================
 // 14. PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF
 // ================================================================
+// ================================================================
+// 14. PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF (MOBILE-OPTIMIZED)
+// ================================================================
 (function() {
   let tzAudioCtx = null;
   let synthTimer = null;
   let isMuted = false;
+  let isUnlocked = false;
 
   // The classic Marius Constant four-note motif (B4, C5, B4, G#4)
   const MOTIF_FREQS = [493.88, 523.25, 493.88, 415.30];
@@ -868,31 +872,43 @@ document.addEventListener('DOMContentLoaded', function() {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       tzAudioCtx = new AudioContext();
     }
-    if (tzAudioCtx.state === 'suspended') {
-      tzAudioCtx.resume();
-    }
     return tzAudioCtx;
   }
 
-  function playChimeNote(freq, startTime) {
-    if (isMuted || !tzAudioCtx) return;
+  // Mobile audio unlocker: wakes up the mobile DAC with a silent buffer
+  function unlockMobileAudio(ctx) {
+    if (isUnlocked || !ctx) return;
+    try {
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      isUnlocked = true;
+    } catch (e) {
+      // Ignore if already unlocked
+    }
+  }
 
-    const osc1 = tzAudioCtx.createOscillator();
+  function playChimeNote(ctx, freq, startTime) {
+    if (isMuted || !ctx || ctx.state !== 'running') return;
+
+    const osc1 = ctx.createOscillator();
     osc1.type = 'triangle';
     osc1.frequency.setValueAtTime(freq, startTime);
 
-    const osc2 = tzAudioCtx.createOscillator();
+    const osc2 = ctx.createOscillator();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 0.5, startTime);
+    osc2.frequency.setValueAtTime(freq * 0.5, startTime); // warm sub-harmonic
 
-    const gain = tzAudioCtx.createGain();
+    const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
 
     osc1.connect(gain);
     osc2.connect(gain);
-    gain.connect(tzAudioCtx.destination);
+    gain.connect(ctx.destination);
 
     osc1.start(startTime);
     osc2.start(startTime);
@@ -903,64 +919,111 @@ document.addEventListener('DOMContentLoaded', function() {
   function triggerTwilightMotif() {
     if (isMuted) return;
     const ctx = getAudioContext();
+    if (!ctx || ctx.state !== 'running') return;
+
     const now = ctx.currentTime + 0.05;
     const noteGap = 0.24;
 
+    // First pass: 4 notes
     MOTIF_FREQS.forEach((f, i) => {
-      playChimeNote(f, now + (i * noteGap));
+      playChimeNote(ctx, f, now + (i * noteGap));
     });
 
-    const secondPass = now + (4 * noteGap) + 0.15;
+    // Second pass: 4 notes after a short breath
+    const secondPass = now + (4 * noteGap) + 0.16;
     MOTIF_FREQS.forEach((f, i) => {
-      playChimeNote(f, secondPass + (i * noteGap));
+      playChimeNote(ctx, f, secondPass + (i * noteGap));
     });
   }
 
   function startTwilightSynth() {
     if (synthTimer) return;
-    triggerTwilightMotif();
-    synthTimer = setInterval(triggerTwilightMotif, 7000);
+    const ctx = getAudioContext();
+
+    // Critical for Mobile: Wait for the promise to resolve before scheduling notes
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        unlockMobileAudio(ctx);
+        updateBtnState(true);
+        triggerTwilightMotif();
+        synthTimer = setInterval(triggerTwilightMotif, 7000);
+      }).catch(err => console.warn('Mobile audio resume failed:', err));
+    } else {
+      unlockMobileAudio(ctx);
+      updateBtnState(true);
+      triggerTwilightMotif();
+      synthTimer = setInterval(triggerTwilightMotif, 7000);
+    }
   }
 
   function stopTwilightSynth() {
-    clearInterval(synthTimer);
-    synthTimer = null;
+    if (synthTimer) {
+      clearInterval(synthTimer);
+      synthTimer = null;
+    }
+    updateBtnState(false);
   }
 
-  // Safe DOM binding after page load
+  function updateBtnState(active) {
+    const synthBtn = document.getElementById('tz-synth-btn');
+    if (!synthBtn) return;
+    if (active && !isMuted) {
+      synthBtn.innerText = '[ ♫ SYNTH: ON ]';
+      synthBtn.style.color = '#ff3333';
+      synthBtn.style.borderColor = '#ff3333';
+    } else {
+      synthBtn.innerText = '[ ♫ SYNTH: OFF ]';
+      synthBtn.style.color = '#ffd24a';
+      synthBtn.style.borderColor = '#770000';
+    }
+  }
+
+  // --- MOBILE USER GESTURE BINDINGS ---
   document.addEventListener('DOMContentLoaded', () => {
     const stage = document.getElementById('tz-stage');
     const detailsModule = stage ? stage.closest('details') : null;
+    const summary = detailsModule ? detailsModule.querySelector('summary') : null;
     const synthBtn = document.getElementById('tz-synth-btn');
 
-    if (detailsModule) {
-      detailsModule.addEventListener('toggle', function() {
-        if (detailsModule.open) {
-          getAudioContext();
+    // 1. DIRECT TOUCH/CLICK ON SUMMARY: Valid user activation on iOS Safari & Android
+    if (summary) {
+      const handleSummaryActivation = () => {
+        // Will it open? (summary click fires BEFORE details.open toggles)
+        const willOpen = !detailsModule.hasAttribute('open');
+        if (willOpen) {
           if (!isMuted) startTwilightSynth();
         } else {
           stopTwilightSynth();
         }
-      });
+      };
+
+      summary.addEventListener('touchend', handleSummaryActivation, { passive: true });
+      summary.addEventListener('click', handleSummaryActivation);
     }
 
+    // 2. DIRECT TAP ON SYNTH BUTTON
     if (synthBtn) {
-      synthBtn.addEventListener('click', function(e) {
+      const handleBtnTap = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
         isMuted = !isMuted;
         if (isMuted) {
           stopTwilightSynth();
-          synthBtn.innerText = '[ ♫ SYNTH: OFF ]';
-          synthBtn.style.color = '#ffd24a';
-          synthBtn.style.borderColor = '#770000';
         } else {
-          getAudioContext();
           startTwilightSynth();
-          synthBtn.innerText = '[ ♫ SYNTH: ACTIVE ]';
-          synthBtn.style.color = '#ff3333';
-          synthBtn.style.borderColor = '#ff3333';
+        }
+      };
+
+      synthBtn.addEventListener('touchend', handleBtnTap);
+      synthBtn.addEventListener('click', handleBtnTap);
+    }
+
+    // 3. CLEANUP ON DETAILS CLOSE
+    if (detailsModule) {
+      detailsModule.addEventListener('toggle', () => {
+        if (!detailsModule.open) {
+          stopTwilightSynth();
         }
       });
     }
