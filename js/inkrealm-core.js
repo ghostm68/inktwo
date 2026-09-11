@@ -858,17 +858,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // ================================================================
 // 14. PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF (MOBILE-OPTIMIZED)
 // ================================================================
-// ================================================================
-// 14. PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF (MOBILE-OPTIMIZED)
-// ================================================================
 (function() {
   let tzAudioCtx = null;
   let synthTimer = null;
   let isMuted = false;
   let isUnlocked = false;
 
-  // Classic Marius Constant motif raised one octave (B5 C6 B5 G#5)
-  const MOTIF_FREQS = [987.77, 1046.50, 987.77, 830.61];
+  // The classic Marius Constant four-note motif (B4, C5, B4, G#4)
+  const MOTIF_FREQS = [493.88, 523.25, 493.88, 415.30];
 
   function getAudioContext() {
     if (!tzAudioCtx) {
@@ -896,42 +893,27 @@ document.addEventListener('DOMContentLoaded', function() {
   function playChimeNote(ctx, freq, startTime) {
     if (isMuted || !ctx || ctx.state !== 'running') return;
 
-    // Main tone
     const osc1 = ctx.createOscillator();
     osc1.type = 'triangle';
     osc1.frequency.setValueAtTime(freq, startTime);
 
-    // Warm sub-harmonic
     const osc2 = ctx.createOscillator();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 0.5, startTime);
-
-    // Quiet upper partial for extra presence / “height”
-    const osc3 = ctx.createOscillator();
-    osc3.type = 'triangle';
-    osc3.frequency.setValueAtTime(freq * 2, startTime);
+    osc2.frequency.setValueAtTime(freq * 0.5, startTime); // warm sub-harmonic
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.28, startTime + 0.012); // slightly louder & faster attack
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.30);
-
-    // Very quiet high partial
-    const gain3 = ctx.createGain();
-    gain3.gain.setValueAtTime(0.07, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
 
     osc1.connect(gain);
     osc2.connect(gain);
-    osc3.connect(gain3);
-    gain3.connect(gain);
     gain.connect(ctx.destination);
 
     osc1.start(startTime);
     osc2.start(startTime);
-    osc3.start(startTime);
-    osc1.stop(startTime + 0.32);
-    osc2.stop(startTime + 0.32);
-    osc3.stop(startTime + 0.32);
+    osc1.stop(startTime + 0.38);
+    osc2.stop(startTime + 0.38);
   }
 
   function triggerTwilightMotif() {
