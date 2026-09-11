@@ -852,121 +852,117 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Escape' && modal.classList.contains('open')) closeVaultModal();
   });
 });
-// ==========================================
-// PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF
-// ==========================================
-let audioCtx = null;
-let synthTimer = null;
-let isMuted = false;
+// ================================================================
+// 14. PURE WEB AUDIO SYNTH: TWILIGHT ZONE MOTIF
+// ================================================================
+(function() {
+  let tzAudioCtx = null;
+  let synthTimer = null;
+  let isMuted = false;
 
-// The classic Marius Constant four-note motif (B4, C5, B4, G#4)
-const MOTIF_FREQS = [493.88, 523.25, 493.88, 415.30];
+  // The classic Marius Constant four-note motif (B4, C5, B4, G#4)
+  const MOTIF_FREQS = [493.88, 523.25, 493.88, 415.30];
 
-function getAudioContext() {
-	if (!audioCtx) {
-		const AudioContext = window.AudioContext || window.webkitAudioContext;
-		audioCtx = new AudioContext();
-	}
-	if (audioCtx.state === 'suspended') {
-		audioCtx.resume();
-	}
-	return audioCtx;
-}
+  function getAudioContext() {
+    if (!tzAudioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      tzAudioCtx = new AudioContext();
+    }
+    if (tzAudioCtx.state === 'suspended') {
+      tzAudioCtx.resume();
+    }
+    return tzAudioCtx;
+  }
 
-// Play a single synthesized vintage chime
-function playChimeNote(freq, startTime) {
-	if (isMuted || !audioCtx) return;
+  function playChimeNote(freq, startTime) {
+    if (isMuted || !tzAudioCtx) return;
 
-	// Primary hollow triangle oscillator
-	const osc1 = audioCtx.createOscillator();
-	osc1.type = 'triangle';
-	osc1.frequency.setValueAtTime(freq, startTime);
+    const osc1 = tzAudioCtx.createOscillator();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(freq, startTime);
 
-	// Secondary harmonic sine for that 1960s TV chime
-	const osc2 = audioCtx.createOscillator();
-	osc2.type = 'sine';
-	osc2.frequency.setValueAtTime(freq * 0.5, startTime); // Octave lower body
+    const osc2 = tzAudioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq * 0.5, startTime);
 
-	// Envelope: Instant strike + metallic decay
-	const gain = audioCtx.createGain();
-	gain.gain.setValueAtTime(0.001, startTime);
-	gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
-	gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
+    const gain = tzAudioCtx.createGain();
+    gain.gain.setValueAtTime(0.001, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
 
-	osc1.connect(gain);
-	osc2.connect(gain);
-	gain.connect(audioCtx.destination);
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(tzAudioCtx.destination);
 
-	osc1.start(startTime);
-	osc2.start(startTime);
-	osc1.stop(startTime + 0.38);
-	osc2.stop(startTime + 0.38);
-}
+    osc1.start(startTime);
+    osc2.start(startTime);
+    osc1.stop(startTime + 0.38);
+    osc2.stop(startTime + 0.38);
+  }
 
-// Play the full iconic phrase (two bars of the 4-note motif)
-function triggerTwilightMotif() {
-	if (isMuted) return;
-	const ctx = getAudioContext();
-	const now = ctx.currentTime + 0.05;
-	const noteGap = 0.24; // Pacing of each note
+  function triggerTwilightMotif() {
+    if (isMuted) return;
+    const ctx = getAudioContext();
+    const now = ctx.currentTime + 0.05;
+    const noteGap = 0.24;
 
-	// First pass: 4 notes
-	MOTIF_FREQS.forEach((f, i) => {
-		playChimeNote(f, now + (i * noteGap));
-	});
+    MOTIF_FREQS.forEach((f, i) => {
+      playChimeNote(f, now + (i * noteGap));
+    });
 
-	// Second pass: 4 notes after a brief rest
-	const secondPass = now + (4 * noteGap) + 0.15;
-	MOTIF_FREQS.forEach((f, i) => {
-		playChimeNote(f, secondPass + (i * noteGap));
-	});
-}
+    const secondPass = now + (4 * noteGap) + 0.15;
+    MOTIF_FREQS.forEach((f, i) => {
+      playChimeNote(f, secondPass + (i * noteGap));
+    });
+  }
 
-// Automation Loop: Plays on open, then loops softly every 7 seconds
-function startTwilightSynth() {
-	if (synthTimer) return;
-	triggerTwilightMotif();
-	synthTimer = setInterval(triggerTwilightMotif, 7000);
-}
+  function startTwilightSynth() {
+    if (synthTimer) return;
+    triggerTwilightMotif();
+    synthTimer = setInterval(triggerTwilightMotif, 7000);
+  }
 
-function stopTwilightSynth() {
-	clearInterval(synthTimer);
-	synthTimer = null;
-}
+  function stopTwilightSynth() {
+    clearInterval(synthTimer);
+    synthTimer = null;
+  }
 
-// Automatically start when the parent <details> is clicked/opened
-const detailsModule = document.getElementById('tz-stage').closest('details');
-const synthBtn = document.getElementById('tz-synth-btn');
+  // Safe DOM binding after page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const stage = document.getElementById('tz-stage');
+    const detailsModule = stage ? stage.closest('details') : null;
+    const synthBtn = document.getElementById('tz-synth-btn');
 
-if (detailsModule) {
-	detailsModule.addEventListener('toggle', function() {
-		if (detailsModule.open) {
-			getAudioContext();
-			if (!isMuted) startTwilightSynth();
-		} else {
-			stopTwilightSynth();
-		}
-	});
-}
+    if (detailsModule) {
+      detailsModule.addEventListener('toggle', function() {
+        if (detailsModule.open) {
+          getAudioContext();
+          if (!isMuted) startTwilightSynth();
+        } else {
+          stopTwilightSynth();
+        }
+      });
+    }
 
-// Manual Toggle Button
-if (synthBtn) {
-	synthBtn.addEventListener('click', function(e) {
-		e.preventDefault();
-		e.stopPropagation();
+    if (synthBtn) {
+      synthBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
 
-		isMuted = !isMuted;
-		if (isMuted) {
-			stopTwilightSynth();
-			synthBtn.innerText = '[ ♫ SYNTH: OFF ]';
-			synthBtn.style.color = '#ffd24a';
-			synthBtn.style.borderColor = '#770000';
-		} else {
-			getAudioContext();
-			startTwilightSynth();
-			synthBtn.innerText = '[ ♫ SYNTH: ACTIVE ]';
-			synthBtn.style.color = '#ff3333';
-			synthBtn.style.borderColor = '#ff3333';
-		}
-	});
-}
+        isMuted = !isMuted;
+        if (isMuted) {
+          stopTwilightSynth();
+          synthBtn.innerText = '[ ♫ SYNTH: OFF ]';
+          synthBtn.style.color = '#ffd24a';
+          synthBtn.style.borderColor = '#770000';
+        } else {
+          getAudioContext();
+          startTwilightSynth();
+          synthBtn.innerText = '[ ♫ SYNTH: ACTIVE ]';
+          synthBtn.style.color = '#ff3333';
+          synthBtn.style.borderColor = '#ff3333';
+        }
+      });
+    }
+  });
+})();
