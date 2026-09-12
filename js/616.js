@@ -765,11 +765,18 @@ const coverData = [
   },
  {
     tag: "COVER // 06. Some Like it Hot",
-    title: "Some like it hot (Two Skinny 6irls)",
+    title: "Some like it hot (Two Skinny girls)",
     desc: "orchestrated recording. film score.",
     src: "some like it alt m.mp3",
     feed: "Some Like it Hot // ost"
-  }
+  },
+   {
+    tag: "COVER // 07. Decca Mercury",
+    title: "Some like it hot (Two Skinny girls)",
+    desc: "freewheelin double. country bop.",
+    src: "track one - decca mercury.mp3",
+    feed: "Decca Mercury// var"
+}
 ];
 
 let currentCoverIdx = 0;
