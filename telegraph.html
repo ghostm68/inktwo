@@ -729,14 +729,24 @@
         /* ============================================================
    TELEGRAPH CULTURE, BOOKS & FILMS MULTI-FEED INGESTION
    ============================================================ */
+/* ============================================================
+   TELEGRAPH CULTURE, BOOKS & FILMS (MINRAUD PROXY CASCADE)
+   ============================================================ */
 async function initTelegraphWire() {
     const track = document.getElementById('tickerTrack');
 
-    // The 3 Telegraph feeds you requested
+    // Feeds from The Telegraph
     const FEEDS = [
         { tag: 'BOOKS',   url: 'https://www.telegraph.co.uk/books/rss.xml' },
         { tag: 'FILMS',   url: 'https://www.telegraph.co.uk/films/rss.xml' },
         { tag: 'CULTURE', url: 'https://www.telegraph.co.uk/culture/rss.xml' }
+    ];
+
+    // Proven proxy array from inkrealm.info/minraud
+    const corsProxies = [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.io/?',
+        'https://api.codetabs.com/v1/proxy?quest='
     ];
 
     function renderItems(itemsList) {
@@ -752,37 +762,48 @@ async function initTelegraphWire() {
         return true;
     }
 
+    // Fetches URL cascading through Minraud's proxy array
+    async function fetchWithProxyCascade(targetUrl) {
+        for (const proxy of corsProxies) {
+            try {
+                const fullUrl = proxy + encodeURIComponent(targetUrl);
+                const res = await fetch(fullUrl);
+                if (!res.ok) continue;
+                
+                const text = await res.text();
+                // Verify we actually received valid XML/RSS content
+                if (text && (text.includes('<item') || text.includes('<entry') || text.includes('<rss'))) {
+                    return text;
+                }
+            } catch (err) {
+                // Silently fall through to the next proxy in the list
+                continue;
+            }
+        }
+        return null;
+    }
+
+    // Process a single feed
     async function fetchFeed(feed) {
-        const proxyUrl = 'https://lively-limitless.inkrealm.workers.dev/?url=' + encodeURIComponent(feed.url);
+        const xmlText = await fetchWithProxyCascade(feed.url);
+        if (!xmlText) return [];
+
         try {
-            const res = await fetch(proxyUrl);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const xmlText = await res.text();
-            
-            // XML parsing bypasses Chrome's broken XSL security error
             const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
             const titles = Array.from(xmlDoc.querySelectorAll('item title'))
                 .map(n => n.textContent.trim())
                 .filter(Boolean);
 
             return titles.map(title => ({ tag: feed.tag, title }));
-        } catch (err) {
-            // Secondary bridge fallback
-            try {
-                const bridgeUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url);
-                const bRes = await fetch(bridgeUrl);
-                const bData = await bRes.json();
-                if (bData && bData.items && bData.items.length) {
-                    return bData.items.map(i => ({ tag: feed.tag, title: i.title }));
-                }
-            } catch (bErr) {}
+        } catch (e) {
             return [];
         }
     }
 
+    // Ingest all 3 feeds in parallel
     const results = await Promise.all(FEEDS.map(fetchFeed));
     
-    // Interleave items: Books, Films, Culture, Books, Films, Culture...
+    // Interleave items (Books, Films, Culture, Books...)
     const combined = [];
     const maxLen = Math.max(...results.map(r => r.length), 0);
     
@@ -794,11 +815,12 @@ async function initTelegraphWire() {
         }
     }
 
+    // If any items were successfully gathered, launch the ticker
     if (combined.length && renderItems(combined)) {
         return;
     }
 
-    // Honest offline status (no simulated headlines)
+    // Honest machine telemetry if all proxies fail
     track.style.animation = 'none';
     track.innerHTML = `
         <span class="ticker-item" style="color: var(--red); cursor: default; letter-spacing: 1.5px; padding-left: 1rem;">
@@ -815,9 +837,8 @@ window.injectHeadline = function(headline, tag = 'DISPATCH') {
     prompt.focus();
 };
 
-// Initialize the wire ticker on load
+// Initialize wire
 initTelegraphWire();
-
 
         /* ============================================================
            NVIDIA NIM AUTHENTICATION SETUP
