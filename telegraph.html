@@ -727,64 +727,96 @@
 
     <script>
         /* ============================================================
-           TELEGRAPH UK LIVE RSS INGESTION
-           Fetches live newsfeed via your Inkrealm gateway
-           ============================================================ */
-        async function initTelegraphWire() {
-            const track = document.getElementById('tickerTrack');
-            const targetRss = 'https://www.telegraph.co.uk/news/rss.xml';
-            const proxyRssUrl = 'https://lively-limitless.inkrealm.workers.dev/?url=' + encodeURIComponent(targetRss);
+   TELEGRAPH CULTURE, BOOKS & FILMS MULTI-FEED INGESTION
+   ============================================================ */
+async function initTelegraphWire() {
+    const track = document.getElementById('tickerTrack');
 
-            function renderItems(titles) {
-                if (!titles.length) return;
-                const html = titles.map(t => 
-                    `<span class="ticker-item" onclick="injectHeadline('${t.replace(/'/g, "\\'")}')" title="Click to inject into Carrier Signal">✦ ${t}</span>`
-                ).join('');
-                // Duplicate items so loop runs seamlessly
-                track.innerHTML = html + html;
-            }
+    // The 3 Telegraph feeds you requested
+    const FEEDS = [
+        { tag: 'BOOKS',   url: 'https://www.telegraph.co.uk/books/rss.xml' },
+        { tag: 'FILMS',   url: 'https://www.telegraph.co.uk/films/rss.xml' },
+        { tag: 'CULTURE', url: 'https://www.telegraph.co.uk/culture/rss.xml' }
+    ];
 
+    function renderItems(itemsList) {
+        if (!itemsList || !itemsList.length) return false;
+        
+        const html = itemsList.map(item => {
+            const cleanTitle = item.title.replace(/<[^>]*>?/gm, '').trim();
+            const safeAttr = cleanTitle.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `<span class="ticker-item" onclick="injectHeadline('${safeAttr}', '${item.tag}')" title="Click to inject into Carrier Signal">✦ [${item.tag}] ${cleanTitle}</span>`;
+        }).join('');
+
+        track.innerHTML = html + html;
+        return true;
+    }
+
+    async function fetchFeed(feed) {
+        const proxyUrl = 'https://lively-limitless.inkrealm.workers.dev/?url=' + encodeURIComponent(feed.url);
+        try {
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const xmlText = await res.text();
+            
+            // XML parsing bypasses Chrome's broken XSL security error
+            const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
+            const titles = Array.from(xmlDoc.querySelectorAll('item title'))
+                .map(n => n.textContent.trim())
+                .filter(Boolean);
+
+            return titles.map(title => ({ tag: feed.tag, title }));
+        } catch (err) {
+            // Secondary bridge fallback
             try {
-                const res = await fetch(proxyRssUrl);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const xmlText = await res.text();
-                const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
-                const items = Array.from(xmlDoc.querySelectorAll('item title')).map(n => n.textContent.trim()).filter(Boolean);
-                if (items.length) {
-                    renderItems(items);
-                    return;
+                const bridgeUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url);
+                const bRes = await fetch(bridgeUrl);
+                const bData = await bRes.json();
+                if (bData && bData.items && bData.items.length) {
+                    return bData.items.map(i => ({ tag: feed.tag, title: i.title }));
                 }
-            } catch (err) {
-                console.warn('Direct XML proxy failed, using JSON feed bridge fallback:', err);
-            }
+            } catch (bErr) {}
+            return [];
+        }
+    }
 
-            // Fallback feed bridge
-            try {
-                const fallback = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(targetRss));
-                const data = await fallback.json();
-                if (data.items && data.items.length) {
-                    renderItems(data.items.map(i => i.title));
-                    return;
-                }
-            } catch (err2) {
-                renderItems([
-                    'TELEGRAPH DISPATCH: DIPLOMATIC CHANNELS MONITORED ACROSS CONTINENTAL WIRE',
-                    'ASTRONOMICAL OBSERVATORY DETECTS UNRECORDED RADIATION GLIMMER',
-                    'FOREIGN OFFICE CONFIRMS RETENTION OF SUBTERRANEAN CIPHER APPARATUS',
-                    'HIGH BIAS RECORDING SYSTEMS ADOPTED FOR PERMANENT ARCHIVAL LOGGING'
-                ]);
+    const results = await Promise.all(FEEDS.map(fetchFeed));
+    
+    // Interleave items: Books, Films, Culture, Books, Films, Culture...
+    const combined = [];
+    const maxLen = Math.max(...results.map(r => r.length), 0);
+    
+    for (let i = 0; i < maxLen; i++) {
+        for (let j = 0; j < results.length; j++) {
+            if (results[j][i]) {
+                combined.push(results[j][i]);
             }
         }
+    }
 
-        // Clicking a headline injects it directly into the Prompt for immediate writing
-        window.injectHeadline = function(headline) {
-            const prompt = document.getElementById('prompt');
-            const prefix = `[DISPATCH: "${headline}"]\nCompose an atmospheric, tension-filled literary narrative inspired by this teletype wire.`;
-            prompt.value = prefix;
-            prompt.focus();
-        };
+    if (combined.length && renderItems(combined)) {
+        return;
+    }
 
-        initTelegraphWire();
+    // Honest offline status (no simulated headlines)
+    track.style.animation = 'none';
+    track.innerHTML = `
+        <span class="ticker-item" style="color: var(--red); cursor: default; letter-spacing: 1.5px; padding-left: 1rem;">
+            ✦ TELEGRAPH WIRE FEED UNAVAILABLE // ENTER PROMPT MANUALLY
+        </span>
+    `;
+}
+
+// Clicking a headline injects it directly into the Prompt
+window.injectHeadline = function(headline, tag = 'DISPATCH') {
+    const prompt = document.getElementById('prompt');
+    const prefix = `[TELEGRAPH // ${tag}: "${headline}"]\nPerceive the latent motifs, atmospheric tension, and narrative possibilities in this dispatch. Transmute it into a vivid scene.`;
+    prompt.value = prefix;
+    prompt.focus();
+};
+
+// Initialize the wire ticker on load
+initTelegraphWire();
 
 
         /* ============================================================
