@@ -1867,7 +1867,7 @@
             anchor.click();
         });
 
-      // Express Machine Integration
+    // Express Machine Integration (ALL 6 CUT ALGORITHMS)
 const pullPad = document.getElementById("pullFromNotepadBtn");
 const pullAi = document.getElementById("pullFromAiBtn");
 const buffer = document.getElementById("mixerSource");
@@ -1895,6 +1895,7 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
 
         let resultText = "";
 
+        // 1. SCISSOR (Random Word Shuffler)
         if (algo === "scramble") {
             let words = text.split(/\s+/);
             for (let i = words.length - 1; i > 0; i--) {
@@ -1902,19 +1903,60 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
                 [words[i], words[j]] = [words[j], words[i]];
             }
             resultText = words.join(" ");
+
+        // 2. FOLD-IN (Enhanced Burroughs Cross-Seam Fold - Works on Everything)
         } else if (algo === "fold") {
-            let lines = text.split("\n").filter(l => l.trim() !== "");
+            let lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+            
+            // If text is a single paragraph with no linebreaks, auto-break into balanced lines
             if (lines.length <= 1) {
-                resultText = text;
-            } else {
-                let mid = Math.floor(lines.length / 2);
-                let folded = [];
-                for (let i = 0; i < mid; i++) {
-                    folded.push(lines[i]);
-                    if (mid + i < lines.length) folded.push(lines[mid + i]);
+                let allWords = text.trim().split(/\s+/);
+                if (allWords.length <= 2) {
+                    resultText = allWords.reverse().join(" ");
+                } else {
+                    lines = [];
+                    const wordsPerLine = Math.max(2, Math.ceil(allWords.length / 4));
+                    for (let i = 0; i < allWords.length; i += wordsPerLine) {
+                        lines.push(allWords.slice(i, i + wordsPerLine).join(" "));
+                    }
                 }
-                resultText = folded.join("\n");
             }
+
+            if (!resultText && lines.length > 1) {
+                let mid = Math.ceil(lines.length / 2);
+                let pageA = lines.slice(0, mid);
+                let pageB = lines.slice(mid);
+
+                while (pageB.length < pageA.length) {
+                    pageB.push(pageB[pageB.length - 1] || "");
+                }
+
+                let foldedLines = [];
+                for (let i = 0; i < pageA.length; i++) {
+                    let wordsA = pageA[i].split(/\s+/).filter(Boolean);
+                    let wordsB = (pageB[i] || "").split(/\s+/).filter(Boolean);
+
+                    let midA = Math.ceil(wordsA.length / 2);
+                    let midB = Math.ceil(wordsB.length / 2);
+
+                    let leftA = wordsA.slice(0, midA).join(" ");
+                    let rightA = wordsA.slice(midA).join(" ");
+
+                    let leftB = wordsB.slice(0, midB).join(" ");
+                    let rightB = wordsB.slice(midB).join(" ");
+
+                    // Read across seam: Left A + Right B
+                    let seam1 = [leftA, rightB].filter(Boolean).join(" ");
+                    if (seam1) foldedLines.push(seam1);
+
+                    // Complementary seam: Left B + Right A
+                    let seam2 = [leftB, rightA].filter(Boolean).join(" ");
+                    if (seam2) foldedLines.push(seam2);
+                }
+                resultText = foldedLines.join("\n");
+            }
+
+        // 3. 3RD MIND (4-Word Cluster Shuffle)
         } else if (algo === "chunks") {
             let words = text.split(/\s+/);
             let chunks = [];
@@ -1926,10 +1968,13 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
                 [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
             }
             resultText = chunks.join(" ");
+
+        // 4. REVERSE (Retrograde Mirror)
         } else if (algo === "reverse") {
             resultText = text.split(/\s+/).reverse().join(" ");
+
+        // 5. ×2 DIAGONAL (Independent ×2 Fold & Diagonal Word Walk)
         } else if (algo === "diagonal") {
-            // Pure ×2 Diagonal Fold – independent of the regular Fold-In
             let lines = text.split("\n").filter(l => l.trim() !== "");
             if (lines.length <= 1) {
                 lines = [text];
@@ -1968,14 +2013,15 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
 
                 resultText = result.join(" ");
             }
+
+        // 6. PERMUTATION (Brion Gysin / Ian Sommerville 1960 Cyclic Shifts)
         } else if (algo === "permutation") {
-            // Brion Gysin / Ian Sommerville 1960 Cyclic Permutation
             let words = text.trim().split(/\s+/);
             if (words.length < 3) {
                 resultText = text;
             } else {
                 let outputLines = [];
-                const chunkSize = 4; // Cluster length for rhythmic cycle
+                const chunkSize = 4;
                 for (let i = 0; i < words.length; i += chunkSize) {
                     let chunk = words.slice(i, i + chunkSize);
                     if (chunk.length > 1) {
@@ -1993,7 +2039,7 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
         }
 
         // Write result to output AND feed it back into the source
-        // so pressing the same button again continues the mutation
+        // so repeated clicks continue mutating
         outputStream.value = resultText;
         buffer.value = resultText;
     });
