@@ -764,6 +764,57 @@
         #notepad { min-height: 280px; }
         #prompt { min-height: 120px; }
 
+        /* --- URL READOUT MODULE --- */
+.url-readout-wrap {
+    margin-top: 8px;
+    padding: 6px;
+    background: #090a0d;
+    border: 1px solid #331017;
+    border-radius: 2px;
+}
+
+.url-readout-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.url-readout-label {
+    font-size: 0.6rem;
+    color: #ff0033;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.url-readout-status {
+    font-size: 0.55rem;
+    color: #888;
+    letter-spacing: 1px;
+    transition: color 0.2s ease;
+}
+
+#urlReadout {
+    width: 100%;
+    background: #040405 !important;
+    color: #ff4d6d !important;
+    border: 1px solid #ff0033 !important;
+    padding: 6px 8px !important;
+    font-family: 'Nova Flat', 'Courier New', monospace !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.5px;
+    cursor: copy !important;
+    box-sizing: border-box;
+    text-overflow: ellipsis;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
+}
+
+#urlReadout:focus {
+    border-color: #ff0033 !important;
+    box-shadow: 0 0 8px rgba(255, 0, 51, 0.4) !important;
+    outline: none;
+}
+
         /* --- NOVA EXPRESS MODULES --- */
         .mixer-controls {
             display: grid; 
@@ -1570,13 +1621,25 @@
             <div style="display: flex; flex-direction: column; gap: 0.6rem;">
                 
                 <!-- Panel A: Notepad -->
-                <div class="panel">
-                    <h2>NOTEPAD</h2>
-                    <textarea id="notepad" placeholder="Your workspace..."></textarea>
-                  <div class="controls-row">
-    <button id="exportButton">SAVE</button>
-    <button id="captureUrlBtn" title="Generate shareable URL link">[CAPTURE #URL]</button>
-    <button id="clearButton">CLEAR</button>
+       <!-- Panel A: Notepad -->
+<div class="panel">
+    <h2>NOTEPAD</h2>
+    <textarea id="notepad" placeholder="Your workspace..."></textarea>
+    
+    <div class="controls-row">
+        <button id="exportButton">SAVE</button>
+        <button id="captureUrlBtn" title="Compress text and generate link">[CAPTURE #URL]</button>
+        <button id="clearButton">CLEAR</button>
+    </div>
+
+    <!-- Non-Editable URL Readout Container -->
+    <div id="urlReadoutContainer" class="url-readout-wrap" style="display: none;">
+        <div class="url-readout-header">
+            <span class="url-readout-label">TRANSMISSION HASH LINK:</span>
+            <span id="urlCopyStatus" class="url-readout-status">COPIED TO CLIPBOARD</span>
+        </div>
+        <input type="text" id="urlReadout" readonly title="Click to copy full link" />
+    </div>
 </div>
                 </div>
 
@@ -1868,49 +1931,73 @@
         });
 
     // Express Machine Integration (ALL 6 CUT ALGORITHMS)
+// ================= EXPRESS MACHINE INTEGRATION (HARDENED) =================
 const pullPad = document.getElementById("pullFromNotepadBtn");
 const pullAi = document.getElementById("pullFromAiBtn");
 const buffer = document.getElementById("mixerSource");
 const outputStream = document.getElementById("mixerOutput");
 const uploadPad = document.getElementById("pushToNotepadBtn");
 
+// Pull from Notepad into Buffer
 pullPad.addEventListener("click", () => {
     buffer.value = document.getElementById("notepad").value;
 });
 
+// Pull from AI Output into Buffer
 pullAi.addEventListener("click", () => {
-    buffer.value = outputDiv.textContent;
+    buffer.value = (typeof outputDiv !== "undefined" && outputDiv.textContent) 
+        ? outputDiv.textContent 
+        : document.getElementById("output").textContent;
 });
 
+// Upload to Notepad & trigger input event to guarantee storage sync
 uploadPad.addEventListener("click", () => {
-    document.getElementById("notepad").value += "\n" + outputStream.value;
+    const pad = document.getElementById("notepad");
+    const streamVal = outputStream.value.trim();
+    if (!streamVal) return;
+
+    pad.value += (pad.value.trim() ? "\n\n" : "") + streamVal;
+    pad.dispatchEvent(new Event("input")); // Critical: keeps storage in sync
 });
 
+// Core Cut Controller
 document.querySelectorAll(".mixer-controls button").forEach(btn => {
     btn.addEventListener("click", () => {
         const algo = btn.getAttribute("data-algo");
-        // Prefer source buffer; if empty fall back to current output so repeated presses keep mutating
-        let text = buffer.value.trim() ? buffer.value : outputStream.value;
-        if (!text) return;
+        if (!algo) return;
 
+        // Prefer source buffer; if empty fall back to current output for continuous mutation
+        let rawText = buffer.value.trim() ? buffer.value : outputStream.value;
+        if (!rawText) return;
+
+        // Clean out any leftover divider tokens before processing
+        let text = rawText.replace(/---/g, " ").trim();
         let resultText = "";
 
-        // 1. SCISSOR (Random Word Shuffler)
+        // ----------------------------------------------------
+        // 1. SCISSOR: True Fisher-Yates word shuffle
+        // ----------------------------------------------------
         if (algo === "scramble") {
-            let words = text.split(/\s+/);
-            for (let i = words.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [words[i], words[j]] = [words[j], words[i]];
+            let words = text.split(/\s+/).filter(Boolean);
+            if (words.length <= 1) {
+                resultText = text;
+            } else {
+                for (let i = words.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [words[i], words[j]] = [words[j], words[i]];
+                }
+                resultText = words.join(" ");
             }
-            resultText = words.join(" ");
 
-        // 2. FOLD-IN (Enhanced Burroughs Cross-Seam Fold - Works on Everything)
+        // ----------------------------------------------------
+        // 2. FOLD-IN: Burroughs seam-cut with punctuation cleaning
+        // ----------------------------------------------------
         } else if (algo === "fold") {
             let lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-            
-            // If text is a single paragraph with no linebreaks, auto-break into balanced lines
+
+            // If solid prose, automatically fracture into 4 balanced fold lines
             if (lines.length <= 1) {
-                let allWords = text.trim().split(/\s+/);
+                let allWords = text.split(/\s+/).filter(Boolean);
                 if (allWords.length <= 2) {
                     resultText = allWords.reverse().join(" ");
                 } else {
@@ -1939,48 +2026,59 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
                     let midA = Math.ceil(wordsA.length / 2);
                     let midB = Math.ceil(wordsB.length / 2);
 
-                    let leftA = wordsA.slice(0, midA).join(" ");
+                    // Strip trailing punctuation from left-halves so mid-sentence words don't carry periods
+                    let leftA = wordsA.slice(0, midA).join(" ").replace(/[,;:.!?]+$/, "");
                     let rightA = wordsA.slice(midA).join(" ");
 
-                    let leftB = wordsB.slice(0, midB).join(" ");
+                    let leftB = wordsB.slice(0, midB).join(" ").replace(/[,;:.!?]+$/, "");
                     let rightB = wordsB.slice(midB).join(" ");
 
-                    // Read across seam: Left A + Right B
+                    // Read across seam
                     let seam1 = [leftA, rightB].filter(Boolean).join(" ");
                     if (seam1) foldedLines.push(seam1);
 
-                    // Complementary seam: Left B + Right A
                     let seam2 = [leftB, rightA].filter(Boolean).join(" ");
                     if (seam2) foldedLines.push(seam2);
                 }
                 resultText = foldedLines.join("\n");
             }
 
-        // 3. 3RD MIND (4-Word Cluster Shuffle)
+        // ----------------------------------------------------
+        // 3. 3RD MIND: Cluster shuffle (3-4 word syntactic blocks)
+        // ----------------------------------------------------
         } else if (algo === "chunks") {
-            let words = text.split(/\s+/);
-            let chunks = [];
-            for (let i = 0; i < words.length; i += 4) {
-                chunks.push(words.slice(i, i + 4).join(" "));
+            let words = text.split(/\s+/).filter(Boolean);
+            if (words.length <= 3) {
+                resultText = words.reverse().join(" ");
+            } else {
+                let chunks = [];
+                const chunkSize = 3; 
+                for (let i = 0; i < words.length; i += chunkSize) {
+                    chunks.push(words.slice(i, i + chunkSize).join(" "));
+                }
+                for (let i = chunks.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
+                }
+                resultText = chunks.join(" ");
             }
-            for (let i = chunks.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
-            }
-            resultText = chunks.join(" ");
 
-        // 4. REVERSE (Retrograde Mirror)
+        // ----------------------------------------------------
+        // 4. REVERSE: Retrograde word walk
+        // ----------------------------------------------------
         } else if (algo === "reverse") {
-            resultText = text.split(/\s+/).reverse().join(" ");
+            let words = text.split(/\s+/).filter(Boolean);
+            resultText = words.reverse().join(" ");
 
-        // 5. ×2 DIAGONAL (Independent ×2 Fold & Diagonal Word Walk)
+        // ----------------------------------------------------
+        // 5. ×2 DIAGONAL: Pure diagonal fold + step walk
+        // ----------------------------------------------------
         } else if (algo === "diagonal") {
-            let lines = text.split("\n").filter(l => l.trim() !== "");
+            let lines = text.split("\n").map(l => l.trim()).filter(Boolean);
             if (lines.length <= 1) {
                 lines = [text];
             }
 
-            // First fold gesture: reverse the second half
             let mid = Math.floor(lines.length / 2);
             let first = lines.slice(0, mid);
             let second = lines.slice(mid).reverse();
@@ -1992,38 +2090,37 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
                 if (i < second.length) folded.push(second[i]);
             }
 
-            // Second pass: diagonal word walk + reverse second half
-            let words = folded.join(" ").split(/\s+/).filter(w => w.length > 0);
+            let words = folded.join(" ").split(/\s+/).filter(Boolean);
             if (words.length < 4) {
-                resultText = words.join(" ");
+                resultText = words.reverse().join(" ");
             } else {
-                let result = [];
+                let walked = [];
                 const step = 2;
                 for (let start = 0; start < step; start++) {
                     for (let i = start; i < words.length; i += step) {
-                        result.push(words[i]);
+                        walked.push(words[i]);
                     }
                 }
 
-                // ×2 effect
-                let half = Math.floor(result.length / 2);
-                let front = result.slice(0, half);
-                let back  = result.slice(half).reverse();
-                result = front.concat(back);
-
-                resultText = result.join(" ");
+                let half = Math.floor(walked.length / 2);
+                let front = walked.slice(0, half);
+                let back  = walked.slice(half).reverse();
+                resultText = front.concat(back).join(" ");
             }
 
-        // 6. PERMUTATION (Brion Gysin / Ian Sommerville 1960 Cyclic Shifts)
+        // ----------------------------------------------------
+        // 6. PERMUTATION: Gysin / Sommerville 1960 cyclic loop
+        // ----------------------------------------------------
         } else if (algo === "permutation") {
-            let words = text.trim().split(/\s+/);
+            // Cap to 32 words to prevent compounding exponential freeze
+            let words = text.split(/\s+/).filter(Boolean).slice(0, 32);
             if (words.length < 3) {
-                resultText = text;
+                resultText = words.join(" ");
             } else {
                 let outputLines = [];
-                const chunkSize = 4;
-                for (let i = 0; i < words.length; i += chunkSize) {
-                    let chunk = words.slice(i, i + chunkSize);
+                const clusterSize = 4;
+                for (let i = 0; i < words.length; i += clusterSize) {
+                    let chunk = words.slice(i, i + clusterSize);
                     if (chunk.length > 1) {
                         for (let r = 0; r < chunk.length; r++) {
                             let shifted = chunk.slice(r).concat(chunk.slice(0, r));
@@ -2038,10 +2135,12 @@ document.querySelectorAll(".mixer-controls button").forEach(btn => {
             }
         }
 
-        // Write result to output AND feed it back into the source
-        // so repeated clicks continue mutating
+        // Output to screen
         outputStream.value = resultText;
-        buffer.value = resultText;
+
+        // Feed sanitized version back to buffer (without '---' dividers)
+        // so repeated clicks mutate clean text rather than swallowing delimiter marks
+        buffer.value = resultText.replace(/\n?---\n?/g, "\n").trim();
     });
 });
         // 6-Channel Parallel Lexicon Pipeline
@@ -2471,6 +2570,145 @@ if (russianData && Array.isArray(russianData.wordlist)) {
         }
     });
 })(); 
+    </script>
+    <script>
+        // ================= ISIS-STYLE URL ENGINE & NON-EDITABLE READOUT =================
+(function initTransmissionEngine() {
+    const pad = document.getElementById("notepad");
+    const captureBtn = document.getElementById("captureUrlBtn");
+    const clearBtn = document.getElementById("clearButton");
+    const readoutBox = document.getElementById("urlReadout");
+    const readoutContainer = document.getElementById("urlReadoutContainer");
+    const copyStatus = document.getElementById("urlCopyStatus");
+
+    if (!pad) return;
+
+    // 1. Silent LocalStorage sync while typing
+    pad.addEventListener("input", () => {
+        localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", pad.value);
+    });
+
+    // 2. Clear button handles storage & readout cleanup
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            pad.value = "";
+            localStorage.removeItem("MINRAUD_NOTEPAD_BUFFER");
+            if (readoutContainer) readoutContainer.style.display = "none";
+            if (window.location.hash) {
+                history.replaceState(null, "", window.location.pathname);
+            }
+        });
+    }
+
+    // 3. Generate Compressed URL on demand
+    if (captureBtn && readoutBox && readoutContainer) {
+        captureBtn.addEventListener("click", async () => {
+            const text = pad.value.trim();
+            if (!text) {
+                copyStatus.textContent = "BUFFER EMPTY: NO DATA";
+                copyStatus.style.color = "#ff0033";
+                readoutContainer.style.display = "block";
+                readoutBox.value = "";
+                return;
+            }
+
+            try {
+                // Deflate-raw stream compression
+                const stream = new Blob([new TextEncoder().encode(text)])
+                    .stream()
+                    .pipeThrough(new CompressionStream("deflate-raw"));
+                const buffer = await new Response(stream).arrayBuffer();
+                const binary = String.fromCharCode(...new Uint8Array(buffer));
+                const base64 = btoa(binary)
+                    .replace(/\+/g, "-")
+                    .replace(/\//g, "_")
+                    .replace(/=+$/, "");
+
+                const fullUrl = `${window.location.origin}${window.location.pathname}#${base64}`;
+
+                // Display link in readout box
+                readoutBox.value = fullUrl;
+                readoutContainer.style.display = "block";
+
+                // Silently update browser hash without history pollution
+                history.replaceState(null, "", `#${base64}`);
+
+                // Copy to clipboard
+                await navigator.clipboard.writeText(fullUrl);
+
+                copyStatus.textContent = "COPIED TO CLIPBOARD";
+                copyStatus.style.color = "#00ff66";
+                setTimeout(() => {
+                    copyStatus.style.color = "#888";
+                }, 2500);
+
+            } catch (err) {
+                console.error("Compression failure:", err);
+                copyStatus.textContent = "COMPRESSION FAILED";
+                copyStatus.style.color = "#ff0033";
+            }
+        });
+
+        // Click inside the readout box to re-copy instantly
+        readoutBox.addEventListener("click", async () => {
+            if (!readoutBox.value) return;
+            readoutBox.select();
+            try {
+                await navigator.clipboard.writeText(readoutBox.value);
+                copyStatus.textContent = "RE-COPIED TO CLIPBOARD";
+                copyStatus.style.color = "#00ff66";
+                setTimeout(() => {
+                    copyStatus.style.color = "#888";
+                }, 2000);
+            } catch (e) {
+                // Fallback if browser blocks async clipboard on click
+                document.execCommand("copy");
+            }
+        });
+    }
+
+    // 4. Hydrate on load: URL Hash takes priority, falls back to LocalStorage
+    async function hydrateOnLoad() {
+        if (window.location.hash && window.location.hash.length > 1) {
+            const hash = window.location.hash.slice(1);
+            try {
+                let base64 = hash.replace(/-/g, "+").replace(/_/g, "/");
+                while (base64.length % 4) base64 += "=";
+                const binary = atob(base64);
+                const bytes = new Uint8Array([...binary].map(c => c.charCodeAt(0)));
+                const stream = new Blob([bytes])
+                    .stream()
+                    .pipeThrough(new DecompressionStream("deflate-raw"));
+                const decompressed = await new Response(stream).text();
+
+                if (decompressed) {
+                    pad.value = decompressed;
+                    localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", decompressed);
+                    if (readoutBox && readoutContainer) {
+                        readoutBox.value = window.location.href;
+                        readoutContainer.style.display = "block";
+                        copyStatus.textContent = "LOADED FROM HASH";
+                    }
+                    return true;
+                }
+            } catch (err) {
+                console.warn("Could not decompress hash, attempting fallback decode:", err);
+                try {
+                    pad.value = decodeURIComponent(hash);
+                    return true;
+                } catch (err2) {}
+            }
+        }
+        return false;
+    }
+
+    hydrateOnLoad().then(hydrated => {
+        if (!hydrated) {
+            const saved = localStorage.getItem("MINRAUD_NOTEPAD_BUFFER");
+            if (saved) pad.value = saved;
+        }
+    });
+})();
     </script>
 </body>
 </html>
