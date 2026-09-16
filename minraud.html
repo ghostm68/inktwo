@@ -2466,108 +2466,10 @@ if (russianData && Array.isArray(russianData.wordlist)) {
     }, { passive: false });
 })();
      </script>    
-    <script>
-       // ================= ISIS-STYLE URL COMPRESSION & NOTEPAD SYNC =================
-(function initIsisUrlEngine() {
-    const np = document.getElementById("notepad");
-    const captureBtn = document.getElementById("captureUrlBtn");
-    if (!np) return;
-
-    // 1. Silent LocalStorage Backup on typing (Address bar remains untouched)
-    np.addEventListener("input", () => {
-        localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
-    });
-
-    // 2. Compress & Capture URL on demand
-    if (captureBtn) {
-        captureBtn.addEventListener("click", async () => {
-            const text = np.value.trim();
-            if (!text) {
-                alert("NOTEPAD EMPTY: NO DATA TO CAPTURE");
-                return;
-            }
-
-            try {
-                // High-efficiency Deflate-raw stream compression (native browser API)
-                const stream = new Blob([new TextEncoder().encode(text)])
-                    .stream()
-                    .pipeThrough(new CompressionStream('deflate-raw'));
-                const buffer = await new Response(stream).arrayBuffer();
-                const binary = String.fromCharCode(...new Uint8Array(buffer));
-                const base64 = btoa(binary)
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_')
-                    .replace(/=+$/, '');
-
-                // Build the full shareable transmission URL
-                const shareUrl = `${window.location.origin}${window.location.pathname}#${base64}`;
-
-                // A. Copy URL directly to clipboard
-                await navigator.clipboard.writeText(shareUrl);
-
-                // B. Capture inside the pad (appends to the bottom of the text)
-                np.value += `\n\n// --- TRANSMISSION URL CAPTURED ---\n${shareUrl}\n`;
-                localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
-
-                // Temporary button feedback
-                const origText = captureBtn.innerText;
-                captureBtn.innerText = "✓ COPIED & CAPTURED";
-                captureBtn.style.background = "#ff0033";
-                captureBtn.style.color = "#000";
-                setTimeout(() => {
-                    captureBtn.innerText = origText;
-                    captureBtn.style.background = "#140003";
-                    captureBtn.style.color = "#ff0033";
-                }, 2000);
-
-            } catch (err) {
-                console.error("Compression failed:", err);
-                alert("ENCODING FAILED: DATA EXCEEDS BUFFER LIMIT");
-            }
-        });
-    }
-
-    // 3. Decompress & Restore from URL Hash on Page Load
-    async function restoreFromUrlHash() {
-        if (window.location.hash && window.location.hash.length > 1) {
-            const hash = window.location.hash.slice(1);
-            try {
-                let base64 = hash.replace(/-/g, '+').replace(/_/g, '/');
-                while (base64.length % 4) base64 += '=';
-                const binary = atob(base64);
-                const bytes = new Uint8Array([...binary].map(c => c.charCodeAt(0)));
-                const stream = new Blob([bytes])
-                    .stream()
-                    .pipeThrough(new DecompressionStream('deflate-raw'));
-                const decompressed = await new Response(stream).text();
-
-                if (decompressed) {
-                    np.value = decompressed;
-                    localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
-                    return true;
-                }
-            } catch (e) {
-                console.warn("Could not decompress hash, trying plain decode:", e);
-                try {
-                    np.value = decodeURIComponent(hash);
-                    return true;
-                } catch (e2) {}
-            }
-        }
-        return false;
-    }
-
-    // Initialize: Restore from incoming URL hash if present, otherwise restore local cache
-    restoreFromUrlHash().then(restored => {
-        if (!restored) {
-            const saved = localStorage.getItem("MINRAUD_NOTEPAD_BUFFER");
-            if (saved) np.value = saved;
-        }
-    });
-})(); 
-    </script>
+ 
     <script>
         // ================= ISIS-STYLE URL ENGINE & NON-EDITABLE READOUT =================
+// ================= URL TRANSMISSION ENGINE (ISOLATED) =================
 (function initTransmissionEngine() {
     const pad = document.getElementById("notepad");
     const captureBtn = document.getElementById("captureUrlBtn");
@@ -2578,28 +2480,33 @@ if (russianData && Array.isArray(russianData.wordlist)) {
 
     if (!pad) return;
 
-    // 1. Silent LocalStorage sync while typing
+    // 1. Clean any dirty transmission text left over in localStorage from previous tests
+    function sanitizeBuffer(text) {
+        if (!text) return "";
+        return text.split("// --- TRANSMISSION URL CAPTURED ---")[0].trim();
+    }
+
+    // 2. Silent local storage backup while typing (Address bar stays 100% untouched)
     pad.addEventListener("input", () => {
         localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", pad.value);
     });
 
-    // 2. Clear button handles storage & readout cleanup
+    // 3. Clear button
     if (clearBtn) {
         clearBtn.addEventListener("click", () => {
             pad.value = "";
             localStorage.removeItem("MINRAUD_NOTEPAD_BUFFER");
             if (readoutContainer) readoutContainer.style.display = "none";
-            if (window.location.hash) {
-                history.replaceState(null, "", window.location.pathname);
-            }
+            if (readoutBox) readoutBox.value = "";
         });
     }
 
-    // 3. Generate Compressed URL on demand
+    // 4. Capture & Compress on demand
     if (captureBtn && readoutBox && readoutContainer) {
-        captureBtn.addEventListener("click", async () => {
-            const text = pad.value.trim();
-            if (!text) {
+        // Use .onclick to overwrite any lingering duplicate click listeners
+        captureBtn.onclick = async () => {
+            const cleanText = sanitizeBuffer(pad.value);
+            if (!cleanText) {
                 copyStatus.textContent = "BUFFER EMPTY: NO DATA";
                 copyStatus.style.color = "#ff0033";
                 readoutContainer.style.display = "block";
@@ -2608,8 +2515,8 @@ if (russianData && Array.isArray(russianData.wordlist)) {
             }
 
             try {
-                // Deflate-raw stream compression
-                const stream = new Blob([new TextEncoder().encode(text)])
+                // Deflate-raw compression stream
+                const stream = new Blob([new TextEncoder().encode(cleanText)])
                     .stream()
                     .pipeThrough(new CompressionStream("deflate-raw"));
                 const buffer = await new Response(stream).arrayBuffer();
@@ -2619,17 +2526,15 @@ if (russianData && Array.isArray(russianData.wordlist)) {
                     .replace(/\//g, "_")
                     .replace(/=+$/, "");
 
-                const fullUrl = `${window.location.origin}${window.location.pathname}#${base64}`;
+                // Build share link entirely in memory (DO NOT TOUCH WINDOW.LOCATION)
+                const shareUrl = `${window.location.origin}${window.location.pathname}#${base64}`;
 
-                // Display link in readout box
-                readoutBox.value = fullUrl;
+                // Display strictly in the readout box
+                readoutBox.value = shareUrl;
                 readoutContainer.style.display = "block";
 
-                // Silently update browser hash without history pollution
-                history.replaceState(null, "", `#${base64}`);
-
                 // Copy to clipboard
-                await navigator.clipboard.writeText(fullUrl);
+                await navigator.clipboard.writeText(shareUrl);
 
                 copyStatus.textContent = "COPIED TO CLIPBOARD";
                 copyStatus.style.color = "#00ff66";
@@ -2638,14 +2543,14 @@ if (russianData && Array.isArray(russianData.wordlist)) {
                 }, 2500);
 
             } catch (err) {
-                console.error("Compression failure:", err);
+                console.error("Compression failed:", err);
                 copyStatus.textContent = "COMPRESSION FAILED";
                 copyStatus.style.color = "#ff0033";
             }
-        });
+        };
 
-        // Click inside the readout box to re-copy instantly
-        readoutBox.addEventListener("click", async () => {
+        // Click inside the readout box to re-copy
+        readoutBox.onclick = async () => {
             if (!readoutBox.value) return;
             readoutBox.select();
             try {
@@ -2656,13 +2561,14 @@ if (russianData && Array.isArray(russianData.wordlist)) {
                     copyStatus.style.color = "#888";
                 }, 2000);
             } catch (e) {
-                // Fallback if browser blocks async clipboard on click
                 document.execCommand("copy");
             }
-        });
+        };
     }
 
-    // 4. Hydrate on load: URL Hash takes priority, falls back to LocalStorage
+    // 5. Restore on load:
+    // If a recipient opens a link with a #hash, decompress it into the pad.
+    // Otherwise, load from local storage.
     async function hydrateOnLoad() {
         if (window.location.hash && window.location.hash.length > 1) {
             const hash = window.location.hash.slice(1);
@@ -2677,8 +2583,8 @@ if (russianData && Array.isArray(russianData.wordlist)) {
                 const decompressed = await new Response(stream).text();
 
                 if (decompressed) {
-                    pad.value = decompressed;
-                    localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", decompressed);
+                    pad.value = sanitizeBuffer(decompressed);
+                    localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", pad.value);
                     if (readoutBox && readoutContainer) {
                         readoutBox.value = window.location.href;
                         readoutContainer.style.display = "block";
@@ -2687,11 +2593,7 @@ if (russianData && Array.isArray(russianData.wordlist)) {
                     return true;
                 }
             } catch (err) {
-                console.warn("Could not decompress hash, attempting fallback decode:", err);
-                try {
-                    pad.value = decodeURIComponent(hash);
-                    return true;
-                } catch (err2) {}
+                console.warn("Decompression fallback:", err);
             }
         }
         return false;
@@ -2700,7 +2602,10 @@ if (russianData && Array.isArray(russianData.wordlist)) {
     hydrateOnLoad().then(hydrated => {
         if (!hydrated) {
             const saved = localStorage.getItem("MINRAUD_NOTEPAD_BUFFER");
-            if (saved) pad.value = saved;
+            if (saved) {
+                pad.value = sanitizeBuffer(saved);
+                localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", pad.value);
+            }
         }
     });
 })();
