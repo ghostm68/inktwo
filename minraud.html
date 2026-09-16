@@ -468,27 +468,108 @@
         }
 
         /* RED SLIDER */
-        #creativity {
-            width: 100%;
-            height: 6px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: linear-gradient(to right, #3d020a, #ff0033);
-            outline: none;
-            border-radius: 3px;
-            margin: 0.4rem 0;
-        }
-        
-        #creativity::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: #fff;
-            border: 2px solid #ff0033;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+     /* --- COMPACT TELEGRAPH ROTARY KNOB --- */
+.knob-module {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #090a0d;
+    border: 1px solid #24262e;
+    padding: 8px 12px;
+    margin: 0.6rem 0;
+    border-radius: 3px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.7);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.knob-bezel {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #1a1c24 0%, #0d0e12 100%);
+    border: 2px solid #24262e;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 8px rgba(255, 0, 51, 0.15);
+    cursor: grab;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.knob-bezel:active {
+    cursor: grabbing;
+    border-color: #ff0033;
+    box-shadow: 0 0 12px rgba(255, 0, 51, 0.4);
+}
+
+.knob-cap {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #222530, #101115);
+    border: 1px solid #333842;
+    position: relative;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1), 0 3px 6px rgba(0, 0, 0, 0.6);
+    transform: rotate(45deg); /* Default for 0.7 */
+    transition: transform 0.05s ease-out;
+}
+
+.knob-indicator {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    width: 2px;
+    height: 8px;
+    background: #ff0033;
+    transform: translateX(-50%);
+    box-shadow: 0 0 6px #ff0033;
+    border-radius: 1px;
+}
+
+.knob-readout-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-grow: 1;
+}
+
+.knob-label {
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    color: #8a909d;
+    text-transform: uppercase;
+}
+
+.knob-value-display {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+#creativityValue {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ff0033;
+    text-shadow: 0 0 8px rgba(255, 0, 51, 0.5);
+    font-family: 'Nova Flat', 'Courier New', monospace;
+}
+
+.knob-unit {
+    font-size: 0.6rem;
+    color: #555;
+    letter-spacing: 1px;
+}
+
+.knob-ticks-label {
+    font-size: 0.55rem;
+    color: #444;
+    letter-spacing: 1px;
+    display: flex;
+    gap: 6px;
+}
 
         /* --- DICTIONARY STYLES --- */
         /* --- DICTIONARY RED ACCENTS --- */
@@ -1429,10 +1510,30 @@
                 </div>
 
                 <!-- CREATIVITY SLIDER -->
-                <div style="margin: 0.5rem 0;">
-                    <label style="color:#ff0033; font-size:0.75rem;">CREATIVITY: <span id="creativityValue">0.7</span></label>
-                    <input type="range" id="creativity" min="0.1" max="1.0" step="0.1" value="0.7">
-                </div>
+                <!-- COMPACT TELEGRAPH ROTARY MODULE -->
+<div class="knob-module">
+    <!-- Hidden input preserves compatibility with your existing Nova API script -->
+    <input type="hidden" id="creativity" value="0.7">
+
+    <div class="knob-bezel" id="creativityKnob" title="Drag up/down or scroll to tune entropy">
+        <div class="knob-cap" id="knobCap">
+            <div class="knob-indicator"></div>
+        </div>
+    </div>
+
+    <div class="knob-readout-block">
+        <div class="knob-label">CREATIVITY // ENTROPY</div>
+        <div class="knob-value-display">
+            <span id="creativityValue">0.7</span>
+            <span class="knob-unit">VAL</span>
+        </div>
+        <div class="knob-ticks-label">
+            <span>0.1 MIN</span>
+            <span>·</span>
+            <span>1.0 MAX</span>
+        </div>
+    </div>
+</div>
                 
                 <!-- PROMPT -->
                 <textarea id="prompt" placeholder="Input query or activate Sonic Mirror..."></textarea>
@@ -2142,5 +2243,71 @@ if (russianData && Array.isArray(russianData.wordlist)) {
 
     document.addEventListener("click", closeAllSelect);
     </script>
+    <script>
+    // --- TELEGRAPH ROTARY KNOB CONTROLLER ---
+(function initCreativityKnob() {
+    const knob = document.getElementById("creativityKnob");
+    const cap = document.getElementById("knobCap");
+    const valueDisplay = document.getElementById("creativityValue");
+    const hiddenInput = document.getElementById("creativity");
+
+    if (!knob || !cap) return;
+
+    let currentValue = parseFloat(hiddenInput.value) || 0.7;
+    const minVal = 0.1;
+    const maxVal = 1.0;
+    const minAngle = -135; // deg at 0.1
+    const maxAngle = 135;  // deg at 1.0
+
+    function updateKnob(val) {
+        val = Math.max(minVal, Math.min(maxVal, parseFloat(val.toFixed(2))));
+        currentValue = val;
+        hiddenInput.value = val.toFixed(1);
+        valueDisplay.textContent = val.toFixed(1);
+
+        // Map 0.1 - 1.0 to -135deg - +135deg
+        const pct = (val - minVal) / (maxVal - minVal);
+        const angle = minAngle + pct * (maxAngle - minAngle);
+        cap.style.transform = `rotate(${angle}deg)`;
+
+        // Dispatch input event in case other listeners watch #creativity
+        hiddenInput.dispatchEvent(new Event("input"));
+    }
+
+    // Initial positioning
+    updateKnob(currentValue);
+
+    let isDragging = false;
+    let startY = 0;
+    let startVal = 0.7;
+
+    knob.addEventListener("pointerdown", (e) => {
+        isDragging = true;
+        startY = e.clientY;
+        startVal = currentValue;
+        knob.setPointerCapture(e.pointerId);
+    });
+
+    knob.addEventListener("pointermove", (e) => {
+        if (!isDragging) return;
+        const deltaY = startY - e.clientY; // Dragging UP increases entropy
+        const deltaVal = (deltaY / 120) * (maxVal - minVal);
+        updateKnob(startVal + deltaVal);
+    });
+
+    knob.addEventListener("pointerup", (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        try { knob.releasePointerCapture(e.pointerId); } catch(err) {}
+    });
+
+    // Mouse wheel support (scroll up/down over knob)
+    knob.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const step = e.deltaY < 0 ? 0.05 : -0.05;
+        updateKnob(currentValue + step);
+    }, { passive: false });
+})();
+     </script>     
 </body>
 </html>
