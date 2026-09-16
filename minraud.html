@@ -1700,88 +1700,95 @@
         });
 
         document.querySelectorAll(".mixer-controls button").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const algo = btn.getAttribute("data-algo");
-        const text = buffer.value;
-        if (!text) return;
+            btn.addEventListener("click", () => {
+                const algo = btn.getAttribute("data-algo");
+                // Prefer source buffer; if empty fall back to current output so repeated presses keep mutating
+                let text = buffer.value.trim() ? buffer.value : outputStream.value;
+                if (!text) return;
 
-        if (algo === "scramble") {
-            let words = text.split(/\s+/);
-            for (let i = words.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [words[i], words[j]] = [words[j], words[i]];
-            }
-            outputStream.value = words.join(" ");
-        } else if (algo === "fold") {
-            let lines = text.split("\n").filter(l => l.trim() !== "");
-            if (lines.length <= 1) {
-                outputStream.value = text;
-                return;
-            }
-            let mid = Math.floor(lines.length / 2);
-            let folded = [];
-            for (let i = 0; i < mid; i++) {
-                folded.push(lines[i]);
-                if (mid + i < lines.length) folded.push(lines[mid + i]);
-            }
-            outputStream.value = folded.join("\n");
-        } else if (algo === "chunks") {
-            let words = text.split(/\s+/);
-            let chunks = [];
-            for (let i = 0; i < words.length; i += 4) {
-                chunks.push(words.slice(i, i + 4).join(" "));
-            }
-            for (let i = chunks.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
-            }
-            outputStream.value = chunks.join(" ");
-        } else if (algo === "reverse") {
-            outputStream.value = text.split(/\s+/).reverse().join(" ");
-        } else if (algo === "diagonal") {
-            // Pure ×2 Diagonal Fold – independent of the regular Fold-In
-            let lines = text.split("\n").filter(l => l.trim() !== "");
-            if (lines.length <= 1) {
-                lines = [text];
-            }
+                let resultText = "";
 
-            // First fold gesture: reverse the second half
-            let mid = Math.floor(lines.length / 2);
-            let first = lines.slice(0, mid);
-            let second = lines.slice(mid).reverse();
+                if (algo === "scramble") {
+                    let words = text.split(/\s+/);
+                    for (let i = words.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [words[i], words[j]] = [words[j], words[i]];
+                    }
+                    resultText = words.join(" ");
+                } else if (algo === "fold") {
+                    let lines = text.split("\n").filter(l => l.trim() !== "");
+                    if (lines.length <= 1) {
+                        resultText = text;
+                    } else {
+                        let mid = Math.floor(lines.length / 2);
+                        let folded = [];
+                        for (let i = 0; i < mid; i++) {
+                            folded.push(lines[i]);
+                            if (mid + i < lines.length) folded.push(lines[mid + i]);
+                        }
+                        resultText = folded.join("\n");
+                    }
+                } else if (algo === "chunks") {
+                    let words = text.split(/\s+/);
+                    let chunks = [];
+                    for (let i = 0; i < words.length; i += 4) {
+                        chunks.push(words.slice(i, i + 4).join(" "));
+                    }
+                    for (let i = chunks.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
+                    }
+                    resultText = chunks.join(" ");
+                } else if (algo === "reverse") {
+                    resultText = text.split(/\s+/).reverse().join(" ");
+                } else if (algo === "diagonal") {
+                    // Pure ×2 Diagonal Fold – independent of the regular Fold-In
+                    let lines = text.split("\n").filter(l => l.trim() !== "");
+                    if (lines.length <= 1) {
+                        lines = [text];
+                    }
 
-            let folded = [];
-            let max = Math.max(first.length, second.length);
-            for (let i = 0; i < max; i++) {
-                if (i < first.length) folded.push(first[i]);
-                if (i < second.length) folded.push(second[i]);
-            }
+                    // First fold gesture: reverse the second half
+                    let mid = Math.floor(lines.length / 2);
+                    let first = lines.slice(0, mid);
+                    let second = lines.slice(mid).reverse();
 
-            // Second pass: diagonal word walk + reverse second half
-            let words = folded.join(" ").split(/\s+/).filter(w => w.length > 0);
-            if (words.length < 4) {
-                outputStream.value = words.join(" ");
-                return;
-            }
+                    let folded = [];
+                    let max = Math.max(first.length, second.length);
+                    for (let i = 0; i < max; i++) {
+                        if (i < first.length) folded.push(first[i]);
+                        if (i < second.length) folded.push(second[i]);
+                    }
 
-            let result = [];
-            const step = 2;
-            for (let start = 0; start < step; start++) {
-                for (let i = start; i < words.length; i += step) {
-                    result.push(words[i]);
+                    // Second pass: diagonal word walk + reverse second half
+                    let words = folded.join(" ").split(/\s+/).filter(w => w.length > 0);
+                    if (words.length < 4) {
+                        resultText = words.join(" ");
+                    } else {
+                        let result = [];
+                        const step = 2;
+                        for (let start = 0; start < step; start++) {
+                            for (let i = start; i < words.length; i += step) {
+                                result.push(words[i]);
+                            }
+                        }
+
+                        // ×2 effect
+                        let half = Math.floor(result.length / 2);
+                        let front = result.slice(0, half);
+                        let back  = result.slice(half).reverse();
+                        result = front.concat(back);
+
+                        resultText = result.join(" ");
+                    }
                 }
-            }
 
-            // ×2 effect
-            let half = Math.floor(result.length / 2);
-            let front = result.slice(0, half);
-            let back  = result.slice(half).reverse();
-            result = front.concat(back);
-
-            outputStream.value = result.join(" ");
-        }
-    });
-});
+                // Write result to output AND feed it back into the source
+                // so pressing the same button again continues the mutation
+                outputStream.value = resultText;
+                buffer.value = resultText;
+            });
+        });
 
         // 6-Channel Parallel Lexicon Pipeline
         const dictionaryUrls = [
