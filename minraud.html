@@ -432,6 +432,22 @@
             box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.9), 0 0 15px rgba(255, 0, 51, 0.4);
             outline: none;
         }
+
+        /* Capture URL Button */
+#captureUrlBtn {
+    background: #140003;
+    border: 1px solid #ff0033;
+    color: #ff0033;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    transition: all 0.2s ease-in-out;
+}
+
+#captureUrlBtn:hover {
+    background: #ff0033;
+    color: #000;
+    box-shadow: 0 0 10px rgba(255, 0, 51, 0.7);
+}
         
         button {
             background: #222;
@@ -1557,10 +1573,11 @@
                 <div class="panel">
                     <h2>NOTEPAD</h2>
                     <textarea id="notepad" placeholder="Your workspace..."></textarea>
-                    <div class="controls-row">
-                        <button id="exportButton">SAVE</button>
-                        <button id="clearButton">CLEAR</button>
-                    </div>
+                  <div class="controls-row">
+    <button id="exportButton">SAVE</button>
+    <button id="captureUrlBtn" title="Generate shareable URL link">[CAPTURE #URL]</button>
+    <button id="clearButton">CLEAR</button>
+</div>
                 </div>
 
                 <!-- Panel B: Nova Express Machine -->
@@ -2308,6 +2325,106 @@ if (russianData && Array.isArray(russianData.wordlist)) {
         updateKnob(currentValue + step);
     }, { passive: false });
 })();
-     </script>     
+     </script>    
+    <script>
+       // ================= ISIS-STYLE URL COMPRESSION & NOTEPAD SYNC =================
+(function initIsisUrlEngine() {
+    const np = document.getElementById("notepad");
+    const captureBtn = document.getElementById("captureUrlBtn");
+    if (!np) return;
+
+    // 1. Silent LocalStorage Backup on typing (Address bar remains untouched)
+    np.addEventListener("input", () => {
+        localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
+    });
+
+    // 2. Compress & Capture URL on demand
+    if (captureBtn) {
+        captureBtn.addEventListener("click", async () => {
+            const text = np.value.trim();
+            if (!text) {
+                alert("NOTEPAD EMPTY: NO DATA TO CAPTURE");
+                return;
+            }
+
+            try {
+                // High-efficiency Deflate-raw stream compression (native browser API)
+                const stream = new Blob([new TextEncoder().encode(text)])
+                    .stream()
+                    .pipeThrough(new CompressionStream('deflate-raw'));
+                const buffer = await new Response(stream).arrayBuffer();
+                const binary = String.fromCharCode(...new Uint8Array(buffer));
+                const base64 = btoa(binary)
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+
+                // Build the full shareable transmission URL
+                const shareUrl = `${window.location.origin}${window.location.pathname}#${base64}`;
+
+                // A. Copy URL directly to clipboard
+                await navigator.clipboard.writeText(shareUrl);
+
+                // B. Capture inside the pad (appends to the bottom of the text)
+                np.value += `\n\n// --- TRANSMISSION URL CAPTURED ---\n${shareUrl}\n`;
+                localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
+
+                // Temporary button feedback
+                const origText = captureBtn.innerText;
+                captureBtn.innerText = "✓ COPIED & CAPTURED";
+                captureBtn.style.background = "#ff0033";
+                captureBtn.style.color = "#000";
+                setTimeout(() => {
+                    captureBtn.innerText = origText;
+                    captureBtn.style.background = "#140003";
+                    captureBtn.style.color = "#ff0033";
+                }, 2000);
+
+            } catch (err) {
+                console.error("Compression failed:", err);
+                alert("ENCODING FAILED: DATA EXCEEDS BUFFER LIMIT");
+            }
+        });
+    }
+
+    // 3. Decompress & Restore from URL Hash on Page Load
+    async function restoreFromUrlHash() {
+        if (window.location.hash && window.location.hash.length > 1) {
+            const hash = window.location.hash.slice(1);
+            try {
+                let base64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+                while (base64.length % 4) base64 += '=';
+                const binary = atob(base64);
+                const bytes = new Uint8Array([...binary].map(c => c.charCodeAt(0)));
+                const stream = new Blob([bytes])
+                    .stream()
+                    .pipeThrough(new DecompressionStream('deflate-raw'));
+                const decompressed = await new Response(stream).text();
+
+                if (decompressed) {
+                    np.value = decompressed;
+                    localStorage.setItem("MINRAUD_NOTEPAD_BUFFER", np.value);
+                    return true;
+                }
+            } catch (e) {
+                console.warn("Could not decompress hash, trying plain decode:", e);
+                try {
+                    np.value = decodeURIComponent(hash);
+                    return true;
+                } catch (e2) {}
+            }
+        }
+        return false;
+    }
+
+    // Initialize: Restore from incoming URL hash if present, otherwise restore local cache
+    restoreFromUrlHash().then(restored => {
+        if (!restored) {
+            const saved = localStorage.getItem("MINRAUD_NOTEPAD_BUFFER");
+            if (saved) np.value = saved;
+        }
+    });
+})(); 
+    </script>
 </body>
 </html>
