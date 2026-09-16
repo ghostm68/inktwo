@@ -1319,8 +1319,9 @@
                     <div class="mixer-controls">
                         <button class="module-btn" data-algo="scramble"><span class="express-icon">✃</span> SCISSOR</button>
                         <button class="module-btn" data-algo="fold"><span class="express-icon">≣</span> FOLD-IN</button>
-                        <button class="module-btn" data-algo="chunks"><span class="express-icon">❖</span> 3RD MIND</button>
+                         <button class="module-btn" data-algo="chunks"><span class="express-icon">❖</span> 3RD MIND</button>
                         <button class="module-btn" data-algo="reverse"><span class="express-icon">⇄</span> REVERSE</button>
+                        <button class="module-btn" data-algo="diagonal"><span class="express-icon">╳</span> ×2 DIAGONAL</button>
                     </div>
 
                     <label style="color:#666; font-size:0.7rem; text-transform:uppercase;">Result Stream:</label>
@@ -1739,6 +1740,48 @@
     // Splits by spaces to reverse the word order (sentence structure) rather than the letters
     outputStream.value = text.split(/\s+/).reverse().join(" ");
 }
+                } else if (algo === "diagonal") {
+    // Pure ×2 Diagonal Fold – independent of the regular Fold-In
+    let lines = text.split("\n").filter(l => l.trim() !== "");
+    if (lines.length <= 1) {
+        lines = [text];
+    }
+
+    // First fold gesture: reverse the second half
+    let mid = Math.floor(lines.length / 2);
+    let first = lines.slice(0, mid);
+    let second = lines.slice(mid).reverse();
+
+    let folded = [];
+    let max = Math.max(first.length, second.length);
+    for (let i = 0; i < max; i++) {
+        if (i < first.length) folded.push(first[i]);
+        if (i < second.length) folded.push(second[i]);
+    }
+
+    // Second pass: diagonal word walk + reverse second half
+    let words = folded.join(" ").split(/\s+/).filter(w => w.length > 0);
+    if (words.length < 4) {
+        outputStream.value = words.join(" ");
+        return;
+    }
+
+    let result = [];
+    const step = 2;
+    for (let start = 0; start < step; start++) {
+        for (let i = start; i < words.length; i += step) {
+            result.push(words[i]);
+        }
+    }
+
+    // ×2 effect
+    let half = Math.floor(result.length / 2);
+    let front = result.slice(0, half);
+    let back  = result.slice(half).reverse();
+    result = front.concat(back);
+
+    outputStream.value = result.join(" ");
+            }
             });
         });
 
@@ -1757,17 +1800,26 @@
         const statusEl = document.getElementById("dictionary-status");
 
         async function loadAllDictionaries() {
-            if (statusEl) statusEl.textContent = "SYNCING METRIC LEXICON...";
-            try {
-                const promises = dictionaryUrls.map(url => axios.get(url).then(res => res.data));
-                dictionaryData = await Promise.all(promises);
-                if (statusEl) statusEl.textContent = "6 Source Lexicon + Live Thesaurus Online";
-            } catch (err) {
-                console.error("Dictionary load failure:", err);
-                if (statusEl) statusEl.textContent = "OFFLINE - LEXICON DATABASES FAILED TO LOAD";
-            }
-        }
+    if (statusEl) statusEl.textContent = "SYNCING METRIC LEXICON...";
+    try {
+        const results = await Promise.allSettled(
+            dictionaryUrls.map(url => axios.get(url).then(res => res.data))
+        );
 
+        dictionaryData = results.map(r => r.status === "fulfilled" ? r.value : null);
+
+        const loaded = dictionaryData.filter(Boolean).length;
+        if (statusEl) {
+            statusEl.textContent = loaded === 6
+                ? "6 Source Lexicon + Live Thesaurus Online"
+                : `${loaded}/6 lexicons online (some sources failed)`;
+        }
+    } catch (err) {
+        console.error("Dictionary load failure:", err);
+        if (statusEl) statusEl.textContent = "OFFLINE - LEXICON DATABASES FAILED TO LOAD";
+    }
+        }
+        
         loadAllDictionaries();
 
         // Synonym quickSearch exposed globally to prevent click crashes
@@ -1817,21 +1869,46 @@
                 }
             }
 
-            // 3. RUSSIAN (Source 4)
-            const russianData = dictionaryData[4];
-            if (russianData && russianData.wordlist && Array.isArray(russianData.wordlist)) {
-                const hit = russianData.wordlist.find(item => 
-                    (item.name && item.name.toLowerCase() === lowQuery) || 
-                    (item.definition && item.definition.toLowerCase().includes(lowQuery))
-                );
-                if (hit) {
-                    found = true;
-                    html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
-                                <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS</div>
-                                <div style="margin-top:0.3rem; font-size:0.85rem;"><strong>${hit.name}:</strong> ${hit.definition}</div>
-                             </div>`;
-                }
+            // 3. RUSSIAN (Source 4) – improved search
+const russianData = dictionaryData[4];
+if (russianData && Array.isArray(russianData.wordlist)) {
+    const hits = russianData.wordlist.filter(item => {
+        if (!item.name) return false;
+        const name = item.name.toLowerCase();
+        const def  = (item.definition || "").toLowerCase();
+        const syns = (item.synonyms || []).join(" ").toLowerCase();
+        const sims = (item.similars || []).join(" ").toLowerCase();
+        return name === lowQuery ||
+               name.includes(lowQuery) ||
+               def.includes(lowQuery) ||
+               syns.includes(lowQuery) ||
+               sims.includes(lowQuery);
+    }).slice(0, 8);
+
+    if (hits.length > 0) {
+        found = true;
+        html += `<div style="margin-top:0.5rem;border-top:1px dashed #444;padding-top:0.5rem;">
+                    <div style="color:#ff0033;font-size:0.75rem;font-weight:bold;">🇷🇺 RUSSIAN SYNONYMS (Abramov)</div>`;
+
+        hits.forEach(hit => {
+            html += `<div style="margin:0.4rem 0; font-size:0.85rem;">
+                        <strong style="color:#ff6666;">${hit.name}</strong>`;
+            if (hit.definition) {
+                html += `<div style="color:#aaa; font-size:0.8rem; margin:2px 0;">${hit.definition}</div>`;
             }
+            if (hit.synonyms && hit.synonyms.length) {
+                html += `<div>${hit.synonyms.map(s =>
+                    `<span class="synonym-tag" onclick="quickSearch('\( {s}')"> \){s}</span>`
+                ).join('')}</div>`;
+            }
+            if (hit.antonyms && hit.antonyms.length) {
+                html += `<div style="margin-top:3px; color:#888; font-size:0.75rem;">Ant: ${hit.antonyms.join(", ")}</div>`;
+            }
+            html += `</div>`;
+        });
+        html += `</div>`;
+    }
+}
 
             // 4. CHINESE (Source 5)
             const pinyinDict = dictionaryData[5];
