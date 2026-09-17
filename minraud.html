@@ -1824,103 +1824,116 @@
     /* ======================================================
        APP FUNCTIONALITY & 6-CHANNEL PARALLEL LEXICON ENGINE
     ====================================================== */
-    let dictionaryData = [];
+  /* ======================================================
+   APP FUNCTIONALITY & 6-CHANNEL PARALLEL LEXICON ENGINE
+====================================================== */
+let dictionaryData = [];
 
-    function initAppCore() {
-        const apiKeyInput = document.getElementById("novaApiKey");
-        const saveKeyBtn = document.getElementById("saveKeyBtn");
-        const keyStatus = document.getElementById("keyStatus");
-        const creativitySlider = document.getElementById("creativity");
-        const creativityVal = document.getElementById("creativityValue");
-        const generateButton = document.getElementById("generateButton");
-        const promptInput = document.getElementById("prompt");
-        const outputDiv = document.getElementById("output");
-        const modelSelect = document.getElementById("modelSelect");
+function initAppCore() {
+    const apiKeyInput = document.getElementById("novaApiKey");
+    const keyStatus = document.getElementById("keyStatus");
+    const clearKeyBtn = document.getElementById("clearKeyBtn");
+    const creativitySlider = document.getElementById("creativity");
+    const creativityVal = document.getElementById("creativityValue");
+    const generateButton = document.getElementById("generateButton");
+    const promptInput = document.getElementById("prompt");
+    const outputDiv = document.getElementById("output");
+    // Fallback in case ID in HTML is modelSelect or novaModelSelect
+    const modelSelect = document.getElementById("modelSelect") || document.getElementById("novaModelSelect");
 
-        // Key Storage
-        const savedKey = localStorage.getItem("nova_api_key");
-        if (savedKey) {
-            apiKeyInput.value = savedKey;
-            keyStatus.textContent = "KEY LOADED FROM LOCALSTORAGE";
-        }
-
-        saveKeyBtn.addEventListener("click", () => {
-            const key = apiKeyInput.value.trim();
-            if (key) {
-                localStorage.setItem("nova_api_key", key);
-                keyStatus.textContent = "KEY SAVED SECURELY";
+    // 1. Live BYOK key status (updates as you type or paste)
+    if (apiKeyInput && keyStatus) {
+        apiKeyInput.addEventListener("input", () => {
+            const raw = apiKeyInput.value.trim();
+            if (raw.length > 0) {
+                keyStatus.textContent = `BYOK READY (••••••••${raw.slice(-4)})`;
+                keyStatus.style.color = "#ff0033";
             } else {
-                localStorage.removeItem("nova_api_key");
-                keyStatus.textContent = "KEY CLEARED";
+                keyStatus.textContent = "NO KEY ENTERED";
+                keyStatus.style.color = "#555";
             }
         });
+    }
 
-        // Creativity value slider
+    // 2. Clear button handler
+    if (clearKeyBtn && apiKeyInput) {
+        clearKeyBtn.addEventListener("click", () => {
+            apiKeyInput.value = "";
+            if (keyStatus) {
+                keyStatus.textContent = "NO KEY ENTERED";
+                keyStatus.style.color = "#555";
+            }
+        });
+    }
+
+    // 3. Slider update
+    if (creativitySlider && creativityVal) {
         creativitySlider.addEventListener("input", () => {
             creativityVal.textContent = creativitySlider.value;
         });
-
-    // Generate call to Nova API
-generateButton.addEventListener("click", async () => {
-    // Sanitize key (strip accidental prefixes or quotes)
-    const key = apiKeyInput.value
-        .trim()
-        .replace(/^NOVA_API_KEY\s*=\s*/i, '')
-        .replace(/^Bearer\s+/i, '')
-        .replace(/^["']|["']$/g, '')
-        .trim();
-
-    const promptText = promptInput.value.trim();
-    const modelValue = modelSelect.value;
-    const temperature = parseFloat(creativitySlider.value);
-
-    if (!key) {
-        outputDiv.innerHTML = "<span class='error-detail'>ERROR: PLEASE ENTER YOUR NOVA API KEY.</span>";
-        return;
-    }
-    if (!promptText) {
-        outputDiv.innerHTML = "<span class='error-detail'>ERROR: INPUT FIELD IS EMPTY. PLEASE DEFINE A QUERY.</span>";
-        return;
     }
 
-    outputDiv.innerHTML = "<span class='generating'>TRANSMITTING VIA CHANNELS... CONNECTING TO AMAZON NOVA GATEWAY...</span>";
+    // 4. Generate call to Nova API
+    if (generateButton) {
+        generateButton.addEventListener("click", async () => {
+            const key = apiKeyInput ? apiKeyInput.value
+                .trim()
+                .replace(/^NOVA_API_KEY\s*=\s*/i, '')
+                .replace(/^Bearer\s+/i, '')
+                .replace(/^["']|["']$/g, '')
+                .trim() : "";
 
-    // Route through your Cloudflare Worker to avoid CORS block
-    const NOVA_URL = "https://api.nova.amazon.com/v1/chat/completions";
-    const proxyUrl = "https://lively-limitless.inkrealm.workers.dev/?url=" + encodeURIComponent(NOVA_URL);
+            const promptText = promptInput ? promptInput.value.trim() : "";
+            const modelValue = modelSelect ? modelSelect.value : "nova-2-lite-v1";
+            const temperature = creativitySlider ? parseFloat(creativitySlider.value) : 0.7;
 
-    try {
-        const response = await fetch(proxyUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${key}`
-            },
-            body: JSON.stringify({
-                model: modelValue,
-                messages: [
-                    { role: "system", content: "You are a direct, helpful assistant. Provide clear, straight, and concise answers." },
-                    { role: "user", content: promptText }
-                ],
-                temperature: temperature,
-                max_tokens: 1024
-            })
+            if (!key) {
+                outputDiv.innerHTML = "<span class='error-detail'>ERROR: PLEASE ENTER YOUR NOVA API KEY.</span>";
+                return;
+            }
+            if (!promptText) {
+                outputDiv.innerHTML = "<span class='error-detail'>ERROR: INPUT FIELD IS EMPTY. PLEASE DEFINE A QUERY.</span>";
+                return;
+            }
+
+            outputDiv.innerHTML = "<span class='generating'>TRANSMITTING VIA CHANNELS... CONNECTING TO AMAZON NOVA GATEWAY...</span>";
+
+            const NOVA_URL = "https://api.nova.amazon.com/v1/chat/completions";
+            const proxyUrl = "https://lively-limitless.inkrealm.workers.dev/?url=" + encodeURIComponent(NOVA_URL);
+
+            try {
+                const response = await fetch(proxyUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: modelValue,
+                        messages: [
+                            { role: "system", content: "You are a direct, helpful assistant. Provide clear, straight, and concise answers without filler." },
+                            { role: "user", content: promptText }
+                        ],
+                        temperature: temperature,
+                        max_tokens: 1024
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorObj = await response.json().catch(() => ({}));
+                    throw new Error(errorObj?.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const contentText = data?.choices?.[0]?.message?.content || "No data received.";
+                outputDiv.textContent = contentText;
+
+            } catch (err) {
+                outputDiv.innerHTML = `<span class='error-detail'>TRANSMISSION INTERRUPTED: ${err.message}</span>`;
+            }
         });
-
-        if (!response.ok) {
-            const errorObj = await response.json().catch(() => ({}));
-            throw new Error(errorObj?.error?.message || `HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const contentText = data?.choices?.[0]?.message?.content || "No data received.";
-        outputDiv.textContent = contentText;
-
-    } catch (err) {
-        outputDiv.innerHTML = `<span class='error-detail'>TRANSMISSION INTERRUPTED: ${err.message}</span>`;
     }
-});
-
+}
         // Copy / Import Controls
         document.getElementById("copyButton").addEventListener("click", () => {
             navigator.clipboard.writeText(outputDiv.textContent);
