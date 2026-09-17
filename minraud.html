@@ -1531,37 +1531,46 @@
                 
                 <label style="color:#ff0033; font-size:0.75rem;">SELECT ENGINE:</label>
                 <div class="custom-select-container">
-                    <select id="modelSelect">
-                        <option value="nova-2-lite-v1">Nova 2 Lite v1</option>
-                        <option value="nova-lite-v1">Nova Lite v1</option>
-                        <option value="nova-micro-v1">Nova Micro v1</option>
-                        <option value="nova-pro-v1">Nova Pro v1</option>
-                        <option value="nova-2-micro-v1">Nova 2 Micro v1</option>
-                        <option value="nova-2-premier-v1">Nova 2 Premier v1</option> 
-                        <option value="nova-premier-v1">Nova Premier v1</option> 
-                        <option value="local-sonic-mirror" class="nova2-opt">Nova 2 Sonic (Speech)</option>
-                    </select>
-                </div>
+               <div style="margin-bottom: 8px;">
+    <label style="font-size: 0.65rem; color: #ff0033; font-weight: bold; display: block; margin-bottom: 4px;">SELECT MODEL</label>
+    <select id="novaModelSelect" style="width: 100%; background: #111; border: 1px solid #333; color: #ff0033; padding: 8px; font-family: 'Courier New', monospace; font-size: 0.75rem;">
+        <option value="nova-2-lite-v1" selected>Nova 2 Lite (nova-2-lite-v1) - 20 RPM</option>
+        <option value="nova-pro-v1">Nova Pro (nova-pro-v1) - 5 RPM</option>
+        <option value="nova-lite-v1">Nova Lite (nova-lite-v1) - 5 RPM</option>
+        <option value="nova-micro-v1">Nova Micro (nova-micro-v1) - 5 RPM</option>
+        <option value="nova-premier-v1">Nova Premier (nova-premier-v1) - 2 RPM</option>
+    </select>
+</div>
 
                 <!-- API KEY SECTION -->
-                <div style="margin: 0.8rem 0; padding: 12px; border: 1px dashed #ff0033; background: rgba(0, 0, 0, 0.7);">
-                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <div style="width: 8px; height: 8px; background: #ff0033; margin-right: 8px;"></div>
-                        <div style="font-size: 0.7rem; color: #ff0033; font-weight: bold;">
-                            AMAZON NOVA API KEY
-                        </div>
-                    </div>
-                    
-                    <input type="password" id="novaApiKey" 
-                           placeholder="b3333333-8888-4444-9999-00000000000"
-                           style="width: 100%; background: #111; border: 1px solid #333; color: #ff0033; padding: 10px; font-family: 'Courier New', monospace; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 8px; box-sizing: border-box;">
-                    
-                    <div style="font-size: 0.6rem; color: #666; margin-bottom: 8px;">
-                        Get Nova API key from: 
-                        <a href="https://nova.amazon.com" target="_blank" style="color: #ff0033;">nova.amazon.com</a><br>
-                        Key format: <code style="color: #d9d9d9; font-family: monospace;">b3333333-8888-4444-9999-00000000000</code><br>
-                        paste without "NOVA_API_KEY=" prefix <i>or download the hermes nous model above for private offline ai interaction</i>
-                    </div>
+               <!-- API KEY SECTION (BYOK) -->
+<div style="margin: 0.8rem 0; padding: 12px; border: 1px dashed #ff0033; background: rgba(0, 0, 0, 0.7);">
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <div style="width: 8px; height: 8px; background: #ff0033; margin-right: 8px;"></div>
+        <div style="font-size: 0.7rem; color: #ff0033; font-weight: bold;">
+            AMAZON NOVA API KEY (BYOK)
+        </div>
+    </div>
+    
+    <input type="password" id="novaApiKey" 
+           placeholder="b3333333-8888-4444-9999-00000000000"
+           autocomplete="off"
+           spellcheck="false"
+           style="width: 100%; background: #111; border: 1px solid #333; color: #ff0033; padding: 10px; font-family: 'Courier New', monospace; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 8px; box-sizing: border-box;">
+    
+    <div style="font-size: 0.6rem; color: #666; line-height: 1.5; margin-bottom: 8px;">
+        Get Nova API key from: 
+        <a href="https://nova.amazon.com" target="_blank" style="color: #ff0033; text-decoration: underline;">nova.amazon.com</a><br>
+        Key format: <code style="color: #d9d9d9; font-family: monospace;">b3333333-8888-4444-9999-00000000000</code><br>
+        Paste without <code style="color: #bbb;">NOVA_API_KEY=</code> prefix. Key remains in browser memory only and is never saved to storage. 
+        <i>Or download the hermes nous model above for private offline ai interaction.</i>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.55rem; color: #555;" id="keyStatus">No key entered</div>
+        <button type="button" id="clearKeyBtn" style="background: transparent; border: 1px solid #333; color: #666; font-size: 0.6rem; padding: 2px 8px; cursor: pointer;">CLEAR</button>
+    </div>
+</div>
                     
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-size: 0.55rem; color: #555;" id="keyStatus">No key set</div>
@@ -1851,55 +1860,66 @@
             creativityVal.textContent = creativitySlider.value;
         });
 
-        // Generate call to Nova API
-        generateButton.addEventListener("click", async () => {
-            const key = apiKeyInput.value.trim();
-            const promptText = promptInput.value.trim();
-            const modelValue = modelSelect.value;
-            const temperature = parseFloat(creativitySlider.value);
+    // Generate call to Nova API
+generateButton.addEventListener("click", async () => {
+    // Sanitize key (strip accidental prefixes or quotes)
+    const key = apiKeyInput.value
+        .trim()
+        .replace(/^NOVA_API_KEY\s*=\s*/i, '')
+        .replace(/^Bearer\s+/i, '')
+        .replace(/^["']|["']$/g, '')
+        .trim();
 
-            if (!key) {
-                outputDiv.innerHTML = "<span class='error-detail'>ERROR: PLEASE PROVIDE AND SAVE YOUR NOVA API KEY FIRST.</span>";
-                return;
-            }
-            if (!promptText) {
-                outputDiv.innerHTML = "<span class='error-detail'>ERROR: INPUT FIELD IS EMPTY. PLEASE DEFINE A QUERY.</span>";
-                return;
-            }
+    const promptText = promptInput.value.trim();
+    const modelValue = modelSelect.value;
+    const temperature = parseFloat(creativitySlider.value);
 
-            outputDiv.innerHTML = "<span class='generating'>TRANSMITTING VIA CHANNELS... CONNECTING TO AMAZON NOVA GATEWAY...</span>";
+    if (!key) {
+        outputDiv.innerHTML = "<span class='error-detail'>ERROR: PLEASE ENTER YOUR NOVA API KEY.</span>";
+        return;
+    }
+    if (!promptText) {
+        outputDiv.innerHTML = "<span class='error-detail'>ERROR: INPUT FIELD IS EMPTY. PLEASE DEFINE A QUERY.</span>";
+        return;
+    }
 
-            try {
-                const response = await fetch("https://api.nova.amazon.com/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${key}`
-                    },
-                    body: JSON.stringify({
-                        model: modelValue,
-                        messages: [
-                            { role: "system", content: "YOU ARE THE NOVA AI INTERFACE. William S. Burroughs, Cut-up style." },
-                            { role: "user", content: promptText }
-                        ],
-                        temperature: temperature,
-                        max_tokens: 1024
-                    })
-                });
+    outputDiv.innerHTML = "<span class='generating'>TRANSMITTING VIA CHANNELS... CONNECTING TO AMAZON NOVA GATEWAY...</span>";
 
-                if (!response.ok) {
-                    const errorObj = await response.json().catch(() => ({}));
-                    throw new Error(errorObj?.error?.message || `HTTP ${response.status}`);
-                }
+    // Route through your Cloudflare Worker to avoid CORS block
+    const NOVA_URL = "https://api.nova.amazon.com/v1/chat/completions";
+    const proxyUrl = "https://lively-limitless.inkrealm.workers.dev/?url=" + encodeURIComponent(NOVA_URL);
 
-                const data = await response.json();
-                const contentText = data?.choices?.[0]?.message?.content || "No data received.";
-                outputDiv.textContent = contentText;
-
-            } catch (err) {
-                outputDiv.innerHTML = `<span class='error-detail'>TRANSMISSION INTERRUPTED: ${err.message}</span>`;
-            }
+    try {
+        const response = await fetch(proxyUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${key}`
+            },
+            body: JSON.stringify({
+                model: modelValue,
+                messages: [
+                    { role: "system", content: "You are a direct, helpful assistant. Provide clear, straight, and concise answers." },
+                    { role: "user", content: promptText }
+                ],
+                temperature: temperature,
+                max_tokens: 1024
+            })
         });
+
+        if (!response.ok) {
+            const errorObj = await response.json().catch(() => ({}));
+            throw new Error(errorObj?.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const contentText = data?.choices?.[0]?.message?.content || "No data received.";
+        outputDiv.textContent = contentText;
+
+    } catch (err) {
+        outputDiv.innerHTML = `<span class='error-detail'>TRANSMISSION INTERRUPTED: ${err.message}</span>`;
+    }
+});
 
         // Copy / Import Controls
         document.getElementById("copyButton").addEventListener("click", () => {
