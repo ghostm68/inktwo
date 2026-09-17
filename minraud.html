@@ -717,6 +717,41 @@
             flex: 1;
         }
 
+        .notepad-stats {
+            float: right;
+            font-size: 0.65rem;
+            font-weight: normal;
+            color: #666;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .notepad-controls button {
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+            padding: 0.35rem 0.25rem;
+        }
+
+        #micBtn.mic-on {
+            background: #ff0033;
+            color: #000;
+            border-color: #ff0033;
+            box-shadow: 0 0 10px rgba(255, 0, 51, 0.5);
+        }
+
+        .notepad-mic-status {
+            font-size: 0.6rem;
+            color: #666;
+            letter-spacing: 1px;
+            min-height: 1em;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        .notepad-mic-status.live {
+            color: #ff0033;
+        }
+
         /* --- FOOTER --- */
         footer {
             margin-top: 2rem;
@@ -1649,14 +1684,18 @@
                 
                 <!-- Panel A: Notepad -->
                 <div class="panel">
-                    <h2>NOTEPAD</h2>
+                    <h2>NOTEPAD <span id="notepadStats" class="notepad-stats">LN 0 · 0 W · 0 C</span></h2>
                     <textarea id="notepad" placeholder="Your workspace..."></textarea>
                     
-                    <div class="controls-row">
-                        <button id="exportButton">SAVE</button>
-                        <button id="captureUrlBtn" title="Generate share link">[CAPTURE #URL]</button>
-                        <button id="clearButton">CLEAR</button>
+                    <div class="controls-row notepad-controls">
+                        <button type="button" id="micBtn" title="Voice dictation into notepad">[MIC: OFF]</button>
+                        <button type="button" id="importTxtBtn" title="Import .txt file">IMP</button>
+                        <input type="file" id="importTxtFile" accept=".txt,text/plain" style="display:none">
+                        <button type="button" id="exportButton" title="Download as .txt">SAVE</button>
+                        <button type="button" id="captureUrlBtn" title="Generate share link">#URL</button>
+                        <button type="button" id="clearButton" title="Clear notepad">CLR</button>
                     </div>
+                    <div id="notepadMicStatus" class="notepad-mic-status"></div>
 
                     <!-- Non-editable Readout Box -->
                     <div id="urlReadoutContainer" class="url-readout-wrap" style="display: none;">
@@ -1967,7 +2006,9 @@ function initAppCore() {
 
         // Notepad Actions
         document.getElementById("clearButton").addEventListener("click", () => {
-            document.getElementById("notepad").value = "";
+            const n = document.getElementById("notepad");
+            n.value = "";
+            n.dispatchEvent(new Event("input", { bubbles: true }));
         });
 
         document.getElementById("exportButton").addEventListener("click", () => {
@@ -2552,6 +2593,7 @@ if (russianData && Array.isArray(russianData.wordlist)) {
         clearBtn.addEventListener("click", () => {
             pad.value = "";
             localStorage.removeItem("MINRAUD_NOTEPAD_BUFFER");
+            pad.dispatchEvent(new Event("input", { bubbles: true }));
             if (readoutContainer) readoutContainer.style.display = "none";
             if (readoutBox) readoutBox.value = "";
         });
@@ -2666,5 +2708,148 @@ if (russianData && Array.isArray(russianData.wordlist)) {
     });
 })();
     </script>
+
+    <script>
+    // ================= NOTEPAD VOX + IMPORT + STATS =================
+(function initNotepadVox() {
+    const pad = document.getElementById("notepad");
+    const micBtn = document.getElementById("micBtn");
+    const micStatus = document.getElementById("notepadMicStatus");
+    const importBtn = document.getElementById("importTxtBtn");
+    const importFile = document.getElementById("importTxtFile");
+    const statsEl = document.getElementById("notepadStats");
+    if (!pad) return;
+
+    function updateStats() {
+        if (!statsEl) return;
+        const text = pad.value;
+        const chars = text.length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const lines = text ? text.split(/\n/).length : 0;
+        statsEl.textContent = "LN " + lines + " · " + words + " W · " + chars + " C";
+    }
+    pad.addEventListener("input", updateStats);
+    updateStats();
+
+    // --- TXT IMPORT ---
+    if (importBtn && importFile) {
+        importBtn.addEventListener("click", () => importFile.click());
+        importFile.addEventListener("change", () => {
+            const file = importFile.files && importFile.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const text = String(reader.result || "");
+                if (pad.value.trim() && !confirm("Replace notepad contents with imported file?")) {
+                    importFile.value = "";
+                    return;
+                }
+                pad.value = text;
+                pad.dispatchEvent(new Event("input", { bubbles: true }));
+                updateStats();
+                importFile.value = "";
+            };
+            reader.onerror = () => {
+                if (micStatus) micStatus.textContent = "IMPORT FAILED";
+                importFile.value = "";
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // --- MIC DICTATION (SpeechRecognition → notepad only, no TTS) ---
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let listening = false;
+
+    function setMicUI(on, msg) {
+        listening = on;
+        if (micBtn) {
+            micBtn.textContent = on ? "[MIC: ON]" : "[MIC: OFF]";
+            micBtn.classList.toggle("mic-on", on);
+        }
+        if (micStatus) {
+            micStatus.textContent = msg || (on ? "INTERCEPT // LISTENING" : "");
+            micStatus.classList.toggle("live", !!on);
+        }
+    }
+
+    function insertAtCursor(text) {
+        const start = pad.selectionStart;
+        const end = pad.selectionEnd;
+        const before = pad.value.substring(0, start);
+        const after = pad.value.substring(end);
+        const spacer = before.length && !/\s$/.test(before) ? " " : "";
+        pad.value = before + spacer + text + after;
+        const caret = start + spacer.length + text.length;
+        pad.focus();
+        pad.selectionStart = pad.selectionEnd = caret;
+        pad.dispatchEvent(new Event("input", { bubbles: true }));
+        updateStats();
+    }
+
+    if (micBtn) {
+        if (!SR) {
+            micBtn.title = "Speech recognition not supported in this browser";
+            micBtn.addEventListener("click", () => {
+                setMicUI(false, "MIC UNAVAILABLE IN THIS BROWSER");
+            });
+        } else {
+            recognition = new SR();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = document.documentElement.lang || "en-US";
+
+            recognition.onresult = (event) => {
+                let chunk = "";
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        chunk += event.results[i][0].transcript;
+                    }
+                }
+                chunk = chunk.trim();
+                if (chunk) insertAtCursor(chunk);
+            };
+
+            recognition.onerror = (event) => {
+                const err = event.error || "error";
+                if (err === "not-allowed" || err === "service-not-allowed") {
+                    setMicUI(false, "MIC PERMISSION DENIED");
+                } else if (err === "no-speech") {
+                    // stay on; browser may keep session
+                    if (micStatus) micStatus.textContent = "INTERCEPT // NO SPEECH";
+                } else {
+                    setMicUI(false, "MIC // " + String(err).toUpperCase());
+                }
+            };
+
+            recognition.onend = () => {
+                if (listening) {
+                    // restart while user still wants mic on
+                    try { recognition.start(); } catch (e) { setMicUI(false, "MIC STOPPED"); }
+                } else {
+                    setMicUI(false, "");
+                }
+            };
+
+            micBtn.addEventListener("click", () => {
+                if (listening) {
+                    listening = false;
+                    try { recognition.stop(); } catch (e) {}
+                    setMicUI(false, "");
+                    return;
+                }
+                try {
+                    recognition.start();
+                    setMicUI(true, "INTERCEPT // LISTENING");
+                } catch (e) {
+                    setMicUI(false, "MIC START FAILED");
+                }
+            });
+        }
+    }
+})();
+    </script>
+
 </body>
 </html>
