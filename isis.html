@@ -100,14 +100,36 @@
     .brandSub { font-size: 10px; color: var(--mut); letter-spacing: 3px; margin-left: 4px; }
 
     /* GRAM SPARKLINE HEADER */
-    #gramChart { display: flex; align-items: center; gap: 10px; }
-    #gramSym { font-weight: 800; color: var(--crimson-glow); font-size: 13px; }
-    #gramPrice { font-size: 15px; font-weight: bold; }
-    #gramChange { font-size: 11px; padding: 2px 6px; border: 1px solid var(--line2); }
-    #gramChange.up { color: var(--yel); border-color: rgba(255,210,74,0.4); }
-    #gramChange.down { color: var(--crimson-glow); border-color: rgba(230,28,28,0.4); }
-    #gramSpark { width: 140px; height: 32px; }
-
+    /* GRAM SPARKLINE HEADER – upgraded */
+#gramChart {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(13, 8, 10, 0.85);
+  border: 1px solid var(--line2);
+  padding: 4px 10px 4px 8px;
+  border-radius: 2px;
+}
+#gramSym { font-weight: 800; color: var(--crimson-glow); font-size: 13px; letter-spacing: 1px; }
+#gramPrice { font-size: 16px; font-weight: bold; color: #fff; min-width: 58px; }
+#gramChange {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid var(--line2);
+  letter-spacing: 0.5px;
+}
+#gramChange.up { color: var(--yel); border-color: rgba(255,210,74,0.45); }
+#gramChange.down { color: var(--crimson-glow); border-color: rgba(230,28,28,0.45); }
+#gramSpark { width: 130px; height: 28px; }
+#gramWallet {
+  margin-left: 6px;
+  font-size: 9px;
+  color: var(--dim);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
     #statusgrp { display: flex; align-items: center; gap: 14px; font-size: 11px; }
     #zulu b { color: #fff; }
     .stat { text-align: center; }
@@ -533,14 +555,14 @@
       </div>
 
       <!-- Live TON Gram Micro-Chart -->
-      <div id="gramChart" title="GRAM (Layer-1 Native Asset) - Live Market Feed">
-        <span id="gramSym">GR@M</span>
-        <span id="gramPrice">--</span>
-        <span id="gramChange" class="up">--%</span>
-        <svg id="gramSpark" viewBox="0 0 140 32" preserveAspectRatio="none"></svg>
-        <span id="gramWallet" style="margin-left:auto; font-size:10px; color:var(--crimson-glow);">gram @ UQAc99MvKIcewbQFmOF_RvqpkAXZno0wiz3_BMsP87pJjSnB </span>
-      </div>
-    </div>
+      <!-- Live GRAM Micro-Chart (upgraded) -->
+<div id="gramChart" title="GRAM • Live Market Feed">
+  <span id="gramSym">GR@M</span>
+  <span id="gramPrice">--</span>
+  <span id="gramChange" class="up">--%</span>
+  <svg id="gramSpark" viewBox="0 0 130 28" preserveAspectRatio="none"></svg>
+  <span id="gramWallet" title="UQAc99MvKIcewbQFmOF_RvqpkAXZno0wiz3_BMsP87pJjSnB">gram @ UQAc…JjSnB</span>
+</div>
 
     <div id="statusgrp">
       <div id="zulu">ZULU <b id="zulu-clock">00:00:00</b>Z</div>
@@ -787,53 +809,69 @@
     });
 
     // ================= 4. GRAM TOKEN SPARKLINE =================
-    async function loadGramToken() {
-      try {
-        const tickerRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT");
-        if (!tickerRes.ok) throw new Error("Ticker error");
-        const ticker = await tickerRes.json();
+    // ================= 4. GRAM LIVE FEED (upgraded + CORS proxy) =================
+const gramProxy = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 
-        const price = parseFloat(ticker.lastPrice);
-        const chg = parseFloat(ticker.priceChangePercent);
+function drawGramSpark(pts, up) {
+  const svg = document.getElementById('gramSpark');
+  if (!svg || pts.length < 2) return;
+  const w = 130, h = 28, n = pts.length;
+  const min = Math.min(...pts), max = Math.max(...pts), rng = max - min || 1;
+  const coords = pts.map((v, i) => {
+    const x = ((i / (n - 1)) * (w - 2) + 1).toFixed(1);
+    const y = (h - 3 - ((v - min) / rng) * (h - 6)).toFixed(1);
+    return `\( {x}, \){y}`;
+  });
+  const col = up ? '#ffd24a' : '#e61c1c';
+  svg.innerHTML = `<polyline points="\( {coords.join(' ')}" fill="none" stroke=" \){col}" stroke-width="1.7" stroke-linejoin="round"/>`;
+}
 
-        document.getElementById('gramPrice').innerText = `$${price.toFixed(2)}`;
-        const chgEl = document.getElementById('gramChange');
-        chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-        chgEl.className = chg >= 0 ? 'up' : 'down';
+async function loadGramToken() {
+  // Primary: Binance via proxy
+  try {
+    const tickerRes = await fetch(gramProxy('https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT'));
+    if (!tickerRes.ok) throw new Error('ticker');
+    const ticker = await tickerRes.json();
 
-        const klineRes = await fetch("https://api.binance.com/api/v3/klines?symbol=TONUSDT&interval=1h&limit=24");
-        if (klineRes.ok) {
-          const klines = await klineRes.json();
-          const closePrices = klines.map(c => parseFloat(c[4]));
-          drawSparkline(closePrices, chg >= 0);
-        }
-      } catch (err) {
-        try {
-          const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true");
-          const cgData = await cgRes.json();
-          const ton = cgData["the-open-network"];
-          if (ton) {
-            document.getElementById('gramPrice').innerText = `$${ton.usd.toFixed(2)}`;
-            const chg = ton.usd_24h_change;
-            const chgEl = document.getElementById('gramChange');
-            chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-            chgEl.className = chg >= 0 ? 'up' : 'down';
-            drawSparkline([ton.usd * 0.98, ton.usd * 0.99, ton.usd, ton.usd], chg >= 0);
-          }
-        } catch (e) {}
-      }
+    const price = parseFloat(ticker.lastPrice);
+    const chg  = parseFloat(ticker.priceChangePercent);
+
+    document.getElementById('gramPrice').innerText = '$' + (price >= 10 ? price.toFixed(2) : price.toFixed(4));
+    const chgEl = document.getElementById('gramChange');
+    chgEl.innerText = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+    chgEl.className = chg >= 0 ? 'up' : 'down';
+
+    // Sparkline
+    const kRes = await fetch(gramProxy('https://api.binance.com/api/v3/klines?symbol=TONUSDT&interval=1h&limit=24'));
+    if (kRes.ok) {
+      const klines = await kRes.json();
+      drawGramSpark(klines.map(c => parseFloat(c[4])), chg >= 0);
     }
+    return;
+  } catch (err) {
+    console.warn('GRAM Binance path failed', err);
+  }
 
-    function drawSparkline(pts, up) {
-      const svg = document.getElementById('gramSpark');
-      const w = 140, h = 32, n = pts.length;
-      const min = Math.min(...pts), max = Math.max(...pts), rng = max - min || 1;
-      const coords = pts.map((v, i) => `${((i/(n-1))*(w-2)+1).toFixed(1)},${(h-3-((v-min)/rng)*(h-6)).toFixed(1)}`);
-      const col = up ? "#ffd24a" : "#e61c1c";
-      svg.innerHTML = `<polyline points="${coords.join(' ')}" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+  // Fallback: CoinGecko
+  try {
+    const cgRes = await fetch(gramProxy('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true'));
+    const cgData = await cgRes.json();
+    const ton = cgData['the-open-network'];
+    if (ton) {
+      document.getElementById('gramPrice').innerText = '$' + ton.usd.toFixed(4);
+      const chg = ton.usd_24h_change || 0;
+      const chgEl = document.getElementById('gramChange');
+      chgEl.innerText = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+      chgEl.className = chg >= 0 ? 'up' : 'down';
+      drawGramSpark([ton.usd * 0.97, ton.usd * 0.99, ton.usd, ton.usd * 1.01], chg >= 0);
     }
-    loadGramToken(); setInterval(loadGramToken, 60000);
+  } catch (e) {
+    console.warn('GRAM CoinGecko path failed', e);
+  }
+}
 
+loadGramToken();
+setInterval(loadGramToken, 60000);
     // ================= 5. OPTICAL FEED URL STORAGE =================
     function initOpticalFeed() {
       const saved = localStorage.getItem('ISIS_FEED_URL');
