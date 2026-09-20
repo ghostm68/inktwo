@@ -1430,6 +1430,7 @@
         .progress-track { width: 100%; height: 2px; background: #222; margin: 10px 0; display: none; }
         .progress-fill { width: 0%; height: 100%; background: #ff0033; transition: width 0.2s; }   
         /* --- QUANTUM VIDEO EMBED (MATCHES TON-QR) --- */
+    /* --- QUANTUM VIDEO EMBED (MATCHES TON-QR) --- */
         #quantum-video {
             width: 60px;
             height: 60px;
@@ -1445,7 +1446,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            cursor: zoom-in;
+            cursor: pointer;
         }
 
         #quantum-video:hover {
@@ -1458,28 +1459,22 @@
             height: 100%;
             border: 0;
             background: #000;
-            display: block;
+            pointer-events: none; /* Passes clicks directly to our custom handler */
         }
 
         #quantum-video .vid-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.2);
+            background: transparent;
             z-index: 2;
-            cursor: zoom-in;
+            cursor: pointer;
         }
 
-        /* Expands smoothly like the QR code */
         #quantum-video.expanded {
             transform: scale(4.2);
             z-index: 999999;
             border-color: #ff0033;
             box-shadow: 0 0 100px rgba(0, 0, 0, 0.95), 0 0 50px rgba(255, 0, 51, 0.8);
-            cursor: default;
-        }
-
-        #quantum-video.expanded .vid-overlay {
-            display: none;
         }
 
         #quantum-video .vid-close {
@@ -1544,14 +1539,14 @@
                  onclick="this.classList.toggle('expanded')"
                  title="Click to Enlarge">
 
-            <!-- QUANTUM RIDDLE MINIMAL EMBED -->
-            <div id="quantum-video" title="Click to Expand">
-                <iframe src="https://www.youtube-nocookie.com/embed/068rdc75mHM?modestbranding=1&rel=0&iv_load_policy=3&color=white&playsinline=1"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen>
+           <!-- QUANTUM RIDDLE MINIMAL EMBED -->
+            <div id="quantum-video" title="Click to Expand & Play">
+                <iframe id="quantum-iframe" 
+                        src="https://www.youtube-nocookie.com/embed/068rdc75mHM?enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1"
+                        allow="autoplay; encrypted-media">
                 </iframe>
-                <div class="vid-overlay" onclick="this.parentElement.classList.add('expanded'); event.stopPropagation();"></div>
-                <button type="button" class="vid-close" onclick="this.parentElement.classList.remove('expanded'); event.stopPropagation();" title="Contract">✕</button>
+                <div class="vid-overlay" onclick="handleQuantumClick(event)" title="Click to Play / Pause"></div>
+                <button type="button" class="vid-close" onclick="contractQuantumVid(event)" title="Contract & Stop">✕</button>
             </div>
         </div>
         <!-- NOUS INTERFACE HTML -->
@@ -3094,6 +3089,41 @@ if (russianData && Array.isArray(russianData.wordlist)) {
     });
 })();
     </script>
+<script>
+let isQuantumPlaying = false;
 
+function handleQuantumClick(e) {
+    e.stopPropagation();
+    const box = document.getElementById('quantum-video');
+    const iframe = document.getElementById('quantum-iframe');
+
+    if (!box.classList.contains('expanded')) {
+        // Expand and start playing automatically
+        box.classList.add('expanded');
+        iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        isQuantumPlaying = true;
+    } else {
+        // Toggle play / pause while expanded
+        if (isQuantumPlaying) {
+            iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            isQuantumPlaying = false;
+        } else {
+            iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            isQuantumPlaying = true;
+        }
+    }
+}
+
+function contractQuantumVid(e) {
+    e.stopPropagation();
+    const box = document.getElementById('quantum-video');
+    const iframe = document.getElementById('quantum-iframe');
+    
+    // Stop playback and contract
+    iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+    box.classList.remove('expanded');
+    isQuantumPlaying = false;
+}
+</script>
 </body>
 </html>
