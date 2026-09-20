@@ -6,36 +6,84 @@
 // 0. contact
 // ================================================================
 // ── SCRAMBLE LINK DECODER EFFECT ──
-document.addEventListener('DOMContentLoaded', () => {
-  const letters = "!<>-_\\/[]{}—=+*^?#________ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  
-  document.querySelectorAll(".scramble-link").forEach(link => {
-    link.addEventListener("mouseover", event => {
-      let iteration = 0;
-      clearInterval(event.target.interval);
-      
-      const target = event.target;
-      const originalText = target.dataset.value || target.innerText;
-      
-      target.interval = setInterval(() => {
-        target.innerText = originalText
-          .split("")
-          .map((char, index) => {
-            if (index < iteration) {
-              return originalText[index];
+		        class TextScramble {
+            constructor(el) {
+                this.el = el;
+                this.chars = '!<>-_\\/[]{}—=+*^?#@%&';
+                this.update = this.update.bind(this);
+                this.isAnimating = false;
             }
-            return letters[Math.floor(Math.random() * letters.length)];
-          })
-          .join("");
-
-        if (iteration >= originalText.length) {
-          clearInterval(target.interval);
+            
+            setText(newText, callback) {
+                cancelAnimationFrame(this.frameRequest);
+                const oldText = this.el.innerText;
+                const length = Math.max(oldText.length, newText.length);
+                this.queue = [];
+                
+                for (let i = 0; i < length; i++) {
+                    const from = oldText[i] || "";
+                    const to = newText[i] || "";
+                    const start = Math.floor(Math.random() * 5);
+                    const end = start + Math.floor(Math.random() * 10) + 5;
+                    this.queue.push({ from, to, start, end });
+                }
+                
+                this.frame = 0;
+                this.update(callback);
+            }
+            
+            update(callback) {
+                let output = "";
+                let complete = 0;
+                
+                for (let i = 0, n = this.queue.length; i < n; i++) {
+                    let { from, to, start, end, char } = this.queue[i];
+                    
+                    if (this.frame >= end) {
+                        complete++;
+                        output += to;
+                    } else if (this.frame >= start) {
+                        if (!char || Math.random() < 0.35)
+                            char = this.chars[Math.floor(Math.random() * this.chars.length)];
+                        output += char;
+                        this.queue[i].char = char;
+                    } else {
+                        output += from;
+                    }
+                }
+                
+                this.el.innerText = output;
+                
+                if (complete === this.queue.length) {
+                    if (callback) callback();
+                    return;
+                }
+                
+                this.frame++;
+                this.frameRequest = requestAnimationFrame(() => this.update(callback));
+            }
         }
-        iteration += 1 / 2;
-      }, 30);
-    });
-  });
-});
+
+        const siteName = "NEXUS";
+        
+        document.querySelectorAll(".scramble-link").forEach(link => {
+            const scrambler = new TextScramble(link);
+            const original = link.textContent;
+            
+            link.addEventListener("mouseenter", () => {
+                if (scrambler.isAnimating) return;
+                scrambler.isAnimating = true;
+                
+                scrambler.setText(siteName, () => {
+                    setTimeout(() => {
+                        scrambler.setText(original, () => {
+                            scrambler.isAnimating = false;
+                        });
+                    }, 250);
+                });
+            });
+        });
+
 // ================================================================
 // 1. LENIS SMOOTH SCROLL
 // ================================================================
