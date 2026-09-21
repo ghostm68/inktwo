@@ -1463,42 +1463,74 @@
 
     // ================= 8. NEWS WIRE TICKER ENGINE =================
 	      // ================= SPACEWX WIRE (NOAA SWPC — keyless, CORS-open) =================
+  // ================= TICKER ENGINE (KEEP INTACT) =================
+    const alerts = [
+      "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
+      "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
+      "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H"
+    ];
+
+    function pushTicker(msg) {
+      alerts.unshift(msg);
+      if (alerts.length > 25) alerts.pop();
+    }
+
+    let tickerIdx = 0;
+    setInterval(() => {
+      const el = document.getElementById('ticker-marquee');
+      if (el && alerts.length) {
+        el.innerHTML = `FEED: <b>${alerts[tickerIdx]}</b>`;
+        tickerIdx = (tickerIdx + 1) % alerts.length;
+      }
+    }, 5000);
+
+    // ================= SPACE WEATHER TELEMETRY =================
     const KP_LABELS = ["QUIET","QUIET","QUIET","UNSETTLED","ACTIVE","G1 STORM","G2 STORM","G3 STORM","G4 STORM","G5 EXTREME"];
 
     async function syncSpaceWx() {
-      // Planetary K-index (3-hour cadence)
+      // 1. Planetary K-index (3-hour cadence, 2D array: [time, Kp, a_running, stations])
       try {
         const kpRes = await fetch("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json");
         const kp = await kpRes.json();
         const latest = kp[kp.length - 1];
-        const kpVal = parseFloat(latest.Kp);
-        const label = KP_LABELS[Math.max(0, Math.min(9, Math.round(kpVal)))];
-        pushTicker(`GEOMAGNETIC // Kp ${kpVal.toFixed(2)} — ${label}`);
+        const rawKp = Array.isArray(latest) ? latest[1] : (latest.Kp || latest.kp);
+        const kpVal = parseFloat(rawKp);
+        if (!isNaN(kpVal)) {
+          const label = KP_LABELS[Math.max(0, Math.min(9, Math.round(kpVal)))];
+          pushTicker(`GEOMAGNETIC // Kp ${kpVal.toFixed(2)} — ${label}`);
+        }
       } catch (e) {}
 
-      // Solar wind plasma (5-min cadence)
+      // 2. Solar wind plasma (5-min cadence, index 2 = speed km/s)
       try {
         const swRes = await fetch("https://services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json");
         const sw = await swRes.json();
         const latest = sw[sw.length - 1];
-        const speed = Math.round(parseFloat(Array.isArray(latest) ? latest[2] : latest.speed));
-        pushTicker(`SOLAR WIND // ${speed} KM/S${speed > 500 ? ' — ELEVATED' : ''}`);
+        const rawSpeed = Array.isArray(latest) ? latest[2] : latest.speed;
+        const speed = Math.round(parseFloat(rawSpeed));
+        if (!isNaN(speed) && speed > 0) {
+          pushTicker(`SOLAR WIND // ${speed} KM/S${speed > 500 ? ' — ELEVATED' : ''}`);
+        }
       } catch (e) {}
 
-      // GOES X-ray flux → live solar flare class
+      // 3. GOES X-ray flux (6-hour window, 0.1-0.8nm primary channel for flare class)
       try {
-        const xrRes = await fetch("https://services.swpc.noaa.gov/json/goes/primary/xray-flux-1-minute.json");
+        const xrRes = await fetch("https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json");
         const xr = await xrRes.json();
-        const flux = parseFloat(xr[xr.length - 1].flux);
-        const exp = Math.floor(Math.log10(flux));
-        const cls = "BCMX"[Math.max(0, Math.min(3, exp + 7))];
-        const mult = (flux / Math.pow(10, exp)).toFixed(1);
-        pushTicker(`X-RAY FLUX // GOES ${cls}${mult}`);
+        const longChannel = xr.filter(d => d.energy === '0.1-0.8nm' && d.flux);
+        if (longChannel.length) {
+          const latest = longChannel[longChannel.length - 1];
+          const flux = parseFloat(latest.flux);
+          const exp = Math.floor(Math.log10(flux));
+          const cls = "ABCMX"[Math.max(0, Math.min(4, exp + 8))];
+          const mult = (flux / Math.pow(10, exp)).toFixed(1);
+          pushTicker(`X-RAY FLUX // GOES ${cls}${mult}`);
+        }
       } catch (e) {}
     }
+
     syncSpaceWx();
-    setInterval(syncSpaceWx, 600000);
-   
+    setInterval(syncSpaceWx, 300000);
 
     // ================= 9. NEKOS.BEST INTERCEPT FEED =================
     const ANIME_CATEGORIES = ['neko', 'waifu', 'kitsune', 'hug', 'pat', 'smile', 'dance', 'poke'];
