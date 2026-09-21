@@ -511,6 +511,40 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+	#threat-marquee {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 42%;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.threat-tag {
+  color: #ff3344;
+  font-weight: bold;
+  letter-spacing: 1px;
+  background: rgba(255, 51, 68, 0.15);
+  border: 1px solid rgba(255, 51, 68, 0.4);
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  text-shadow: 0 0 6px rgba(255, 51, 68, 0.6);
+}
+
+#threat-text {
+  color: #ffd27f;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  letter-spacing: 0.5px;
+}
+
+#threat-text .src {
+  color: #888;
+  font-size: 9px;
+  margin-left: 4px;
+}
   </style>
 </head>
 <body>
@@ -644,9 +678,16 @@
     </div>
   </div>
 
-  <!-- 3. INTEL WIRE FOOTER -->
+<!-- 3. INTEL WIRE FOOTER -->
   <footer id="statusbar">
     <div id="ticker-marquee">FEED: <span>INITIALIZING SENSOR MESH...</span></div>
+    
+    <!-- CENTER THREAT WIRE -->
+    <div id="threat-marquee">
+      <span class="threat-tag">THREAT [ISIL/ISIS]:</span>
+      <span id="threat-text">SCANNING WIRE DISPATCHES...</span>
+    </div>
+
     <div>DIRECT BROWSER RUNTIME | NO PROXY REQUIRED</div>
   </footer>
 
@@ -1531,6 +1572,63 @@
 
     syncSpaceWx();
     setInterval(syncSpaceWx, 300000);
+
+	// ================= CENTER FOOTER: ISIL / ISIS WIRE =================
+    const threatFeed = [
+      "CENTCOM // COALITION FORCES INTERDICT HIGH-VALUE TARGET CELL IN SYRIAN DESERT",
+      "MONITORING // UN ADVISORY CITES PERSISTENT WILAYAT KHURASAN CROSS-BORDER ACTIVITY",
+      "LEVANT // REGIONAL SWEEPS TARGET UNDERGROUND LOGISTICS NETWORK ALONG EUPHRATES",
+      "WEST AFRICA // MULTINATIONAL JOINT TASK FORCE ACTIVE IN LAKE CHAD BASIN"
+    ];
+    let threatIdx = 0;
+
+    function pushThreat(msg, src = "AJ") {
+      const clean = msg.replace(/<[^>]*>?/gm, '').trim().toUpperCase();
+      const formatted = `${clean} <span class="src">[${src}]</span>`;
+      if (!threatFeed.includes(formatted)) {
+        threatFeed.unshift(formatted);
+        if (threatFeed.length > 20) threatFeed.pop();
+      }
+    }
+
+    // Rotates the center threat message every 4 seconds
+    setInterval(() => {
+      const el = document.getElementById('threat-text');
+      if (el && threatFeed.length) {
+        el.innerHTML = threatFeed[threatIdx];
+        threatIdx = (threatIdx + 1) % threatFeed.length;
+      }
+    }, 4000);
+
+    async function syncThreatWire() {
+      // 1. Al Jazeera RSS query via open JSON bridge
+      try {
+        const query = encodeURIComponent("https://news.google.com/rss/search?q=ISIL+OR+ISIS+site:aljazeera.com&hl=en-US&gl=US&ceid=US:en");
+        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${query}`);
+        const data = await res.json();
+        if (data.status === 'ok' && data.items && data.items.length) {
+          data.items.slice(0, 6).forEach(item => {
+            pushThreat(item.title.replace(/ - Al Jazeera.*/i, ''), "AL JAZEERA");
+          });
+        }
+      } catch (e) {}
+
+      // 2. Fallback to Reddit OSINT dispatch
+      try {
+        const res = await fetch("https://www.reddit.com/r/syriancivilwar/search.json?q=ISIS+OR+ISIL&restrict_sr=1&sort=new&limit=6");
+        const data = await res.json();
+        if (data && data.data && data.data.children) {
+          data.data.children.forEach(post => {
+            if (!post.data.stickied && post.data.title) {
+              pushThreat(post.data.title, "OSINT");
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    syncThreatWire();
+    setInterval(syncThreatWire, 300000);  
 
     // ================= 9. NEKOS.BEST INTERCEPT FEED =================
     const ANIME_CATEGORIES = ['neko', 'waifu', 'kitsune', 'hug', 'pat', 'smile', 'dance', 'poke'];
