@@ -787,41 +787,90 @@
     });
 
     // ================= 4. GRAM TOKEN SPARKLINE =================
+    // ================= 4. GRAM TOKEN SPARKLINE (ex-TON, rebranded June 2026) =================
+    // Multi-source keyless feed. US-safe sources first (api.binance.com is geo-blocked
+    // for US visitors). CoinGecko id updated: the-open-network -> gram.
+
     async function loadGramToken() {
-      try {
-        const tickerRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT");
-        if (!tickerRes.ok) throw new Error("Ticker error");
-        const ticker = await tickerRes.json();
+      const priceEl = document.getElementById('gramPrice');
+      const chgEl = document.getElementById('gramChange');
 
-        const price = parseFloat(ticker.lastPrice);
-        const chg = parseFloat(ticker.priceChangePercent);
-
-        document.getElementById('gramPrice').innerText = `$${price.toFixed(2)}`;
-        const chgEl = document.getElementById('gramChange');
+      const paint = (price, chg, pts) => {
+        if (!isFinite(price)) return false;
+        priceEl.innerText = `$${price.toFixed(2)}`;
         chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
         chgEl.className = chg >= 0 ? 'up' : 'down';
+        if (pts && pts.length > 1) drawSparkline(pts, chg >= 0);
+        return true;
+      };
 
-        const klineRes = await fetch("https://api.binance.com/api/v3/klines?symbol=TONUSDT&interval=1h&limit=24");
-        if (klineRes.ok) {
-          const klines = await klineRes.json();
-          const closePrices = klines.map(c => parseFloat(c[4]));
-          drawSparkline(closePrices, chg >= 0);
+      // ---- SOURCE 1: Coinbase Exchange (keyless, CORS-open, US-safe) ----
+      try {
+        for (const product of ['GRAM-USD', 'TON-USD']) {
+          const tRes = await fetch(`https://api.exchange.coinbase.com/products/${product}/ticker`);
+          if (!tRes.ok) continue;
+          const t = await tRes.json();
+          const price = parseFloat(t.price);
+          if (!isFinite(price)) continue;
+
+          let chg = 0, pts = null;
+          try {
+            const cRes = await fetch(`https://api.exchange.coinbase.com/products/${product}/candles?granularity=3600`);
+            if (cRes.ok) {
+              const candles = (await cRes.json()).slice().reverse(); // chronological
+              pts = candles.map(c => parseFloat(c[4]));              // close prices
+              const win = candles.slice(-24);
+              if (win.length > 1) chg = (win[win.length - 1][4] / win[0][3] - 1) * 100;
+            }
+          } catch (e) {}
+          if (paint(price, chg, pts)) return;
         }
-      } catch (err) {
-        try {
-          const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true");
-          const cgData = await cgRes.json();
-          const ton = cgData["the-open-network"];
-          if (ton) {
-            document.getElementById('gramPrice').innerText = `$${ton.usd.toFixed(2)}`;
-            const chg = ton.usd_24h_change;
-            const chgEl = document.getElementById('gramChange');
-            chgEl.innerText = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
-            chgEl.className = chg >= 0 ? 'up' : 'down';
-            drawSparkline([ton.usd * 0.98, ton.usd * 0.99, ton.usd, ton.usd], chg >= 0);
-          }
-        } catch (e) {}
-      }
+      } catch (e) {}
+
+      // ---- SOURCE 2: Kraken (keyless, CORS-open, US-safe) ----
+      try {
+        const kRes = await fetch('https://api.kraken.com/0/public/Ticker?pair=TONUSD');
+        const k = await kRes.json();
+        const pair = k.result && (k.result.TONUSD || Object.values(k.result)[0]);
+        if (pair) {
+          const price = parseFloat(pair.c[0]);
+          const open = parseFloat(pair.o);
+          const chg = open ? (price / open - 1) * 100 : 0;
+          let pts = null;
+          try {
+            const oRes = await fetch('https://api.kraken.com/0/public/OHLC?pair=TONUSD&interval=60');
+            const o = await oRes.json();
+            const oPair = o.result && (o.result.TONUSD || Object.values(o.result)[0]);
+            if (Array.isArray(oPair)) pts = oPair.map(c => parseFloat(c[4]));
+          } catch (e) {}
+          if (paint(price, chg, pts)) return;
+        }
+      } catch (e) {}
+
+      // ---- SOURCE 3: Binance spot (works for non-US visitors) ----
+      try {
+        const tRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT");
+        if (tRes.ok) {
+          const t = await tRes.json();
+          const price = parseFloat(t.lastPrice);
+          const chg = parseFloat(t.priceChangePercent);
+          let pts = null;
+          const kRes = await fetch("https://api.binance.com/api/v3/klines?symbol=TONUSDT&interval=1h&limit=24");
+          if (kRes.ok) pts = (await kRes.json()).map(c => parseFloat(c[4]));
+          if (paint(price, chg, pts)) return;
+        }
+      } catch (e) {}
+
+      // ---- SOURCE 4: CoinGecko (updated id: gram) ----
+      try {
+        const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=gram&vs_currencies=usd&include_24hr_change=true");
+        const cg = await cgRes.json();
+        const g = cg["gram"];
+        if (g) {
+          const chg = g.usd_24h_change || 0;
+          paint(g.usd, chg, [g.usd * 0.98, g.usd * 0.99, g.usd, g.usd * (1 + chg / 200), g.usd * (1 + chg / 100)]);
+        }
+      } catch (e) {}
     }
 
     function drawSparkline(pts, up) {
