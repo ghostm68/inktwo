@@ -1119,9 +1119,9 @@
        <aside class="article-panel">
     <div class="article-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    
+                         <button type="button" onclick="toggleSolenoid()" class="doc-lvl-btn" id="solenoid-btn" title="Toggle Mechanical Audio">SFX: OFF</button>
                     <button type="button" onclick="exportDocPDF()" class="doc-lvl-btn" title="Export to PDF">PDF</button>
-                    <span>Live Document Editor</span>
+                    <span>Live Editor</span>
                 </div>
                 <div class="article-level-hud">
                     <button type="button" onclick="setDocLevel(0)" class="doc-lvl-btn active" id="doc-btn-0">0:RAW</button>
@@ -1948,5 +1948,118 @@ function exportDocPDF() {
     }
 })();
 </script>
+    <script>
+        // ==========================================
+// MECHANICAL SOLENOID SYNTHESIZER (WEB AUDIO)
+// ==========================================
+let audioCtx = null;
+let sfxActive = false;
+
+function initAudioContext() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function toggleSolenoid() {
+    initAudioContext();
+    sfxActive = !sfxActive;
+    
+    const btn = document.getElementById('solenoid-btn');
+    if (btn) {
+        btn.textContent = sfxActive ? 'SFX: ON' : 'SFX: OFF';
+        btn.classList.toggle('active', sfxActive);
+    }
+    
+    // Play a preview click on enable
+    if (sfxActive) {
+        playSolenoid('standard');
+    }
+}
+
+function playSolenoid(type = 'standard') {
+    if (!sfxActive) return;
+    initAudioContext();
+    if (!audioCtx) return;
+
+    const now = audioCtx.currentTime;
+
+    // Pitch jitter so every stroke feels slightly distinct
+    const jitter = (Math.random() - 0.5) * 16;
+
+    let baseFreq = 110;
+    let duration = 0.028;
+
+    if (type === 'space') {
+        baseFreq = 80;
+        duration = 0.038;
+    } else if (type === 'enter') {
+        baseFreq = 65;
+        duration = 0.055;
+    }
+
+    // --- LAYER 1: The Striker Thump (Triangle wave) ---
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(baseFreq + jitter, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + duration);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration);
+
+    // --- LAYER 2: The Mechanical Relay Snap (Square wave) ---
+    const snapOsc = audioCtx.createOscillator();
+    const snapGain = audioCtx.createGain();
+
+    const snapFreq = type === 'enter' ? 750 : (1500 + jitter * 8);
+    snapOsc.type = 'square';
+    snapOsc.frequency.setValueAtTime(snapFreq, now);
+    snapOsc.frequency.exponentialRampToValueAtTime(200, now + 0.012);
+
+    snapGain.gain.setValueAtTime(0.045, now);
+    snapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);
+
+    snapOsc.connect(snapGain);
+    snapGain.connect(audioCtx.destination);
+
+    snapOsc.start(now);
+    snapOsc.stop(now + 0.012);
+}
+
+// Attach sound to all active typing areas
+window.addEventListener('DOMContentLoaded', () => {
+    const inputs = [
+        document.querySelector('article'),
+        document.getElementById('notepad'),
+        document.querySelector('.text-input')
+    ];
+
+    inputs.forEach(el => {
+        if (!el) return;
+        el.addEventListener('keydown', (e) => {
+            if (e.repeat) return; // Prevent deafening feedback on held key
+
+            if (e.key === 'Enter') {
+                playSolenoid('enter');
+            } else if (e.key === ' ') {
+                playSolenoid('space');
+            } else if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
+                playSolenoid('standard');
+            }
+        });
+    });
+});
+    </script>
 </body>
 </html>
