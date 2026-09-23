@@ -1081,6 +1081,97 @@
             mix-blend-mode: screen;
         } 
     </style>
+    <style>
+        /* NOVA FM — Top-Right Placement */
+        #nova-fm-interface {
+            position: fixed;
+            top: 20px;
+            right: 20px; /* Anchored to the right */
+            left: auto;
+            font-family: 'Courier New', monospace;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* Aligns toggle & panel flush right */
+        }
+
+        #nova-fm-toggle {
+            background: #000;
+            color: #ffffff;
+            border: 1px solid #ff0033;
+            padding: 8px 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-bottom: 5px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 8px rgba(255, 0, 51, 0.2);
+        }
+
+        #nova-fm-toggle:hover {
+            color: #ffffff;
+            background: #200005;
+            border-color: #ff0033;
+            box-shadow: 0 0 15px rgba(255, 0, 51, 0.7);
+        }
+
+        #nova-fm-toggle.live {
+            background: #3d020a;
+            color: #ff0033;
+            box-shadow: 0 0 12px rgba(255, 0, 51, 0.5);
+        }
+
+        #nova-fm-panel {
+            display: none;
+            width: 300px;
+            background: rgba(5, 5, 5, 0.95);
+            border: 1px solid #fa0505;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,1);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        #nova-fm-panel .nous-header {
+            margin-bottom: 10px;
+        }
+
+        #nova-fm-panel audio {
+            width: 100%;
+            height: 32px;
+            margin: 8px 0 4px;
+            outline: none;
+        }
+
+        #nova-fm-panel .nova-fm-credit {
+            font-size: 0.65rem;
+            color: #888;
+            line-height: 1.5;
+            letter-spacing: 0.5px;
+        }
+
+        #nova-fm-panel .nova-fm-credit a {
+            color: #ff0033;
+            text-decoration: none;
+        }
+
+        #nova-fm-panel .nova-fm-credit a:hover {
+            text-shadow: 0 0 6px #ff0033;
+        }
+
+        @media (max-width: 768px) {
+            #nova-fm-interface {
+                top: auto;
+                bottom: 80px;
+                right: 10px; /* Anchored bottom-right on mobile */
+                left: auto;
+                align-items: flex-end;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- ====== NOISE OVERLAY ====== -->
@@ -1166,7 +1257,7 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                          <button type="button" onclick="toggleSolenoid()" class="doc-lvl-btn" id="solenoid-btn" title="Toggle Mechanical Audio">SFX: OFF</button>
                     <button type="button" onclick="exportDocPDF()" class="doc-lvl-btn" title="Export to PDF">PDF</button>
-                    <span> &#x265E;</span>
+                   <span style="font-size: 1.15rem; color: var(--white); line-height: 1; vertical-align: middle;">&#x265E;</span>
                 </div>
                 <div class="article-level-hud">
                     <button type="button" onclick="setDocLevel(0)" class="doc-lvl-btn active" id="doc-btn-0">0:RAW</button>
@@ -1188,7 +1279,23 @@
                 </div>
             </div>
         </main>
-
+  <!-- NOVA FM — credited Nouvo Nova stream (top-right, mirror of spin) -->
+        <div id="nova-fm-interface">
+            <button type="button" id="nova-fm-toggle">[ Nova: OFF ]</button>
+            <div id="nova-fm-panel">
+                <div class="nous-header">
+                    <span>NOUVO NOVA // radioSTREAM</span>
+                    <span id="nova-fm-status" style="color: #444;">STANDBY</span>
+                </div>
+                <audio id="novaAudio" controls preload="none"
+                       src="https://nova-nouvo.ice.infomaniak.ch/nova-nouvo-256.aac">
+                </audio>
+                <div class="nova-fm-credit">
+                    Optional ambient intercept.<br>
+                    www.nova.fr/radios/nouvo-nova/
+                </div>
+            </div>
+        </div>
         <aside class="notepad-panel" id="notepad-panel">
             <div class="notepad-header">
                 <span>SCRATCHPAD</span>
@@ -2173,6 +2280,55 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
     requestAnimationFrame(render);
+})();
+    </script>
+     <script>
+    // ================= NOVA FM POP-OUT (credited stream) =================
+(function initNovaFm() {
+    const toggle = document.getElementById("nova-fm-toggle");
+    const panel = document.getElementById("nova-fm-panel");
+    const audio = document.getElementById("novaAudio");
+    const status = document.getElementById("nova-fm-status");
+    if (!toggle || !panel || !audio) return;
+
+    function setLive(on) {
+        toggle.textContent = on ? "[ naufana: ON ]" : "[ naufana: OFF ]";
+        toggle.classList.toggle("live", on);
+        if (status) {
+            status.textContent = on ? "LIVE" : "STANDBY";
+            status.style.color = on ? "#ff0033" : "#444";
+        }
+    }
+
+    toggle.addEventListener("click", () => {
+        const open = panel.style.display === "block";
+        if (open) {
+            panel.style.display = "none";
+            audio.pause();
+            setLive(false);
+        } else {
+            panel.style.display = "block";
+            // user still presses play on the control — no autoplay
+            setLive(false);
+            status.textContent = "READY";
+            status.style.color = "#888";
+        }
+    });
+
+    audio.addEventListener("play", () => setLive(true));
+    audio.addEventListener("pause", () => {
+        if (panel.style.display === "block") {
+            setLive(false);
+            if (status) { status.textContent = "PAUSED"; status.style.color = "#888"; }
+        }
+    });
+    audio.addEventListener("error", () => {
+        if (status) {
+            status.textContent = "STREAM ERROR";
+            status.style.color = "#ff0033";
+        }
+        setLive(false);
+    });
 })();
     </script>
 </body>
