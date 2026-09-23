@@ -2106,5 +2106,74 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
     </script>
+    <script>
+         /* ====== POINTER TRAIL ENGINE ====== */
+   /* ====== POINTER TRAIL ENGINE ====== */
+(function initPointerTrail() {
+    const canvas = document.getElementById('trailCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    let W, H, dpr;
+    const pts = [];
+    const LIFE = 650; // Trail fade duration in ms
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+
+    function resize() {
+        dpr = window.devicePixelRatio || 1;
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    if (!isCoarse) {
+        window.addEventListener('pointermove', (e) => {
+            pts.push({
+                x: e.clientX,
+                y: e.clientY,
+                t: performance.now()
+            });
+        });
+    }
+
+    function render() {
+        requestAnimationFrame(render);
+        if (isCoarse) return;
+
+        const now = performance.now();
+
+        // Prune expired points based on timestamp
+        while (pts.length && now - pts[0].t > LIFE) {
+            pts.shift();
+        }
+
+        ctx.clearRect(0, 0, W, H);
+        if (pts.length < 2) return;
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Draw crisp fading red line segments
+        for (let i = 1; i < pts.length; i++) {
+            const progress = (now - pts[i].t) / LIFE;
+            const alpha = Math.max(0, Math.min(1, (1 - progress) * 1.2));
+
+            ctx.strokeStyle = `rgba(255, 0, 0, ${alpha.toFixed(3)})`;
+            ctx.lineWidth = 1.25; // Thin, sharp stroke
+
+            ctx.beginPath();
+            ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+            ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.stroke();
+        }
+    }
+    requestAnimationFrame(render);
+})();
+    </script>
 </body>
 </html>
