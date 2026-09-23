@@ -828,7 +828,34 @@
                 border: none !important;
             }
         }
+/* --- HOLLYWOOD WIRE DISPATCH STYLING --- */
+#feed-hollywood {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+}
 
+#feed-hollywood a {
+    color: #aaa;
+    text-decoration: none;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    transition: color 0.2s ease;
+    display: block;
+}
+
+#feed-hollywood a:hover {
+    color: var(--red);
+    text-decoration: underline;
+}
+
+#feed-hollywood .wire-prefix {
+    color: var(--red);
+    margin-right: 4px;
+    font-weight: bold;
+}x
         /* =========================================
            SINGLE CONSOLIDATED MOBILE ENGINE (< 768px)
            ========================================= */
@@ -1084,6 +1111,12 @@
                 <div class="feed-section">
                     <div class="feed-title">INTEL</div>
                     <div id="feed-news" class="feed-item">scanning…</div>
+                </div>
+
+                <!-- NEW: INDUSTRY WIRE DISPATCH -->
+                <div class="feed-section">
+                    <div class="feed-title">WIRE · HOLLYWOOD</div>
+                    <div id="feed-hollywood" class="feed-item">intercepting…</div>
                 </div>
 
                 <div class="feed-section">
@@ -1801,5 +1834,64 @@ function exportDocPDF() {
     document.title = prevTitle;
 }
     </script>
+    <script>
+(async function loadHollywoodWire() {
+    const wireContainer = document.getElementById('feed-hollywood');
+    if (!wireContainer) return;
+
+    // Ordered priority feeds: Deadline, Variety, The Hollywood Reporter
+    const feeds = [
+        'https://deadline.com/feed/',
+        'https://variety.com/feed/',
+        'https://www.hollywoodreporter.com/feed/'
+    ];
+
+    async function fetchFeed(feedUrl) {
+        // Attempt 1: Fast RSS2JSON API
+        try {
+            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
+            const data = await res.json();
+            if (data.status === 'ok' && data.items && data.items.length > 0) {
+                return data.items.slice(0, 4).map(i => ({ title: i.title, link: i.link }));
+            }
+        } catch (e) {}
+
+        // Attempt 2: AllOrigins CORS proxy fallback
+        try {
+            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
+            const data = await res.json();
+            const xml = new DOMParser().parseFromString(data.contents, "text/xml");
+            const items = Array.from(xml.querySelectorAll("item")).slice(0, 4).map(el => ({
+                title: el.querySelector("title")?.textContent || "",
+                link: el.querySelector("link")?.textContent || "#"
+            })).filter(i => i.title);
+            if (items.length > 0) return items;
+        } catch (e) {}
+
+        return null;
+    }
+
+    let articles = null;
+    for (const url of feeds) {
+        articles = await fetchFeed(url);
+        if (articles && articles.length > 0) break;
+    }
+
+    if (articles && articles.length > 0) {
+        wireContainer.innerHTML = articles.map(a => {
+            // Clean up HTML entities (e.g. &#8217;, &amp;)
+            const parser = document.createElement('div');
+            parser.innerHTML = a.title;
+            const cleanTitle = parser.textContent.trim().toUpperCase();
+
+            return `<a href="${a.link}" target="_blank" rel="noopener noreferrer">
+                <span class="wire-prefix">//</span>${cleanTitle}
+            </a>`;
+        }).join('');
+    } else {
+        wireContainer.innerHTML = '<span style="color:#666;">[WIRE OFFLINE // RETRYING LINK]</span>';
+    }
+})();
+</script>
 </body>
 </html>
