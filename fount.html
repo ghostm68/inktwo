@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOUNT // CITADELLE RESERVE // SYNTHESIS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@400;700&family=Almendra:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Abril+Fatface&family=Righteous&family=Courier+Prime&family=Fira+Code:wght@400;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Roboto+Mono:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Pacifico&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <style>
@@ -18,7 +19,7 @@
             --text-muted: rgba(255, 255, 255, 0.7);
             --border: rgba(255, 255, 255, 0.28);
             --font-tech: 'Inter', system-ui, sans-serif;
-            --font-display: 'Playfair Display', serif;
+            --font-display: 'Courier Prime', monospace;
             --font-mono: 'Share Tech Mono', monospace;
             --selection-bg: #ffffff;
             --selection-color: #c8102e;
@@ -60,48 +61,50 @@
             border: 1px solid var(--border);
             position: relative;
             border-radius: 6px;
-            overflow: hidden;
+            overflow: auto;
+            max-height: 620px;
+            user-select: none;
         }
         .detection-box {
             position: absolute;
-            border: 1px solid #ff6b6b;
-            opacity: 0.55;
+            border: 1px solid rgba(255, 255, 255, 0.4);
             pointer-events: none;
+            transition: border-color 0.1s ease;
         }
         .detection-box.mapped {
-            border-color: #ffffff;
-            opacity: 1;
-            background: rgba(255, 255, 255, 0.08);
-        }
-        .detection-box.selected {
-            box-shadow: 0 0 12px rgba(255,255,255,0.6);
-            border-width: 2px;
-            z-index: 10;
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.08);
         }
 
-        #specimen { position: relative; }
-        #specimenPreview {
+        #cropOverlay {
             position: absolute;
-            inset: 0;
+            border: 2px dashed #ffffff;
+            background: rgba(255, 255, 255, 0.15);
             pointer-events: none;
-            display: flex;
+            display: none;
+            z-index: 20;
+        }
+
+        .glyph-chip {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: inline-flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            padding: 4px;
+            min-width: 48px;
         }
 
         input[type="range"] {
             accent-color: #ffffff;
             height: 4px;
         }
-        select, textarea {
-            background: rgba(0,0,0,0.25);
+        select, textarea, input[type="text"] {
+            background: rgba(0,0,0,0.3);
             border: 1px solid var(--border);
             color: var(--text-main);
             border-radius: 4px;
-        }
-        select:focus, textarea:focus {
-            outline: 2px solid rgba(255,255,255,0.5);
-            outline-offset: 1px;
         }
 
         button {
@@ -110,13 +113,8 @@
             transition: all 0.18s ease;
             font-weight: 600;
         }
-        button:hover:not(:disabled) {
-            filter: brightness(1.08);
-        }
-        button:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
+        button:hover:not(:disabled) { filter: brightness(1.08); }
+        button:disabled { opacity: 0.35; cursor: not-allowed; }
 
         .btn-primary {
             background: #ffffff;
@@ -142,19 +140,6 @@
             color: #0a0a0a;
         }
 
-        /* Live blend preview layers */
-        .blend-layer-a, .blend-layer-b {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            white-space: pre-wrap;
-            word-break: break-word;
-            overflow: hidden;
-        }
-
-        /* subtle top highlight on panels */
         .panel::before {
             content: "";
             position: absolute;
@@ -163,39 +148,26 @@
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
             opacity: 0.6;
         }
-
-        label { color: var(--text-muted); }
-        .text-muted { color: var(--text-muted); }
     </style>
 </head>
 <body class="p-5 md:p-6">
-    <div class="max-w-[1400px] mx-auto space-y-5 relative z-10">
+    <div class="max-w-[1440px] mx-auto space-y-5 relative z-10">
 
-        <!-- TOP NAV -->
+        <!-- HEADER -->
         <header class="flex flex-wrap justify-between items-end gap-4 border-b border-white/25 pb-4">
             <div>
                 <h1 class="text-3xl md:text-4xl font-bold tracking-tight" style="font-family: var(--font-display);">
-                    Fount
+                    Fount // Citadelle
                 </h1>
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                    <p class="text-[11px] text-muted tracking-wide uppercase">
-                        Citadelle Reserve · 
-                    </p>
-                    <details class="text-[11px]">
-                        <summary class="cursor-pointer text-white/70 hover:text-white underline-offset-2 hover:underline select-none">
-                            Limits
-                        </summary>
-                        <div class="mt-2 max-w-sm text-[11px] leading-relaxed text-white/85 bg-black/20 border border-white/20 rounded px-3 py-2">
-                            Fount is a pure algorithmic tracer, not an AI font generator. It extracts contours from contrast and geometry only. Connected scripts, light pencil, low-contrast scans, and complex joins often produce imperfect or broken glyphs. Treat the output as a raw starting point or experimental specimen, not a finished production font.
-                        </div>
-                    </details>
-                </div>
+                <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
+                    Adaptive Vectorizer & Specimen Engine
+                </p>
             </div>
             <div class="flex gap-3 items-center">
-                <button onclick="document.body.classList.toggle('classic-mode')" class="btn-ghost text-[10px] px-3 py-1.5 rounded">
+                <button onclick="document.body.classList.toggle('classic-mode')" class="btn-ghost text-[10px] px-3 py-2 rounded">
                     Toggle Classic
                 </button>
-                <button onclick="downloadFont()" id="dlBtn" disabled class="btn-primary px-5 py-2 rounded shadow-md">
+                <button onclick="downloadFont()" id="dlBtn" disabled class="btn-primary px-5 py-2.5 rounded shadow-md text-xs">
                     Export .TTF
                 </button>
             </div>
@@ -204,186 +176,110 @@
         <div class="grid grid-cols-12 gap-5">
             <!-- SIDEBAR -->
             <aside class="col-span-12 lg:col-span-3 space-y-5">
-
                 <!-- Source Mode -->
                 <div class="panel p-5">
-                    <h2 class="text-[11px] font-bold tracking-widest mb-3 uppercase text-muted">Input Source</h2>
+                    <h2 class="text-[11px] font-bold tracking-widest mb-3 uppercase text-white/70">Input Source</h2>
                     <div class="grid grid-cols-2 gap-2 text-[11px]">
                         <button id="srcManuscript" onclick="setSourceMode('manuscript')" class="btn-active p-2.5 rounded">Manuscript</button>
                         <button id="srcSynthesis" onclick="setSourceMode('synthesis')" class="btn-ghost p-2.5 rounded opacity-70">Synthesis</button>
                     </div>
                 </div>
 
-                <!-- Synthesis Controls -->
-                <div id="synthesisControls" class="panel p-5 hidden">
-                    <h2 class="text-[11px] font-bold tracking-widest mb-4 uppercase text-muted">DNA Blender</h2>
-                    <div class="space-y-4 text-xs">
-                        <div>
-                            <label class="block mb-1.5 text-[10px] uppercase tracking-wider">Font Skeleton A</label>
-                            <select id="fontA" class="w-full p-2.5 text-sm" onchange="runSynthesis()">
-                                <optgroup label="Serif">
-                                    <option value="serif">Times New Roman</option>
-                                    <option value="'Playfair Display', serif">Playfair Display</option>
-                                    <option value="'Merriweather', serif">Merriweather</option>
-                                    <option value="'EB Garamond', serif">EB Garamond</option>
-                                    <option value="'Libre Baskerville', serif">Libre Baskerville</option>
-                                    <option value="'Cinzel', serif">Cinzel</option>
-                                    <option value="'Almendra', serif">Almendra</option>
-                                </optgroup>
-                                <optgroup label="Sans Serif">
-                                    <option value="sans-serif">Arial</option>
-                                    <option value="'Inter', sans-serif">Inter</option>
-                                    <option value="'Montserrat', sans-serif">Montserrat</option>
-                                    <option value="'Oswald', sans-serif">Oswald</option>
-                                </optgroup>
-                                <optgroup label="Display">
-                                    <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-                                    <option value="'Abril Fatface', serif">Abril Fatface</option>
-                                    <option value="'Righteous', cursive">Righteous</option>
-                                    <option value="fantasy">Impact</option>
-                                </optgroup>
-                                <optgroup label="Monospace">
-                                    <option value="'Courier Prime', monospace">Courier Prime</option>
-                                    <option value="'Fira Code', monospace">Fira Code</option>
-                                    <option value="'Space Mono', monospace">Space Mono</option>
-                                    <option value="'Roboto Mono', monospace">Roboto Mono</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block mb-1.5 text-[10px] uppercase tracking-wider">Font Skeleton B</label>
-                            <select id="fontB" class="w-full p-2.5 text-sm" onchange="runSynthesis()">
-                                <optgroup label="Script / Handwriting">
-                                    <option value="'Great Vibes', cursive">Great Vibes</option>
-                                    <option value="'Dancing Script', cursive">Dancing Script</option>
-                                    <option value="'Pacifico', cursive">Pacifico</option>
-                                    <option value="'Caveat', cursive">Caveat</option>
-                                </optgroup>
-                                <optgroup label="Serif">
-                                    <option value="'Almendra', serif">Almendra</option>
-                                    <option value="'Playfair Display', serif">Playfair Display</option>
-                                    <option value="'Merriweather', serif">Merriweather</option>
-                                    <option value="'EB Garamond', serif">EB Garamond</option>
-                                    <option value="'Cinzel', serif">Cinzel</option>
-                                </optgroup>
-                                <optgroup label="Display / Block">
-                                    <option value="fantasy">Impact</option>
-                                    <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-                                    <option value="'Abril Fatface', serif">Abril Fatface</option>
-                                    <option value="'Righteous', cursive">Righteous</option>
-                                </optgroup>
-                                <optgroup label="Sans / Mono">
-                                    <option value="'Inter', sans-serif">Inter</option>
-                                    <option value="'Montserrat', sans-serif">Montserrat</option>
-                                    <option value="'Oswald', sans-serif">Oswald</option>
-                                    <option value="'Space Mono', monospace">Space Mono</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block mb-1.5 text-[10px] uppercase tracking-wider">Blend Mode</label>
-                            <select id="blendMode" class="w-full p-2.5 text-sm" onchange="runSynthesis()">
-                                <option value="source-over">Alpha Overlay</option>
-                                <option value="multiply">Multiply</option>
-                                <option value="screen">Screen</option>
-                                <option value="overlay">Overlay</option>
-                                <option value="darken">Darken</option>
-                                <option value="lighten">Lighten</option>
-                                <option value="difference">Difference</option>
-                                <option value="exclusion">Exclusion</option>
-                                <option value="hard-light">Hard Light</option>
-                                <option value="soft-light">Soft Light</option>
-                                <option value="color-dodge">Color Dodge</option>
-                                <option value="color-burn">Color Burn</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="flex justify-between mb-1.5 text-[10px] uppercase tracking-wider">
-                                <span>Blend Ratio</span>
-                                <span id="ratioVal">50%</span>
-                            </label>
-                            <input type="range" id="blendRatio" min="0" max="100" value="50"
-                                oninput="document.getElementById('ratioVal').innerText = this.value + '%'; runSynthesis();"
-                                class="w-full">
-                        </div>
-                        <div>
-                            <label class="flex justify-between mb-1.5 text-[10px] uppercase tracking-wider">
-                                <span>Font Size</span>
-                                <span id="sizeVal">80px</span>
-                            </label>
-                            <input type="range" id="fontSize" min="40" max="140" value="80"
-                                oninput="document.getElementById('sizeVal').innerText = this.value + 'px'; runSynthesis();"
-                                class="w-full">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sensors -->
-                <div class="panel p-5">
-                    <h2 class="text-[11px] font-bold tracking-widest mb-3 uppercase text-muted flex justify-between">
-                        <span>Sensors</span>
-                        <span id="threshVal" class="text-white">140</span>
-                    </h2>
-                    <input type="range" id="threshold" min="30" max="220" value="140" class="w-full mb-5">
-
-                    <h2 class="text-[11px] font-bold tracking-widest mb-3 uppercase text-muted">Algorithm</h2>
-                    <div class="grid grid-cols-2 gap-2 text-[11px]">
-                        <button id="modeRaw" onclick="setMode('raw')" class="btn-active p-2.5 rounded">Raw Grit</button>
-                        <button id="modeSmooth" onclick="setMode('smooth')" class="btn-ghost p-2.5 rounded opacity-70">Refine</button>
-                    </div>
-                </div>
-
-                <!-- Charset -->
-                <div class="panel p-5">
-                    <h2 class="text-[11px] font-bold tracking-widest mb-2 uppercase text-muted">Target DNA</h2>
-                    <textarea id="charset" class="w-full p-2.5 text-xs font-mono h-24 outline-none resize-y"
-                        oninput="if(sourceMode==='synthesis') runSynthesis()">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789</textarea>
-                </div>
-
-                <!-- File -->
-                <div id="filePanel" class="panel p-5">
+                <!-- Manuscript Controls -->
+                <div id="filePanel" class="panel p-5 space-y-4">
                     <input type="file" id="imageInput" class="hidden" accept="image/*">
                     <button onclick="document.getElementById('imageInput').click()"
-                        class="w-full py-3.5 border border-white/40 text-sm font-bold rounded hover:bg-white hover:text-[#c8102e] transition-all">
-                        Load Manuscript
+                        class="w-full py-3.5 border border-white/40 text-xs font-bold rounded hover:bg-white hover:text-[#c8102e] transition-all">
+                        Load Manuscript Image
                     </button>
-                    <p class="text-[10px] text-muted mt-2 text-center">PNG · JPG · WebP</p>
+
+                    <div class="flex gap-2">
+                        <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">
+                            Reset Crop
+                        </button>
+                        <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">
+                            Re-Trace
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-white/60 text-center">💡 Tip: Click and drag on the image to crop the alphabet block!</p>
+                </div>
+
+                <!-- Vector Sensors -->
+                <div class="panel p-5 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[11px] font-bold tracking-widest uppercase text-white/70">Contrast Threshold</span>
+                        <span id="threshVal" class="text-xs font-mono font-bold">140</span>
+                    </div>
+                    <input type="range" id="threshold" min="30" max="230" value="140" class="w-full">
+
+                    <div class="flex justify-between items-center pt-2">
+                        <span class="text-[11px] font-bold tracking-widest uppercase text-white/70">Smoothing</span>
+                        <span id="smoothVal" class="text-xs font-mono font-bold">1.5px</span>
+                    </div>
+                    <input type="range" id="smoothTol" min="0.5" max="4.0" step="0.5" value="1.5" class="w-full">
+                </div>
+
+                <!-- DNA Sequence -->
+                <div class="panel p-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Target Sequence</h2>
+                        <button onclick="resetCharsetToAlphabet()" class="text-[10px] underline opacity-70 hover:opacity-100">A-Z Standard</button>
+                    </div>
+                    <textarea id="charset" class="w-full p-2 text-xs font-mono h-24 outline-none resize-y">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#</textarea>
                 </div>
             </aside>
 
             <!-- MAIN WORKSPACE -->
             <main class="col-span-12 lg:col-span-9 space-y-5">
-                <div id="wrapper" class="panel canvas-container min-h-[420px] flex items-center justify-center">
-                    <div id="dropZone" class="font-mono text-sm text-muted italic px-6 text-center">
-                        Waiting for writer input…<br>
-                        <span class="text-[11px] opacity-70">Load a manuscript image or switch to Synthesis</span>
+                <!-- CANVAS & CROP WORKSPACE -->
+                <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
+                    <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20">
+                        Waiting for manuscript input…<br>
+                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, or plate image here</span>
                     </div>
-                    <div class="relative">
-                        <canvas id="mainCanvas" class="hidden max-w-full"></canvas>
+                    <div class="relative cursor-crosshair">
+                        <canvas id="mainCanvas" class="hidden"></canvas>
                         <div id="overlay" class="absolute inset-0 pointer-events-none"></div>
+                        <div id="cropOverlay"></div>
                     </div>
                 </div>
 
-                <div class="panel p-6 md:p-8 relative">
-                    <h2 class="text-[10px] font-bold tracking-widest uppercase text-muted mb-4 flex justify-between items-center">
-                        <span>Specimen Output</span>
-                        <span id="previewLabel" class="opacity-80">Generated Font</span>
-                    </h2>
-                    <div id="specimen" contenteditable="true"
-                        class="outline-none text-5xl md:text-6xl leading-tight min-h-[110px] relative z-10"
-                        style="font-family: var(--font-display);">
-                        The quick brown fox jumps over the lazy dog.
+                <!-- DETECTED GLYPH TRAY -->
+                <div class="panel p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
+                            Extracted Glyphs (<span id="glyphCount">0</span> mapped)
+                        </h2>
+                        <span class="text-[10px] opacity-60">Click any character label to change its mapping</span>
                     </div>
-                    <div id="specimenPreview" class="hidden">
-                        <div id="previewLayerA" class="blend-layer-a"></div>
-                        <div id="previewLayerB" class="blend-layer-b"></div>
+                    <div id="glyphTray" class="flex gap-2 overflow-x-auto pb-2 text-xs font-mono">
+                        <span class="text-white/40 italic text-xs">No glyphs extracted yet.</span>
+                    </div>
+                </div>
+
+                <!-- SPECIMEN OUTPUT -->
+                <div class="panel p-6 md:p-8 relative">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
+                            Specimen Output Preview
+                        </h2>
+                        <div class="flex gap-2 text-xs">
+                            <button onclick="setSample('The quick brown fox jumped over the lazy dog.')" class="btn-ghost px-2 py-1 rounded text-[10px]">Fox</button>
+                            <button onclick="setSample('A B C D E F G H I J K L M\nN O P Q R S T U V W X Y Z')" class="btn-ghost px-2 py-1 rounded text-[10px]">Caps</button>
+                            <button onclick="setSample('0 1 2 3 4 5 6 7 8 9 ! ? #')" class="btn-ghost px-2 py-1 rounded text-[10px]">0-9</button>
+                        </div>
+                    </div>
+                    <div id="specimen" contenteditable="true"
+                        class="outline-none text-4xl md:text-5xl leading-relaxed min-h-[140px] relative z-10 whitespace-pre-wrap break-words"
+                        style="font-family: var(--font-display);">
+The quick brown fox jumped over the lazy dog.
                     </div>
                 </div>
             </main>
         </div>
 
-        <footer class="text-center text-[10px] text-muted pt-2 pb-4 tracking-wide uppercase opacity-70">
-            Inkrealm · Citadelle Plates · Fount Protocol
+        <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
+            Inkrealm · Citadelle Engine · Fount Protocol
         </footer>
     </div>
 
@@ -391,63 +287,34 @@
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('overlay');
+        const cropOverlay = document.getElementById('cropOverlay');
         const specimen = document.getElementById('specimen');
-        const specimenPreview = document.getElementById('specimenPreview');
-        const previewLayerA = document.getElementById('previewLayerA');
-        const previewLayerB = document.getElementById('previewLayerB');
-        const previewLabel = document.getElementById('previewLabel');
+        const glyphTray = document.getElementById('glyphTray');
+        const glyphCount = document.getElementById('glyphCount');
+        
         let blobs = [];
-        let traceMode = 'raw';
-        let sourceMode = 'manuscript';
         let font = null;
+        let cropRect = null;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
 
         document.getElementById('imageInput').onchange = e => handleImage(e.target.files[0]);
         document.getElementById('threshold').oninput = e => {
             document.getElementById('threshVal').innerText = e.target.value;
             analyze();
         };
+        document.getElementById('smoothTol').oninput = e => {
+            document.getElementById('smoothVal').innerText = e.target.value + 'px';
+            generateFont();
+        };
 
-        specimen.addEventListener('input', () => {
-            if (sourceMode === 'synthesis') runSynthesis();
-        });
-
-        function setMode(m) {
-            traceMode = m;
-            const raw = document.getElementById('modeRaw');
-            const smooth = document.getElementById('modeSmooth');
-            raw.className = m === 'raw' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
-            smooth.className = m === 'smooth' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
+        function resetCharsetToAlphabet() {
+            document.getElementById('charset').value = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#";
             analyze();
         }
 
-        function setSourceMode(mode) {
-            sourceMode = mode;
-            const ms = document.getElementById('srcManuscript');
-            const syn = document.getElementById('srcSynthesis');
-            ms.className = mode === 'manuscript' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
-            syn.className = mode === 'synthesis' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
-
-            document.getElementById('synthesisControls').classList.toggle('hidden', mode === 'manuscript');
-            document.getElementById('filePanel').classList.toggle('hidden', mode === 'synthesis');
-
-            if (mode === 'synthesis') {
-                document.getElementById('dropZone').classList.add('hidden');
-                canvas.classList.remove('hidden');
-                specimenPreview.classList.remove('hidden');
-                previewLabel.innerText = 'Live Blend Preview';
-                specimen.style.opacity = '0';
-                specimen.style.pointerEvents = 'none';
-                runSynthesis();
-            } else {
-                canvas.classList.add('hidden');
-                document.getElementById('dropZone').classList.remove('hidden');
-                specimenPreview.classList.add('hidden');
-                previewLabel.innerText = 'Generated Font';
-                overlay.innerHTML = '';
-                specimen.style.opacity = '1';
-                specimen.style.pointerEvents = 'auto';
-                specimen.style.fontFamily = 'var(--font-display)';
-            }
+        function setSample(text) {
+            specimen.innerText = text;
         }
 
         function handleImage(file) {
@@ -461,6 +328,7 @@
                     ctx.drawImage(img, 0, 0);
                     canvas.classList.remove('hidden');
                     document.getElementById('dropZone').classList.add('hidden');
+                    clearCrop();
                     analyze();
                 };
                 img.src = event.target.result;
@@ -468,344 +336,452 @@
             reader.readAsDataURL(file);
         }
 
-        function runSynthesis() {
-            const chars = document.getElementById('charset').value.split('');
-            const fontA = document.getElementById('fontA').value;
-            const fontB = document.getElementById('fontB').value;
-            const ratio = parseInt(document.getElementById('blendRatio').value) / 100;
-            const blendMode = document.getElementById('blendMode').value;
-            const fontSize = parseInt(document.getElementById('fontSize').value);
+        /* --- INTERACTIVE DRAG-TO-CROP --- */
+        canvas.parentElement.addEventListener('mousedown', e => {
+            if (canvas.classList.contains('hidden')) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            dragStart = {
+                canvasX: (e.clientX - rect.left) * scaleX,
+                canvasY: (e.clientY - rect.top) * scaleY,
+                screenX: e.clientX - rect.left,
+                screenY: e.clientY - rect.top
+            };
+            isDragging = true;
+            cropOverlay.style.display = 'block';
+            cropOverlay.style.left = dragStart.screenX + 'px';
+            cropOverlay.style.top = dragStart.screenY + 'px';
+            cropOverlay.style.width = '0px';
+            cropOverlay.style.height = '0px';
+        });
 
-            updateLivePreview(fontA, fontB, ratio, blendMode, fontSize);
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const currX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const currY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+            const left = Math.min(dragStart.screenX, currX);
+            const top = Math.min(dragStart.screenY, currY);
+            const width = Math.abs(currX - dragStart.screenX);
+            const height = Math.abs(currY - dragStart.screenY);
 
-            const colCount = 10;
-            const rowCount = Math.ceil(chars.length / colCount);
-            const cellSize = fontSize * 1.6;
+            cropOverlay.style.left = left + 'px';
+            cropOverlay.style.top = top + 'px';
+            cropOverlay.style.width = width + 'px';
+            cropOverlay.style.height = height + 'px';
+        });
 
-            canvas.width = colCount * cellSize;
-            canvas.height = rowCount * cellSize;
+        window.addEventListener('mouseup', e => {
+            if (!isDragging) return;
+            isDragging = false;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const endCanvasX = (e.clientX - rect.left) * scaleX;
+            const endCanvasY = (e.clientY - rect.top) * scaleY;
 
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const x = Math.min(dragStart.canvasX, endCanvasX);
+            const y = Math.min(dragStart.canvasY, endCanvasY);
+            const w = Math.abs(endCanvasX - dragStart.canvasX);
+            const h = Math.abs(endCanvasY - dragStart.canvasY);
 
-            chars.forEach((c, idx) => {
-                const col = idx % colCount;
-                const row = Math.floor(idx / colCount);
-                const cx = col * cellSize + cellSize / 2;
-                const cy = row * cellSize + cellSize / 2;
+            if (w > 20 && h > 20) {
+                cropRect = { x, y, w, h };
+                analyze();
+            } else {
+                clearCrop();
+            }
+        });
 
-                ctx.save();
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.fillStyle = '#000000';
-                ctx.font = `${fontSize}px ${fontA}`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.globalAlpha = 1;
-                ctx.fillText(c, cx, cy);
-
-                ctx.globalCompositeOperation = blendMode;
-                ctx.fillStyle = '#000000';
-                ctx.font = `${fontSize}px ${fontB}`;
-                ctx.globalAlpha = ratio < 0.05 ? 0.05 : ratio;
-                ctx.fillText(c, cx, cy);
-                ctx.restore();
-            });
-
+        function clearCrop() {
+            cropRect = null;
+            cropOverlay.style.display = 'none';
             analyze();
         }
 
-        function updateLivePreview(fontA, fontB, ratio, blendMode, fontSize) {
-            const text = specimen.innerText || 'The quick brown fox jumps over the lazy dog.';
-            previewLayerA.innerText = text;
-            previewLayerB.innerText = text;
-
-            const previewSize = Math.max(1.5, fontSize / 20);
-            previewLayerA.style.fontSize = previewSize + 'rem';
-            previewLayerB.style.fontSize = previewSize + 'rem';
-
-            previewLayerA.style.fontFamily = fontA.replace(/'/g, "").split(',')[0];
-            previewLayerA.style.color = 'var(--text-main)';
-            previewLayerA.style.opacity = 1;
-
-            previewLayerB.style.fontFamily = fontB.replace(/'/g, "").split(',')[0];
-            previewLayerB.style.color = '#ffffff';
-            previewLayerB.style.opacity = ratio;
-            previewLayerB.style.mixBlendMode = blendMode === 'source-over' ? 'normal' : blendMode;
-        }
-
+        /* --- IMAGE ANALYSIS & BLOB EXTRACTION --- */
         function analyze() {
             if (!canvas.width || !canvas.height) return;
             const threshold = parseInt(document.getElementById('threshold').value);
-            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            const visited = new Uint8Array(canvas.width * canvas.height);
-            blobs = [];
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            const w = canvas.width, h = canvas.height;
+            const visited = new Uint8Array(w * h);
 
-            for (let y = 0; y < canvas.height; y += 4) {
-                for (let x = 0; x < canvas.width; x += 4) {
-                    const i = y * canvas.width + x;
-                    if (((data[i*4] + data[i*4+1] + data[i*4+2]) / 3) < threshold && !visited[i]) {
-                        const initialBlob = floodFill(x, y, visited, data, canvas.width, canvas.height, threshold);
-                        if (initialBlob.w > 4) {
-                            const segments = segmentScriptBlob(initialBlob);
-                            segments.forEach(seg => blobs.push(seg));
+            let rawBlobs = [];
+            const step = 2; // High-resolution 2px grid scan
+
+            const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
+            const maxX = cropRect ? Math.min(w, Math.ceil(cropRect.x + cropRect.w)) : w;
+            const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
+            const maxY = cropRect ? Math.min(h, Math.ceil(cropRect.y + cropRect.h)) : h;
+
+            for (let y = minY; y < maxY; y += step) {
+                for (let x = minX; x < maxX; x += step) {
+                    const idx = y * w + x;
+                    const brightness = (data[idx * 4] + data[idx * 4 + 1] + data[idx * 4 + 2]) / 3;
+                    if (brightness < threshold && !visited[idx]) {
+                        const blob = floodFill(x, y, visited, data, w, h, threshold, minX, maxX, minY, maxY);
+                        if (blob.w >= 4 && blob.h >= 6 && blob.points.length > 12) {
+                            rawBlobs.push(blob);
                         }
                     }
                 }
             }
 
-            const rowH = canvas.height / 10;
-            blobs.sort((a, b) => (Math.abs(a.y - b.y) < rowH) ? a.x - b.x : a.y - b.y);
+            // Estimate average glyph height to fuse multi-part characters (like 'i', 'j', '!', '?')
+            const heights = rawBlobs.map(b => b.h).sort((a,b) => a - b);
+            const medianH = heights[Math.floor(heights.length / 2)] || 24;
 
+            // Merge vertically aligned marks (dots of i/j, colons, punctuation)
+            rawBlobs = mergeMultipartBlobs(rawBlobs, medianH);
+
+            // Group blobs into orderly text lines (reading order)
+            blobs = sortBlobsIntoLines(rawBlobs, medianH);
+
+            // Map target characters sequentially
             const chars = document.getElementById('charset').value.split('');
-            blobs.forEach((b, i) => { b.char = chars[i] || null; });
+            blobs.forEach((b, i) => { b.char = chars[i] || ''; });
 
             updateOverlay();
+            renderGlyphTray();
             generateFont();
         }
 
-        function floodFill(startX, startY, visited, data, w, h, thresh) {
-            let minX = startX, maxX = startX, minY = startY, maxY = startY;
-            const stack = [[startX, startY]], pixels = [];
+        function floodFill(startX, startY, visited, data, w, h, thresh, minX, maxX, minY, maxY) {
+            let bx0 = startX, bx1 = startX, by0 = startY, by1 = startY;
+            const stack = [[startX, startY]];
+            const points = [];
             while (stack.length) {
-                let [cx, cy] = stack.pop();
-                let idx = cy * w + cx;
+                const [cx, cy] = stack.pop();
+                const idx = cy * w + cx;
                 if (visited[idx]) continue;
                 visited[idx] = 1;
-                pixels.push([cx, cy]);
-                minX = Math.min(minX, cx); maxX = Math.max(maxX, cx);
-                minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
-                [[0,4],[4,0],[0,-4],[-4,0]].forEach(([dx, dy]) => {
-                    let nx = cx + dx, ny = cy + dy;
-                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                        let ni = ny * w + nx;
-                        if (((data[ni*4] + data[ni*4+1] + data[ni*4+2]) / 3) < thresh && !visited[ni]) {
-                            stack.push([nx, ny]);
-                        }
+                points.push([cx, cy]);
+
+                if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx;
+                if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
+
+                const dirs = [[0,2],[2,0],[0,-2],[-2,0]];
+                for (let [dx, dy] of dirs) {
+                    const nx = cx + dx, ny = cy + dy;
+                    if (nx >= minX && nx < maxX && ny >= minY && ny < maxY) {
+                        const nIdx = ny * w + nx;
+                        const br = (data[nIdx*4] + data[nIdx*4+1] + data[nIdx*4+2]) / 3;
+                        if (br < thresh && !visited[nIdx]) stack.push([nx, ny]);
                     }
-                });
+                }
             }
-            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, points: pixels };
+            return { x: bx0, y: by0, w: bx1 - bx0 + 1, h: by1 - by0 + 1, points };
         }
 
-        function segmentScriptBlob(blob) {
-            if (blob.w < blob.h * 1.5) return [blob];
-            const colCounts = new Array(blob.w).fill(0);
-            blob.points.forEach(p => { colCounts[p[0] - blob.x]++; });
+        function mergeMultipartBlobs(raw, medianH) {
+            for (let i = raw.length - 1; i >= 0; i--) {
+                for (let j = i - 1; j >= 0; j--) {
+                    const b1 = raw[i];
+                    const b2 = raw[j];
+                    const xOverlap = Math.min(b1.x + b1.w, b2.x + b2.w) - Math.max(b1.x, b2.x);
+                    const minW = Math.min(b1.w, b2.w);
+                    const yDist = Math.max(b1.y, b2.y) - Math.min(b1.y + b1.h, b2.y + b2.h);
 
-            const smoothCounts = [];
-            const kSize = 3;
-            for (let i = 0; i < colCounts.length; i++) {
-                let sum = 0, count = 0;
-                for (let j = -kSize; j <= kSize; j++) {
-                    if (i + j >= 0 && i + j < colCounts.length) {
-                        sum += colCounts[i + j];
-                        count++;
-                    }
-                }
-                smoothCounts.push(sum / count);
-            }
-
-            const cuts = [];
-            const minCharWidth = blob.h * 0.4;
-            let lastCut = 0;
-
-            for (let i = 1; i < smoothCounts.length - 1; i++) {
-                if (smoothCounts[i] < smoothCounts[i - 1] && smoothCounts[i] <= smoothCounts[i + 1]) {
-                    if (smoothCounts[i] < blob.h * 0.5) {
-                        if (i - lastCut > minCharWidth && (smoothCounts.length - i) > minCharWidth) {
-                            cuts.push(blob.x + i);
-                            lastCut = i;
-                        }
+                    if (xOverlap > minW * 0.4 && yDist < medianH * 0.55 && (b1.h + b2.h + yDist) < medianH * 1.6) {
+                        b2.points.push(...b1.points);
+                        const nx = Math.min(b1.x, b2.x);
+                        const ny = Math.min(b1.y, b2.y);
+                        b2.w = Math.max(b1.x + b1.w, b2.x + b2.w) - nx;
+                        b2.h = Math.max(b1.y + b1.h, b2.y + b2.h) - ny;
+                        b2.x = nx;
+                        b2.y = ny;
+                        raw.splice(i, 1);
+                        break;
                     }
                 }
             }
-
-            if (cuts.length === 0) return [blob];
-
-            const subBlobs = [];
-            let currentX = blob.x;
-            const boundaries = [...cuts, blob.x + blob.w];
-
-            boundaries.forEach(cutX => {
-                const subPoints = blob.points.filter(p => p[0] >= currentX && p[0] < cutX);
-                if (subPoints.length > 5) {
-                    let minX = cutX, maxX = currentX, minY = blob.y + blob.h, maxY = blob.y;
-                    subPoints.forEach(p => {
-                        minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-                        minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
-                    });
-                    subBlobs.push({
-                        x: minX, y: minY,
-                        w: maxX - minX + 1, h: maxY - minY + 1,
-                        points: subPoints, char: null
-                    });
-                }
-                currentX = cutX;
-            });
-            return subBlobs;
+            return raw;
         }
 
-        function updateOverlay() {
-            overlay.innerHTML = '';
-            if (!canvas.clientWidth) return;
-            const ratio = canvas.clientWidth / canvas.width;
-            blobs.forEach((b) => {
-                const box = document.createElement('div');
-                box.className = `detection-box ${b.char ? 'mapped' : ''}`;
-                box.style.left = (b.x * ratio) + 'px';
-                box.style.top = (b.y * ratio) + 'px';
-                box.style.width = (b.w * ratio) + 'px';
-                box.style.height = (b.h * ratio) + 'px';
-                if (b.char) {
-                    box.innerHTML = `<span class="text-[9px] font-bold bg-white text-[#c8102e] px-1 absolute -top-3.5 left-0 rounded-sm">${b.char}</span>`;
+        function sortBlobsIntoLines(items, medianH) {
+            if (!items.length) return [];
+            const sortedByY = [...items].sort((a, b) => a.y - b.y);
+            const lines = [];
+
+            for (const b of sortedByY) {
+                let placed = false;
+                const bCenter = b.y + b.h / 2;
+                for (const line of lines) {
+                    const lineCenter = line.ySum / line.blobs.length;
+                    if (Math.abs(lineCenter - bCenter) < medianH * 0.5) {
+                        line.blobs.push(b);
+                        line.ySum += bCenter;
+                        placed = true;
+                        break;
+                    }
                 }
-                overlay.appendChild(box);
-            });
+                if (!placed) {
+                    lines.push({ blobs: [b], ySum: bCenter });
+                }
+            }
+
+            lines.sort((l1, l2) => (l1.ySum / l1.blobs.length) - (l2.ySum / l2.blobs.length));
+
+            const result = [];
+            for (const line of lines) {
+                line.blobs.sort((a, b) => a.x - b.x);
+                const maxBottom = Math.max(...line.blobs.map(b => b.y + b.h));
+                const lineH = Math.max(...line.blobs.map(b => b.h));
+                const baseline = maxBottom - Math.max(2, lineH * 0.12);
+                for (const b of line.blobs) {
+                    b.baseline = baseline;
+                    b.lineH = lineH;
+                    result.push(b);
+                }
+            }
+            return result;
+        }
+
+        /* --- CONTOUR & INNER HOLE EXTRACTION --- */
+        function extractContoursWithHoles(b) {
+            const pad = 3;
+            const gw = b.w + pad * 2;
+            const gh = b.h + pad * 2;
+            const grid = new Uint8Array(gw * gh);
+
+            for (let [px, py] of b.points) {
+                const lx = px - b.x + pad;
+                const ly = py - b.y + pad;
+                if (lx >= 0 && lx < gw && ly >= 0 && ly < gh) grid[ly * gw + lx] = 1;
+            }
+
+            // Flood fill outside from (0,0) to identify outer boundary
+            const queue = [0];
+            grid[0] = 2;
+            const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+            let head = 0;
+            while(head < queue.length) {
+                const curr = queue[head++];
+                const cx = curr % gw, cy = Math.floor(curr / gw);
+                for (let [dx, dy] of dirs) {
+                    const nx = cx + dx, ny = cy + dy;
+                    if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
+                        const nIdx = ny * gw + nx;
+                        if (grid[nIdx] === 0) { grid[nIdx] = 2; queue.push(nIdx); }
+                    }
+                }
+            }
+
+            // Find enclosed white islands (inner holes)
+            const holePointLists = [];
+            for (let ly = 1; ly < gh - 1; ly++) {
+                for (let lx = 1; lx < gw - 1; lx++) {
+                    const idx = ly * gw + lx;
+                    if (grid[idx] === 0) {
+                        const hPts = [];
+                        const hq = [idx];
+                        grid[idx] = 3;
+                        let hHead = 0;
+                        while(hHead < hq.length) {
+                            const c = hq[hHead++];
+                            const hx = c % gw, hy = Math.floor(c / gw);
+                            hPts.push([b.x + hx - pad, b.y + hy - pad]);
+                            for (let [dx, dy] of dirs) {
+                                const nx = hx + dx, ny = hy + dy;
+                                if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
+                                    const nIdx = ny * gw + nx;
+                                    if (grid[nIdx] === 0) { grid[nIdx] = 3; hq.push(nIdx); }
+                                }
+                            }
+                        }
+                        if (hPts.length >= 8) holePointLists.push(hPts);
+                    }
+                }
+            }
+
+            const outer = getContour(b.points);
+            const holes = holePointLists.map(hp => getContour(hp).reverse()).filter(c => c.length > 3);
+            return { outer, holes };
         }
 
         function getContour(bPoints) {
-            if (bPoints.length === 0) return [];
+            if (bPoints.length < 3) return [];
             const pointSet = new Set(bPoints.map(p => `${p[0]},${p[1]}`));
             let start = bPoints[0];
             for (let p of bPoints) {
                 if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) start = p;
             }
-            const dirs = [[0,-4],[4,-4],[4,0],[4,4],[0,4],[-4,4],[-4,0],[-4,-4]];
-            let current = start;
-            let prevDir = 6;
+            const dirs = [[0,-2],[2,-2],[2,0],[2,2],[0,2],[-2,2],[-2,0],[-2,-2]];
+            let current = start, prevDir = 6;
             const path = [];
-            for (let iter = 0; iter < bPoints.length * 2; iter++) {
+
+            for (let iter = 0; iter < bPoints.length * 3; iter++) {
                 path.push(current);
                 let found = false, nextPixel = null;
                 for (let i = 0; i < 8; i++) {
-                    let testDir = (prevDir + i) % 8;
-                    let dx = dirs[testDir][0], dy = dirs[testDir][1];
-                    let nx = current[0] + dx, ny = current[1] + dy;
+                    const testDir = (prevDir + i) % 8;
+                    const nx = current[0] + dirs[testDir][0];
+                    const ny = current[1] + dirs[testDir][1];
                     if (pointSet.has(`${nx},${ny}`)) {
                         nextPixel = [nx, ny];
-                        let lastWhiteIdx = (testDir - 1 + 8) % 8;
-                        let lastW = current[0] + dirs[lastWhiteIdx][0];
-                        let lastWY = current[1] + dirs[lastWhiteIdx][1];
-                        let wx = lastW - nx, wy = lastWY - ny;
-                        for (let dIdx = 0; dIdx < 8; dIdx++) {
-                            if (dirs[dIdx][0] === wx && dirs[dIdx][1] === wy) {
-                                prevDir = dIdx;
-                                break;
-                            }
-                        }
+                        prevDir = (testDir + 5) % 8;
                         found = true;
                         break;
                     }
                 }
                 if (!found) break;
-                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) {
-                    path.push(start);
-                    break;
-                }
+                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) break;
                 current = nextPixel;
             }
             return path;
         }
 
-        function simplifyPath(points, tolerance) {
-            if (points.length <= 2) return points;
-            function rdp(start, end, pts, tol, result) {
-                if (end <= start + 1) {
-                    result.push(pts[start]);
-                    return;
-                }
+        function simplify(pts, tol) {
+            if (pts.length <= 2) return pts;
+            const sqTol = tol * tol;
+            function rdp(start, end) {
                 let maxDist = 0, index = -1;
-                const [x1, y1] = pts[start];
-                const [x2, y2] = pts[end];
+                const [x1, y1] = pts[start], [x2, y2] = pts[end];
                 for (let i = start + 1; i < end; i++) {
-                    const [x0, y0] = pts[i];
-                    const dist = Math.abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) /
-                                 Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
-                    if (dist > maxDist) {
-                        maxDist = dist;
-                        index = i;
-                    }
+                    const [px, py] = pts[i];
+                    let d = distToSegmentSq(px, py, x1, y1, x2, y2);
+                    if (d > maxDist) { maxDist = d; index = i; }
                 }
-                if (maxDist > tol) {
-                    rdp(start, index, pts, tol, result);
-                    rdp(index, end, pts, tol, result);
-                } else {
-                    result.push(pts[start]);
+                if (maxDist > sqTol) {
+                    return [...rdp(start, index).slice(0, -1), ...rdp(index, end)];
                 }
+                return [pts[start], pts[end]];
             }
-            const result = [];
-            rdp(0, points.length - 1, points, tolerance, result);
-            result.push(points[points.length - 1]);
-            return result;
+            return rdp(0, pts.length - 1);
         }
 
+        function distToSegmentSq(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1, dy = y2 - y1;
+            if (dx === 0 && dy === 0) return (px - x1) ** 2 + (py - y1) ** 2;
+            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+            return (px - (x1 + t * dx)) ** 2 + (py - (y1 + t * dy)) ** 2;
+        }
+
+        /* --- FONT COMPILATION & SPECIMEN DISPLAY --- */
         function generateFont() {
-            const mappedBlobs = blobs.filter(b => b.char);
-            const glyphs = [new opentype.Glyph({
-                name: '.notdef', unicode: 0, advanceWidth: 500, path: new opentype.Path()
-            })];
+            const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
+            if (!mappedBlobs.length) return;
+
+            const tol = parseFloat(document.getElementById('smoothTol').value);
+            const refCapHeight = Math.max(...mappedBlobs.map(b => b.h));
+            const globalScale = 680 / Math.max(refCapHeight, 20);
+
+            // Base .notdef glyph
+            const notdefPath = new opentype.Path();
+            notdefPath.moveTo(50, 0); notdefPath.lineTo(450, 0); notdefPath.lineTo(450, 700); notdefPath.lineTo(50, 700); notdefPath.close();
+            const glyphs = [
+                new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: notdefPath }),
+                // Proper functional spacebar glyph
+                new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: Math.round(300 * (globalScale / 18)), path: new opentype.Path() })
+            ];
 
             mappedBlobs.forEach(b => {
                 const path = new opentype.Path();
-                const scale = 800 / Math.max(b.h, 1);
-                let contourPoints = getContour(b.points);
-                if (contourPoints.length === 0) return;
+                const { outer, holes } = extractContoursWithHoles(b);
+                if (outer.length < 3) return;
 
-                if (traceMode === 'smooth') {
-                    contourPoints = simplifyPath(contourPoints, 3.0);
-                }
-
-                const step = (traceMode === 'raw') ? 2 : 1;
-                path.moveTo((contourPoints[0][0] - b.x) * scale, 800 - ((contourPoints[0][1] - b.y) * scale));
-                for (let i = 0; i < contourPoints.length; i += step) {
-                    let px = (contourPoints[i][0] - b.x) * scale;
-                    let py = 800 - ((contourPoints[i][1] - b.y) * scale);
-                    if (traceMode === 'smooth' && i + step < contourPoints.length) {
-                        let next = contourPoints[i + step];
-                        let midX = (px + (next[0] - b.x) * scale) / 2;
-                        let midY = (py + 800 - ((next[1] - b.y) * scale)) / 2;
-                        path.quadraticCurveTo(px, py, midX, midY);
-                    } else {
-                        path.lineTo(px, py);
+                const drawContour = (pts) => {
+                    const sm = simplify(pts, tol);
+                    if (sm.length < 3) return;
+                    path.moveTo((sm[0][0] - b.x) * globalScale + 40, (b.baseline - sm[0][1]) * globalScale);
+                    for (let i = 1; i < sm.length; i++) {
+                        path.lineTo((sm[i][0] - b.x) * globalScale + 40, (b.baseline - sm[i][1]) * globalScale);
                     }
-                }
-                path.close();
+                    path.close();
+                };
+
+                drawContour(outer);
+                holes.forEach(drawContour);
+
                 glyphs.push(new opentype.Glyph({
                     name: b.char,
                     unicode: b.char.charCodeAt(0),
-                    advanceWidth: (b.w * scale) + 120,
+                    advanceWidth: Math.round(b.w * globalScale + 100),
                     path
                 }));
             });
 
             font = new opentype.Font({
                 familyName: 'Citadelle',
-                styleName: 'Regular',
+                styleName: 'Typewriter',
                 unitsPerEm: 1000,
                 ascender: 800,
                 descender: -200,
                 glyphs
             });
 
-            const fontUrl = URL.createObjectURL(new Blob([font.toArrayBuffer()], { type: 'font/ttf' }));
-            const fontFace = new FontFace('ArchiveFont', `url(${fontUrl})`);
-            fontFace.load().then(f => {
-                document.fonts.add(f);
-                if (sourceMode !== 'synthesis') {
-                    specimen.style.fontFamily = 'ArchiveFont';
-                }
-                document.getElementById('dlBtn').disabled = false;
-            }).catch(() => {});
+            try {
+                const fontUrl = URL.createObjectURL(new Blob([font.toArrayBuffer()], { type: 'font/ttf' }));
+                const fontFace = new FontFace('ArchiveFont', `url(${fontUrl})`);
+                fontFace.load().then(f => {
+                    document.fonts.add(f);
+                    specimen.style.fontFamily = 'ArchiveFont, Courier Prime, monospace';
+                    document.getElementById('dlBtn').disabled = false;
+                });
+            } catch (err) {
+                console.error("Font compilation error:", err);
+            }
         }
 
         function downloadFont() {
-            if (font) font.download('Archive_Export.ttf');
+            if (font) font.download('Citadelle_Custom.ttf');
         }
 
-        // Initial responsive overlay resize
-        window.addEventListener('resize', () => {
-            if (blobs.length) updateOverlay();
-        });
+        function updateOverlay() {
+            overlay.innerHTML = '';
+            if (!canvas.clientWidth) return;
+            const ratio = canvas.clientWidth / canvas.width;
+            blobs.forEach(b => {
+                const box = document.createElement('div');
+                box.className = `detection-box ${b.char ? 'mapped' : ''}`;
+                box.style.left = (b.x * ratio) + 'px';
+                box.style.top = (b.y * ratio) + 'px';
+                box.style.width = (b.w * ratio) + 'px';
+                box.style.height = (b.h * ratio) + 'px';
+                overlay.appendChild(box);
+            });
+        }
+
+        function renderGlyphTray() {
+            glyphTray.innerHTML = '';
+            const mapped = blobs.filter(b => b.char);
+            glyphCount.innerText = mapped.length;
+
+            mapped.forEach((b, idx) => {
+                const chip = document.createElement('div');
+                chip.className = 'glyph-chip';
+                chip.innerHTML = `
+                    <span class="text-[9px] text-white/50 mb-1">#${idx+1}</span>
+                    <input type="text" maxlength="1" value="${b.char}" 
+                        class="w-7 h-7 text-center font-bold text-xs bg-black/40 border border-white/30 rounded"
+                        onchange="updateSingleChar(${idx}, this.value)">
+                `;
+                glyphTray.appendChild(chip);
+            });
+        }
+
+        function updateSingleChar(idx, val) {
+            const mapped = blobs.filter(b => b.char);
+            if (mapped[idx]) {
+                mapped[idx].char = val;
+                generateFont();
+            }
+        }
+
+        function setSourceMode(m) {
+            const ms = document.getElementById('srcManuscript');
+            const syn = document.getElementById('srcSynthesis');
+            ms.className = m === 'manuscript' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
+            syn.className = m === 'synthesis' ? 'btn-active p-2.5 rounded' : 'btn-ghost p-2.5 rounded opacity-70';
+            if (m === 'synthesis') {
+                specimen.style.fontFamily = 'Courier Prime, monospace';
+            } else {
+                specimen.style.fontFamily = font ? 'ArchiveFont, monospace' : 'Courier Prime, monospace';
+            }
+        }
     </script>
 </body>
 </html>
