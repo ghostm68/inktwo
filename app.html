@@ -829,33 +829,86 @@
             }
         }
 /* --- HOLLYWOOD WIRE DISPATCH STYLING --- */
-#feed-hollywood {
+/* --- HORIZONTAL WIRE TICKER --- */
+.wire-ticker {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    background: #050505;
+    border-left: 2px solid var(--red);
+    height: 24px;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 140px;
-    overflow-y: auto;
+    align-items: center;
 }
 
-#feed-hollywood a {
-    color: #aaa;
+/* Edge shadows for smooth fade-in/out */
+.wire-ticker::before, .wire-ticker::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 15px;
+    z-index: 2;
+    pointer-events: none;
+}
+.wire-ticker::before {
+    left: 0;
+    background: linear-gradient(to right, #050505, transparent);
+}
+.wire-ticker::after {
+    right: 0;
+    background: linear-gradient(to left, #050505, transparent);
+}
+
+.wire-ticker-track {
+    display: inline-flex;
+    white-space: nowrap;
+    will-change: transform;
+    animation: wire-scroll 45s linear infinite;
+}
+
+/* Hover to pause so links are easy to click */
+.wire-ticker:hover .wire-ticker-track {
+    animation-play-state: paused;
+}
+
+.wire-ticker a {
+    color: #ccc;
     text-decoration: none;
     font-size: 0.72rem;
-    line-height: 1.4;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     transition: color 0.2s ease;
-    display: block;
 }
 
-#feed-hollywood a:hover {
+.wire-ticker a:hover {
     color: var(--red);
-    text-decoration: underline;
+    text-shadow: 0 0 8px rgba(255, 0, 51, 0.6);
 }
 
-#feed-hollywood .wire-prefix {
+.wire-bullet {
     color: var(--red);
-    margin-right: 4px;
     font-weight: bold;
-}x
+}
+
+.wire-placeholder {
+    color: #666;
+    font-size: 0.72rem;
+    padding-left: 10px;
+}
+
+/* Infinite seamless scroll keyframe */
+@keyframes wire-scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
         /* =========================================
            SINGLE CONSOLIDATED MOBILE ENGINE (< 768px)
            ========================================= */
@@ -1114,9 +1167,13 @@
                 </div>
 
                 <!-- NEW: INDUSTRY WIRE DISPATCH -->
-                <div class="feed-section">
+             <div class="feed-section">
                     <div class="feed-title">WIRE · HOLLYWOOD</div>
-                    <div id="feed-hollywood" class="feed-item">intercepting…</div>
+                    <div id="feed-hollywood" class="wire-ticker">
+                        <div class="wire-ticker-track">
+                            <span class="wire-placeholder">// INTERCEPTING WIRE STREAM...</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="feed-section">
@@ -1836,10 +1893,9 @@ function exportDocPDF() {
     </script>
     <script>
 (async function loadHollywoodWire() {
-    const wireContainer = document.getElementById('feed-hollywood');
-    if (!wireContainer) return;
+    const track = document.querySelector('#feed-hollywood .wire-ticker-track');
+    if (!track) return;
 
-    // Ordered priority feeds: Deadline, Variety, The Hollywood Reporter
     const feeds = [
         'https://deadline.com/feed/',
         'https://variety.com/feed/',
@@ -1847,21 +1903,21 @@ function exportDocPDF() {
     ];
 
     async function fetchFeed(feedUrl) {
-        // Attempt 1: Fast RSS2JSON API
+        // 1. Primary: RSS2JSON API (up to 8 headlines)
         try {
             const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
             const data = await res.json();
             if (data.status === 'ok' && data.items && data.items.length > 0) {
-                return data.items.slice(0, 4).map(i => ({ title: i.title, link: i.link }));
+                return data.items.slice(0, 8).map(i => ({ title: i.title, link: i.link }));
             }
         } catch (e) {}
 
-        // Attempt 2: AllOrigins CORS proxy fallback
+        // 2. Fallback: AllOrigins CORS proxy
         try {
             const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
             const data = await res.json();
             const xml = new DOMParser().parseFromString(data.contents, "text/xml");
-            const items = Array.from(xml.querySelectorAll("item")).slice(0, 4).map(el => ({
+            const items = Array.from(xml.querySelectorAll("item")).slice(0, 8).map(el => ({
                 title: el.querySelector("title")?.textContent || "",
                 link: el.querySelector("link")?.textContent || "#"
             })).filter(i => i.title);
@@ -1878,18 +1934,17 @@ function exportDocPDF() {
     }
 
     if (articles && articles.length > 0) {
-        wireContainer.innerHTML = articles.map(a => {
-            // Clean up HTML entities (e.g. &#8217;, &amp;)
+        const itemsHtml = articles.map(a => {
             const parser = document.createElement('div');
             parser.innerHTML = a.title;
             const cleanTitle = parser.textContent.trim().toUpperCase();
-
-            return `<a href="${a.link}" target="_blank" rel="noopener noreferrer">
-                <span class="wire-prefix">//</span>${cleanTitle}
-            </a>`;
+            return `<a href="${a.link}" target="_blank" rel="noopener noreferrer"><span class="wire-bullet">//</span> ${cleanTitle}</a>`;
         }).join('');
+
+        // Duplicate the stream content so 0% -> -50% loops seamlessly forever
+        track.innerHTML = itemsHtml + itemsHtml;
     } else {
-        wireContainer.innerHTML = '<span style="color:#666;">[WIRE OFFLINE // RETRYING LINK]</span>';
+        track.innerHTML = '<span class="wire-placeholder">[WIRE OFFLINE // RETRYING LINK]</span>';
     }
 })();
 </script>
