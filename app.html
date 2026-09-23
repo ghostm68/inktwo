@@ -965,6 +965,47 @@ article.level-3 {
         left: 0;
         display: none !important; /* Managed by JS */
     }
+    /* --- PRINT / PDF EXPORT ENGINE --- */
+@media print {
+    /* Hide all terminal chrome */
+    #crt-overlay, .glitch-splash, .header, .mobile-tab-bar, 
+    .writing-container, .notepad-panel, .footer, .article-header {
+        display: none !important;
+    }
+
+    body, html {
+        background: #fff !important;
+        color: #000 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .container {
+        padding: 0 !important;
+        display: block !important;
+        height: auto !important;
+    }
+
+    .article-panel {
+        width: 100% !important;
+        min-width: 100% !important;
+        background: #fff !important;
+        border: none !important;
+    }
+
+    article {
+        background: #fff !important;
+        color: #111 !important;
+        font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+        font-size: 11pt !important;
+        line-height: 1.7 !important;
+        padding: 0.5in !important;
+        white-space: pre-wrap !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+}
 
     /* Active view visible */
     .container.view-doc .article-panel { display: flex !important; }
@@ -1132,6 +1173,9 @@ article.level-3 {
        <aside class="article-panel">
     <div class="article-header">
         <span>Live Document Editor</span>
+          <button type="button" onclick="exportDocPDF()" class="doc-lvl-btn" title="Export as PDF">PDF</button>
+            <button type="button" onclick="exportDocMD()" class="doc-lvl-btn" title="Export Markdown/Text">TXT</button>
+        </div>
         <div class="article-level-hud">
             <button type="button" onclick="setDocLevel(0)" class="doc-lvl-btn active" id="doc-btn-0">0:RAW</button>
             <button type="button" onclick="setDocLevel(1)" class="doc-lvl-btn" id="doc-btn-1">1:CIPHER</button>
@@ -1865,6 +1909,55 @@ function switchMobileView(view) {
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.container').classList.add('view-doc');
 });
+    </script>
+    <script>
+        // --- LIVE DOCUMENT EXPORT ENGINE ---
+function getDocDetails() {
+    const article = document.querySelector('article');
+    const text = article ? (article.innerText || article.textContent || '') : '';
+    
+    // Extract first # Heading or default to timestamped title
+    const match = text.match(/^#\s+(.+)$/m);
+    let title = match ? match[1].trim() : 'INKREALM-DOCUMENT';
+    title = title.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_');
+    
+    return { text, title };
+}
+
+function exportDocPDF() {
+    const { text, title } = getDocDetails();
+    if (!text.trim()) {
+        alert('Document is empty.');
+        return;
+    }
+
+    // Save active document title so the generated PDF filename defaults cleanly
+    const prevTitle = document.title;
+    document.title = `${title}.pdf`;
+
+    window.print();
+
+    // Restore original title
+    document.title = prevTitle;
+}
+
+function exportDocMD() {
+    const { text, title } = getDocDetails();
+    if (!text.trim()) {
+        alert('Document is empty.');
+        return;
+    }
+
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${title}.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
     </script>
 </body>
 </html>
