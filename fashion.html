@@ -221,14 +221,91 @@
         /* Volume Slider placement */
         .controls { margin-top: 15px; margin-left: 55px; }
     </style>
+	<style>
+		 /* LIVE RSS WIRE TICKER (CENTERED, NON-OVERLAPPING) */
+        .rss-ticker-wrap {
+            position: fixed;
+            top: 25px;
+            left: 240px;
+            right: 220px;
+            height: 32px;
+            overflow: hidden;
+            background: rgba(5, 5, 5, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            z-index: 40;
+            pointer-events: auto;
+        }
+
+        .rss-label {
+            color: #ff0033;
+            font-weight: 700;
+            margin-right: 12px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .rss-ticker {
+            display: flex;
+            white-space: nowrap;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .rss-ticker-inner {
+            display: inline-flex;
+            gap: 25px;
+            animation: tickerScroll 40s linear infinite;
+        }
+
+        .rss-ticker-inner:hover {
+            animation-play-state: paused;
+        }
+
+        .rss-ticker-inner a {
+            color: #bbb;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .rss-ticker-inner a:hover {
+            color: #ff0033;
+        }
+
+        @keyframes tickerScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+</style>
 </head>
 <body>
 	 
 <section class="showcase">
         <header style="margin-bottom: 30px;">
-            <a href="https://inkrealm.info">&#x2658; Main</a><br><br>
-            <a href="https://wordstar.nexus/">&#x2602; Nexus</a>
+            <a href="https://inkrealm.info/runway">&#x2658; edit text</a><br><br>
+         
         </header>
+	 <!-- LIVE FASHION NEWS RSS TICKER -->
+    <div class="rss-ticker-wrap">
+        <div class="rss-label">
+            <span class="rec-dot"></span> WIRE // NEWS
+        </div>
+        <div class="rss-ticker">
+            <div class="rss-ticker-inner" id="rssTicker">
+                <span>CONNECTING TO SATELLITE WIRE...</span>
+            </div>
+        </div>
+    </div>
      
  	<!-- FW26 DATELINE (Top Right) -->
         <div class="fw-overlay fw-dateline">
@@ -500,7 +577,63 @@ for (video of document.getElementsByTagName("video")) {
      video.play();
 }
 </script>
+    <!-- EDITORIAL FASHION RSS SCRIPT -->
+    <script>
+    (async function loadRealFashionRSS() {
+        const ticker = document.getElementById('rssTicker');
+        if (!ticker) return;
 
+        const feeds = [
+            'https://fashionista.com/.rss/full/',
+            'https://wwd.com/fashion-news/feed/'
+        ];
+
+        async function fetchFeed(feedUrl) {
+            try {
+                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
+                const data = await res.json();
+                if (data.status === 'ok' && data.items && data.items.length > 0) {
+                    return data.items.map(i => ({ title: i.title, link: i.link }));
+                }
+            } catch (e) {}
+
+            try {
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
+                const data = await res.json();
+                const xml = new DOMParser().parseFromString(data.contents, "text/xml");
+                const items = Array.from(xml.querySelectorAll("item")).slice(0, 10).map(el => ({
+                    title: el.querySelector("title")?.textContent || "",
+                    link: el.querySelector("link")?.textContent || "#"
+                })).filter(i => i.title);
+                if (items.length > 0) return items;
+            } catch (e) {}
+
+            return null;
+        }
+
+        let articles = null;
+        for (const url of feeds) {
+            articles = await fetchFeed(url);
+            if (articles && articles.length > 0) break;
+        }
+
+        if (articles && articles.length > 0) {
+            const cleanArticles = articles.map(a => {
+                const div = document.createElement('div');
+                div.innerHTML = a.title;
+                return { title: div.textContent.trim(), link: a.link };
+            });
+
+            const html = cleanArticles.map(a => 
+                `<a href="${a.link}" target="_blank">&bull; ${a.title.toUpperCase()}</a>`
+            ).join('');
+
+            ticker.innerHTML = html + html;
+        } else {
+            ticker.innerHTML = '<span>WIRE TEMPORARILY OFFLINE &bull; RECONNECTING...</span>';
+        }
+    })();
+    </script>
 
   </body>
   
