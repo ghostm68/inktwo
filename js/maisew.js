@@ -340,34 +340,6 @@ import * as webllm from "https://esm.run/@mlc-ai/web-llm";
             updateMarketFeed();
         });
 
-        async function updateNewsFeed() {
-            const feedEl = document.getElementById("feed-news");
-            if (!feedEl) return;
-            try {
-                const res = await fetch("https://hacker-news.firebaseio.com/v0/topstories.json");
-                const ids = await res.json();
-                const stories = await Promise.all(
-                    ids.slice(0, 3).map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json()))
-                );
-                feedEl.innerHTML = stories.filter(s => s && s.title).map(s => `→ ${s.title}`).join("<br>");
-            } catch {
-                feedEl.textContent = "→ no signal";
-            }
-        }
-
-        async function updateMarketFeed() {
-            const el = document.getElementById("feed-market");
-            if (!el) return;
-            try {
-                const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd&include_24hr_change=true");
-                const data = await res.json();
-                const gram = data["the-open-network"];
-                const arrow = gram.usd_24h_change >= 0 ? "▲" : "▼";
-                el.textContent = `GRAM $${gram.usd.toLocaleString()} ${arrow}`;
-            } catch {
-                el.textContent = "GRAM — no signal";
-            }
-        }
 
         setInterval(updateNewsFeed, 5 * 60 * 1000); 
         setInterval(updateMarketFeed, 60 * 1000);
