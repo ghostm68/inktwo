@@ -386,6 +386,46 @@
             cursor: pointer;
             border: 2px solid #ffffff;
         }
+        /* Typography styling inside editable blocks */
+.editable-text h1 {
+    font-size: 1.6rem;
+    margin: 4px 0 8px 0;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-grey);
+    padding-bottom: 4px;
+}
+
+.editable-text h2 {
+    font-size: 1.3rem;
+    margin: 4px 0 6px 0;
+    color: var(--yellow-quantum);
+}
+
+.editable-text blockquote {
+    margin: 6px 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--red);
+    color: #b0b0b0;
+    font-style: italic;
+}
+
+.block[dir="rtl"] .editable-text blockquote {
+    border-left: none;
+    border-right: 3px solid var(--red);
+    padding-left: 0;
+    padding-right: 12px;
+}
+
+.editable-text pre {
+    background: #111;
+    border: 1px solid var(--border-grey);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    color: #5af78e;
+    overflow-x: auto;
+}
 
         /* Mobile Responsive Adjustments */
         @media (max-width: 680px) {
@@ -405,7 +445,22 @@
         <div class="toolbar">
             <button id="addTextBlock" title="New Block"><span class="material-symbols-outlined">add_box</span></button>
             <button id="toggleSubtitles" class="active" title="Toggle Real-Time Subtitles"><span class="material-symbols-outlined">subtitles</span></button>
-            
+            <!-- Formatting & Block Transform Group -->
+<div class="separator"></div>
+
+<button id="formatH1" title="Heading 1"><span class="material-symbols-outlined">format_h1</span></button>
+<button id="formatH2" title="Heading 2"><span class="material-symbols-outlined">format_h2</span></button>
+<button id="formatQuote" title="Blockquote"><span class="material-symbols-outlined">format_quote</span></button>
+<button id="formatCode" title="Code Block"><span class="material-symbols-outlined">code</span></button>
+<button id="formatList" title="Bulleted List"><span class="material-symbols-outlined">format_list_bulleted</span></button>
+
+<div class="separator"></div>
+
+<!-- Alignment Controls (Essential for LTR/RTL & Poetry) -->
+<button id="alignLeft" title="Align Left"><span class="material-symbols-outlined">format_align_left</span></button>
+<button id="alignCenter" title="Align Center"><span class="material-symbols-outlined">format_align_center</span></button>
+<button id="alignRight" title="Align Right"><span class="material-symbols-outlined">format_align_right</span></button>
+<button id="alignJustify" title="Justify"><span class="material-symbols-outlined">format_align_justify</span></button>
             <button id="engineToggle" title="Engine: Cloud API ⇄ Local NLLB-200">
                 <span class="material-symbols-outlined">memory</span>
                 <span class="engine-badge" id="engineLabel">CLOUD</span>
@@ -844,7 +899,48 @@ slider.addEventListener('input', function() {
     $$('.superposition-state.state-0').forEach(el => el.style.opacity = (1 - state.entanglementLevel));
     $$('.superposition-state.state-1').forEach(el => el.style.opacity = state.entanglementLevel);
 });
+// --- BLOCK FORMATTING ---
+function applyBlockTag(tag) {
+    const focused = document.activeElement.closest('.block');
+    if (!focused) return;
+    const editable = focused.querySelector('.editable-text');
+    if (!editable) return;
+    
+    // Toggle or apply HTML structure
+    document.execCommand('formatBlock', false, tag);
+    saveState();
+}
 
+$('#formatH1').addEventListener('click', () => applyBlockTag('H1'));
+$('#formatH2').addEventListener('click', () => applyBlockTag('H2'));
+$('#formatQuote').addEventListener('click', () => applyBlockTag('BLOCKQUOTE'));
+$('#formatCode').addEventListener('click', () => applyBlockTag('PRE'));
+$('#formatList').addEventListener('click', () => {
+    document.execCommand('insertUnorderedList', false, null);
+    saveState();
+});
+
+// --- ALIGNMENT (WITH SUBTITLE AUTO-ALIGN) ---
+function setAlignment(alignment) {
+    const focused = document.activeElement.closest('.block');
+    if (!focused) return;
+    
+    const editable = focused.querySelector('.editable-text');
+    const subTrack = focused.querySelector('.subtitle-track');
+    
+    if (editable) editable.style.textAlign = alignment;
+    if (subTrack) {
+        subTrack.style.justifyContent = 
+            alignment === 'center' ? 'center' : 
+            alignment === 'right' ? 'flex-end' : 'flex-start';
+    }
+    saveState();
+}
+
+$('#alignLeft').addEventListener('click', () => setAlignment('left'));
+$('#alignCenter').addEventListener('click', () => setAlignment('center'));
+$('#alignRight').addEventListener('click', () => setAlignment('right'));
+$('#alignJustify').addEventListener('click', () => setAlignment('justify'));
 // ==========================================
 // TOOLBAR BUTTONS
 // ==========================================
