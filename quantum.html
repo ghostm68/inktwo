@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Inkrealm Quantum Bilingual Editor (EN ⇄ FR / العربية)</title>
+    <title>Inkrealm Quantum Bilingual Editor v2 (EN ⇄ FR / العربية)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Production-ready quantum-themed bilingual text editor with real-time translation, Arabic RTL, entanglement, and superposition.">
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" />
 
     <style>
-        /* === DEFINE VARIABLES FIRST === */
         :root {
             --red: #ff0033;
             --black: #0a0a0a;
@@ -20,11 +20,12 @@
             --border-light: #444444;
             --text-main: #f0f0f0;
             --text-muted: #888888;
-            --yellow-quantum: #ffe600; /* Used sparingly when needed */
+            --yellow-quantum: #ffe600;
             --yellow-dim: rgba(255, 230, 0, 0.12);
+            --green-ok: #5af78e;
+            --blue-info: #66aaff;
         }
 
-        /* === NOW selection can use them === */
         ::selection {
             background: var(--red);
             color: var(--black);
@@ -53,6 +54,7 @@
             max-width: 980px;
             margin: 0 auto;
             position: relative;
+            transition: max-width 0.3s ease;
         }
 
         /* Top Toolbar */
@@ -101,6 +103,11 @@
             background: var(--yellow-dim);
         }
 
+        .toolbar button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
         .separator {
             width: 1px;
             height: 24px;
@@ -116,6 +123,31 @@
             margin-left: 5px;
             letter-spacing: 0.05em;
         }
+
+        /* Status bar */
+        .status-bar {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-grey);
+            padding: 4px 16px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            min-height: 28px;
+        }
+        .status-bar .status-left { display: flex; gap: 12px; align-items: center; }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block; margin-right: 4px;
+        }
+        .status-dot.ok { background: var(--green-ok); }
+        .status-dot.warn { background: var(--yellow-quantum); }
+        .status-dot.err { background: var(--red); }
+        .status-dot.loading { background: var(--blue-info); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* Instructions Accordion */
         .instructions-card {
@@ -138,19 +170,21 @@
             gap: 6px;
             user-select: none;
         }
-        .instructions-card summary:hover {
-            color: var(--red);
-        }
-        .instructions-card ul {
-            margin: 8px 0 0 16px;
-            padding: 0;
-        }
+        .instructions-card summary:hover { color: var(--red); }
+        .instructions-card ul { margin: 8px 0 0 16px; padding: 0; }
         .instructions-card code {
             font-family: 'JetBrains Mono', monospace;
             color: var(--yellow-quantum);
             background: #111;
             padding: 2px 4px;
             border-radius: 3px;
+        }
+        .instructions-card .tip {
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(255,0,51,0.08);
+            border-left: 3px solid var(--red);
+            font-size: 0.8rem;
         }
 
         /* Editor Work Area */
@@ -178,12 +212,10 @@
             border-color: var(--border-light);
         }
 
-        /* Observer Effect (Decoherence Blur) */
         body.decoherence-active .block:not(:hover):not(:focus-within) {
             filter: blur(1.5px) opacity(0.8);
         }
 
-        /* Quantum Entanglement Border Highlight */
         .block.entangled {
             border-left: 3px solid var(--yellow-quantum) !important;
             background: rgba(255, 230, 0, 0.03);
@@ -216,11 +248,9 @@
         .gutter-btn span { font-size: 19px; }
         .gutter-btn:hover { color: var(--red); }
         .gutter-btn.entangle-btn:hover { color: var(--yellow-quantum); }
+        .gutter-btn.entangle-btn.active { color: var(--yellow-quantum); }
 
-        .block-content {
-            flex-grow: 1;
-            min-width: 0;
-        }
+        .block-content { flex-grow: 1; min-width: 0; }
 
         .editable-text {
             outline: none;
@@ -231,7 +261,6 @@
             word-break: break-word;
         }
 
-        /* Specific typography for Arabic inputs */
         .block[dir="rtl"] .editable-text {
             font-family: 'Amiri', serif;
             font-size: 1.3rem;
@@ -243,7 +272,6 @@
             color: #555555;
         }
 
-        /* Real-Time Cinema Subtitle Track */
         .subtitle-track {
             display: flex;
             align-items: center;
@@ -267,12 +295,8 @@
             border-radius: 3px;
         }
 
-        .sub-text {
-            font-style: italic;
-            color: #d0d0d0;
-        }
+        .sub-text { font-style: italic; color: #d0d0d0; }
 
-        /* Schrödinger Draft Superposition Layer */
         .superposition-container {
             display: grid;
             grid-template-columns: 1fr;
@@ -286,11 +310,11 @@
             grid-area: 1 / 1;
             outline: none;
             transition: opacity 0.25s ease;
+            min-height: 1.4em;
         }
         .superposition-state.state-0 { color: #f0f0f0; }
         .superposition-state.state-1 { color: #ff6688; }
 
-        /* Command Menu */
         .command-menu {
             position: absolute;
             background-color: var(--bg-surface);
@@ -300,7 +324,7 @@
             z-index: 1000;
             display: none;
             overflow: hidden;
-            width: 220px;
+            width: 240px;
         }
         .command-menu-item {
             padding: 10px 14px;
@@ -316,7 +340,7 @@
             color: var(--red);
         }
 
-        /* Footer Controls & Waveform */
+        /* Footer */
         .footer {
             background-color: var(--bg-surface);
             border-top: 1px solid var(--border-grey);
@@ -386,48 +410,77 @@
             cursor: pointer;
             border: 2px solid #ffffff;
         }
-        /* Typography styling inside editable blocks */
-.editable-text h1 {
-    font-size: 1.6rem;
-    margin: 4px 0 8px 0;
-    color: var(--text-main);
-    border-bottom: 1px solid var(--border-grey);
-    padding-bottom: 4px;
-}
 
-.editable-text h2 {
-    font-size: 1.3rem;
-    margin: 4px 0 6px 0;
-    color: var(--yellow-quantum);
-}
+        /* Typography inside editable blocks */
+        .editable-text h1 {
+            font-size: 1.6rem;
+            margin: 4px 0 8px 0;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-grey);
+            padding-bottom: 4px;
+        }
+        .editable-text h2 {
+            font-size: 1.3rem;
+            margin: 4px 0 6px 0;
+            color: var(--yellow-quantum);
+        }
+        .editable-text blockquote {
+            margin: 6px 0;
+            padding-left: 12px;
+            border-left: 3px solid var(--red);
+            color: #b0b0b0;
+            font-style: italic;
+        }
+        .block[dir="rtl"] .editable-text blockquote {
+            border-left: none;
+            border-right: 3px solid var(--red);
+            padding-left: 0;
+            padding-right: 12px;
+        }
+        .editable-text pre {
+            background: #111;
+            border: 1px solid var(--border-grey);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            color: #5af78e;
+            overflow-x: auto;
+        }
 
-.editable-text blockquote {
-    margin: 6px 0;
-    padding-left: 12px;
-    border-left: 3px solid var(--red);
-    color: #b0b0b0;
-    font-style: italic;
-}
+        .editable-text img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            display: block;
+            margin: 4px 0;
+        }
 
-.block[dir="rtl"] .editable-text blockquote {
-    border-left: none;
-    border-right: 3px solid var(--red);
-    padding-left: 0;
-    padding-right: 12px;
-}
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.25s, transform 0.25s;
+            pointer-events: none;
+            max-width: 90vw;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
 
-.editable-text pre {
-    background: #111;
-    border: 1px solid var(--border-grey);
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.88rem;
-    color: #5af78e;
-    overflow-x: auto;
-}
-
-        /* Mobile Responsive Adjustments */
+        /* Mobile */
         @media (max-width: 680px) {
             .toolbar { padding: 6px 8px; }
             .editor { padding: 12px 10px; }
@@ -436,6 +489,7 @@
             input[type="range"] { width: 85px; }
             .footer { padding: 8px 12px; }
             .block-gutter { opacity: 0.8; }
+            .status-bar { font-size: 0.7rem; padding: 4px 10px; }
         }
     </style>
 </head>
@@ -443,97 +497,87 @@
     <div class="container">
         <!-- Top Toolbar -->
         <div class="toolbar">
-            <button id="addTextBlock" title="New Block"><span class="material-symbols-outlined">add_box</span></button>
+            <button id="addTextBlock" title="New Block (Enter)"><span class="material-symbols-outlined">add_box</span></button>
+            <button id="addImageBlock" title="Add Image Block"><span class="material-symbols-outlined">image</span></button>
             <button id="toggleSubtitles" class="active" title="Toggle Real-Time Subtitles"><span class="material-symbols-outlined">subtitles</span></button>
-            <!-- Formatting & Block Transform Group -->
-<div class="separator"></div>
+            
+            <div class="separator"></div>
 
-<button id="formatH1" title="Heading 1"><span class="material-symbols-outlined">format_h1</span></button>
-<button id="formatH2" title="Heading 2"><span class="material-symbols-outlined">format_h2</span></button>
-<button id="formatQuote" title="Blockquote"><span class="material-symbols-outlined">format_quote</span></button>
-<button id="formatCode" title="Code Block"><span class="material-symbols-outlined">code</span></button>
-<button id="formatList" title="Bulleted List"><span class="material-symbols-outlined">format_list_bulleted</span></button>
+            <button id="formatH1" title="Heading 1"><span class="material-symbols-outlined">format_h1</span></button>
+            <button id="formatH2" title="Heading 2"><span class="material-symbols-outlined">format_h2</span></button>
+            <button id="formatQuote" title="Blockquote"><span class="material-symbols-outlined">format_quote</span></button>
+            <button id="formatCode" title="Code Block"><span class="material-symbols-outlined">code</span></button>
+            <button id="formatList" title="Bulleted List"><span class="material-symbols-outlined">format_list_bulleted</span></button>
 
-<div class="separator"></div>
+            <div class="separator"></div>
 
-<!-- Alignment Controls (Essential for LTR/RTL & Poetry) -->
-<button id="alignLeft" title="Align Left"><span class="material-symbols-outlined">format_align_left</span></button>
-<button id="alignCenter" title="Align Center"><span class="material-symbols-outlined">format_align_center</span></button>
-<button id="alignRight" title="Align Right"><span class="material-symbols-outlined">format_align_right</span></button>
-<button id="alignJustify" title="Justify"><span class="material-symbols-outlined">format_align_justify</span></button>
+            <button id="alignLeft" title="Align Left"><span class="material-symbols-outlined">format_align_left</span></button>
+            <button id="alignCenter" title="Align Center"><span class="material-symbols-outlined">format_align_center</span></button>
+            <button id="alignRight" title="Align Right"><span class="material-symbols-outlined">format_align_right</span></button>
+            <button id="alignJustify" title="Justify"><span class="material-symbols-outlined">format_align_justify</span></button>
+            <button id="colorButton" title="Text Color"><span class="material-symbols-outlined">palette</span></button>
+
+            <div class="separator"></div>
+
             <button id="engineToggle" title="Engine: Cloud API ⇄ Local NLLB-200">
                 <span class="material-symbols-outlined">memory</span>
                 <span class="engine-badge" id="engineLabel">CLOUD</span>
             </button>
+            <button id="toggleWidth" title="Toggle Editor Width"><span class="material-symbols-outlined">open_in_full</span></button>
 
             <div class="separator"></div>
 
             <button id="superposeButton" title="Superposition Mode |Ψ⟩"><span class="material-symbols-outlined">call_split</span></button>
             <button id="collapseButton" title="Collapse Wavefunction (Measure)"><span class="material-symbols-outlined">filter_center_focus</span></button>
-            <button id="entanglePairButton" title="Entangle Selected Blocks"><span class="material-symbols-outlined">hub</span></button>
+            <button id="entanglePairButton" title="Entangle Selected Blocks (click grain icons)"><span class="material-symbols-outlined">hub</span></button>
 
             <div class="separator"></div>
 
-            <button id="undoButton" title="Undo"><span class="material-symbols-outlined">undo</span></button>
-            <button id="redoButton" title="Redo"><span class="material-symbols-outlined">redo</span></button>
-            <button id="copySelected" title="Copy Document"><span class="material-symbols-outlined">content_copy</span></button>
+            <button id="undoButton" title="Undo (Ctrl+Z)"><span class="material-symbols-outlined">undo</span></button>
+            <button id="redoButton" title="Redo (Ctrl+Y)"><span class="material-symbols-outlined">redo</span></button>
+            <button id="copySelected" title="Copy All Text"><span class="material-symbols-outlined">content_copy</span></button>
+            <button id="downloadTxt" title="Download as plain text"><span class="material-symbols-outlined">download</span></button>
+            <button id="clearAll" title="Clear Document"><span class="material-symbols-outlined">delete_sweep</span></button>
         </div>
 
-        <!-- Collapsible Instructions Guide -->
-        <details class="instructions-card">
-            <summary><span class="material-symbols-outlined" style="font-size: 18px; color: var(--yellow-quantum);">help</span> Quantum Bilingual Guide</summary>
+        <!-- Status bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span id="engineStatus"><span class="status-dot ok"></span>Cloud ready</span>
+                <span id="blockCount">2 blocks</span>
+                <span id="saveStatus">Auto-save on</span>
+            </div>
+            <span id="langHint">Type EN / FR / AR</span>
+        </div>
+
+        <!-- Collapsible Instructions -->
+        <details class="instructions-card" open>
+            <summary><span class="material-symbols-outlined" style="font-size: 18px; color: var(--yellow-quantum);">help</span> Quantum Bilingual Guide (v2)</summary>
             <ul>
-                <li><strong>Arabic Auto-Detection:</strong> Typing Arabic text (e.g. <code>مرحبا بكم</code>) automatically sets Direction to RTL and aligns right.</li>
-                <li><strong>Live Subtitles:</strong> Automatically translates English to French in real-time as you write.</li>
-                <li><strong>Engine Toggle:</strong> Switch between zero-install <code>CLOUD</code> API or private on-device <code>NLLB-200</code>.</li>
-                <li><strong>Entangle (Spooky Action):</strong> Click <span class="material-symbols-outlined" style="font-size: 13px; vertical-align: middle;">grain</span> on two blocks to link them. Changes in Block A instantly flow into Block B.</li>
-                <li><strong>Superposition (|Ψ⟩):</strong> Split a paragraph into dual draft states, then hit <strong>Collapse</strong> to select one.</li>
+                <li><strong>Arabic Auto-Detection:</strong> Typing Arabic (e.g. <code>مرحبا بكم</code>) sets RTL + Amiri font automatically.</li>
+                <li><strong>Live Subtitles:</strong> Real-time translation to French. Uses Cloud (MyMemory) or Local NLLB-200.</li>
+                <li><strong>Engine Toggle:</strong> Switch between zero-install <code>CLOUD</code> or private on-device <code>NLLB-200</code> (downloads ~600 MB once).</li>
+                <li><strong>Entangle (Spooky Action):</strong> Click the grain icon on two blocks to link them. By default the <em>French translation</em> of A is written into B (and vice-versa). Use the command menu to change mode.</li>
+                <li><strong>Superposition (|Ψ⟩):</strong> Split a block into dual draft states (source + translation). Opacity follows the ENTANGLE slider. Hit <strong>Collapse</strong> to probabilistically keep one state.</li>
+                <li><strong>Persistence:</strong> Document + settings auto-save to localStorage. Reload restores your work.</li>
             </ul>
+            <div class="tip">
+                <strong>Production tips:</strong> Prefer LOCAL engine for privacy. Cloud has rate limits. Undo/redo + auto-save keep your work safe. Use Download for a plain-text file, or Copy for the clipboard.
+            </div>
         </details>
 
-        <!-- Editor Work Area -->
+        <!-- Editor -->
         <div class="editor" id="editor">
-            <!-- Sample 1: English with Subtitle -->
-            <div class="block" dir="ltr" id="block-1">
-                <div class="block-gutter">
-                    <div class="gutter-btn drag-btn" title="Drag"><span class="material-symbols-outlined">drag_indicator</span></div>
-                    <div class="gutter-btn cmd-btn" title="Commands"><span class="material-symbols-outlined">add_circle</span></div>
-                    <div class="gutter-btn entangle-btn" title="Entangle"><span class="material-symbols-outlined">grain</span></div>
-                </div>
-                <div class="block-content">
-                    <div class="editable-text" contenteditable="true">Welcome to the Quantum Bilingual Text Laboratory. Type anything here.</div>
-                    <div class="subtitle-track">
-                        <span class="sub-tag">|Ψ_fr⟩</span>
-                        <span class="sub-text">« Bienvenue au laboratoire de texte quantique bilingue. Écrivez n'importe quoi ici. »</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sample 2: Arabic Example (RTL Auto-Detected) -->
-            <div class="block" dir="rtl" id="block-2">
-                <div class="block-gutter">
-                    <div class="gutter-btn drag-btn" title="Drag"><span class="material-symbols-outlined">drag_indicator</span></div>
-                    <div class="gutter-btn cmd-btn" title="Commands"><span class="material-symbols-outlined">add_circle</span></div>
-                    <div class="gutter-btn entangle-btn" title="Entangle"><span class="material-symbols-outlined">grain</span></div>
-                </div>
-                <div class="block-content">
-                    <div class="editable-text" contenteditable="true">مرحبا بكم في محرر النصوص الكمي. يتم الكشف عن اللغة العربية تلقائياً مع توجيه اليمين إلى اليسار.</div>
-                    <div class="subtitle-track">
-                        <span class="sub-tag">|Ψ_fr⟩</span>
-                        <span class="sub-text">« Bienvenue dans l'éditeur de texte quantique. »</span>
-                    </div>
-                </div>
-            </div>
+            <!-- Initial blocks will be injected by JS from model or defaults -->
         </div>
 
-        <!-- Footer / Waveform & Quantum Slider -->
+        <!-- Footer -->
         <div class="footer">
             <div class="footer-left">
                 <button id="qubitControlButton" title="Query Vacuum Indeterminacy (QRNG)"><span class="material-symbols-outlined">flare</span></button>
-                <button id="quantumEnhanceButton" title="Quantum Refresh"><span class="material-symbols-outlined">auto_awesome</span></button>
+                <button id="quantumEnhanceButton" title="Force Refresh All Translations"><span class="material-symbols-outlined">auto_awesome</span></button>
             </div>
 
-            <!-- Harmonic SVG Wave -->
             <div class="quantum-wave-box">
                 <svg width="140" height="36" viewBox="0 0 140 36">
                     <path id="quantumWave1" d="M0 18 Q35 4, 70 18 T140 18" fill="none" stroke="#ff0033" stroke-width="2"></path>
@@ -541,7 +585,6 @@
                 </svg>
             </div>
 
-            <!-- Entanglement / Decoherence Slider -->
             <div class="slider-group">
                 <span class="slider-label">ENTANGLE:</span>
                 <input type="range" id="quantumSlider" min="0" max="100" value="45" step="1">
@@ -550,485 +593,921 @@
         </div>
     </div>
 
-    <!-- Command Dropdown Menu -->
     <div class="command-menu" id="commandMenu"></div>
+    <div class="toast" id="toast"></div>
 
-<!-- Local On-Device Neural Model Support (Transformers.js / NLLB-200) -->
-<script type="module">
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
-env.allowLocalModels = false;
+    <!-- Local NLLB support -->
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+        env.allowLocalModels = false;
 
-let localTranslator = null;
-let modelLoading = false;
+        let localTranslator = null;
+        let modelLoading = false;
 
-window.neuralEngine = 'cloud'; 
+        window.neuralEngine = 'cloud';
 
-window.initNLLB = async function(onProgress) {
-    if (localTranslator || modelLoading) return;
-    modelLoading = true;
-    try {
-        localTranslator = await pipeline('translation', 'Xenova/nllb-200-distilled-600M', {
-            progress_callback: (p) => {
-                if (p.status === 'progress' && onProgress) {
-                    onProgress(Math.round(p.progress || 0));
+        window.initNLLB = async function(onProgress) {
+            if (localTranslator || modelLoading) return localTranslator;
+            modelLoading = true;
+            try {
+                localTranslator = await pipeline('translation', 'Xenova/nllb-200-distilled-600M', {
+                    progress_callback: (p) => {
+                        if (p.status === 'progress' && onProgress) {
+                            onProgress(Math.round(p.progress || 0));
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn("Could not load local NLLB:", e);
+                localTranslator = null;
+            }
+            modelLoading = false;
+            return localTranslator;
+        };
+
+        window.translateWithNLLB = async function(text, srcLang = 'eng_Latn', tgtLang = 'fra_Latn') {
+            if (!localTranslator) await window.initNLLB();
+            if (!localTranslator) return null;
+            try {
+                const output = await localTranslator(text, {
+                    src_lang: srcLang,
+                    tgt_lang: tgtLang
+                });
+                return output[0]?.translation_text || null;
+            } catch (e) {
+                console.warn("NLLB translation failed:", e);
+                return null;
+            }
+        };
+    </script>
+
+    <script>
+    // ==========================================
+    // UTILITIES & STATE
+    // ==========================================
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+
+    const ARABIC_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+    const FRENCH_HINT = /[àâäéèêëïîôùûüçœæ]/i;
+
+    // Per-block debounce timers (WeakMap so GC works)
+    const blockTimers = new WeakMap();
+
+    const state = {
+        isSubtitlesEnabled: true,
+        entanglementLevel: 0.45,
+        entangledPair: [],          // temporary selection for linking
+        undoStack: [],
+        redoStack: [],
+        blockIdCounter: 0,
+        autoSaveTimer: null,
+        entanglementMode: 'translation' // 'translation' | 'source'
+    };
+
+    // Instant lexical fallback (offline / zero-latency)
+    const LEXICON = {
+        "hello": "bonjour", "world": "monde", "quantum": "quantique", "editor": "éditeur",
+        "welcome": "bienvenue", "text": "texte", "bilingual": "bilingue", "subtitles": "sous-titres",
+        "the": "le", "this": "ceci", "is": "est", "real": "réel", "time": "temps",
+        "wave": "onde", "state": "état", "particle": "particule", "uncertainty": "incertitude",
+        "write": "écrire", "here": "ici", "anything": "n'importe quoi", "laboratory": "laboratoire",
+        "type": "tapez", "block": "bloc", "draft": "brouillon", "collapse": "réduire"
+    };
+
+    function mockLexicalTranslate(text) {
+        return text.split(/(\s+|[.,!?;:«»"'])/).map(token => {
+            const lower = token.toLowerCase();
+            if (LEXICON[lower]) {
+                return (token[0] === token[0].toUpperCase() && token[0] !== token[0].toLowerCase())
+                    ? LEXICON[lower].charAt(0).toUpperCase() + LEXICON[lower].slice(1)
+                    : LEXICON[lower];
+            }
+            return token;
+        }).join('');
+    }
+
+    function detectLanguage(text) {
+        if (!text || !text.trim()) return 'en';
+        if (ARABIC_REGEX.test(text)) return 'ar';
+        if (FRENCH_HINT.test(text) && text.split(/\s+/).length > 2) return 'fr';
+        return 'en';
+    }
+
+    function nllbCode(lang) {
+        const map = { en: 'eng_Latn', fr: 'fra_Latn', ar: 'ara_Arab' };
+        return map[lang] || 'eng_Latn';
+    }
+
+    function showToast(msg, duration = 2200) {
+        const t = $('#toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._hide);
+        t._hide = setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function updateStatus(engineText, engineClass = 'ok') {
+        const el = $('#engineStatus');
+        el.innerHTML = `<span class="status-dot ${engineClass}"></span>${engineText}`;
+    }
+
+    function updateBlockCount() {
+        const n = $$('.block').length;
+        $('#blockCount').textContent = `${n} block${n !== 1 ? 's' : ''}`;
+    }
+
+    // ==========================================
+    // TRANSLATION (per-block debounce + proper langs)
+    // ==========================================
+    async function requestTranslation(text, srcLang = 'en') {
+        if (!text || !text.trim()) return '';
+
+        // Local NLLB path
+        if (window.neuralEngine === 'local_nllb' && window.translateWithNLLB) {
+            try {
+                const res = await window.translateWithNLLB(text, nllbCode(srcLang), 'fra_Latn');
+                if (res) return res;
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        // Cloud
+        try {
+            const pair = `${srcLang}|fr`;
+            const res = await fetch(
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 400))}&langpair=${pair}`,
+                { signal: AbortSignal.timeout(8000) }
+            );
+            const data = await res.json();
+            if (data.responseData?.translatedText) {
+                // MyMemory sometimes echoes the query on failure
+                const tr = data.responseData.translatedText;
+                if (tr.toLowerCase() !== text.toLowerCase().slice(0, tr.length)) {
+                    return tr;
+                }
+            }
+        } catch (err) {
+            // fall through
+        }
+        return mockLexicalTranslate(text);
+    }
+
+    function updateSubtitlesForBlock(block, force = false) {
+        if (!state.isSubtitlesEnabled && !force) return;
+
+        const editable = block.querySelector('.editable-text');
+        const subText = block.querySelector('.sub-text');
+        if (!editable || !subText) return;
+
+        const raw = (editable.innerText || '').trim();
+        if (!raw) {
+            subText.textContent = '';
+            return;
+        }
+
+        const lang = detectLanguage(raw);
+        block.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        block.dataset.lang = lang;
+
+        // Immediate lexical preview
+        subText.textContent = `« ${mockLexicalTranslate(raw)} »`;
+
+        // Per-block debounce
+        const prev = blockTimers.get(block);
+        if (prev) clearTimeout(prev);
+
+        const timer = setTimeout(async () => {
+            const translation = await requestTranslation(raw, lang);
+            if (subText.isConnected) {
+                subText.textContent = `« ${translation} »`;
+            }
+            // Propagate according to entanglement mode
+            syncEntangledBlocks(block, raw, translation);
+        }, 320);
+
+        blockTimers.set(block, timer);
+    }
+
+    // ==========================================
+    // ENTANGLEMENT
+    // ==========================================
+    function syncEntangledBlocks(sourceBlock, sourceText, translatedContent) {
+        const partnerId = sourceBlock.dataset.entangledWith;
+        if (!partnerId) return;
+
+        const targetBlock = document.getElementById(partnerId);
+        if (!targetBlock) return;
+
+        const targetEditable = targetBlock.querySelector('.editable-text');
+        if (!targetEditable || targetEditable === document.activeElement) return;
+
+        // Mode: 'translation' writes the FR text; 'source' writes the original
+        const payload = state.entanglementMode === 'source' ? sourceText : translatedContent;
+        if (targetEditable.innerText === payload) return;
+
+        targetEditable.innerText = payload;
+        targetBlock.style.transition = 'background 0.4s';
+        targetBlock.style.backgroundColor = 'var(--yellow-dim)';
+        setTimeout(() => {
+            if (targetBlock.isConnected) targetBlock.style.backgroundColor = 'transparent';
+        }, 450);
+
+        // Also refresh partner subtitle if needed
+        updateSubtitlesForBlock(targetBlock);
+    }
+
+    function linkEntangledBlocks(b1, b2) {
+        // Clear any previous partners
+        [b1, b2].forEach(b => {
+            if (b.dataset.entangledWith) {
+                const old = document.getElementById(b.dataset.entangledWith);
+                if (old) {
+                    delete old.dataset.entangledWith;
+                    old.classList.remove('entangled');
+                    const btn = old.querySelector('.entangle-btn');
+                    if (btn) btn.classList.remove('active');
                 }
             }
         });
-    } catch (e) {
-        console.warn("Could not load local NLLB, falling back to cloud:", e);
-    }
-    modelLoading = false;
-};
 
-window.translateWithNLLB = async function(text) {
-    if (!localTranslator) await window.initNLLB();
-    if (!localTranslator) return null;
-    const output = await localTranslator(text, {
-        src_lang: 'eng_Latn',
-        tgt_lang: 'fra_Latn'
-    });
-    return output[0].translation_text;
-};
-</script>
-
-<script>
-// ==========================================
-// STATE & UTILITIES
-// ==========================================
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => document.querySelectorAll(selector);
-
-const state = {
-    isSubtitlesEnabled: true,
-    entanglementLevel: 0.45,
-    entangledPair: [],
-    undoStack: [],
-    redoStack: []
-};
-
-// Arabic script detection regex
-const ARABIC_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
-
-// Instant fallback dictionary for offline/zero-latency execution
-const LEXICON = {
-    "hello": "bonjour", "world": "monde", "quantum": "quantique", "editor": "éditeur",
-    "welcome": "bienvenue", "text": "texte", "bilingual": "bilingue", "subtitles": "sous-titres",
-    "the": "le", "this": "ceci", "is": "est", "real": "réel", "time": "temps",
-    "wave": "onde", "state": "état", "particle": "particule", "uncertainty": "incertitude"
-};
-
-function mockLexicalTranslate(text) {
-    return text.split(/(\s+|[.,!?;:«»])/).map(token => {
-        const lower = token.toLowerCase();
-        if (LEXICON[lower]) {
-            return (token[0] === token[0].toUpperCase())
-                ? LEXICON[lower].charAt(0).toUpperCase() + LEXICON[lower].slice(1)
-                : LEXICON[lower];
-        }
-        return token;
-    }).join('');
-}
-
-async function requestTranslation(text, isArabic = false) {
-    if (!text || text.trim() === '') return '';
-
-    // If local NLLB model is active
-    if (window.neuralEngine === 'local_nllb' && window.translateWithNLLB) {
-        try {
-            const res = await window.translateWithNLLB(text);
-            if (res) return res;
-        } catch (e) {
-            console.warn(e);
-        }
+        b1.dataset.entangledWith = b2.id;
+        b2.dataset.entangledWith = b1.id;
+        b1.classList.add('entangled');
+        b2.classList.add('entangled');
+        b1.querySelector('.entangle-btn')?.classList.add('active');
+        b2.querySelector('.entangle-btn')?.classList.add('active');
+        showToast('Blocks entangled (spooky action at a distance)');
+        scheduleSave();
     }
 
-    // Cloud API endpoint
-    try {
-        const sourceLang = isArabic ? 'ar' : 'en';
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 280))}&langpair=${sourceLang}|fr`);
-        const data = await res.json();
-        if (data.responseData && data.responseData.translatedText) {
-            return data.responseData.translatedText;
-        }
-    } catch (err) {
-        return mockLexicalTranslate(text);
-    }
-    return mockLexicalTranslate(text);
-}
-
-let debounceTimer = null;
-function updateSubtitlesForBlock(block) {
-    if (!state.isSubtitlesEnabled) return;
-    
-    const editable = block.querySelector('.editable-text');
-    const subText = block.querySelector('.sub-text');
-    if (!editable || !subText) return;
-
-    const raw = editable.innerText.trim();
-    if (!raw) {
-        subText.innerText = '';
-        return;
-    }
-
-    // Dynamic Arabic LTR/RTL check
-    const isArabic = ARABIC_REGEX.test(raw);
-    block.dir = isArabic ? 'rtl' : 'ltr';
-
-    clearTimeout(debounceTimer);
-    subText.innerText = `« ${mockLexicalTranslate(raw)} »`;
-
-    debounceTimer = setTimeout(async () => {
-        const translation = await requestTranslation(raw, isArabic);
-        subText.innerText = `« ${translation} »`;
-        syncEntangledBlocks(block, translation);
-    }, 380);
-}
-
-// ==========================================
-// QUANTUM ENTANGLEMENT & SUPERPOSITION
-// ==========================================
-function syncEntangledBlocks(sourceBlock, translatedContent) {
-    if (sourceBlock.dataset.entangledWith) {
-        const targetBlock = document.getElementById(sourceBlock.dataset.entangledWith);
-        if (targetBlock) {
-            const targetEditable = targetBlock.querySelector('.editable-text');
-            if (targetEditable && targetEditable !== document.activeElement) {
-                targetEditable.innerText = translatedContent;
-                targetBlock.style.transition = 'background 0.4s';
-                targetBlock.style.backgroundColor = 'var(--yellow-dim)';
-                setTimeout(() => targetBlock.style.backgroundColor = 'transparent', 400);
+    function unlinkBlock(block) {
+        const partnerId = block.dataset.entangledWith;
+        if (partnerId) {
+            const partner = document.getElementById(partnerId);
+            if (partner) {
+                delete partner.dataset.entangledWith;
+                partner.classList.remove('entangled');
+                partner.querySelector('.entangle-btn')?.classList.remove('active');
             }
         }
+        delete block.dataset.entangledWith;
+        block.classList.remove('entangled');
+        block.querySelector('.entangle-btn')?.classList.remove('active');
     }
-}
 
-function linkEntangledBlocks(b1, b2) {
-    b1.dataset.entangledWith = b2.id;
-    b2.dataset.entangledWith = b1.id;
-    b1.classList.add('entangled');
-    b2.classList.add('entangled');
-}
+    // ==========================================
+    // SUPERPOSITION
+    // ==========================================
+    function createSuperpositionInBlock(block) {
+        const editable = block.querySelector('.editable-text');
+        if (!editable) return;
+        // Already in superposition?
+        if (block.querySelector('.superposition-container')) return;
 
-function createSuperpositionInBlock(block) {
-    const editable = block.querySelector('.editable-text');
-    if (!editable) return;
-    const current = editable.innerText;
+        const current = editable.innerText;
+        const lang = detectLanguage(current);
 
-    editable.remove();
-    const superContainer = document.createElement('div');
-    superContainer.className = 'superposition-container';
-    superContainer.innerHTML = `
-        <div class="superposition-state state-0" contenteditable="true" style="opacity: ${1 - state.entanglementLevel}">${current || "State |0⟩: English Draft"}</div>
-        <div class="superposition-state state-1" contenteditable="true" style="opacity: ${state.entanglementLevel}">${current ? mockLexicalTranslate(current) : "State |1⟩: French Draft"}</div>
-    `;
+        editable.remove();
+        const superContainer = document.createElement('div');
+        superContainer.className = 'superposition-container';
+        superContainer.innerHTML = `
+            <div class="superposition-state state-0" contenteditable="true" style="opacity: ${1 - state.entanglementLevel}">${current || 'State |0⟩ — source draft'}</div>
+            <div class="superposition-state state-1" contenteditable="true" style="opacity: ${state.entanglementLevel}">${current ? mockLexicalTranslate(current) : 'State |1⟩ — French draft'}</div>
+        `;
 
-    block.querySelector('.block-content').prepend(superContainer);
-    saveState();
-}
+        const content = block.querySelector('.block-content');
+        content.prepend(superContainer);
 
-function collapseActiveSuperposition() {
-    const focused = document.activeElement.closest('.block');
-    const container = (focused || document).querySelector('.superposition-container');
-    if (!container) return;
-    
-    const p = state.entanglementLevel;
-    const chosen = Math.random() < p ? 1 : 0;
-    const states = container.querySelectorAll('.superposition-state');
-    const survivorText = states[chosen].innerText;
+        // Live opacity updates already handled by slider
+        superContainer.querySelectorAll('.superposition-state').forEach(el => {
+            el.addEventListener('input', () => scheduleSave());
+        });
 
-    const parent = container.parentElement;
-    container.remove();
+        pushHistory();
+        showToast('Superposition created — adjust ENTANGLE slider then Collapse');
+    }
 
-    const textNode = document.createElement('div');
-    textNode.className = 'editable-text';
-    textNode.contentEditable = "true";
-    textNode.innerText = survivorText;
-    parent.prepend(textNode);
-    textNode.focus();
+    function collapseActiveSuperposition() {
+        const focused = document.activeElement?.closest('.block');
+        const container = (focused || document).querySelector('.superposition-container');
+        if (!container) {
+            showToast('No superposition to collapse');
+            return;
+        }
 
-    saveState();
-    triggerWaveBurst();
-}
+        const p = state.entanglementLevel;
+        const chosen = Math.random() < p ? 1 : 0;
+        const states = container.querySelectorAll('.superposition-state');
+        const survivorText = states[chosen].innerText;
 
-// ==========================================
-// BLOCK FACTORY & EVENTS
-// ==========================================
-let blockIdCounter = 2;
+        const parent = container.parentElement;
+        container.remove();
 
-function createBlock(text = '') {
-    blockIdCounter++;
-    const isArabic = ARABIC_REGEX.test(text);
-    const block = document.createElement('div');
-    block.className = 'block';
-    block.dir = isArabic ? 'rtl' : 'ltr';
-    block.id = `block-${blockIdCounter}`;
-    block.innerHTML = `
-        <div class="block-gutter">
-            <div class="gutter-btn drag-btn" title="Drag"><span class="material-symbols-outlined">drag_indicator</span></div>
-            <div class="gutter-btn cmd-btn" title="Commands"><span class="material-symbols-outlined">add_circle</span></div>
-            <div class="gutter-btn entangle-btn" title="Entangle"><span class="material-symbols-outlined">grain</span></div>
-        </div>
-        <div class="block-content">
-            <div class="editable-text" contenteditable="true">${text}</div>
-            <div class="subtitle-track" style="display: ${state.isSubtitlesEnabled ? 'flex' : 'none'};">
-                <span class="sub-tag">|Ψ_fr⟩</span>
-                <span class="sub-text"></span>
-            </div>
-        </div>
-    `;
-    attachBlockListeners(block);
-    return block;
-}
+        const textNode = document.createElement('div');
+        textNode.className = 'editable-text';
+        textNode.contentEditable = 'true';
+        textNode.innerText = survivorText;
+        parent.prepend(textNode);
+        textNode.focus();
 
-function attachBlockListeners(block) {
-    const editable = block.querySelector('.editable-text');
-    if (editable) {
-        editable.addEventListener('input', () => {
+        // Re-attach input listener
+        const block = parent.closest('.block');
+        if (block) {
+            textNode.addEventListener('input', () => {
+                updateSubtitlesForBlock(block);
+                triggerImpulse();
+                scheduleSave();
+            });
             updateSubtitlesForBlock(block);
-            triggerImpulse();
-            saveState();
-        });
-        editable.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                const nb = createBlock('');
-                block.after(nb);
-                nb.querySelector('.editable-text').focus();
-                saveState();
-            }
+        }
+
+        pushHistory();
+        triggerWaveBurst();
+        showToast(`Collapsed to |${chosen}⟩`);
+    }
+
+    // ==========================================
+    // BLOCK FACTORY
+    // ==========================================
+    function createBlock(text = '', id = null) {
+        state.blockIdCounter++;
+        const blockId = id || `block-${state.blockIdCounter}`;
+        const isArabic = ARABIC_REGEX.test(text);
+
+        const block = document.createElement('div');
+        block.className = 'block';
+        block.dir = isArabic ? 'rtl' : 'ltr';
+        block.id = blockId;
+        block.innerHTML = `
+            <div class="block-gutter">
+                <div class="gutter-btn drag-btn" title="Drag (not yet interactive)"><span class="material-symbols-outlined">drag_indicator</span></div>
+                <div class="gutter-btn cmd-btn" title="Commands"><span class="material-symbols-outlined">add_circle</span></div>
+                <div class="gutter-btn entangle-btn" title="Entangle"><span class="material-symbols-outlined">grain</span></div>
+            </div>
+            <div class="block-content">
+                <div class="editable-text" contenteditable="true">${escapeHtml(text)}</div>
+                <div class="subtitle-track" style="display: ${state.isSubtitlesEnabled ? 'flex' : 'none'};">
+                    <span class="sub-tag">|Ψ_fr⟩</span>
+                    <span class="sub-text"></span>
+                </div>
+            </div>
+        `;
+        attachBlockListeners(block);
+        return block;
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function attachBlockListeners(block) {
+        const editable = block.querySelector('.editable-text');
+        if (editable) {
+            editable.addEventListener('input', () => {
+                updateSubtitlesForBlock(block);
+                triggerImpulse();
+                scheduleSave();
+            });
+            editable.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const nb = createBlock('');
+                    block.after(nb);
+                    nb.querySelector('.editable-text').focus();
+                    pushHistory();
+                    updateBlockCount();
+                    scheduleSave();
+                }
+            });
+        }
+
+        // Entanglement button
+        const entangleBtn = block.querySelector('.entangle-btn');
+        if (entangleBtn) {
+            entangleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (block.dataset.entangledWith) {
+                    // Already linked → unlink
+                    unlinkBlock(block);
+                    showToast('Entanglement broken');
+                    scheduleSave();
+                    return;
+                }
+
+                if (state.entangledPair.length === 0) {
+                    state.entangledPair.push(block);
+                    entangleBtn.classList.add('active');
+                    showToast('Select second block to entangle');
+                } else if (state.entangledPair.length === 1) {
+                    if (state.entangledPair[0] === block) {
+                        state.entangledPair = [];
+                        entangleBtn.classList.remove('active');
+                        return;
+                    }
+                    linkEntangledBlocks(state.entangledPair[0], block);
+                    state.entangledPair[0].querySelector('.entangle-btn')?.classList.remove('active');
+                    state.entangledPair = [];
+                }
+            });
+        }
+
+        // Command menu
+        const cmdBtn = block.querySelector('.cmd-btn');
+        if (cmdBtn) {
+            cmdBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openCommandMenu(cmdBtn, block);
+            });
+        }
+    }
+
+    // ==========================================
+    // COMMAND MENU
+    // ==========================================
+    const COMMANDS = [
+        { label: 'Superpose Draft (|Ψ⟩)', icon: 'call_split', action: (b) => createSuperpositionInBlock(b) },
+        { label: 'Arabic Direction (RTL)', icon: 'format_textdirection_r_to_l', action: (b) => { b.dir = 'rtl'; scheduleSave(); } },
+        { label: 'Latin Direction (LTR)', icon: 'format_textdirection_l_to_r', action: (b) => { b.dir = 'ltr'; scheduleSave(); } },
+        { label: 'Clear Subtitle', icon: 'subtitles_off', action: (b) => { const s = b.querySelector('.sub-text'); if (s) s.textContent = ''; } },
+        { label: 'Unlink Entanglement', icon: 'link_off', action: (b) => { unlinkBlock(b); scheduleSave(); } },
+        { label: 'Toggle Entangle Mode', icon: 'swap_horiz', action: () => {
+            state.entanglementMode = state.entanglementMode === 'translation' ? 'source' : 'translation';
+            showToast(`Entangle mode → ${state.entanglementMode}`);
+            scheduleSave();
+        }}
+    ];
+
+    function openCommandMenu(target, block) {
+        const menu = $('#commandMenu');
+        const rect = target.getBoundingClientRect();
+        menu.style.display = 'block';
+        menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+        menu.style.left = `${Math.min(rect.left, window.innerWidth - 250)}px`;
+        menu.innerHTML = '';
+
+        COMMANDS.forEach(cmd => {
+            const item = document.createElement('div');
+            item.className = 'command-menu-item';
+            item.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">${cmd.icon}</span> ${cmd.label}`;
+            item.addEventListener('click', () => {
+                cmd.action(block);
+                menu.style.display = 'none';
+            });
+            menu.appendChild(item);
         });
     }
 
-    // Entanglement connector
-    const entangleBtn = block.querySelector('.entangle-btn');
-    entangleBtn.addEventListener('click', () => {
-        if (state.entangledPair.length === 0) {
-            state.entangledPair.push(block);
-            entangleBtn.style.color = 'var(--yellow-quantum)';
-        } else if (state.entangledPair.length === 1) {
-            if (state.entangledPair[0] === block) {
-                state.entangledPair = [];
-                entangleBtn.style.color = '';
-                return;
-            }
-            linkEntangledBlocks(state.entangledPair[0], block);
-            state.entangledPair[0].querySelector('.entangle-btn').style.color = '';
-            state.entangledPair = [];
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#commandMenu') && !e.target.closest('.cmd-btn')) {
+            $('#commandMenu').style.display = 'none';
         }
     });
 
-    // Command menu
-    const cmdBtn = block.querySelector('.cmd-btn');
-    cmdBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openCommandMenu(cmdBtn, block);
+    // ==========================================
+    // WAVEFORM & SLIDER
+    // ==========================================
+    const slider = $('#quantumSlider');
+    const wave1 = $('#quantumWave1');
+    const wave2 = $('#quantumWave2');
+    let impulse = 0;
+
+    function updateWaveforms() {
+        const ent = state.entanglementLevel;
+        const amp = 14 * (1 - ent * 0.4) + impulse;
+        const freq = 1 + ent * 1.5;
+        wave1.setAttribute('d', `M0 18 Q${35 * freq} ${18 - amp}, 70 18 T140 18`);
+        wave2.setAttribute('d', `M0 18 Q${35 * freq} ${18 + amp}, 70 18 T140 18`);
+        if (impulse > 0) impulse *= 0.88;
+        requestAnimationFrame(updateWaveforms);
+    }
+
+    function triggerImpulse() { impulse = 10; }
+    function triggerWaveBurst() { impulse = 24; }
+
+    slider.addEventListener('input', function() {
+        const val = parseInt(this.value, 10);
+        state.entanglementLevel = val / 100;
+        $('#sliderValueDisplay').textContent = `${val}%`;
+
+        if (val >= 60) {
+            document.body.classList.add('decoherence-active');
+        } else {
+            document.body.classList.remove('decoherence-active');
+        }
+
+        $$('.superposition-state.state-0').forEach(el => el.style.opacity = (1 - state.entanglementLevel));
+        $$('.superposition-state.state-1').forEach(el => el.style.opacity = state.entanglementLevel);
+
+        scheduleSave();
     });
-}
 
-// ==========================================
-// COMMAND MENU
-// ==========================================
-const COMMANDS = [
-    { label: 'Superpose Draft (|Ψ⟩)', icon: 'call_split', action: (b) => createSuperpositionInBlock(b) },
-    { label: 'Arabic Direction (RTL)', icon: 'format_textdirection_r_to_l', action: (b) => b.dir = 'rtl' },
-    { label: 'Latin Direction (LTR)', icon: 'format_textdirection_l_to_r', action: (b) => b.dir = 'ltr' },
-    { label: 'Clear Subtitle', icon: 'subtitles_off', action: (b) => b.querySelector('.sub-text').innerText = '' }
-];
+    // ==========================================
+    // FORMATTING & ALIGNMENT
+    // ==========================================
+    function applyBlockTag(tag) {
+        const focused = document.activeElement?.closest('.block');
+        if (!focused) return;
+        document.execCommand('formatBlock', false, tag);
+        pushHistory();
+        scheduleSave();
+    }
 
-function openCommandMenu(target, block) {
-    const menu = $('#commandMenu');
-    const rect = target.getBoundingClientRect();
-    menu.style.display = 'block';
-    menu.style.top = `${rect.bottom + window.scrollY}px`;
-    menu.style.left = `${Math.min(rect.left, window.innerWidth - 230)}px`;
-    menu.innerHTML = '';
+    $('#formatH1').addEventListener('click', () => applyBlockTag('H1'));
+    $('#formatH2').addEventListener('click', () => applyBlockTag('H2'));
+    $('#formatQuote').addEventListener('click', () => applyBlockTag('BLOCKQUOTE'));
+    $('#formatCode').addEventListener('click', () => applyBlockTag('PRE'));
+    $('#formatList').addEventListener('click', () => {
+        document.execCommand('insertUnorderedList', false, null);
+        pushHistory();
+        scheduleSave();
+    });
 
-    COMMANDS.forEach(cmd => {
-        const item = document.createElement('div');
-        item.className = 'command-menu-item';
-        item.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">${cmd.icon}</span> ${cmd.label}`;
-        item.addEventListener('click', () => {
-            cmd.action(block);
-            menu.style.display = 'none';
+    function setAlignment(alignment) {
+        const focused = document.activeElement?.closest('.block');
+        if (!focused) return;
+        const editable = focused.querySelector('.editable-text');
+        const subTrack = focused.querySelector('.subtitle-track');
+        if (editable) editable.style.textAlign = alignment;
+        if (subTrack) {
+            subTrack.style.justifyContent =
+                alignment === 'center' ? 'center' :
+                alignment === 'right' ? 'flex-end' : 'flex-start';
+        }
+        scheduleSave();
+    }
+
+    $('#alignLeft').addEventListener('click', () => setAlignment('left'));
+    $('#alignCenter').addEventListener('click', () => setAlignment('center'));
+    $('#alignRight').addEventListener('click', () => setAlignment('right'));
+    $('#alignJustify').addEventListener('click', () => setAlignment('justify'));
+
+    // ==========================================
+    // TOOLBAR ACTIONS
+    // ==========================================
+    $('#toggleSubtitles').addEventListener('click', function() {
+        state.isSubtitlesEnabled = !state.isSubtitlesEnabled;
+        this.classList.toggle('active', state.isSubtitlesEnabled);
+        $$('.subtitle-track').forEach(t => t.style.display = state.isSubtitlesEnabled ? 'flex' : 'none');
+        scheduleSave();
+    });
+
+    $('#engineToggle').addEventListener('click', async function() {
+        const label = $('#engineLabel');
+        if (window.neuralEngine === 'cloud') {
+            label.textContent = 'LOADING...';
+            updateStatus('Loading NLLB…', 'loading');
+            await window.initNLLB((pct) => {
+                label.textContent = `NLLB ${pct}%`;
+                updateStatus(`Loading NLLB ${pct}%`, 'loading');
+            });
+            if (window.translateWithNLLB && (await window.initNLLB())) {
+                window.neuralEngine = 'local_nllb';
+                label.textContent = 'LOCAL NLLB';
+                this.classList.add('active');
+                updateStatus('Local NLLB ready', 'ok');
+                showToast('Switched to on-device NLLB-200');
+            } else {
+                label.textContent = 'CLOUD';
+                updateStatus('Cloud ready (NLLB failed)', 'warn');
+                showToast('Could not load local model — staying on Cloud');
+            }
+        } else {
+            window.neuralEngine = 'cloud';
+            label.textContent = 'CLOUD';
+            this.classList.remove('active');
+            updateStatus('Cloud ready', 'ok');
+            showToast('Switched to Cloud API');
+        }
+        scheduleSave();
+    });
+
+    $('#superposeButton').addEventListener('click', () => {
+        const focused = document.activeElement?.closest('.block');
+        if (focused) createSuperpositionInBlock(focused);
+        else showToast('Focus a block first');
+    });
+
+    $('#collapseButton').addEventListener('click', collapseActiveSuperposition);
+
+    $('#addTextBlock').addEventListener('click', () => {
+        const nb = createBlock('');
+        $('#editor').appendChild(nb);
+        nb.querySelector('.editable-text').focus();
+        pushHistory();
+        updateBlockCount();
+        scheduleSave();
+    });
+
+    // Add Image Block (simple URL or placeholder)
+    $('#addImageBlock').addEventListener('click', () => {
+        const url = prompt('Image URL (or leave blank for placeholder):', '');
+        const block = createBlock('');
+        const editable = block.querySelector('.editable-text');
+        if (editable) {
+            if (url && url.trim()) {
+                editable.innerHTML = `<img src="${url.trim()}" alt="image" style="max-width:100%;border-radius:6px;display:block;">`;
+            } else {
+                editable.innerHTML = `<div style="background:#222;border:1px dashed #555;padding:24px;text-align:center;color:#888;border-radius:6px;">Image placeholder — paste a URL or replace</div>`;
+            }
+        }
+        $('#editor').appendChild(block);
+        pushHistory();
+        updateBlockCount();
+        scheduleSave();
+        showToast('Image block added');
+    });
+
+    // Toggle editor max-width
+    let wideMode = false;
+    $('#toggleWidth').addEventListener('click', function() {
+        wideMode = !wideMode;
+        const container = document.querySelector('.container');
+        container.style.maxWidth = wideMode ? '100%' : '980px';
+        this.classList.toggle('active', wideMode);
+        showToast(wideMode ? 'Full width' : 'Centered (980px)');
+    });
+
+    // Simple text color picker
+    $('#colorButton').addEventListener('click', () => {
+        const focused = document.activeElement?.closest('.block');
+        if (!focused) {
+            showToast('Focus a block first');
+            return;
+        }
+        const colors = ['#f0f0f0', '#ff0033', '#ffe600', '#5af78e', '#66aaff', '#ff6688', '#aaaaaa'];
+        const current = focused.querySelector('.editable-text');
+        if (!current) return;
+        const idx = colors.indexOf(current.style.color || '#f0f0f0');
+        const next = colors[(idx + 1) % colors.length];
+        current.style.color = next;
+        showToast('Text color changed');
+        scheduleSave();
+    });
+
+    $('#copySelected').addEventListener('click', async () => {
+        const text = Array.from($$('.editable-text')).map(el => el.innerText).join('\n\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('Copied to clipboard');
+        } catch {
+            showToast('Copy failed — select manually');
+        }
+    });
+
+    // Plain-text download (user-friendly, no Markdown)
+    $('#downloadTxt').addEventListener('click', () => {
+        const text = Array.from($$('.editable-text')).map(el => el.innerText.trim()).filter(Boolean).join('\n\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quantum-text-${new Date().toISOString().slice(0,10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Plain text downloaded');
+    });
+
+    $('#clearAll').addEventListener('click', () => {
+        if (!confirm('Clear the entire document? This cannot be undone easily.')) return;
+        $('#editor').innerHTML = '';
+        state.blockIdCounter = 0;
+        const nb = createBlock('');
+        $('#editor').appendChild(nb);
+        nb.querySelector('.editable-text').focus();
+        pushHistory();
+        updateBlockCount();
+        scheduleSave();
+        showToast('Document cleared');
+    });
+
+    $('#qubitControlButton').addEventListener('click', async () => {
+        triggerWaveBurst();
+        try {
+            const res = await fetch('https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint8', {
+                signal: AbortSignal.timeout(4000)
+            });
+            const data = await res.json();
+            slider.value = data.data[0] % 100;
+        } catch {
+            slider.value = Math.floor(Math.random() * 100);
+        }
+        slider.dispatchEvent(new Event('input'));
+        showToast('Vacuum fluctuation applied');
+    });
+
+    $('#quantumEnhanceButton').addEventListener('click', () => {
+        $$('.block').forEach(b => updateSubtitlesForBlock(b, true));
+        triggerWaveBurst();
+        showToast('All translations refreshed');
+    });
+
+    // ==========================================
+    // HISTORY (simple but reliable HTML snapshots)
+    // ==========================================
+    function pushHistory() {
+        const html = $('#editor').innerHTML;
+        // Avoid consecutive duplicates
+        if (state.undoStack.length && state.undoStack[state.undoStack.length - 1] === html) return;
+        state.undoStack.push(html);
+        if (state.undoStack.length > 40) state.undoStack.shift();
+        state.redoStack = [];
+    }
+
+    function restoreFromHtml(html) {
+        $('#editor').innerHTML = html;
+        $$('.block').forEach(b => attachBlockListeners(b));
+        updateBlockCount();
+    }
+
+    $('#undoButton').addEventListener('click', () => {
+        if (state.undoStack.length > 1) {
+            state.redoStack.push(state.undoStack.pop());
+            restoreFromHtml(state.undoStack[state.undoStack.length - 1]);
+            showToast('Undo');
+        }
+    });
+
+    $('#redoButton').addEventListener('click', () => {
+        if (state.redoStack.length > 0) {
+            const s = state.redoStack.pop();
+            state.undoStack.push(s);
+            restoreFromHtml(s);
+            showToast('Redo');
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            $('#undoButton').click();
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            $('#redoButton').click();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveToStorage(true);
+            showToast('Saved');
+        }
+    });
+
+    // ==========================================
+    // PERSISTENCE (localStorage)
+    // ==========================================
+    const STORAGE_KEY = 'inkrealm-quantum-editor-v2';
+
+    function serialize() {
+        const blocks = [];
+        $$('.block').forEach(b => {
+            const editable = b.querySelector('.editable-text');
+            const superC = b.querySelector('.superposition-container');
+            let text = '';
+            let isSuper = false;
+            let state0 = '', state1 = '';
+            if (superC) {
+                isSuper = true;
+                const ss = superC.querySelectorAll('.superposition-state');
+                state0 = ss[0]?.innerText || '';
+                state1 = ss[1]?.innerText || '';
+            } else if (editable) {
+                text = editable.innerText;
+            }
+            blocks.push({
+                id: b.id,
+                text,
+                dir: b.dir,
+                lang: b.dataset.lang || 'en',
+                entangledWith: b.dataset.entangledWith || null,
+                isSuper,
+                state0,
+                state1
+            });
         });
-        menu.appendChild(item);
+        return {
+            version: 2,
+            blocks,
+            entanglementLevel: state.entanglementLevel,
+            isSubtitlesEnabled: state.isSubtitlesEnabled,
+            neuralEngine: window.neuralEngine,
+            entanglementMode: state.entanglementMode,
+            blockIdCounter: state.blockIdCounter
+        };
+    }
+
+    function saveToStorage(force = false) {
+        try {
+            const data = serialize();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            $('#saveStatus').textContent = 'Saved ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            console.warn('Save failed', e);
+            $('#saveStatus').textContent = 'Save error';
+        }
+    }
+
+    function scheduleSave() {
+        clearTimeout(state.autoSaveTimer);
+        state.autoSaveTimer = setTimeout(() => saveToStorage(), 900);
+        $('#saveStatus').textContent = 'Saving…';
+    }
+
+    function loadFromStorage() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data.blocks || !Array.isArray(data.blocks)) return false;
+
+            state.entanglementLevel = data.entanglementLevel ?? 0.45;
+            state.isSubtitlesEnabled = data.isSubtitlesEnabled !== false;
+            state.entanglementMode = data.entanglementMode || 'translation';
+            state.blockIdCounter = data.blockIdCounter || 0;
+            window.neuralEngine = data.neuralEngine === 'local_nllb' ? 'local_nllb' : 'cloud';
+
+            slider.value = Math.round(state.entanglementLevel * 100);
+            $('#sliderValueDisplay').textContent = `${slider.value}%`;
+            $('#toggleSubtitles').classList.toggle('active', state.isSubtitlesEnabled);
+
+            if (window.neuralEngine === 'local_nllb') {
+                $('#engineLabel').textContent = 'LOCAL NLLB';
+                $('#engineToggle').classList.add('active');
+                updateStatus('Local NLLB (restored)', 'ok');
+            }
+
+            const editor = $('#editor');
+            editor.innerHTML = '';
+
+            data.blocks.forEach(bd => {
+                const block = createBlock(bd.text || '', bd.id);
+                block.dir = bd.dir || 'ltr';
+                if (bd.lang) block.dataset.lang = bd.lang;
+                if (bd.entangledWith) {
+                    block.dataset.entangledWith = bd.entangledWith;
+                    block.classList.add('entangled');
+                    block.querySelector('.entangle-btn')?.classList.add('active');
+                }
+                if (bd.isSuper) {
+                    // Recreate superposition
+                    const editable = block.querySelector('.editable-text');
+                    if (editable) editable.remove();
+                    const sc = document.createElement('div');
+                    sc.className = 'superposition-container';
+                    sc.innerHTML = `
+                        <div class="superposition-state state-0" contenteditable="true" style="opacity: ${1 - state.entanglementLevel}">${escapeHtml(bd.state0 || '')}</div>
+                        <div class="superposition-state state-1" contenteditable="true" style="opacity: ${state.entanglementLevel}">${escapeHtml(bd.state1 || '')}</div>
+                    `;
+                    block.querySelector('.block-content').prepend(sc);
+                    sc.querySelectorAll('.superposition-state').forEach(el => {
+                        el.addEventListener('input', () => scheduleSave());
+                    });
+                }
+                editor.appendChild(block);
+            });
+
+            // Re-link visual entanglement (already set via dataset)
+            updateBlockCount();
+            // Trigger subtitle refresh
+            $$('.block').forEach(b => updateSubtitlesForBlock(b));
+            return true;
+        } catch (e) {
+            console.warn('Load failed', e);
+            return false;
+        }
+    }
+
+    // ==========================================
+    // INIT
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+        const restored = loadFromStorage();
+        if (!restored) {
+            // Default sample content
+            const editor = $('#editor');
+            const b1 = createBlock('Welcome to the Quantum Bilingual Text Laboratory. Type anything here.');
+            const b2 = createBlock('مرحبا بكم في محرر النصوص الكمي. يتم الكشف عن اللغة العربية تلقائياً مع توجيه اليمين إلى اليسار.');
+            editor.appendChild(b1);
+            editor.appendChild(b2);
+            updateSubtitlesForBlock(b1);
+            updateSubtitlesForBlock(b2);
+        }
+
+        updateWaveforms();
+        pushHistory();
+        updateBlockCount();
+
+        // Initial engine status
+        if (window.neuralEngine === 'cloud') {
+            updateStatus('Cloud ready', 'ok');
+        }
     });
-}
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('#commandMenu') && !e.target.closest('.cmd-btn')) {
-        $('#commandMenu').style.display = 'none';
-    }
-});
-
-// ==========================================
-// WAVEFORM & SLIDER
-// ==========================================
-const slider = $('#quantumSlider');
-const wave1 = $('#quantumWave1');
-const wave2 = $('#quantumWave2');
-let impulse = 0;
-
-function updateWaveforms() {
-    const ent = state.entanglementLevel;
-    const amp = 14 * (1 - ent * 0.4) + impulse;
-    const freq = 1 + ent * 1.5;
-    
-    wave1.setAttribute('d', `M0 18 Q${35 * freq} ${18 - amp}, 70 18 T140 18`);
-    wave2.setAttribute('d', `M0 18 Q${35 * freq} ${18 + amp}, 70 18 T140 18`);
-
-    if (impulse > 0) impulse *= 0.88;
-    requestAnimationFrame(updateWaveforms);
-}
-
-function triggerImpulse() { impulse = 10; }
-function triggerWaveBurst() { impulse = 24; }
-
-slider.addEventListener('input', function() {
-    const val = parseInt(this.value, 10);
-    state.entanglementLevel = val / 100;
-    $('#sliderValueDisplay').innerText = `${val}%`;
-
-    // Observer decoherence kicks in at high values
-    if (val >= 60) {
-        document.body.classList.add('decoherence-active');
-    } else {
-        document.body.classList.remove('decoherence-active');
-    }
-
-    $$('.superposition-state.state-0').forEach(el => el.style.opacity = (1 - state.entanglementLevel));
-    $$('.superposition-state.state-1').forEach(el => el.style.opacity = state.entanglementLevel);
-});
-// --- BLOCK FORMATTING ---
-function applyBlockTag(tag) {
-    const focused = document.activeElement.closest('.block');
-    if (!focused) return;
-    const editable = focused.querySelector('.editable-text');
-    if (!editable) return;
-    
-    // Toggle or apply HTML structure
-    document.execCommand('formatBlock', false, tag);
-    saveState();
-}
-
-$('#formatH1').addEventListener('click', () => applyBlockTag('H1'));
-$('#formatH2').addEventListener('click', () => applyBlockTag('H2'));
-$('#formatQuote').addEventListener('click', () => applyBlockTag('BLOCKQUOTE'));
-$('#formatCode').addEventListener('click', () => applyBlockTag('PRE'));
-$('#formatList').addEventListener('click', () => {
-    document.execCommand('insertUnorderedList', false, null);
-    saveState();
-});
-
-// --- ALIGNMENT (WITH SUBTITLE AUTO-ALIGN) ---
-function setAlignment(alignment) {
-    const focused = document.activeElement.closest('.block');
-    if (!focused) return;
-    
-    const editable = focused.querySelector('.editable-text');
-    const subTrack = focused.querySelector('.subtitle-track');
-    
-    if (editable) editable.style.textAlign = alignment;
-    if (subTrack) {
-        subTrack.style.justifyContent = 
-            alignment === 'center' ? 'center' : 
-            alignment === 'right' ? 'flex-end' : 'flex-start';
-    }
-    saveState();
-}
-
-$('#alignLeft').addEventListener('click', () => setAlignment('left'));
-$('#alignCenter').addEventListener('click', () => setAlignment('center'));
-$('#alignRight').addEventListener('click', () => setAlignment('right'));
-$('#alignJustify').addEventListener('click', () => setAlignment('justify'));
-// ==========================================
-// TOOLBAR BUTTONS
-// ==========================================
-$('#toggleSubtitles').addEventListener('click', function() {
-    state.isSubtitlesEnabled = !state.isSubtitlesEnabled;
-    this.classList.toggle('active', state.isSubtitlesEnabled);
-    $$('.subtitle-track').forEach(t => t.style.display = state.isSubtitlesEnabled ? 'flex' : 'none');
-});
-
-$('#engineToggle').addEventListener('click', async function() {
-    const label = $('#engineLabel');
-    if (window.neuralEngine === 'cloud') {
-        label.innerText = 'LOADING...';
-        await window.initNLLB((pct) => label.innerText = `NLLB ${pct}%`);
-        window.neuralEngine = 'local_nllb';
-        label.innerText = 'LOCAL NLLB';
-        this.classList.add('active');
-    } else {
-        window.neuralEngine = 'cloud';
-        label.innerText = 'CLOUD';
-        this.classList.remove('active');
-    }
-});
-
-$('#superposeButton').addEventListener('click', () => {
-    const focused = document.activeElement.closest('.block');
-    if (focused) createSuperpositionInBlock(focused);
-});
-
-$('#collapseButton').addEventListener('click', collapseActiveSuperposition);
-
-$('#addTextBlock').addEventListener('click', () => {
-    const nb = createBlock('');
-    $('#editor').appendChild(nb);
-    nb.querySelector('.editable-text').focus();
-    saveState();
-});
-
-$('#copySelected').addEventListener('click', () => {
-    const text = Array.from($$('.editable-text')).map(el => el.innerText).join('\n\n');
-    navigator.clipboard.writeText(text);
-});
-
-$('#qubitControlButton').addEventListener('click', async () => {
-    triggerWaveBurst();
-    try {
-        const res = await fetch('https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint8');
-        const data = await res.json();
-        slider.value = data.data[0] % 100;
-    } catch (e) {
-        slider.value = Math.floor(Math.random() * 100);
-    }
-    slider.dispatchEvent(new Event('input'));
-});
-
-$('#quantumEnhanceButton').addEventListener('click', () => {
-    $$('.block').forEach(b => updateSubtitlesForBlock(b));
-    triggerWaveBurst();
-});
-
-function saveState() {
-    state.undoStack.push($('#editor').innerHTML);
-    if (state.undoStack.length > 25) state.undoStack.shift();
-}
-
-$('#undoButton').addEventListener('click', () => {
-    if (state.undoStack.length > 1) {
-        state.redoStack.push(state.undoStack.pop());
-        $('#editor').innerHTML = state.undoStack[state.undoStack.length - 1];
-        $$('.block').forEach(b => attachBlockListeners(b));
-    }
-});
-
-$('#redoButton').addEventListener('click', () => {
-    if (state.redoStack.length > 0) {
-        const s = state.redoStack.pop();
-        state.undoStack.push(s);
-        $('#editor').innerHTML = s;
-        $$('.block').forEach(b => attachBlockListeners(b));
-    }
-});
-
-// Initialization
-window.addEventListener('DOMContentLoaded', () => {
-    $$('.block').forEach(b => attachBlockListeners(b));
-    updateWaveforms();
-    saveState();
-});
-</script>
+    </script>
 </body>
 </html>
