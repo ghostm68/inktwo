@@ -513,8 +513,8 @@
     allowfullscreen></iframe>
 </div>
 
-<!-- SIMPLE VIDEO SELECT (bottom-left) -->
-<div id="video-hud" class="fw-overlay" style="position:fixed; bottom:30px; left:30px; z-index:50; pointer-events:auto; font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;">
+<!-- SIMPLE VIDEO SELECT + JOT PAD (bottom-left) -->
+<div id="video-hud" class="fw-overlay" style="position:fixed; bottom:30px; left:30px; z-index:50; pointer-events:auto; font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px; display:flex; flex-direction:column; gap:8px;">
   <div style="background:rgba(5,5,5,0.55); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); padding:12px; min-width:220px;">
     <div style="margin-bottom:8px; color:#aaa; display:flex; align-items:center; gap:6px;">
       <span class="rec-dot" style="margin:0;"></span> VID SOURCE
@@ -530,9 +530,22 @@
       <button onclick="setCustomVideo(document.getElementById('custom-vid-input').value)" style="background:#ff0033; color:#000; border:none; padding:6px; font-family:inherit; font-size:11px; cursor:pointer; font-weight:bold;">LOAD</button>
     </div>
   </div>
+
+  <!-- JOT PAD -->
+  <div id="jot-pad" style="background:rgba(5,5,5,0.55); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); padding:12px; min-width:220px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <div style="color:#aaa; display:flex; align-items:center; gap:6px;">
+        <span class="rec-dot" style="margin:0;"></span> JOT
+      </div>
+      <button id="jot-clear" title="Clear notes" style="background:transparent; border:1px solid #333; color:#888; font-family:inherit; font-size:10px; padding:2px 6px; cursor:pointer;">CLR</button>
+    </div>
+    <textarea id="jot-text" placeholder="notes…" rows="4" style="width:100%; background:#111; color:#ddd; border:1px solid #333; padding:8px; font-family:inherit; font-size:11px; line-height:1.4; resize:vertical; box-sizing:border-box; min-height:70px;"></textarea>
+    <div id="jot-status" style="margin-top:4px; font-size:9px; color:#555; letter-spacing:1px;">AUTO-SAVE</div>
+  </div>
 </div>
 
 <script>
+  /* ── Video source ── */
   function applyVideoPreset(val) {
     const customRow = document.getElementById('custom-vid-row');
     if (val === 'custom') {
@@ -553,17 +566,50 @@
 
   function setIframeVideo(id) {
     const iframe = document.getElementById('video-iframe');
-    // Live streams work better without forced playlist loop
     const isLive = (id === 'DB7oO82OeD4' || id === '8TDmgVs6HZE');
     const params = isLive
       ? `autoplay=1&mute=1&controls=0&playsinline=1&enablejsapi=1&modestbranding=1&showinfo=0`
       : `autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&enablejsapi=1&modestbranding=1&showinfo=0`;
     iframe.src = `https://www.youtube.com/embed/${id}?${params}`;
   }
+
+  /* ── Jot pad (localStorage) ── */
+  (function initJotPad() {
+    const KEY = 'inkrealm_fashion_jot';
+    const ta = document.getElementById('jot-text');
+    const status = document.getElementById('jot-status');
+    const clr = document.getElementById('jot-clear');
+    if (!ta) return;
+
+    // restore
+    const saved = localStorage.getItem(KEY);
+    if (saved) ta.value = saved;
+
+    let timer = null;
+    ta.addEventListener('input', function () {
+      status.textContent = 'SAVING…';
+      status.style.color = '#ff0033';
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        localStorage.setItem(KEY, ta.value);
+        status.textContent = 'SAVED';
+        status.style.color = '#555';
+      }, 400);
+    });
+
+    clr.addEventListener('click', function () {
+      ta.value = '';
+      localStorage.removeItem(KEY);
+      status.textContent = 'CLEARED';
+      status.style.color = '#555';
+    });
+  })();
 </script>
 
 <style>
   #video-hud select option { background:#111; }
+  #jot-text:focus { outline: 1px solid #ff0033; border-color: #ff0033; }
+  #jot-clear:hover { border-color: #ff0033; color: #ff0033; }
 
   /* Better mobile cover for the background video */
   @media (max-width: 700px) {
@@ -573,6 +619,10 @@
       min-width: 100vw !important;
       min-height: 100vh !important;
       object-fit: cover;
+    }
+    #video-hud {
+      max-height: 45vh;
+      overflow-y: auto;
     }
   }
 </style>
