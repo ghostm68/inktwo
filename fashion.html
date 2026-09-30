@@ -353,9 +353,7 @@
 <body>
 	 
 <section class="showcase">
-        <header style="margin-bottom: 30px;">
-            <a href="https://inkrealm.info/runway">&#x2658;edit text...&#x2602;</a><br><br>
-         
+        <header style="margin-bottom: 10px;">
         </header>
 	 <!-- LIVE FASHION NEWS RSS TICKER -->
     <div class="rss-ticker-wrap">
@@ -540,8 +538,16 @@
       <button id="jot-clear" title="Clear notes" style="background:transparent; border:1px solid #333; color:#888; font-family:inherit; font-size:10px; padding:2px 6px; cursor:pointer;">CLR</button>
     </div>
     <textarea id="jot-text" placeholder="notes…" rows="4" style="width:100%; background:#111; color:#ddd; border:1px solid #333; padding:8px; font-family:inherit; font-size:11px; line-height:1.4; resize:vertical; box-sizing:border-box; min-height:70px;"></textarea>
-    <div id="jot-status" style="margin-top:4px; font-size:9px; color:#555; letter-spacing:1px;">AUTO-SAVE</div>
+    <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+      <button id="jot-copy" style="flex:1; background:transparent; border:1px solid #333; color:#ccc; font-family:inherit; font-size:10px; padding:5px 6px; cursor:pointer;">COPY</button>
+      <button id="jot-txt" style="flex:1; background:transparent; border:1px solid #333; color:#ccc; font-family:inherit; font-size:10px; padding:5px 6px; cursor:pointer;">.TXT</button>
+      <button id="jot-runway" style="flex:1; background:transparent; border:1px solid #333; color:#ccc; font-family:inherit; font-size:10px; padding:5px 6px; cursor:pointer;" title="Hand off to /runway via localStorage">→ RUNWAY</button>
+    </div>
+    <div id="jot-status" style="margin-top:6px; font-size:9px; color:#555; letter-spacing:1px;">AUTO-SAVE</div>
   </div>
+
+  <!-- edit text link now under jot -->
+  <a href="https://inkrealm.info/runway" style="color:#ffff00; text-decoration:none; font-family:'Share Tech Mono',monospace; font-size:14px; letter-spacing:2px; text-shadow:1px 1px 2px #000; align-self:flex-start;">&#x2658;edit text...&#x2602;</a>
 </div>
 
 <script>
@@ -573,13 +579,22 @@
     iframe.src = `https://www.youtube.com/embed/${id}?${params}`;
   }
 
-  /* ── Jot pad (localStorage) ── */
+  /* ── Jot pad (localStorage + export) ── */
   (function initJotPad() {
     const KEY = 'inkrealm_fashion_jot';
+    const RUNWAY_KEY = 'inkrealm_runway_import'; // /runway can read this
     const ta = document.getElementById('jot-text');
     const status = document.getElementById('jot-status');
     const clr = document.getElementById('jot-clear');
+    const btnCopy = document.getElementById('jot-copy');
+    const btnTxt = document.getElementById('jot-txt');
+    const btnRunway = document.getElementById('jot-runway');
     if (!ta) return;
+
+    function flash(msg, color) {
+      status.textContent = msg;
+      status.style.color = color || '#555';
+    }
 
     // restore
     const saved = localStorage.getItem(KEY);
@@ -587,21 +602,73 @@
 
     let timer = null;
     ta.addEventListener('input', function () {
-      status.textContent = 'SAVING…';
-      status.style.color = '#ff0033';
+      flash('SAVING…', '#ff0033');
       clearTimeout(timer);
       timer = setTimeout(function () {
         localStorage.setItem(KEY, ta.value);
-        status.textContent = 'SAVED';
-        status.style.color = '#555';
+        flash('SAVED');
       }, 400);
     });
 
     clr.addEventListener('click', function () {
       ta.value = '';
       localStorage.removeItem(KEY);
-      status.textContent = 'CLEARED';
-      status.style.color = '#555';
+      flash('CLEARED');
+    });
+
+    // COPY to clipboard
+    btnCopy.addEventListener('click', function () {
+      const text = ta.value;
+      if (!text) { flash('EMPTY'); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          flash('COPIED', '#ff0033');
+        }).catch(function () {
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    });
+
+    function fallbackCopy(text) {
+      ta.select();
+      try {
+        document.execCommand('copy');
+        flash('COPIED', '#ff0033');
+      } catch (e) {
+        flash('COPY FAILED');
+      }
+    }
+
+    // Download as .txt
+    btnTxt.addEventListener('click', function () {
+      const text = ta.value;
+      if (!text) { flash('EMPTY'); return; }
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inkrealm-jot-' + new Date().toISOString().slice(0,10) + '.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      flash('DOWNLOADED', '#ff0033');
+    });
+
+    // Hand off to /runway via shared localStorage key, then open
+    btnRunway.addEventListener('click', function () {
+      const text = ta.value;
+      if (!text) { flash('EMPTY'); return; }
+      try {
+        localStorage.setItem(RUNWAY_KEY, text);
+        flash('SENT → RUNWAY', '#ff0033');
+        // open runway in new tab; it can read RUNWAY_KEY on load
+        window.open('https://inkrealm.info/runway', '_blank');
+      } catch (e) {
+        flash('SEND FAILED');
+      }
     });
   })();
 </script>
@@ -609,7 +676,10 @@
 <style>
   #video-hud select option { background:#111; }
   #jot-text:focus { outline: 1px solid #ff0033; border-color: #ff0033; }
-  #jot-clear:hover { border-color: #ff0033; color: #ff0033; }
+  #jot-clear:hover,
+  #jot-copy:hover,
+  #jot-txt:hover,
+  #jot-runway:hover { border-color: #ff0033; color: #ff0033; }
 
   /* Better mobile cover for the background video */
   @media (max-width: 700px) {
