@@ -117,6 +117,32 @@
             pointer-events: auto; 
         }
 
+        @media (max-width: 700px) {
+            .fw-calendar {
+                width: calc(100% - 40px);
+                right: 20px;
+                left: 20px;
+                bottom: 20px;
+                height: 200px;
+            }
+            #video-hud {
+                bottom: auto !important;
+                top: 80px !important;
+                left: 20px !important;
+                max-width: calc(100% - 40px);
+            }
+            .fw-dateline {
+                top: 12px !important;
+                right: 12px !important;
+                font-size: 10px !important;
+            }
+            .rss-ticker-wrap {
+                left: 12px !important;
+                right: 12px !important;
+                top: 48px !important;
+            }
+        }
+
         /* Clean, minimal scrollbar to match theme */
         .fw-calendar::-webkit-scrollbar {
             width: 4px;
@@ -373,8 +399,9 @@
 			<svg width="12" height="12" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><path id="a" d="M0 0h58v58H0z"/></defs><g fill="none" fill-rule="evenodd"><mask id="b" fill="#fff"><use xlink:href="#a"/></mask><path d="M29 0C12.985 0 0 12.985 0 29s12.985 29 29 29 29-12.985 29-29S45.015 0 29 0zm0 4.833c13.325 0 24.167 10.841 24.167 24.167 0 13.328-10.842 24.167-24.167 24.167-13.325 0-24.167-10.84-24.167-24.167C4.833 15.675 15.674 4.833 29 4.833z" fill="#FFF" mask="url(#b)"/><g mask="url(#b)" fill="#FFF"><path d="M21 17h6v24h-6zM31 17h6v24h-6z"/></g></g></svg>		</div>
 		<div id="copy"></div>
 	</button>
-
-
+	<div class="controls">
+		<input type="range" id="volume" min="0" max="1" step="0.01" value="0.7" title="Volume">
+	</div>
 
 
 
@@ -383,7 +410,7 @@
 
 			var audioElement = document.createElement('audio');
 			audioElement.setAttribute('id', 'audioPlayer');
-			audioElement.setAttribute('src', 'http://nova-dance.ice.infomaniak.ch/nova-dance-128');
+			audioElement.setAttribute('src', 'https://playerservices.streamtheworld.com/api/livestream-redirect/WCPE_FM.mp3');
 			audioElement.addEventListener('ended', function() {
 				this.play();
 			}, false);
@@ -462,84 +489,59 @@
  	
 </div>
 </ul>
- <div style="position: fixed; z-index: -98; width: 100%; height: 100%"></div>
-<div id="yt-wrap">
-<!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
-<div id="ytplayer"></div>
+<!-- VIDEO BACKGROUND LAYER (always on, fixed opacity) -->
+<div id="video-layer" style="position:fixed; inset:0; z-index:-99; opacity:0.55; pointer-events:none; overflow:hidden;">
+  <iframe id="video-iframe"
+    src="https://www.youtube.com/embed/7Ux4GeY5MXQ?autoplay=1&mute=1&controls=0&loop=1&playlist=7Ux4GeY5MXQ&playsinline=1&enablejsapi=1&modestbranding=1&showinfo=0"
+    style="position:absolute; top:50%; left:50%; width:100vw; height:56.25vw; min-height:100vh; min-width:177.77vh; transform:translate(-50%,-50%); border:none;"
+    allow="autoplay; encrypted-media"
+    allowfullscreen></iframe>
+</div>
+
+<!-- SIMPLE VIDEO SELECT (bottom-left) -->
+<div id="video-hud" class="fw-overlay" style="position:fixed; bottom:30px; left:30px; z-index:50; pointer-events:auto; font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;">
+  <div style="background:rgba(5,5,5,0.55); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); padding:12px; min-width:220px;">
+    <div style="margin-bottom:8px; color:#aaa; display:flex; align-items:center; gap:6px;">
+      <span class="rec-dot" style="margin:0;"></span> VID SOURCE
+    </div>
+    <select id="vid-preset" onchange="applyVideoPreset(this.value)" style="width:100%; background:#111; color:#fff; border:1px solid #333; padding:6px; font-family:inherit; font-size:11px; margin-bottom:8px;">
+      <option value="7Ux4GeY5MXQ">Default runway</option>
+      <option value="custom">Custom YouTube…</option>
+    </select>
+    <div id="custom-vid-row" style="display:none; flex-direction:column; gap:6px;">
+      <input id="custom-vid-input" type="text" placeholder="YouTube URL or ID" style="width:100%; background:#111; color:#fff; border:1px solid #333; padding:6px; font-family:inherit; font-size:11px; box-sizing:border-box;" onkeydown="if(event.key==='Enter')setCustomVideo(this.value)">
+      <button onclick="setCustomVideo(document.getElementById('custom-vid-input').value)" style="background:#ff0033; color:#000; border:none; padding:6px; font-family:inherit; font-size:11px; cursor:pointer; font-weight:bold;">LOAD</button>
+    </div>
+  </div>
 </div>
 
 <script>
-// 2. This code loads the IFrame Player API code asynchronously.
-var tag = document.createElement('script');
-tag.src = "https://www.youtube.com/player_api";
-var firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  function applyVideoPreset(val) {
+    const customRow = document.getElementById('custom-vid-row');
+    if (val === 'custom') {
+      customRow.style.display = 'flex';
+      return;
+    }
+    customRow.style.display = 'none';
+    setIframeVideo(val);
+  }
 
-// 3. This function creates an <iframe> (and YouTube player)
-// after the API code downloads.
-var player;
-function onYouTubePlayerAPIReady() {
-player = new YT.Player('ytplayer', {
-width: '100%',
-height: '100%',
-videoId: '7Ux4GeY5MXQ',
-playerVars: {
-'autoplay': 1,
-'showinfo': 0,
-'autohide': 1,
-'loop': 1,
-'controls': 0,
-'modestbranding': 1,
-'vq': 'hd1080'
-},    
-events: {
-'onReady': onPlayerReady,
-'onStateChange': onPlayerStateChange
-}
-});
-}
+  function setCustomVideo(val) {
+    if (!val) return;
+    let clean = val.trim();
+    const match = clean.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/)|youtu\.be\/|\?v=)([\w-]{11})/);
+    const id = match ? match[1] : clean;
+    setIframeVideo(id);
+  }
 
-// 4. The API will call this function when the video player is ready.
-function onPlayerReady(event) {
-event.target.playVideo();
-player.mute(); // comment out if you don't want the auto played video muted
-}
-
-// 5. The API calls this function when the player's state changes.
-// The function indicates that when playing a video (state=1),
-// the player should play for six seconds and then stop.
-function onPlayerStateChange(event) {
-if (event.data == YT.PlayerState.ENDED) {
-player.seekTo(0);
-player.playVideo();
-}
-}
-function stopVideo() {
-player.stopVideo();
-}
+  function setIframeVideo(id) {
+    const iframe = document.getElementById('video-iframe');
+    iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&enablejsapi=1&modestbranding=1&showinfo=0`;
+  }
 </script>
 
 <style>
-#yt-wrap{
-position: fixed;
-left: 0;
-z-index: -99;
-position: fixed;
-top: -50%;
-left: -50%;
-width: 200%;
-height: 200%;
-}
-#yt-wrap iframe{
-position: absolute;
-top: 0;
-left: 0;
-right: 0;
-bottom: 0;
-margin: auto;
-min-width: 50%;
-min-height: 50%;
-}
+  #video-hud select option { background:#111; }
 </style>
     <link rel="stylesheet" href="cld-style.css">
  
