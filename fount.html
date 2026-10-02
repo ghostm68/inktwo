@@ -122,6 +122,7 @@
             align-items: center;
             justify-content: center;
         }
+
         /* --- INKREALM & EG REPOSITORY ARCHIVE FONTS --- */
         @font-face {
             font-family: 'Inkrealm-Regular';
@@ -170,7 +171,7 @@
                     Fount // Typewriter Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Glyph Metrics Tuner & Adaptive Font Compiler
+                    Adaptive Contrast & TrueType Metric Compiler
                 </p>
             </div>
             <div class="flex gap-3 items-center">
@@ -194,11 +195,27 @@
                         Load Manuscript Image
                     </button>
 
-                    <div class="flex gap-2">
+                    <!-- Preprocessing Controls -->
+                    <div class="space-y-3 pt-1 border-t border-white/10">
+                        <label class="flex items-center justify-between text-xs cursor-pointer">
+                            <span class="text-white/80">Invert Polarity (Negative)</span>
+                            <input type="checkbox" id="invertToggle" onchange="analyze()" class="w-4 h-4 accent-white">
+                        </label>
+
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-white/80">Micro-Deskew (Rotation)</span>
+                                <span id="rotVal" class="font-mono text-cyan-300">0.0°</span>
+                            </div>
+                            <input type="range" id="skewSlider" min="-5.0" max="5.0" step="0.1" value="0.0" class="w-full" oninput="updateRotation(this.value)">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
                         <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">Reset Crop</button>
                         <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">Re-Trace</button>
                     </div>
-                    <p class="text-[10px] text-white/60 text-center">💡 Click & drag a crop box around your alphabet block.</p>
+                    <p class="text-[10px] text-white/60 text-center">💡 Drag crop box on canvas or paste (Ctrl+V) anytime.</p>
                 </div>
 
                 <!-- Global Metrics Panel -->
@@ -221,7 +238,10 @@
                     <div class="pt-2">
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span class="text-white/70">Contrast Threshold</span>
-                            <span id="threshVal" class="font-mono">140</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
+                                <span id="threshVal" class="font-mono">140</span>
+                            </div>
                         </div>
                         <input type="range" id="threshold" min="30" max="230" value="140" class="w-full" oninput="updateThreshold(this.value)">
                     </div>
@@ -235,7 +255,7 @@
                     </div>
                 </div>
 
-                <!-- DNA Sequence -->
+                <!-- Target Sequence -->
                 <div class="panel p-5">
                     <div class="flex justify-between items-center mb-2">
                         <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Target Character Order</h2>
@@ -251,7 +271,7 @@
                 <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
                     <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20 pointer-events-none">
                         Waiting for manuscript input…<br>
-                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, or plate image here</span>
+                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, plate image, or paste directly</span>
                     </div>
                     <div class="relative cursor-crosshair">
                         <canvas id="mainCanvas" class="hidden"></canvas>
@@ -301,10 +321,7 @@ The quick brown fox jumped over the lazy dog.
                 <span class="text-[9px] text-cyan-300 font-mono">TAP TO TEST · ⬇ TO SAVE</span>
             </div>
 
-            <!-- Single horizontal scrolling row -->
-            <div id="vaultList" class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                <!-- Rendered dynamically as compact pills -->
-            </div>
+            <div id="vaultList" class="flex gap-2 overflow-x-auto pb-1 no-scrollbar"></div>
         </div>
 
         <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
@@ -384,6 +401,8 @@ The quick brown fox jumped over the lazy dog.
         const inspectCanvas = document.getElementById('inspectCanvas');
         const inspectCtx = inspectCanvas.getContext('2d');
         
+        let originalSourceImage = null;
+        let currentRotation = 0;
         let blobs = [];
         let font = null;
         let cropRect = null;
@@ -391,7 +410,9 @@ The quick brown fox jumped over the lazy dog.
         let dragStart = { x: 0, y: 0 };
         let activeBlobIndex = null;
 
-        // Image file input listener with value reset
+        const DESCENDERS = new Set(['g', 'j', 'p', 'q', 'y', ',', ';', 'Q']);
+
+        // Image file picker listener
         document.getElementById('imageInput').onchange = e => {
             if (e.target.files && e.target.files[0]) {
                 handleImage(e.target.files[0]);
@@ -399,7 +420,7 @@ The quick brown fox jumped over the lazy dog.
             }
         };
 
-        // Drag & Drop listener on the main canvas workspace
+        // Drag & Drop listener on canvas workspace
         const canvasWrapper = document.getElementById('canvasWrapper');
         canvasWrapper.addEventListener('dragover', e => {
             e.preventDefault();
@@ -410,6 +431,18 @@ The quick brown fox jumped over the lazy dog.
             e.stopPropagation();
             if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
                 handleImage(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Clipboard Paste Listener (Ctrl+V / Cmd+V)
+        window.addEventListener('paste', e => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    const file = item.getAsFile();
+                    handleImage(file);
+                    break;
+                }
             }
         });
 
@@ -437,17 +470,92 @@ The quick brown fox jumped over the lazy dog.
             reader.onload = event => {
                 const img = new Image();
                 img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
+                    originalSourceImage = img;
+                    currentRotation = 0;
+                    document.getElementById('skewSlider').value = 0;
+                    document.getElementById('rotVal').innerText = '0.0°';
+                    renderSourceCanvas();
                     canvas.classList.remove('hidden');
                     document.getElementById('dropZone').classList.add('hidden');
                     clearCrop();
-                    analyze();
+                    autoThreshold();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        /* --- ROTATION / DESKEW RENDERING --- */
+        function updateRotation(deg) {
+            currentRotation = parseFloat(deg);
+            document.getElementById('rotVal').innerText = (currentRotation > 0 ? '+' : '') + currentRotation.toFixed(1) + '°';
+            renderSourceCanvas();
+            analyze();
+        }
+
+        function renderSourceCanvas() {
+            if (!originalSourceImage) return;
+            canvas.width = originalSourceImage.width;
+            canvas.height = originalSourceImage.height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((currentRotation * Math.PI) / 180);
+            ctx.drawImage(originalSourceImage, -originalSourceImage.width / 2, -originalSourceImage.height / 2);
+            ctx.restore();
+        }
+
+        /* --- OTSU'S AUTOMATIC THRESHOLDING --- */
+        function autoThreshold() {
+            if (!canvas.width || !canvas.height) return;
+            const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
+            const maxX = cropRect ? Math.min(canvas.width, Math.ceil(cropRect.x + cropRect.w)) : canvas.width;
+            const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
+            const maxY = cropRect ? Math.min(canvas.height, Math.ceil(cropRect.y + cropRect.h)) : canvas.height;
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            const w = canvas.width;
+
+            const hist = new Int32Array(256);
+            let total = 0;
+            for (let y = minY; y < maxY; y += 2) {
+                for (let x = minX; x < maxX; x += 2) {
+                    const idx = (y * w + x) * 4;
+                    const br = Math.round((data[idx] + data[idx + 1] + data[idx + 2]) / 3);
+                    hist[br]++;
+                    total++;
+                }
+            }
+            if (total === 0) return;
+
+            let sum = 0;
+            for (let i = 0; i < 256; i++) sum += i * hist[i];
+
+            let sumB = 0, wB = 0, wF = 0, maxVariance = 0;
+            let optimalThresh = 140;
+
+            for (let t = 0; t < 256; t++) {
+                wB += hist[t];
+                if (wB === 0) continue;
+                wF = total - wB;
+                if (wF === 0) break;
+
+                sumB += t * hist[t];
+                const mB = sumB / wB;
+                const mF = (sum - sumB) / wF;
+                const variance = wB * wF * ((mB - mF) ** 2);
+
+                if (variance > maxVariance) {
+                    maxVariance = variance;
+                    optimalThresh = t;
+                }
+            }
+
+            document.getElementById('threshold').value = optimalThresh;
+            document.getElementById('threshVal').innerText = optimalThresh;
+            analyze();
         }
 
         /* --- DRAG TO CROP --- */
@@ -513,6 +621,7 @@ The quick brown fox jumped over the lazy dog.
         function analyze() {
             if (!canvas.width || !canvas.height) return;
             const threshold = parseInt(document.getElementById('threshold').value);
+            const invert = document.getElementById('invertToggle').checked;
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
             const w = canvas.width, h = canvas.height;
@@ -530,8 +639,10 @@ The quick brown fox jumped over the lazy dog.
                 for (let x = minX; x < maxX; x += step) {
                     const idx = y * w + x;
                     const brightness = (data[idx * 4] + data[idx * 4 + 1] + data[idx * 4 + 2]) / 3;
-                    if (brightness < threshold && !visited[idx]) {
-                        const blob = floodFill(x, y, visited, data, w, h, threshold, minX, maxX, minY, maxY);
+                    const isInk = invert ? (brightness > threshold) : (brightness < threshold);
+
+                    if (isInk && !visited[idx]) {
+                        const blob = floodFill(x, y, visited, data, w, h, threshold, invert, minX, maxX, minY, maxY);
                         if (blob.w >= 4 && blob.h >= 6 && blob.points.length > 12) {
                             blob.yOffset = 0;
                             blob.xOffset = 0;
@@ -549,14 +660,20 @@ The quick brown fox jumped over the lazy dog.
             blobs = sortBlobsIntoLines(rawBlobs, medianH);
 
             const chars = document.getElementById('charset').value.split('');
-            blobs.forEach((b, i) => { b.char = chars[i] || ''; });
+            blobs.forEach((b, i) => { 
+                b.char = chars[i] || ''; 
+                // Automatic subtle descender baseline compensation
+                if (DESCENDERS.has(b.char) && b.yOffset === 0) {
+                    b.yOffset = -Math.round(b.lineH * 0.18);
+                }
+            });
 
             updateOverlay();
             renderGlyphTray();
             generateFont();
         }
 
-        function floodFill(startX, startY, visited, data, w, h, thresh, minX, maxX, minY, maxY) {
+        function floodFill(startX, startY, visited, data, w, h, thresh, invert, minX, maxX, minY, maxY) {
             let bx0 = startX, bx1 = startX, by0 = startY, by1 = startY;
             const stack = [[startX, startY]];
             const points = [];
@@ -576,7 +693,8 @@ The quick brown fox jumped over the lazy dog.
                     if (nx >= minX && nx < maxX && ny >= minY && ny < maxY) {
                         const nIdx = ny * w + nx;
                         const br = (data[nIdx*4] + data[nIdx*4+1] + data[nIdx*4+2]) / 3;
-                        if (br < thresh && !visited[nIdx]) stack.push([nx, ny]);
+                        const isInk = invert ? (br > thresh) : (br < thresh);
+                        if (isInk && !visited[nIdx]) stack.push([nx, ny]);
                     }
                 }
             }
@@ -632,9 +750,13 @@ The quick brown fox jumped over the lazy dog.
             const result = [];
             for (const line of lines) {
                 line.blobs.sort((a, b) => a.x - b.x);
-                const maxBottom = Math.max(...line.blobs.map(b => b.y + b.h));
                 const lineH = Math.max(...line.blobs.map(b => b.h));
-                const baseline = maxBottom - Math.max(2, lineH * 0.12);
+
+                // 65th-percentile robust baseline finder (immune to descenders throwing line off)
+                const bottoms = line.blobs.map(b => b.y + b.h).sort((a, b) => a - b);
+                const robustBottom = bottoms[Math.floor(bottoms.length * 0.65)] || bottoms[bottoms.length - 1];
+                const baseline = robustBottom - Math.max(1, Math.round(lineH * 0.05));
+
                 for (const b of line.blobs) {
                     b.baseline = baseline;
                     b.lineH = lineH;
@@ -698,7 +820,7 @@ The quick brown fox jumped over the lazy dog.
             }
 
             const outer = getContour(b.points);
-            const holes = holePointLists.map(hp => getContour(hp).reverse()).filter(c => c.length > 3);
+            const holes = holePointLists.map(hp => getContour(hp)).filter(c => c.length > 3);
             return { outer, holes };
         }
 
@@ -760,7 +882,29 @@ The quick brown fox jumped over the lazy dog.
             return (px - (x1 + t * dx)) ** 2 + (py - (y1 + t * dy)) ** 2;
         }
 
-        /* --- FONT COMPILATION (WITH PER-GLYPH OFFSETS & MONOSPACE) --- */
+        /* --- TRUETYPE WINDING POLARITY ENFORCEMENT --- */
+        function computeSignedArea(pts) {
+            let area = 0;
+            const n = pts.length;
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                area += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1];
+            }
+            return area / 2;
+        }
+
+        // TrueType specifications: In Y-Up coordinates, Outer = Clockwise (Area < 0), Holes = Counter-Clockwise (Area > 0)
+        function forceWinding(pts, wantClockwise) {
+            if (pts.length < 3) return pts;
+            const area = computeSignedArea(pts);
+            const isClockwise = area < 0;
+            if (wantClockwise !== isClockwise) {
+                return [...pts].reverse();
+            }
+            return pts;
+        }
+
+        /* --- FONT COMPILATION --- */
         function generateFont() {
             const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
             if (!mappedBlobs.length) return;
@@ -787,23 +931,37 @@ The quick brown fox jumped over the lazy dog.
                 const { outer, holes } = extractContoursWithHoles(b);
                 if (outer.length < 3) return;
 
-                // Apply per-glyph offsets
                 const xNudge = (b.xOffset || 0) * globalScale;
                 const yNudge = (b.yOffset || 0) * globalScale;
                 const leftBearing = 40 + xNudge;
 
-                const drawContour = (pts) => {
-                    const sm = simplify(pts, tol);
-                    if (sm.length < 3) return;
-                    path.moveTo((sm[0][0] - b.x) * globalScale + leftBearing, (b.baseline - sm[0][1]) * globalScale + yNudge);
-                    for (let i = 1; i < sm.length; i++) {
-                        path.lineTo((sm[i][0] - b.x) * globalScale + leftBearing, (b.baseline - sm[i][1]) * globalScale + yNudge);
+                // Transform points directly to Font Coordinate Space (Y is up)
+                const toFontCoord = (p) => [
+                    (p[0] - b.x) * globalScale + leftBearing,
+                    (b.baseline - p[1]) * globalScale + yNudge
+                ];
+
+                // Outer Loop -> Clockwise
+                const outerFontPts = forceWinding(simplify(outer.map(toFontCoord), tol), true);
+                if (outerFontPts.length >= 3) {
+                    path.moveTo(outerFontPts[0][0], outerFontPts[0][1]);
+                    for (let i = 1; i < outerFontPts.length; i++) {
+                        path.lineTo(outerFontPts[i][0], outerFontPts[i][1]);
                     }
                     path.close();
-                };
+                }
 
-                drawContour(outer);
-                holes.forEach(drawContour);
+                // Inner Holes -> Counter-Clockwise
+                holes.forEach(hp => {
+                    const holeFontPts = forceWinding(simplify(hp.map(toFontCoord), tol), false);
+                    if (holeFontPts.length >= 3) {
+                        path.moveTo(holeFontPts[0][0], holeFontPts[0][1]);
+                        for (let i = 1; i < holeFontPts.length; i++) {
+                            path.lineTo(holeFontPts[i][0], holeFontPts[i][1]);
+                        }
+                        path.close();
+                    }
+                });
 
                 let advWidth;
                 if (isMonospace) {
@@ -881,7 +1039,7 @@ The quick brown fox jumped over the lazy dog.
             });
         }
 
-        /* --- GLYPH INSPECTOR MODAL LOGIC --- */
+        /* --- GLYPH INSPECTOR MODAL --- */
         function openInspector(idx) {
             const mapped = blobs.filter(b => b.char);
             const b = mapped[idx];
@@ -903,7 +1061,6 @@ The quick brown fox jumped over the lazy dog.
             inspectModal.style.display = 'flex';
             drawInspectorPreview(b);
 
-            // Bind slider listeners
             document.getElementById('inspectCharInput').oninput = e => {
                 b.char = e.target.value;
                 document.getElementById('inspectCharTitle').innerText = b.char;
@@ -944,7 +1101,6 @@ The quick brown fox jumped over the lazy dog.
             const cx = w / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
             const cy = h / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
 
-            // Draw Typographic Guides
             const baselineY = cy + (b.baseline - b.y) * scale;
 
             // Baseline (Red)
@@ -971,7 +1127,6 @@ The quick brown fox jumped over the lazy dog.
                 inspectCtx.fillRect(cx + (px - b.x) * scale, cy + (py - b.y) * scale, scale, scale);
             }
 
-            // Legend labels
             inspectCtx.font = '9px monospace';
             inspectCtx.fillStyle = '#ef4444';
             inspectCtx.fillText('BASELINE', 8, baselineY - 4);
@@ -984,8 +1139,6 @@ The quick brown fox jumped over the lazy dog.
                 const realIdx = blobs.indexOf(targetBlob);
                 if (realIdx !== -1) {
                     blobs.splice(realIdx, 1);
-                    
-                    // Re-index all remaining blobs to match the charset sequence
                     const chars = document.getElementById('charset').value.split('');
                     blobs.forEach((b, i) => { b.char = chars[i] || ''; });
                 }
@@ -1057,7 +1210,6 @@ The quick brown fox jumped over the lazy dog.
 
         let activeVaultFamily = null;
 
-        /* Renders the horizontal pill bar */
         function renderVault() {
             const list = document.getElementById('vaultList');
             if (!list) return;
@@ -1090,7 +1242,6 @@ The quick brown fox jumped over the lazy dog.
             });
         }
 
-        /* Instant Live Preview on Click */
         function previewVaultFont(idx) {
             const item = archiveVault[idx];
             if (!item) return;
@@ -1103,7 +1254,6 @@ The quick brown fox jumped over the lazy dog.
             renderVault();
         }
 
-        /* Silent Direct Download */
         async function downloadVaultFile(e, url, filename) {
             e.stopPropagation();
             try {
@@ -1123,7 +1273,6 @@ The quick brown fox jumped over the lazy dog.
             }
         }
 
-        /* Initialize font rack */
         renderVault();
         window.addEventListener('DOMContentLoaded', renderVault);
     </script>
