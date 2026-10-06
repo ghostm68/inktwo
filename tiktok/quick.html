@@ -267,6 +267,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            text-decoration: none;
         }
         .quality-btn:hover {
             background: rgba(255, 255, 255, 0.18);
@@ -307,6 +308,7 @@
             margin-top: 18px;
             text-align: center;
             font-size: 13px;
+            line-height: 1.4;
         }
         .success {
             display: none;
@@ -384,19 +386,18 @@
                 <h3>How to use:</h3>
                 <ol>
                     <li>Paste your video link below (TikTok, Instagram, YouTube Shorts, X, etc.)</li>
-                    <li>Select an engine or leave on <b>Auto-Relay</b> for seamless fallback</li>
+                    <li>Select an engine or leave on <b>Auto-Relay (CORS Safe)</b></li>
                     <li>Click <b>Download Video</b> to preview and grab MP4 or MP3</li>
-                    <li>For advanced queuing & conversion: <a href="https://q-v1e1.onrender.com/" target="_blank">https://q-v1e1.onrender.com/</a></li>
+                    <li>For advanced batch processing: <a href="https://q-v1e1.onrender.com/" target="_blank">https://q-v1e1.onrender.com/</a></li>
                 </ol>
             </div>
 
             <!-- Multi-Source Engine Selector -->
             <div class="source-bar">
                 <span>ENGINE:</span>
-                <button class="source-pill active" data-engine="auto" title="Automatically tries TikWM, Cobalt, and RapidAPI until resolved">⚡ Auto-Relay</button>
-                <button class="source-pill" data-engine="tikwm" title="Fastest keyless unwatermarked TikTok HD + Audio">🎯 TikWM (Keyless HD)</button>
-                <button class="source-pill" data-engine="cobalt" title="Supports 1,000+ sites: YouTube, Instagram, X/Twitter, Reddit">🌐 Cobalt (1000+ Sites)</button>
-                <button class="source-pill" data-engine="rapidapi" title="Your original RapidAPI TikTok backend">⚙ RapidAPI (Original)</button>
+                <button class="source-pill active" data-engine="auto" title="Tries CORS-proxied TikWM, then RapidAPI">⚡ Auto-Relay (CORS Safe)</button>
+                <button class="source-pill" data-engine="tikwm" title="Direct unwatermarked TikTok HD + Audio via Proxy">🎯 TikWM (Keyless HD)</button>
+                <button class="source-pill" data-engine="rapidapi" title="Original RapidAPI endpoint">⚙ RapidAPI (Original)</button>
             </div>
             
             <div class="input-group">
@@ -420,9 +421,7 @@
                 <p id="loading-text">Engaging extraction relays...</p>
             </div>
             
-            <div class="error" id="error-message">
-                Invalid URL. Please check and try again.
-            </div>
+            <div class="error" id="error-message"></div>
             
             <div class="success" id="success-message">
                 Video resolved! Choose download format below.
@@ -430,13 +429,14 @@
             
             <div class="result" id="result">
                 <div class="video-preview">
-                    <video id="video-preview" controls playsinline></video>
+                    <!-- referrerpolicy=no-referrer prevents CDNs from blocking browser playback -->
+                    <video id="video-preview" controls playsinline referrerpolicy="no-referrer"></video>
                 </div>
                 
                 <div class="download-options">
-                    <button class="quality-btn active" data-quality="hd">🎬 HD Video (No Watermark)</button>
-                    <button class="quality-btn" data-quality="sd">📱 SD / Fast MP4</button>
-                    <button class="quality-btn" data-quality="audio">🎵 Audio Only (MP3)</button>
+                    <button class="quality-btn active" id="btn-hd">🎬 HD Video (No Watermark)</button>
+                    <button class="quality-btn" id="btn-sd">📱 SD / Fast MP4</button>
+                    <button class="quality-btn" id="btn-audio">🎵 Audio Only (MP3)</button>
                 </div>
             </div>
         </div>
@@ -452,9 +452,12 @@
         const successMessage = document.getElementById('success-message');
         const result = document.getElementById('result');
         const videoPreview = document.getElementById('video-preview');
-        const qualityButtons = document.querySelectorAll('.quality-btn');
         const sourcePills = document.querySelectorAll('.source-pill');
         const platformBadge = document.getElementById('platform-badge');
+
+        const btnHd = document.getElementById('btn-hd');
+        const btnSd = document.getElementById('btn-sd');
+        const btnAudio = document.getElementById('btn-audio');
 
         let selectedEngine = 'auto';
 
@@ -481,89 +484,84 @@
             if (/youtube\.com|youtu\.be/i.test(url)) return 'YOUTUBE';
             if (/twitter\.com|x\.com/i.test(url)) return 'X / TWITTER';
             if (/reddit\.com/i.test(url)) return 'REDDIT';
-            if (/pinterest\.com|pin\.it/i.test(url)) return 'PINTEREST';
             return 'UNIVERSAL';
+        }
+
+        function sanitizeUrl(raw) {
+            try {
+                const u = new URL(raw.trim());
+                // Strip unnecessary tracking parameters that break scrapers
+                return `${u.origin}${u.pathname}`;
+            } catch (e) {
+                return raw.trim();
+            }
         }
 
         urlInput.addEventListener('input', () => {
             const val = urlInput.value.trim();
             if (val) {
-                const plat = detectPlatform(val);
-                platformBadge.innerText = plat;
-                platformBadge.style.display = 'inline-block';
+                platformBadge.innerText = detectPlatform(val);
             } else {
                 platformBadge.innerText = 'AUTO-DETECT';
             }
         });
 
-        // ================= ENGINE 1: TikWM (Keyless, High Quality, Fast) =================
-        async function fetchTikWM(url) {
-            loadingText.innerText = 'Querying TikWM Relay...';
-            const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`);
-            if (!res.ok) throw new Error('TikWM unavailable');
-            const json = await res.json();
-            if (json.code !== 0 || !json.data) throw new Error(json.msg || 'No media found on TikWM');
-
-            const d = json.data;
-            return {
-                source: 'TikWM',
-                hd: d.play || d.wmplay,
-                sd: d.wmplay || d.play,
-                audio: d.music,
-                title: d.title || 'tiktok-video'
-            };
-        }
-
-        // ================= ENGINE 2: Cobalt (Universal 1,000+ Sites) =================
-        async function fetchCobalt(url) {
-            loadingText.innerText = 'Querying Cobalt Universal Relay...';
-            // Primary and fallback Cobalt public endpoints
-            const instances = [
-                'https://api.cobalt.tools/',
-                'https://cobalt-api.kwiatekm.tokyo/'
+        // ================= CORS PROXY CASCADE ENGINE =================
+        // Bypasses browser "Failed to fetch" CORS rejections cleanly
+        async function fetchJsonThroughCors(targetUrl) {
+            const proxies = [
+                (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
             ];
 
             let lastErr = null;
-            for (const instance of instances) {
+            for (let i = 0; i < proxies.length; i++) {
                 try {
-                    const res = await fetch(instance, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ url: url })
-                    });
-                    if (!res.ok) continue;
-                    const data = await res.json();
-                    if (data.url) {
-                        return {
-                            source: 'Cobalt',
-                            hd: data.url,
-                            sd: data.url,
-                            audio: data.url,
-                            title: 'universal-video'
-                        };
-                    } else if (data.picker && data.picker.length) {
-                        return {
-                            source: 'Cobalt',
-                            hd: data.picker[0].url,
-                            sd: data.picker[0].url,
-                            audio: data.picker[0].url,
-                            title: 'universal-video'
-                        };
-                    }
-                } catch (e) {
-                    lastErr = e;
+                    const proxiedUrl = proxies[i](targetUrl);
+                    loadingText.innerText = `Connecting via Relay ${i + 1}...`;
+                    
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 9000);
+
+                    const res = await fetch(proxiedUrl, { signal: controller.signal });
+                    clearTimeout(timeout);
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    return json;
+                } catch (err) {
+                    lastErr = err;
                 }
             }
-            throw lastErr || new Error('Cobalt relay unavailable');
+            throw new Error(`All proxy relays exhausted (${lastErr?.message || 'CORS block'})`);
         }
 
-        // ================= ENGINE 3: Your Original RapidAPI =================
+        // ================= SOURCE 1: TikWM (Proxied & Keyless) =================
+        async function fetchTikWM(url) {
+            const clean = sanitizeUrl(url);
+            const target = `https://www.tikwm.com/api/?url=${encodeURIComponent(clean)}`;
+            
+            const json = await fetchJsonThroughCors(target);
+            if (!json || json.code !== 0 || !json.data) {
+                throw new Error(json?.msg || 'No downloadable stream found in TikWM payload');
+            }
+
+            const d = json.data;
+            return {
+                source: 'TikWM (Keyless HD)',
+                hd: d.play || d.wmplay,
+                sd: d.wmplay || d.play,
+                audio: d.music || null,
+                title: d.title || 'tiktok_video'
+            };
+        }
+
+        // ================= SOURCE 2: Original RapidAPI =================
         async function fetchRapidAPI(url) {
-            loadingText.innerText = 'Querying RapidAPI Engine...';
+            loadingText.innerText = 'Querying RapidAPI Gateway...';
             const apiUrl = `${RAPID_CONFIG.endpoint}?url=${encodeURIComponent(url)}`;
+            
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
@@ -571,55 +569,57 @@
                     'x-rapidapi-key': RAPID_CONFIG.key
                 }
             });
-            if (!response.ok) throw new Error(`RapidAPI status: ${response.status}`);
-            const data = await response.json();
 
-            let videoUrl = data.play || data.url || data.video_url || data.download_url || (data.data && data.data.play);
-            if (!videoUrl) throw new Error('No video URL returned by RapidAPI');
+            if (response.status === 429) {
+                throw new Error('RapidAPI monthly quota exceeded (HTTP 429). Switch to TikWM.');
+            }
+            if (!response.ok) {
+                throw new Error(`RapidAPI rejected request with HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const videoUrl = data.play || data.url || data.video_url || (data.data && data.data.play);
+
+            if (!videoUrl) {
+                throw new Error('RapidAPI did not return a valid video stream.');
+            }
 
             return {
                 source: 'RapidAPI (Original)',
                 hd: videoUrl,
                 sd: videoUrl,
                 audio: null,
-                title: 'tiktok-video'
+                title: 'tiktok_video'
             };
         }
 
-        // ================= SMART AUTO RELAY CONTROLLER =================
+        // ================= DISPATCHER =================
         async function extractMedia(url) {
-            const platform = detectPlatform(url);
+            if (selectedEngine === 'tikwm') {
+                return await fetchTikWM(url);
+            }
+            if (selectedEngine === 'rapidapi') {
+                return await fetchRapidAPI(url);
+            }
 
-            // Manual Engine Selection
-            if (selectedEngine === 'tikwm') return await fetchTikWM(url);
-            if (selectedEngine === 'cobalt') return await fetchCobalt(url);
-            if (selectedEngine === 'rapidapi') return await fetchRapidAPI(url);
-
-            // Auto-Relay Route:
-            // 1. If TikTok -> Try TikWM -> Fallback to RapidAPI -> Fallback to Cobalt
-            if (platform === 'TIKTOK') {
+            // AUTO-RELAY: Try TikWM first (most reliable, keyless), fall back to RapidAPI
+            try {
+                return await fetchTikWM(url);
+            } catch (err1) {
+                console.warn('TikWM Relay failed, trying RapidAPI:', err1);
                 try {
-                    return await fetchTikWM(url);
-                } catch (e1) {
-                    console.warn('TikWM fallback triggered:', e1);
-                    try {
-                        return await fetchRapidAPI(url);
-                    } catch (e2) {
-                        console.warn('RapidAPI fallback triggered:', e2);
-                        return await fetchCobalt(url);
-                    }
+                    return await fetchRapidAPI(url);
+                } catch (err2) {
+                    throw new Error(`Auto-Relay failed: ${err1.message}`);
                 }
-            } else {
-                // 2. Other platforms (Instagram, YouTube, X, Reddit) -> Direct to Cobalt
-                return await fetchCobalt(url);
             }
         }
 
-        // Download Action Button
+        // ================= ACTION BUTTONS =================
         downloadBtn.addEventListener('click', async function() {
             const url = urlInput.value.trim();
             if (!url) {
-                showError('Please enter a video URL.');
+                showError('Please paste a video URL first.');
                 return;
             }
 
@@ -631,76 +631,67 @@
 
             try {
                 const media = await extractMedia(url);
-                if (!media.hd) throw new Error('No stream available.');
 
-                // Attach URLs to preview player data attributes
+                // Set URLs on preview & buttons
                 videoPreview.src = media.hd;
-                videoPreview.dataset.hdUrl = media.hd;
-                videoPreview.dataset.sdUrl = media.sd || media.hd;
-                videoPreview.dataset.audioUrl = media.audio || media.hd;
-                videoPreview.dataset.title = media.title;
+                videoPreview.dataset.hd = media.hd;
+                videoPreview.dataset.sd = media.sd || media.hd;
+                videoPreview.dataset.audio = media.audio || '';
 
-                // Load preview safely
-                await new Promise((resolve) => {
-                    videoPreview.onloadeddata = resolve;
-                    videoPreview.onerror = resolve; // Continue even if cross-origin blocks inline rendering
-                    setTimeout(resolve, 8000);
-                });
+                // Show/hide audio button depending on availability
+                btnAudio.style.display = media.audio ? 'flex' : 'none';
 
+                // Display success
                 loading.style.display = 'none';
-                successMessage.innerText = `✓ Successfully resolved via ${media.source}!`;
+                successMessage.innerText = `✓ Resolved via ${media.source}!`;
                 successMessage.style.display = 'block';
                 result.style.display = 'block';
 
             } catch (error) {
                 loading.style.display = 'none';
-                showError(error.message || 'Failed to extract video. Try switching engines above.');
+                showError(error.message || 'Network error: Failed to fetch. Please verify link.');
             } finally {
                 downloadBtn.disabled = false;
             }
         });
 
-        // Function to show errors
-        function showError(message) {
-            errorMessage.textContent = message;
+        function showError(msg) {
+            errorMessage.innerHTML = `<b>Error:</b> ${msg}`;
             errorMessage.style.display = 'block';
             successMessage.style.display = 'none';
             result.style.display = 'none';
         }
 
-        // Quality & Format Toggle Buttons
-        qualityButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                qualityButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-
-                const quality = this.dataset.quality;
-                let targetUrl = videoPreview.dataset.hdUrl;
-
-                if (quality === 'sd') targetUrl = videoPreview.dataset.sdUrl;
-                if (quality === 'audio') targetUrl = videoPreview.dataset.audioUrl;
-
-                if (!targetUrl) {
-                    showError('Selected format is not available for this stream.');
-                    return;
-                }
-
-                triggerDownload(targetUrl, quality === 'audio' ? 'audio.mp3' : 'video.mp4');
-            });
-        });
-
-        // Trigger Download Helper
+        // Trigger Direct Download (Bypasses CORS tab blocking)
         function triggerDownload(url, filename) {
+            if (!url) return;
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
             a.target = '_blank';
+            a.rel = 'noopener noreferrer';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
         }
 
-        // Handle Enter key
+        btnHd.addEventListener('click', () => {
+            triggerDownload(videoPreview.dataset.hd, 'video_HD.mp4');
+        });
+
+        btnSd.addEventListener('click', () => {
+            triggerDownload(videoPreview.dataset.sd, 'video_SD.mp4');
+        });
+
+        btnAudio.addEventListener('click', () => {
+            if (videoPreview.dataset.audio) {
+                triggerDownload(videoPreview.dataset.audio, 'audio.mp3');
+            } else {
+                alert('No separate audio track provided for this link.');
+            }
+        });
+
+        // Enter Key Listener
         urlInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') downloadBtn.click();
         });
