@@ -4,9 +4,11 @@ class InkRealmTerminal {
     constructor() {
         const select = document.getElementById("model-select");
         this.modelId = select ? select.value : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
-        this.engine = null;
+        this.engine = null;          // WebLLM engine
+        this.tjsGenerator = null;    // transformers.js pipeline
+        this.backend = "webllm";     // "webllm" | "tjs"
         this.isGenerating = false;
-        this.isOnline = false; 
+        this.isOnline = false;
         this.systemPrompt = "You are a sophisticated AI interface in a literary terminal environment. Tone: Professional terminal aesthetic, warm, intelligent, terse.";
         this.init();
     }
@@ -15,6 +17,15 @@ class InkRealmTerminal {
         this.runSplash();
         this.setupEvents();
         this.checkHardware();
+    }
+
+    // === helpers ===
+    isTjsModel(id) {
+        return typeof id === "string" && id.startsWith("tjs:");
+    }
+
+    getTjsModelId(id) {
+        return this.isTjsModel(id) ? id.slice(4) : null;
     }
 
     // === DIAGNOSTIC LOG FUNCTIONS ===
@@ -60,50 +71,81 @@ class InkRealmTerminal {
         const statusDot = document.getElementById("status-dot");
         const statusText = document.getElementById("status-text");
 
-        if (this.isOnline) return; 
+        if (this.isOnline) return;
 
         if (btn) {
             btn.disabled = true;
             btn.textContent = "ESTABLISHING...";
         }
         if (statusText) statusText.textContent = "DOWNLOADING...";
-        if (statusDot) statusDot.style.background = "#e8e2da"; 
+        if (statusDot) statusDot.style.background = "#e8e2da";
 
         try {
             this.addSystemMessage(`⟁ INITIATING HANDSHAKE: ${this.modelId}`);
             this.addLog(`Handshake initiated with model: ${this.modelId}`, "info");
 
-            const progressCallback = (report) => {
-                const p = Math.round(report.progress * 100);
-                if (p < 100) {
-                    if (statusText) statusText.textContent = `SYNCING: ${p}%`;
-                    if (btn) btn.textContent = `${p}%`;
-                }
-                this.addLog(`Loading: ${p}% - ${report.text}`, "info");
-            };
+            // ---------- transformers.js path ----------
+            if (this.isTjsModel(this.modelId)) {
+                this.backend = "tjs";
 
-            // Reload existing engine if already instantiated, else create fresh
-            if (this.engine) {
-                await this.engine.reload(this.modelId, { initProgressCallback: progressCallback });
+                // Ensure the CDN module has finished loading
+                if (!window.INK_TJS) {
+                    throw new Error("transformers.js not ready yet. Refresh and try again.");
+                }
+
+                const progressCallback = (progress) => {
+                    // transformers.js progress format is different
+                    const p = progress?.progress != null
+                        ? Math.round(progress.progress * 100)
+                        : (progress?.status === "done" ? 100 : 0);
+                    if (p < 100) {
+                        if (statusText) statusText.textContent = `SYNCING: ${p}%`;
+                        if (btn) btn.textContent = `${p}%`;
+                    }
+                    this.addLog(`tjs Loading: ${p}% - ${progress?.status || progress?.file || ""}`, "info");
+                };
+
+                this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback);
+                this.engine = null; // clear any previous WebLLM engine
+
+            // ---------- WebLLM path (unchanged) ----------
             } else {
-                this.engine = await webllm.CreateMLCEngine(this.modelId, { initProgressCallback: progressCallback });
+                this.backend = "webllm";
+                this.tjsGenerator = null;
+
+                const progressCallback = (report) => {
+                    const p = Math.round(report.progress * 100);
+                    if (p < 100) {
+                        if (statusText) statusText.textContent = `SYNCING: ${p}%`;
+                        if (btn) btn.textContent = `${p}%`;
+                    }
+                    this.addLog(`Loading: ${p}% - ${report.text}`, "info");
+                };
+
+                if (this.engine) {
+                    await this.engine.reload(this.modelId, { initProgressCallback: progressCallback });
+                } else {
+                    this.engine = await webllm.CreateMLCEngine(this.modelId, {
+                        initProgressCallback: progressCallback
+                    });
+                }
+                this.engine.currentModelId = this.modelId;
             }
 
-            this.engine.currentModelId = this.modelId;
             this.isOnline = true;
-            
+
             this.addSystemMessage("⟁ LINK ESTABLISHED. READY FOR INPUT.");
-            this.addLog(`Engine loaded successfully. Model target: ${this.modelId}`, "info");
+            this.addLog(`Engine loaded successfully. Backend: ${this.backend} | Model: ${this.modelId}`, "info");
             if (statusText) statusText.textContent = "ONLINE";
-            if (statusDot) statusDot.style.background = "#db1a31"; 
+            if (statusDot) statusDot.style.background = "#db1a31";
             if (btn) {
                 btn.textContent = "LINK ACTIVE";
                 btn.style.borderColor = "#db1a31";
                 btn.style.color = "#db1a31";
                 btn.disabled = false;
             }
-            
-        } catch (err) { 
+
+        } catch (err) {
             console.error(err);
             if (statusText) statusText.textContent = "FAILURE";
             if (statusDot) statusDot.style.background = "#ff0033";
@@ -121,7 +163,7 @@ class InkRealmTerminal {
     // === 2. GENERATION LOGIC ===
     async generate() {
         if (this.isGenerating) return;
-        
+
         if (!this.isOnline) {
             this.addSystemMessage("⚠ ERROR: SYSTEM OFFLINE. PLEASE CLICK [INITIALIZE LINK].");
             this.addLog("Generation blocked: engine offline", "warn");
@@ -147,34 +189,84 @@ class InkRealmTerminal {
         const loadingId = this.addLoading();
 
         try {
-            const messages = [
-                { role: "system", content: this.systemPrompt },
-                { role: "user", content: prompt }
-            ];
+            // ---------- transformers.js generation ----------
+            if (this.backend === "tjs" && this.tjsGenerator) {
+                this.removeLoading(loadingId);
 
-            const chunks = await this.engine.chat.completions.create({
-                messages,
-                stream: true,
-                temperature: 0.7,
-            });
+                const msgEl = this.addMessage("ai", "");
+                const contentEl = msgEl.querySelector(".message-content");
+                if (contentEl) contentEl.classList.add("typing");
 
-            this.removeLoading(loadingId);
+                const messages = [
+                    { role: "system", content: this.systemPrompt },
+                    { role: "user", content: prompt }
+                ];
 
-            const msgEl = this.addMessage("ai", "");
-            const contentEl = msgEl.querySelector(".message-content");
-            if (contentEl) contentEl.classList.add("typing"); 
-            
-            let fullText = "";
-            for await (const chunk of chunks) {
-                const delta = chunk.choices[0]?.delta?.content || "";
-                fullText += delta;
-                if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
-                
-                const container = document.getElementById("chat-messages");
-                if (container) container.scrollTop = container.scrollHeight;
+                // Stream via TextStreamer if available, otherwise collect full output
+                let fullText = "";
+                const streamer = window.INK_TJS?.TextStreamer
+                    ? new window.INK_TJS.TextStreamer(this.tjsGenerator.tokenizer, {
+                        skip_prompt: true,
+                        skip_special_tokens: true,
+                        callback_function: (token) => {
+                            fullText += token;
+                            if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
+                            const container = document.getElementById("chat-messages");
+                            if (container) container.scrollTop = container.scrollHeight;
+                        }
+                    })
+                    : null;
+
+                const output = await this.tjsGenerator(messages, {
+                    max_new_tokens: 512,
+                    do_sample: true,
+                    temperature: 0.7,
+                    streamer: streamer || undefined
+                });
+
+                // Fallback if streamer didn't fire (some builds)
+                if (!fullText && output?.[0]?.generated_text) {
+                    const last = output[0].generated_text;
+                    fullText = Array.isArray(last)
+                        ? (last.at(-1)?.content || "")
+                        : (typeof last === "string" ? last : "");
+                    if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
+                }
+
+                if (contentEl) contentEl.classList.remove("typing");
+                this.addLog("tjs response stream complete.", "info");
+
+            // ---------- WebLLM generation (original) ----------
+            } else {
+                const messages = [
+                    { role: "system", content: this.systemPrompt },
+                    { role: "user", content: prompt }
+                ];
+
+                const chunks = await this.engine.chat.completions.create({
+                    messages,
+                    stream: true,
+                    temperature: 0.7,
+                });
+
+                this.removeLoading(loadingId);
+
+                const msgEl = this.addMessage("ai", "");
+                const contentEl = msgEl.querySelector(".message-content");
+                if (contentEl) contentEl.classList.add("typing");
+
+                let fullText = "";
+                for await (const chunk of chunks) {
+                    const delta = chunk.choices[0]?.delta?.content || "";
+                    fullText += delta;
+                    if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, "<br>");
+
+                    const container = document.getElementById("chat-messages");
+                    if (container) container.scrollTop = container.scrollHeight;
+                }
+                if (contentEl) contentEl.classList.remove("typing");
+                this.addLog("Response output stream complete.", "info");
             }
-            if (contentEl) contentEl.classList.remove("typing");
-            this.addLog("Response output stream complete.", "info");
 
         } catch (err) {
             this.removeLoading(loadingId);
@@ -212,8 +304,13 @@ class InkRealmTerminal {
 
         safeListen("model-select", "change", e => {
             this.modelId = e.target.value;
-            this.isOnline = false; 
-            
+            this.isOnline = false;
+            this.backend = this.isTjsModel(this.modelId) ? "tjs" : "webllm";
+
+            // Clear previous engines so a clean load happens next time
+            this.engine = null;
+            this.tjsGenerator = null;
+
             const btn = document.getElementById("connect-btn");
             if (btn) {
                 btn.disabled = false;
@@ -221,7 +318,7 @@ class InkRealmTerminal {
                 btn.style.color = "";
                 btn.style.borderColor = "";
             }
-            
+
             const statusDot = document.getElementById("status-dot");
             if (statusDot) statusDot.style.background = "#333";
             const statusTxt = document.getElementById("status-text");
@@ -270,7 +367,7 @@ class InkRealmTerminal {
         const pad = document.getElementById("notepad");
         const content = pad ? pad.value : "";
         if (!content.trim()) return alert("Buffer empty.");
-        
+
         const blob = new Blob([content], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -290,10 +387,10 @@ class InkRealmTerminal {
         div.className = `message ${role}`;
         const meta = role === "user" ? "USER" : "TERMINAL";
 
-        if (role === "ai" && !text) { 
+        if (role === "ai" && !text) {
             const id = "msg-" + Math.random().toString(36).slice(2);
             div.innerHTML = `
-                <div class="message-header">${meta} <span class="notepad-btn" data-import="${id}">→ PAD</span></div>
+                <div class="message-header">\( {meta} <span class="notepad-btn" data-import=" \){id}">→ PAD</span></div>
                 <div class="message-content" id="${id}"></div>`;
         } else {
             div.innerHTML = `
