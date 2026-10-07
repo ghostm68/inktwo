@@ -269,32 +269,74 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
     <!-- Transformers.js (for Qwen3-0.6B light path) -->
-    <script type="module">
-        import { pipeline, TextStreamer } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0";
+    <!-- Transformers.js (for Qwen3-0.6B light path) -->
+<script type="module">
+    import {
+        AutoTokenizer,
+        AutoModelForCausalLM,
+        TextStreamer,
+        pipeline
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
 
-        // Expose a simple dual-backend helper the existing maise scripts can use
-        window.INK_TJS = {
-            pipeline,
-            TextStreamer,
-            modelId: "onnx-community/Qwen3-0.6B-ONNX",
-            isTjsModel: (value) => value && value.startsWith("tjs:"),
-            getModelId: (value) => value?.startsWith("tjs:") ? value.slice(4) : null,
-            // Ready-to-use generator factory
-            async createGenerator(progress_callback) {
-                return pipeline(
-                    "text-generation",
-                    "onnx-community/Qwen3-0.6B-ONNX",
-                    {
-                        device: "webgpu",
-                        dtype: "q4f16",
-                        progress_callback
-                    }
-                );
-            }
-        };
+    window.INK_TJS = {
+        pipeline,
+        TextStreamer,
+        AutoTokenizer,
+        AutoModelForCausalLM,
+        modelId: "onnx-community/Qwen3-0.6B-ONNX",
 
-        console.log("[INK] transformers.js ready — Qwen3-0.6B available as light protocol");
-    </script>
+        isTjsModel: (value) => value && value.startsWith("tjs:"),
+        getModelId: (value) => value?.startsWith("tjs:") ? value.slice(4) : null,
+
+        async createGenerator(progress_callback) {
+            // Preferred explicit path (matches official Qwen3 WebGPU demo)
+            const model_id = "onnx-community/Qwen3-0.6B-ONNX";
+
+            const tokenizer = await AutoTokenizer.from_pretrained(model_id, {
+                progress_callback
+            });
+
+            const model = await AutoModelForCausalLM.from_pretrained(model_id, {
+                dtype: "q4f16",
+                device: "webgpu",
+                progress_callback
+            });
+
+            // Return a simple generator function that matches what maisew.js expects
+            return async function generate(messages, options = {}) {
+                const inputs = tokenizer.apply_chat_template(messages, {
+                    add_generation_prompt: true,
+                    return_dict: true,
+                });
+
+                const streamer = options.streamer || null;
+
+                const output = await model.generate({
+                    ...inputs,
+                    max_new_tokens: options.max_new_tokens ?? 512,
+                    do_sample: options.do_sample ?? true,
+                    temperature: options.temperature ?? 0.7,
+                    top_k: 20,
+                    streamer,
+                });
+
+                const decoded = tokenizer.batch_decode(output, {
+                    skip_special_tokens: true
+                });
+
+                // Mimic pipeline-style return so existing code still works
+                return [{
+                    generated_text: messages.concat([{
+                        role: "assistant",
+                        content: decoded[0].replace(messages.map(m => m.content).join(""), "").trim()
+                    }])
+                }];
+            };
+        }
+    };
+
+    console.log("[INK] transformers.js v4 ready — Qwen3-0.6B available");
+</script>
 
     <script src="js/custom-maise.js"></script>
     <script type="module" src="js/maisew.js"></script>
