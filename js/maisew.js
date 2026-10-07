@@ -5,7 +5,7 @@ class InkRealmTerminal {
         const select = document.getElementById("model-select");
         this.modelId = select ? select.value : "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
         this.engine = null;          // WebLLM engine
-        this.tjsGenerator = null;    // transformers.js pipeline
+        this.tjsGenerator = null;    // transformers.js generator
         this.backend = "webllm";     // "webllm" | "tjs"
         this.isGenerating = false;
         this.isOnline = false;
@@ -88,13 +88,11 @@ class InkRealmTerminal {
             if (this.isTjsModel(this.modelId)) {
                 this.backend = "tjs";
 
-                // Ensure the CDN module has finished loading
                 if (!window.INK_TJS) {
                     throw new Error("transformers.js not ready yet. Refresh and try again.");
                 }
 
                 const progressCallback = (progress) => {
-                    // transformers.js progress format is different
                     const p = progress?.progress != null
                         ? Math.round(progress.progress * 100)
                         : (progress?.status === "done" ? 100 : 0);
@@ -106,9 +104,9 @@ class InkRealmTerminal {
                 };
 
                 this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback);
-                this.engine = null; // clear any previous WebLLM engine
+                this.engine = null;
 
-            // ---------- WebLLM path (unchanged) ----------
+            // ---------- WebLLM path ----------
             } else {
                 this.backend = "webllm";
                 this.tjsGenerator = null;
@@ -202,10 +200,12 @@ class InkRealmTerminal {
                     { role: "user", content: prompt }
                 ];
 
-                // Stream via TextStreamer if available, otherwise collect full output
                 let fullText = "";
-                const streamer = window.INK_TJS?.TextStreamer
-                    ? new window.INK_TJS.TextStreamer(this.tjsGenerator.tokenizer, {
+
+                // Only create streamer if tokenizer is present
+                let streamer = null;
+                if (window.INK_TJS?.TextStreamer && this.tjsGenerator.tokenizer) {
+                    streamer = new window.INK_TJS.TextStreamer(this.tjsGenerator.tokenizer, {
                         skip_prompt: true,
                         skip_special_tokens: true,
                         callback_function: (token) => {
@@ -214,8 +214,8 @@ class InkRealmTerminal {
                             const container = document.getElementById("chat-messages");
                             if (container) container.scrollTop = container.scrollHeight;
                         }
-                    })
-                    : null;
+                    });
+                }
 
                 const output = await this.tjsGenerator(messages, {
                     max_new_tokens: 512,
@@ -224,7 +224,7 @@ class InkRealmTerminal {
                     streamer: streamer || undefined
                 });
 
-                // Fallback if streamer didn't fire (some builds)
+                // Fallback if streamer produced nothing
                 if (!fullText && output?.[0]?.generated_text) {
                     const last = output[0].generated_text;
                     fullText = Array.isArray(last)
@@ -236,7 +236,7 @@ class InkRealmTerminal {
                 if (contentEl) contentEl.classList.remove("typing");
                 this.addLog("tjs response stream complete.", "info");
 
-            // ---------- WebLLM generation (original) ----------
+            // ---------- WebLLM generation ----------
             } else {
                 const messages = [
                     { role: "system", content: this.systemPrompt },
@@ -307,7 +307,7 @@ class InkRealmTerminal {
             this.isOnline = false;
             this.backend = this.isTjsModel(this.modelId) ? "tjs" : "webllm";
 
-            // Clear previous engines so a clean load happens next time
+            // Clear previous engines
             this.engine = null;
             this.tjsGenerator = null;
 
