@@ -274,22 +274,17 @@
     import {
         AutoTokenizer,
         AutoModelForCausalLM,
-        TextStreamer,
-        pipeline
+        TextStreamer
     } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
 
     window.INK_TJS = {
-        pipeline,
         TextStreamer,
-        AutoTokenizer,
-        AutoModelForCausalLM,
         modelId: "onnx-community/Qwen3-0.6B-ONNX",
 
         isTjsModel: (value) => value && value.startsWith("tjs:"),
         getModelId: (value) => value?.startsWith("tjs:") ? value.slice(4) : null,
 
         async createGenerator(progress_callback) {
-            // Preferred explicit path (matches official Qwen3 WebGPU demo)
             const model_id = "onnx-community/Qwen3-0.6B-ONNX";
 
             const tokenizer = await AutoTokenizer.from_pretrained(model_id, {
@@ -302,14 +297,15 @@
                 progress_callback
             });
 
-            // Return a simple generator function that matches what maisew.js expects
-            return async function generate(messages, options = {}) {
+            // Return an object that has both generate + tokenizer
+            // so the existing maisew.js streaming code keeps working
+            const generator = async function (messages, options = {}) {
                 const inputs = tokenizer.apply_chat_template(messages, {
                     add_generation_prompt: true,
                     return_dict: true,
                 });
 
-                const streamer = options.streamer || null;
+                const streamer = options.streamer || undefined;
 
                 const output = await model.generate({
                     ...inputs,
@@ -324,19 +320,24 @@
                     skip_special_tokens: true
                 });
 
-                // Mimic pipeline-style return so existing code still works
+                // Mimic pipeline return shape
                 return [{
-                    generated_text: messages.concat([{
-                        role: "assistant",
-                        content: decoded[0].replace(messages.map(m => m.content).join(""), "").trim()
-                    }])
+                    generated_text: [
+                        ...messages,
+                        { role: "assistant", content: decoded[0] }
+                    ]
                 }];
             };
+
+            // Attach tokenizer so TextStreamer can find it
+            generator.tokenizer = tokenizer;
+            return generator;
         }
     };
 
     console.log("[INK] transformers.js v4 ready — Qwen3-0.6B available");
 </script>
+
 
     <script src="js/custom-maise.js"></script>
     <script type="module" src="js/maisew.js"></script>
