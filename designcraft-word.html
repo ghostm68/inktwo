@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DesignCraft Writer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #ff0033;
+  --black: #050505;
+  --white: #ffffff;
+  --grey: #1a1a1a;
+  --dark-grey: #0a0a0a;
+  --text-main: #ffffff;
+  --font-sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Courier New', Courier, monospace;
+  --panel: #111111;
+  --border: #2a2a2a;
+  --hover: #222222;
+  --muted: #888888;
+  --success: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--black);
+  color: var(--text-main);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Selection */
+::selection {
+  background: var(--red);
+  color: var(--black);
+  text-shadow: none;
+}
+
+/* App shell */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--dark-grey);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 44px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topbar::-webkit-scrollbar { display: none; }
+
+.logo {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--red);
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:hover { background: var(--hover); }
+.btn:active { background: var(--grey); }
+.btn.active {
+  background: var(--red);
+  color: var(--black);
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+.select:focus { border-color: var(--red); }
+
+.input-num {
+  width: 52px;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+.input-num:focus { border-color: var(--red); }
+
+/* Main layout */
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  background: var(--dark-grey);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s, margin 0.2s;
+}
+.sidebar.collapsed {
+  width: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.style-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.style-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.style-item:hover { background: var(--hover); }
+.style-item.active {
+  background: var(--red);
+  color: var(--black);
+  font-weight: 600;
+}
+
+.prop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.prop-row label { color: var(--muted); }
+
+/* Editor area */
+.editor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--black);
+  position: relative;
+}
+
+.editor-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 16px 80px;
+  display: flex;
+  justify-content: center;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page {
+  width: 100%;
+  max-width: 720px;
+  min-height: 900px;
+  background: var(--grey);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0,0,0,0.5);
+  padding: 48px 56px;
+  position: relative;
+  transition: max-width 0.25s;
+}
+
+.page.columns-2 {
+  column-count: 2;
+  column-gap: 28px;
+  column-rule: 1px solid var(--border);
+}
+.page.columns-3 {
+  column-count: 3;
+  column-gap: 22px;
+  column-rule: 1px solid var(--border);
+}
+
+/* The actual editable surface */
+#editor {
+  outline: none;
+  min-height: 800px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-main);
+  caret-color: var(--red);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+#editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#editor h1 {
+  font-size: 2.1em;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+  letter-spacing: -0.02em;
+}
+#editor h2 {
+  font-size: 1.45em;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.2em 0 0.4em;
+}
+#editor h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin: 1em 0 0.35em;
+}
+#editor p {
+  margin: 0 0 0.85em;
+}
+#editor blockquote {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  border-left: 3px solid var(--red);
+  background: rgba(255,0,51,0.06);
+  color: #ddd;
+  font-style: italic;
+}
+#editor ul, #editor ol {
+  margin: 0 0 0.85em 1.4em;
+}
+#editor li { margin-bottom: 0.25em; }
+#editor a {
+  color: var(--red);
+  text-decoration: underline;
+}
+#editor code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--dark-grey);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+#editor pre {
+  font-family: var(--font-mono);
+  background: var(--dark-grey);
+  padding: 12px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1em 0;
+  font-size: 0.9em;
+}
+#editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+/* Pull quote style (DesignCraft-ish) */
+#editor .pull-quote {
+  font-size: 1.35em;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--red);
+  margin: 1.4em 0;
+  padding: 0.8em 0;
+  border-top: 2px solid var(--red);
+  border-bottom: 2px solid var(--red);
+  text-align: center;
+}
+
+/* Status bar */
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 14px;
+  background: var(--dark-grey);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+  min-height: 28px;
+}
+.statusbar span { white-space: nowrap; }
+.statusbar .sep { margin: 0 8px; opacity: 0.4; }
+
+/* Floating action (mobile) */
+.fab {
+  display: none;
+  position: fixed;
+  bottom: 48px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--red);
+  color: var(--black);
+  border: none;
+  box-shadow: 0 4px 16px rgba(255,0,51,0.4);
+  cursor: pointer;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+}
+.fab svg { width: 22px; height: 22px; fill: currentColor; }
+
+/* Modal / dialogs */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal {
+  background: var(--grey);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 15px;
+}
+.modal-body { padding: 18px; }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+.modal input[type="text"],
+.modal textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  margin-top: 6px;
+}
+.modal input:focus,
+.modal textarea:focus { border-color: var(--red); }
+.modal label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.modal .field { margin-bottom: 14px; }
+
+.btn-primary {
+  background: var(--red);
+  color: var(--black);
+  font-weight: 600;
+}
+.btn-primary:hover { background: #ff1a47; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--grey);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 60;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 8px 0 30px rgba(0,0,0,0.5);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar.collapsed { width: 280px; }
+
+  .page {
+    padding: 28px 20px;
+    min-height: 70vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .editor-scroll { padding: 0 0 60px; }
+  .fab { display: flex; }
+  .hide-mobile { display: none !important; }
+  .topbar { padding: 6px 8px; gap: 4px; }
+  .logo { font-size: 13px; margin-right: 4px; }
+}
+
+@media (max-width: 480px) {
+  .page.columns-2,
+  .page.columns-3 {
+    column-count: 1;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Top toolbar -->
+  <div class="topbar" role="toolbar">
+    <button class="btn" id="btnSidebar" title="Toggle panel" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+    </button>
+    <span class="logo">DesignCraft Writer</span>
+    <div class="divider hide-mobile"></div>
+
+    <!-- File -->
+    <button class="btn" id="btnNew" title="New document">New</button>
+    <button class="btn" id="btnOpen" title="Open">Open</button>
+    <button class="btn" id="btnSave" title="Save (.html)">Save</button>
+    <div class="divider"></div>
+
+    <!-- History -->
+    <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">
+      <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+    </button>
+    <button class="btn" id="btnRedo" title="Redo (Ctrl+Y)">
+      <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+    </button>
+    <div class="divider"></div>
+
+    <!-- Formatting -->
+    <button class="btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button class="btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button class="btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button class="btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+    <div class="divider hide-mobile"></div>
+
+    <select class="select" id="fontSize" title="Font size">
+      <option value="12">12</option>
+      <option value="14">14</option>
+      <option value="16" selected>16</option>
+      <option value="18">18</option>
+      <option value="20">20</option>
+      <option value="24">24</option>
+      <option value="28">28</option>
+      <option value="32">32</option>
+      <option value="40">40</option>
+    </select>
+
+    <div class="divider hide-mobile"></div>
+
+    <button class="btn" data-cmd="justifyLeft" title="Align left">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/></svg>
+    </button>
+    <button class="btn" data-cmd="justifyCenter" title="Align center">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm4 4h10v2H7V9zm-4 4h18v2H3v-2zm4 4h10v2H7v-2z"/></svg>
+    </button>
+    <button class="btn" data-cmd="justifyRight" title="Align right">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm6 4h12v2H9V9zm-6 4h18v2H3v-2zm6 4h12v2H9v-2z"/></svg>
+    </button>
+    <button class="btn" data-cmd="justifyFull" title="Justify">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 4h18v2H3V9zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/></svg>
+    </button>
+
+    <div class="divider hide-mobile"></div>
+
+    <button class="btn" data-cmd="insertUnorderedList" title="Bullet list">
+      <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
+    </button>
+    <button class="btn" data-cmd="insertOrderedList" title="Numbered list">
+      <svg viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
+    </button>
+
+    <div class="divider hide-mobile"></div>
+
+    <button class="btn" id="btnQuote" title="Pull quote">Quote</button>
+    <button class="btn" id="btnHR" title="Horizontal rule">—</button>
+
+    <div style="flex:1"></div>
+
+    <button class="btn hide-mobile" id="btnExport" title="Export as HTML">Export</button>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">Styles & Layout</div>
+
+      <div class="sidebar-section">
+        <h3>Paragraph Styles</h3>
+        <div class="style-list" id="paraStyles">
+          <div class="style-item active" data-style="body">Body</div>
+          <div class="style-item" data-style="h1">Headline</div>
+          <div class="style-item" data-style="h2">Subhead</div>
+          <div class="style-item" data-style="h3">Section</div>
+          <div class="style-item" data-style="quote">Pull Quote</div>
+          <div class="style-item" data-style="caption">Caption</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Columns</h3>
+        <div class="prop-row">
+          <label>Layout</label>
+          <select class="select" id="colSelect" style="width:100px">
+            <option value="1">1 column</option>
+            <option value="2">2 columns</option>
+            <option value="3">3 columns</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Page Width</h3>
+        <div class="prop-row">
+          <label>Max width</label>
+          <select class="select" id="widthSelect" style="width:100px">
+            <option value="560">Narrow</option>
+            <option value="720" selected>Standard</option>
+            <option value="900">Wide</option>
+            <option value="1100">Full</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Character</h3>
+        <div class="prop-row">
+          <label>Font size</label>
+          <input type="number" class="input-num" id="charSize" value="16" min="8" max="72">
+        </div>
+        <div class="prop-row">
+          <label>Line height</label>
+          <input type="number" class="input-num" id="lineHeight" value="1.65" min="1" max="3" step="0.05">
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="flex:1">
+        <h3>Document</h3>
+        <div class="prop-row">
+          <label>Words</label>
+          <span id="wordCount">0</span>
+        </div>
+        <div class="prop-row">
+          <label>Characters</label>
+          <span id="charCount">0</span>
+        </div>
+        <div class="prop-row">
+          <label>Reading time</label>
+          <span id="readTime">0 min</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Editor -->
+    <div class="editor-wrap">
+      <div class="editor-scroll">
+        <div class="page" id="page">
+          <div id="editor" contenteditable="true" spellcheck="true"
+               data-placeholder="Start writing… (or paste from another document)"
+               role="textbox" aria-multiline="true" aria-label="Document editor"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div>
+      <span id="statusWords">0 words</span>
+      <span class="sep">·</span>
+      <span id="statusChars">0 characters</span>
+    </div>
+    <div>
+      <span id="statusZoom">100%</span>
+      <span class="sep">·</span>
+      <span>DesignCraft Writer</span>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile FAB for sidebar -->
+<button class="fab" id="fabSidebar" aria-label="Open panel">
+  <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+</button>
+
+<!-- Find/Replace modal (simple) -->
+<div class="modal-backdrop" id="findModal">
+  <div class="modal">
+    <div class="modal-header">
+      Find &amp; Replace
+      <button class="btn" id="closeFind">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Find</label>
+        <input type="text" id="findInput" placeholder="Text to find">
+      </div>
+      <div class="field">
+        <label>Replace with</label>
+        <input type="text" id="replaceInput" placeholder="Replacement text">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="findNext">Find Next</button>
+      <button class="btn btn-primary" id="replaceOne">Replace</button>
+      <button class="btn btn-primary" id="replaceAll">Replace All</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const editor = document.getElementById('editor');
+  const page = document.getElementById('page');
+  const sidebar = document.getElementById('sidebar');
+  const toast = document.getElementById('toast');
+
+  // ---------- Utilities ----------
+  function showToast(msg, ms = 2200) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('show'), ms);
+  }
+
+  function getText() {
+    return editor.innerText || '';
+  }
+
+  function updateCounts() {
+    const text = getText().trim();
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const chars = text.length;
+    const mins = Math.max(1, Math.round(words / 200)) || 0;
+    document.getElementById('wordCount').textContent = words;
+    document.getElementById('charCount').textContent = chars;
+    document.getElementById('readTime').textContent = words ? mins + ' min' : '0 min';
+    document.getElementById('statusWords').textContent = words + ' words';
+    document.getElementById('statusChars').textContent = chars + ' characters';
+  }
+
+  // ---------- Toolbar commands ----------
+  document.querySelectorAll('[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.execCommand(btn.dataset.cmd, false, null);
+      editor.focus();
+      updateActiveStates();
+    });
+  });
+
+  function updateActiveStates() {
+    document.querySelectorAll('[data-cmd]').forEach(btn => {
+      const cmd = btn.dataset.cmd;
+      try {
+        btn.classList.toggle('active', document.queryCommandState(cmd));
+      } catch (_) {}
+    });
+  }
+
+  editor.addEventListener('keyup', () => { updateCounts(); updateActiveStates(); });
+  editor.addEventListener('mouseup', updateActiveStates);
+  editor.addEventListener('input', updateCounts);
+
+  // Font size
+  document.getElementById('fontSize').addEventListener('change', e => {
+    document.execCommand('fontSize', false, '7'); // temporary
+    const fonts = editor.querySelectorAll('font[size="7"]');
+    fonts.forEach(f => {
+      f.removeAttribute('size');
+      f.style.fontSize = e.target.value + 'px';
+    });
+    editor.focus();
+  });
+
+  document.getElementById('charSize').addEventListener('change', e => {
+    const size = e.target.value + 'px';
+    document.execCommand('fontSize', false, '7');
+    editor.querySelectorAll('font[size="7"]').forEach(f => {
+      f.removeAttribute('size');
+      f.style.fontSize = size;
+    });
+    editor.focus();
+  });
+
+  document.getElementById('lineHeight').addEventListener('change', e => {
+    editor.style.lineHeight = e.target.value;
+  });
+
+  // ---------- Styles ----------
+  document.getElementById('paraStyles').addEventListener('click', e => {
+    const item = e.target.closest('.style-item');
+    if (!item) return;
+    document.querySelectorAll('.style-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const style = item.dataset.style;
+    applyParaStyle(style);
+  });
+
+  function applyParaStyle(style) {
+    editor.focus();
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+
+    switch (style) {
+      case 'h1':
+        document.execCommand('formatBlock', false, 'h1');
+        break;
+      case 'h2':
+        document.execCommand('formatBlock', false, 'h2');
+        break;
+      case 'h3':
+        document.execCommand('formatBlock', false, 'h3');
+        break;
+      case 'body':
+        document.execCommand('formatBlock', false, 'p');
+        break;
+      case 'quote':
+        // Wrap selection or insert pull-quote
+        if (sel.isCollapsed) {
+          document.execCommand('insertHTML', false,
+            '<div class="pull-quote">Your pull quote here</div><p><br></p>');
+        } else {
+          const range = sel.getRangeAt(0);
+          const text = range.toString();
+          range.deleteContents();
+          const div = document.createElement('div');
+          div.className = 'pull-quote';
+          div.textContent = text;
+          range.insertNode(div);
+        }
+        break;
+      case 'caption':
+        document.execCommand('formatBlock', false, 'p');
+        // Apply smaller muted style
+        document.execCommand('fontSize', false, '7');
+        editor.querySelectorAll('font[size="7"]').forEach(f => {
+          f.removeAttribute('size');
+          f.style.fontSize = '13px';
+          f.style.color = '#999';
+        });
+        break;
+    }
+    updateCounts();
+  }
+
+  document.getElementById('btnQuote').addEventListener('click', () => applyParaStyle('quote'));
+  document.getElementById('btnHR').addEventListener('click', () => {
+    document.execCommand('insertHorizontalRule', false, null);
+    editor.focus();
+  });
+
+  // ---------- Columns & width ----------
+  document.getElementById('colSelect').addEventListener('change', e => {
+    page.classList.remove('columns-2', 'columns-3');
+    if (e.target.value === '2') page.classList.add('columns-2');
+    if (e.target.value === '3') page.classList.add('columns-3');
+  });
+
+  document.getElementById('widthSelect').addEventListener('change', e => {
+    page.style.maxWidth = e.target.value + 'px';
+  });
+
+  // ---------- Sidebar toggle ----------
+  function toggleSidebar() {
+    if (window.innerWidth <= 768) {
+      sidebar.classList.toggle('open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  }
+  document.getElementById('btnSidebar').addEventListener('click', toggleSidebar);
+  document.getElementById('fabSidebar').addEventListener('click', toggleSidebar);
+
+  // Close sidebar on outside click (mobile)
+  document.addEventListener('click', e => {
+    if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+      if (!sidebar.contains(e.target) &&
+          e.target !== document.getElementById('btnSidebar') &&
+          e.target !== document.getElementById('fabSidebar') &&
+          !document.getElementById('btnSidebar').contains(e.target) &&
+          !document.getElementById('fabSidebar').contains(e.target)) {
+        sidebar.classList.remove('open');
+      }
+    }
+  });
+
+  // ---------- File operations ----------
+  document.getElementById('btnNew').addEventListener('click', () => {
+    if (getText().trim() && !confirm('Clear the current document?')) return;
+    editor.innerHTML = '';
+    updateCounts();
+    showToast('New document');
+  });
+
+  document.getElementById('btnSave').addEventListener('click', () => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Document</title>
+<style>
+  body { font-family: Inter, Helvetica Neue, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.65; color: #111; }
+  h1 { font-size: 2.1em; } h2 { font-size: 1.45em; }
+  .pull-quote { font-size: 1.35em; color: #ff0033; border-top: 2px solid #ff0033; border-bottom: 2px solid #ff0033; text-align: center; margin: 1.4em 0; padding: 0.8em 0; }
+  blockquote { border-left: 3px solid #ff0033; padding-left: 1em; color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+${editor.innerHTML}
+</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'document.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Saved as document.html');
+  });
+
+  document.getElementById('btnExport').addEventListener('click', () => {
+    document.getElementById('btnSave').click();
+  });
+
+  // Open (file input)
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.html,.htm,.txt,.md';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  document.getElementById('btnOpen').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      if (file.name.match(/\.html?$/i)) {
+        // Extract body content roughly
+        const match = text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        editor.innerHTML = match ? match[1] : text;
+      } else {
+        editor.innerHTML = text.replace(/\n/g, '<br>');
+      }
+      updateCounts();
+      showToast('Opened ' + file.name);
+    };
+    reader.readAsText(file);
+    fileInput.value = '';
+  });
+
+  // ---------- Undo / Redo ----------
+  document.getElementById('btnUndo').addEventListener('click', () => {
+    document.execCommand('undo');
+    editor.focus();
+    updateCounts();
+  });
+  document.getElementById('btnRedo').addEventListener('click', () => {
+    document.execCommand('redo');
+    editor.focus();
+    updateCounts();
+  });
+
+  // ---------- Keyboard shortcuts ----------
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      document.getElementById('btnSave').click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      e.preventDefault();
+      document.execCommand('bold');
+      updateActiveStates();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      e.preventDefault();
+      document.execCommand('italic');
+      updateActiveStates();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+      e.preventDefault();
+      document.execCommand('underline');
+      updateActiveStates();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      // let browser handle
+    }
+  });
+
+  // ---------- Paste cleanup (basic) ----------
+  editor.addEventListener('paste', e => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+
+  // Initial
+  updateCounts();
+  editor.focus();
+
+  // Sample content for demo
+  editor.innerHTML = `
+    <h1>DesignCraft Writer</h1>
+    <p>A focused writing environment inspired by Adobe InCopy, with layout touches from DesignCraft. Use the styles panel on the left to apply headlines, subheads, or pull quotes.</p>
+    <div class="pull-quote">“Typography is the craft of endowing human language with a durable visual form.”</div>
+    <h2>Getting started</h2>
+    <p>Start typing, or paste plain text. The toolbar gives you bold, italic, lists, alignment and more. Switch to two or three columns from the panel for a magazine-style layout.</p>
+    <p>Your color scheme drives the entire interface: deep blacks, pure white text, and that signature red for selection and accents.</p>
+    <h3>Mobile friendly</h3>
+    <p>On smaller screens the side panel slides in from the left. Use the floating button to open it.</p>
+  `;
+  updateCounts();
+})();
+</script>
+</body>
+</html>
