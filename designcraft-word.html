@@ -139,6 +139,9 @@ html, body {
   transition: transform 0.25s ease;
 }
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 11px 14px;
   font-size: 10px;
   font-weight: 600;
@@ -151,6 +154,39 @@ html, body {
   background: var(--dark-grey);
   z-index: 2;
 }
+.sidebar-close {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sidebar-close:hover { background: var(--hover); }
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 55;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.sidebar-backdrop.visible {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .sidebar-section {
   padding: 12px;
   border-bottom: 1px solid var(--border);
@@ -501,11 +537,13 @@ html, body {
     position: fixed;
     left: 0; top: 0; bottom: 0;
     z-index: 60;
-    width: 260px;
+    width: 280px;
+    max-width: 85vw;
     transform: translateX(-100%);
     box-shadow: 8px 0 28px rgba(0,0,0,0.55);
   }
   .sidebar.open { transform: translateX(0); }
+  .sidebar-close { display: flex; }
   .page { border-radius: 0; box-shadow: none; }
   .editor-scroll { padding: 0 0 70px; }
   .fab { display: flex; }
@@ -514,6 +552,33 @@ html, body {
   .hero { height: 220px; }
   .hero .hero-content { left: 18px; right: 18px; bottom: 18px; }
   #editor h1 { font-size: 1.9em; }
+}
+
+/* Print / PDF */
+@media print {
+  .topbar, .sidebar, .statusbar, .fab, .toast, .sidebar-backdrop, .img-controls {
+    display: none !important;
+  }
+  html, body {
+    background: #111 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .app, .main, .editor-wrap, .editor-scroll {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    background: #111 !important;
+  }
+  .page {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  #editor {
+    min-height: 0 !important;
+  }
 }
 </style>
 </head>
@@ -563,13 +628,18 @@ html, body {
     <button class="btn" id="btnQuote" title="Pull quote">Quote</button>
 
     <div style="flex:1"></div>
-    <button class="btn hide-mobile" id="btnExport">Export</button>
+    <button class="btn" id="btnExport" title="Export PDF">PDF</button>
   </div>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <div class="main">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">Design</div>
+      <div class="sidebar-header">
+        <span>Design</span>
+        <button class="sidebar-close" id="btnCloseSidebar" aria-label="Close panel">✕</button>
+      </div>
 
       <div class="sidebar-section">
         <h3>Styles</h3>
@@ -916,12 +986,35 @@ html, body {
   });
 
   // ── Sidebar toggle ──
+  const backdrop = document.getElementById('sidebarBackdrop');
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    backdrop.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
   function toggleSidebar() {
-    if (window.innerWidth <= 768) sidebar.classList.toggle('open');
-    else sidebar.classList.toggle('collapsed');
+    if (window.innerWidth <= 768) {
+      if (sidebar.classList.contains('open')) closeSidebar();
+      else openSidebar();
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
   }
   document.getElementById('btnSidebar').onclick = toggleSidebar;
   document.getElementById('fabSidebar').onclick = toggleSidebar;
+  document.getElementById('btnCloseSidebar').onclick = closeSidebar;
+  backdrop.addEventListener('click', closeSidebar);
+
+  // Close on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && sidebar.classList.contains('open')) closeSidebar();
+  });
 
   // ── File ops ──
   document.getElementById('btnNew').onclick = () => {
@@ -930,7 +1023,8 @@ html, body {
     showToast('New document');
   };
 
-  document.getElementById('btnSave').onclick = document.getElementById('btnExport').onclick = () => {
+  // Save still exports HTML for editing later
+  document.getElementById('btnSave').onclick = () => {
     const clone = editor.cloneNode(true);
     clone.querySelectorAll('.img-controls').forEach(el => el.remove());
     clone.querySelectorAll('.img-block').forEach(b => {
@@ -977,10 +1071,19 @@ html, body {
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'designcraft-export.html';
+    a.download = 'designcraft-document.html';
     a.click();
     URL.revokeObjectURL(a.href);
-    showToast('Exported');
+    showToast('Saved as HTML');
+  };
+
+  // Export PDF via print dialog (Save as PDF)
+  document.getElementById('btnExport').onclick = () => {
+    // Deselect images so controls don't print
+    selectImgBlock(null);
+    closeSidebar();
+    showToast('Opening print dialog — choose “Save as PDF”');
+    setTimeout(() => window.print(), 400);
   };
 
   document.getElementById('btnOpen').onclick = () => document.getElementById('fileOpen').click();
