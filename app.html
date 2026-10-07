@@ -104,6 +104,7 @@
                     <label class="terminal-label">PROTOCOL //</label>
                     <div class="custom-select-container">
                         <select id="model-select">
+                            <!-- Existing WebLLM models -->
                             <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (1.5B) - CoRE</option>
                             <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">QWEN 2.5 (0.5B) - NANo</option>
                             <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">HERMES 3 (3B) - SMARTEST</option>
@@ -112,6 +113,9 @@
                             <option value="gemma-2-2b-it-q4f16_1-MLC">GEMMA 2 (2B) - CREATIVE</option>
                             <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">STABLE ZEPHYR (1.6B) - BALANCED</option>
                             <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k">RED PAJAMA (3B) - RELIC</option>
+
+                            <!-- NEW: transformers.js backend -->
+                            <option value="tjs:onnx-community/Qwen3-0.6B-ONNX">QWEN 3 (0.6B) - LIGHT · tjs</option>
                         </select>
                     </div>
                     <button id="connect-btn" class="terminal-btn" type="button">INITIALIZE LINK</button>
@@ -263,6 +267,35 @@
 
     <!-- External Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- Transformers.js (for Qwen3-0.6B light path) -->
+    <script type="module">
+        import { pipeline, TextStreamer } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0";
+
+        // Expose a simple dual-backend helper the existing maise scripts can use
+        window.INK_TJS = {
+            pipeline,
+            TextStreamer,
+            modelId: "onnx-community/Qwen3-0.6B-ONNX",
+            isTjsModel: (value) => value && value.startsWith("tjs:"),
+            getModelId: (value) => value?.startsWith("tjs:") ? value.slice(4) : null,
+            // Ready-to-use generator factory
+            async createGenerator(progress_callback) {
+                return pipeline(
+                    "text-generation",
+                    "onnx-community/Qwen3-0.6B-ONNX",
+                    {
+                        device: "webgpu",
+                        dtype: "q4f16",
+                        progress_callback
+                    }
+                );
+            }
+        };
+
+        console.log("[INK] transformers.js ready — Qwen3-0.6B available as light protocol");
+    </script>
+
     <script src="js/custom-maise.js"></script>
     <script type="module" src="js/maisew.js"></script>
     <script src="js/maise.js"></script>
