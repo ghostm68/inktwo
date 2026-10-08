@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DesignCraft — InCopy Editorial Studio & PDF</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root { 
+            --red: #ff0033; 
+            --black: #050505; 
+            --white: #ffffff;
+            --grey: #1a1a1a;
+            --dark-grey: #0a0a0a;
+            --text-main: #ffffff;
+            --font-sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        /* SELECTION HIGHLIGHT */
+        ::selection {
+            background: var(--red);
+            color: var(--black);
+            text-shadow: none;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--black);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        header {
+            background-color: var(--dark-grey);
+            border-bottom: 1px solid var(--grey);
+            padding: 0.65rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--red);
+            border: 1px solid var(--red);
+            padding: 0.15rem 0.45rem;
+            letter-spacing: 0.05em;
+        }
+
+        .brand h1 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* BUTTONS */
+        button, input, select, textarea {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            border-radius: 2px;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 0.5rem 0.85rem;
+            min-height: 36px;
+            background: var(--grey);
+            color: var(--white);
+            border: 1px solid #333;
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            border-color: var(--red);
+        }
+
+        .btn-primary {
+            background-color: var(--red);
+            color: var(--black);
+            border-color: var(--red);
+            font-weight: 700;
+        }
+
+        .btn-primary:active {
+            opacity: 0.8;
+        }
+
+        /* MOBILE NAVIGATION TABS */
+        .mobile-tabs {
+            display: flex;
+            background-color: var(--dark-grey);
+            border-bottom: 1px solid var(--grey);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.7rem 0.4rem;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #888;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            color: var(--white);
+            border-bottom-color: var(--red);
+            background: var(--grey);
+        }
+
+        /* WORKSPACE LAYOUT */
+        .workspace {
+            display: flex;
+            flex: 1;
+            position: relative;
+        }
+
+        /* EDITORIAL SIDEBAR */
+        .sidebar {
+            width: 400px;
+            background-color: var(--dark-grey);
+            border-right: 1px solid var(--grey);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--grey);
+        }
+
+        .sidebar-section h3 {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--red);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .sidebar-section h3::before {
+            content: "■";
+            font-size: 0.6rem;
+        }
+
+        .input-group {
+            margin-bottom: 0.9rem;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 0.72rem;
+            color: #888;
+            margin-bottom: 0.35rem;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        input[type="text"], input[type="file"], select, textarea {
+            width: 100%;
+            background-color: var(--black);
+            border: 1px solid var(--grey);
+            color: var(--white);
+            padding: 0.5rem;
+            outline: none;
+        }
+
+        input[type="file"] {
+            font-size: 0.75rem;
+            padding: 0.4rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--red);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 75px;
+            line-height: 1.4;
+        }
+
+        /* PREVIEW VIEWPORT */
+        .preview-viewport {
+            flex: 1;
+            background-color: #080808;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 2rem 1rem;
+            overflow-y: auto;
+        }
+
+        .canvas-container {
+            width: 100%;
+            max-width: 595px; /* InDesign A4 Aspect standard */
+            background: var(--black);
+            border: 1px solid var(--grey);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+        }
+
+        canvas#pageCanvas {
+            width: 100%;
+            height: auto !important;
+            display: block;
+        }
+
+        /* RESPONSIVE BREAKPOINTS */
+        @media (max-width: 860px) {
+            .workspace {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                display: none;
+            }
+
+            .preview-viewport {
+                padding: 1rem 0.5rem;
+            }
+
+            body[data-tab="preview"] .preview-viewport { display: flex; }
+            body[data-tab="preview"] .sidebar { display: none; }
+
+            body[data-tab="story"] .preview-viewport { display: none; }
+            body[data-tab="story"] .sidebar { display: flex; }
+            body[data-tab="story"] .image-settings { display: none; }
+            body[data-tab="story"] .story-settings { display: block; }
+
+            body[data-tab="image"] .preview-viewport { display: none; }
+            body[data-tab="image"] .sidebar { display: flex; }
+            body[data-tab="image"] .story-settings { display: none; }
+            body[data-tab="image"] .image-settings { display: block; }
+        }
+
+        @media (min-width: 861px) {
+            .mobile-tabs {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body data-tab="preview">
+
+    <!-- APP HEADER -->
+    <header>
+        <div class="brand">
+            <span class="badge">INCOPY // PDF</span>
+            <h1>DesignCraft Editorial</h1>
+        </div>
+        <div class="header-actions">
+            <button id="toggleGuidesBtn">Guides</button>
+            <button class="btn-primary" id="renderPdfBtn">Export PDF</button>
+        </div>
+    </header>
+
+    <!-- MOBILE TABS -->
+    <nav class="mobile-tabs">
+        <button class="tab-btn active" onclick="setMobileTab('preview')">1. Layout View</button>
+        <button class="tab-btn" onclick="setMobileTab('image')">2. Image Frame</button>
+        <button class="tab-btn" onclick="setMobileTab('story')">3. Story Copy</button>
+    </nav>
+
+    <div class="workspace">
+
+        <!-- INCOPY SIDEBAR -->
+        <aside class="sidebar">
+
+            <!-- IMAGE FRAME CONTROLS -->
+            <div class="sidebar-section image-settings">
+                <h3>Graphic / Image Frame</h3>
+                
+                <div class="input-group">
+                    <label>Replace Image (Device / File)</label>
+                    <input type="file" id="imageFileInput" accept="image/*">
+                </div>
+
+                <div class="input-group">
+                    <label>Fitting Option</label>
+                    <select id="imageFitSelect">
+                        <option value="cover">Fill Frame Proportionally (Cover)</option>
+                        <option value="contain">Fit Content Proportionally (Contain)</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Frame Height: <span id="heightDisplay">230</span>pt</label>
+                    <input type="range" id="frameHeightInput" min="120" max="360" value="230" style="width: 100%; accent-color: var(--red);">
+                </div>
+
+                <div class="input-group">
+                    <label>Caption Text</label>
+                    <input type="text" id="captionInput" value="Evening light over layered hills — generated entirely in code for this sample.">
+                </div>
+            </div>
+
+            <!-- STORY & TEXT CONTROLS -->
+            <div class="sidebar-section story-settings">
+                <h3>Editorial Story</h3>
+
+                <div class="input-group">
+                    <label>Section Kicker</label>
+                    <input type="text" id="kickerInput" value="FEATURE · DESIGN">
+                </div>
+
+                <div class="input-group">
+                    <label>Headline</label>
+                    <input type="text" id="headlineInput" value="Notes on the Grid">
+                </div>
+
+                <div class="input-group">
+                    <label>Deck / Lead Paragraph</label>
+                    <textarea id="deckInput">A good layout is invisible. Here is what is going on underneath the page — from the baseline grid to the paragraph composer.</textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Pull Quote</label>
+                    <input type="text" id="quoteInput" value="“The best layouts disappear. What remains is the story.”">
+                </div>
+
+                <div class="input-group">
+                    <label>Story Body Copy (2 Columns)</label>
+                    <textarea id="bodyInput" style="min-height: 140px;">Every page begins as an empty field of possibility. The grid arrives first: margins that frame the reading area, columns that set the rhythm, and a baseline grid that keeps every line in step from one column to the next.
+
+Color holds it all together. A restrained palette of two or three swatches, applied consistently to headlines, rules and backgrounds, gives a publication its voice. Spot inks, tints and gradients are all just named swatches.</textarea>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- LAYOUT VIEWPORT -->
+        <main class="preview-viewport">
+            <div class="canvas-container">
+                <canvas id="pageCanvas"></canvas>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // -------------------------------------------------------------
+        // 1. EDITORIAL DOCUMENT MODEL
+        // -------------------------------------------------------------
+        const model = {
+            width: 595,
+            height: 842,
+            margins: { top: 40, bottom: 40, left: 40, right: 40 },
+            colors: {
+                red: "#ff0033",
+                black: "#050505",
+                white: "#ffffff",
+                grey: "#1a1a1a",
+                muted: "#888888",
+                cream: "#f7f6f2",
+                rule: "#2b2b2b"
+            },
+            kicker: "FEATURE · DESIGN",
+            headline: "Notes on the Grid",
+            deck: "A good layout is invisible. Here is what is going on underneath the page — from the baseline grid to the paragraph composer.",
+            quote: "“The best layouts disappear. What remains is the story.”",
+            body: "Every page begins as an empty field of possibility. The grid arrives first: margins that frame the reading area, columns that set the rhythm, and a baseline grid that keeps every line in step from one column to the next.\n\nColor holds it all together. A restrained palette of two or three swatches, applied consistently to headlines, rules and backgrounds, gives a publication its voice. Spot inks, tints and gradients are all just named swatches.",
+            image: {
+                element: null, // HTMLImageElement
+                caption: "Evening light over layered hills — generated entirely in code for this sample.",
+                fit: "cover", // cover | contain
+                height: 230
+            }
+        };
+
+        let showGuides = true;
+
+        // -------------------------------------------------------------
+        // 2. SYNTHESIZE SAMPLE GRAPHIC (Sunset over layered hills)
+        // -------------------------------------------------------------
+        function createSampleSunsetGraphic() {
+            const temp = document.createElement('canvas');
+            temp.width = 1030;
+            temp.height = 460;
+            const g = temp.getContext('2d');
+
+            // Sky gradient
+            const sky = g.createLinearGradient(0, 0, 0, 460);
+            sky.addColorStop(0, '#533c6d');
+            sky.addColorStop(0.35, '#a3506d');
+            sky.addColorStop(0.7, '#e87b63');
+            sky.addColorStop(1, '#f6c378');
+            g.fillStyle = sky;
+            g.fillRect(0, 0, temp.width, temp.height);
+
+            // Sun
+            g.fillStyle = '#fceabb';
+            g.beginPath();
+            g.arc(720, 240, 110, 0, Math.PI * 2);
+            g.fill();
+
+            // Layered mountain silhouettes
+            g.fillStyle = '#612748';
+            g.beginPath();
+            g.moveTo(0, 360);
+            g.bezierCurveTo(280, 290, 560, 370, 1030, 300);
+            g.lineTo(1030, 460);
+            g.lineTo(0, 460);
+            g.fill();
+
+            g.fillStyle = '#391a3c';
+            g.beginPath();
+            g.moveTo(0, 400);
+            g.bezierCurveTo(340, 340, 680, 430, 1030, 360);
+            g.lineTo(1030, 460);
+            g.lineTo(0, 460);
+            g.fill();
+
+            g.fillStyle = '#1c0f2b';
+            g.beginPath();
+            g.moveTo(0, 430);
+            g.bezierCurveTo(400, 390, 750, 440, 1030, 410);
+            g.lineTo(1030, 460);
+            g.lineTo(0, 460);
+            g.fill();
+
+            const img = new Image();
+            img.src = temp.toDataURL('image/jpeg', 0.92);
+            return img;
+        }
+
+        model.image.element = createSampleSunsetGraphic();
+        model.image.element.onload = () => renderLayout();
+
+        // -------------------------------------------------------------
+        // 3. UI ELEMENT BINDINGS
+        // -------------------------------------------------------------
+        const canvas = document.getElementById('pageCanvas');
+        const ctx = canvas.getContext('2d');
+        const kickerInput = document.getElementById('kickerInput');
+        const headlineInput = document.getElementById('headlineInput');
+        const deckInput = document.getElementById('deckInput');
+        const quoteInput = document.getElementById('quoteInput');
+        const bodyInput = document.getElementById('bodyInput');
+        const captionInput = document.getElementById('captionInput');
+        const imageFitSelect = document.getElementById('imageFitSelect');
+        const frameHeightInput = document.getElementById('frameHeightInput');
+        const heightDisplay = document.getElementById('heightDisplay');
+        const imageFileInput = document.getElementById('imageFileInput');
+        const toggleGuidesBtn = document.getElementById('toggleGuidesBtn');
+        const renderPdfBtn = document.getElementById('renderPdfBtn');
+
+        function setMobileTab(tab) {
+            document.body.setAttribute('data-tab', tab);
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const target = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.toLowerCase().includes(tab));
+            if (target) target.classList.add('active');
+        }
+
+        // Live input listeners
+        [kickerInput, headlineInput, deckInput, quoteInput, bodyInput, captionInput].forEach(elem => {
+            elem.addEventListener('input', () => {
+                model.kicker = kickerInput.value;
+                model.headline = headlineInput.value;
+                model.deck = deckInput.value;
+                model.quote = quoteInput.value;
+                model.body = bodyInput.value;
+                model.image.caption = captionInput.value;
+                renderLayout();
+            });
+        });
+
+        imageFitSelect.addEventListener('change', (e) => {
+            model.image.fit = e.target.value;
+            renderLayout();
+        });
+
+        frameHeightInput.addEventListener('input', (e) => {
+            model.image.height = parseInt(e.target.value, 10);
+            heightDisplay.textContent = e.target.value;
+            renderLayout();
+        });
+
+        // Local Image File Picker
+        imageFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const userImg = new Image();
+                userImg.onload = () => {
+                    model.image.element = userImg;
+                    renderLayout();
+                };
+                userImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        toggleGuidesBtn.addEventListener('click', () => {
+            showGuides = !showGuides;
+            toggleGuidesBtn.style.color = showGuides ? 'var(--white)' : 'var(--red)';
+            renderLayout();
+        });
+
+        // -------------------------------------------------------------
+        // 4. IMAGE FRAME RENDER HELPER (COVER / CONTAIN)
+        // -------------------------------------------------------------
+        function drawCoverContainImage(context, img, targetX, targetY, targetW, targetH, mode) {
+            if (!img || !img.complete || img.naturalWidth === 0) return;
+
+            const imgW = img.naturalWidth;
+            const imgH = img.naturalHeight;
+            const imgRatio = imgW / imgH;
+            const targetRatio = targetW / targetH;
+
+            let renderW, renderH, offsetX, offsetY;
+
+            if (mode === "cover") {
+                if (imgRatio > targetRatio) {
+                    renderH = targetH;
+                    renderW = targetH * imgRatio;
+                    offsetX = targetX - (renderW - targetW) / 2;
+                    offsetY = targetY;
+                } else {
+                    renderW = targetW;
+                    renderH = targetW / imgRatio;
+                    offsetX = targetX;
+                    offsetY = targetY - (renderH - targetH) / 2;
+                }
+            } else { // contain
+                if (imgRatio > targetRatio) {
+                    renderW = targetW;
+                    renderH = targetW / imgRatio;
+                    offsetX = targetX;
+                    offsetY = targetY + (targetH - renderH) / 2;
+                } else {
+                    renderH = targetH;
+                    renderW = targetH * imgRatio;
+                    offsetX = targetX + (targetW - renderW) / 2;
+                    offsetY = targetY;
+                }
+            }
+
+            context.save();
+            context.beginPath();
+            context.rect(targetX, targetY, targetW, targetH);
+            context.clip();
+            context.drawImage(img, offsetX, offsetY, renderW, renderH);
+            context.restore();
+        }
+
+        // -------------------------------------------------------------
+        // 5. CANVAS RENDERER
+        // -------------------------------------------------------------
+        function renderLayout() {
+            const w = model.width;
+            const h = model.height;
+            const dpr = 2; // HiDPI
+            
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            canvas.style.aspectRatio = `${w} / ${h}`;
+
+            ctx.save();
+            ctx.scale(dpr, dpr);
+
+            // Dark canvas background
+            ctx.fillStyle = model.colors.black;
+            ctx.fillRect(0, 0, w, h);
+
+            const contentW = w - model.margins.left - model.margins.right;
+            const startX = model.margins.left;
+            let curY = model.margins.top + 10;
+
+            // Kicker
+            ctx.fillStyle = model.colors.red;
+            ctx.font = "bold 9px 'Courier New', monospace";
+            ctx.fillText(model.kicker, startX, curY);
+
+            // Headline (Editorial Serif)
+            curY += 28;
+            ctx.fillStyle = model.colors.white;
+            ctx.font = "bold 32px 'Playfair Display', serif";
+            ctx.fillText(model.headline, startX, curY);
+
+            // Thin rule
+            curY += 12;
+            ctx.strokeStyle = model.colors.rule;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(startX, curY);
+            ctx.lineTo(startX + contentW, curY);
+            ctx.stroke();
+
+            // Deck (Italic Serif)
+            curY += 22;
+            ctx.fillStyle = "#cccccc";
+            ctx.font = "italic 13px 'Playfair Display', serif";
+            const deckLines = wrap(ctx, model.deck, contentW);
+            deckLines.forEach(line => {
+                ctx.fillText(line, startX, curY);
+                curY += 18;
+            });
+
+            // IMAGE FRAME
+            curY += 12;
+            const imgFrameY = curY;
+            const imgFrameH = model.image.height;
+
+            // Background frame box
+            ctx.fillStyle = model.colors.grey;
+            ctx.fillRect(startX, imgFrameY, contentW, imgFrameH);
+
+            if (model.image.element) {
+                drawCoverContainImage(ctx, model.image.element, startX, imgFrameY, contentW, imgFrameH, model.image.fit);
+            }
+
+            // Frame border
+            ctx.strokeStyle = model.colors.rule;
+            ctx.strokeRect(startX, imgFrameY, contentW, imgFrameH);
+
+            // Caption
+            curY = imgFrameY + imgFrameH + 14;
+            ctx.fillStyle = model.colors.muted;
+            ctx.font = "8px 'Inter', sans-serif";
+            ctx.fillText(model.image.caption, startX, curY);
+
+            // PULL QUOTE BAR
+            curY += 22;
+            ctx.fillStyle = model.colors.grey;
+            ctx.fillRect(startX, curY, contentW, 44);
+            ctx.strokeStyle = model.colors.red;
+            ctx.strokeRect(startX, curY, contentW, 44);
+
+            ctx.fillStyle = model.colors.white;
+            ctx.font = "italic 12px 'Playfair Display', serif";
+            ctx.fillText(model.quote, startX + 16, curY + 26);
+
+            // 2-COLUMN STORY TEXT
+            curY += 62;
+            ctx.fillStyle = "#dddddd";
+            ctx.font = "10px 'Inter', sans-serif";
+
+            const colGap = 20;
+            const colW = (contentW - colGap) / 2;
+            const paras = model.body.split('\n\n');
+
+            if (paras[0]) {
+                const lines1 = wrap(ctx, paras[0], colW);
+                let colY = curY;
+                lines1.forEach(l => {
+                    ctx.fillText(l, startX, colY);
+                    colY += 14;
+                });
+            }
+
+            if (paras[1]) {
+                const lines2 = wrap(ctx, paras[1], colW);
+                let colY = curY;
+                lines2.forEach(l => {
+                    ctx.fillText(l, startX + colW + colGap, colY);
+                    colY += 14;
+                });
+            }
+
+            // Margins / Guides Overlay
+            if (showGuides) {
+                ctx.strokeStyle = "rgba(255, 0, 51, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(model.margins.left, model.margins.top, contentW, h - model.margins.top - model.margins.bottom);
+                
+                // Center column guide
+                ctx.beginPath();
+                ctx.moveTo(startX + colW + (colGap / 2), model.margins.top);
+                ctx.lineTo(startX + colW + (colGap / 2), h - model.margins.bottom);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Running Footer
+            ctx.fillStyle = model.colors.muted;
+            ctx.font = "8px 'Courier New', monospace";
+            ctx.fillText("DESIGNCRAFT QUARTERLY // ISSUE 01", startX, h - 30);
+            ctx.fillText("PAGE 03", startX + contentW - 45, h - 30);
+
+            ctx.restore();
+        }
+
+        function wrap(context, text, maxWidth) {
+            const words = text.split(" ");
+            const lines = [];
+            let currentLine = "";
+
+            words.forEach(word => {
+                const test = currentLine.length === 0 ? word : currentLine + " " + word;
+                if (context.measureText(test).width > maxWidth && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = test;
+                }
+            });
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // -------------------------------------------------------------
+        // 6. VECTOR & RASTER PDF EXPORTER (jsPDF)
+        // -------------------------------------------------------------
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                unit: "pt",
+                format: [model.width, model.height]
+            });
+
+            const w = model.width;
+            const h = model.height;
+            const contentW = w - model.margins.left - model.margins.right;
+            const startX = model.margins.left;
+
+            // Background
+            pdf.setFillColor(model.colors.black);
+            pdf.rect(0, 0, w, h, "F");
+
+            let curY = model.margins.top + 10;
+
+            // Kicker
+            pdf.setTextColor(model.colors.red);
+            pdf.setFont("courier", "bold");
+            pdf.setFontSize(9);
+            pdf.text(model.kicker, startX, curY);
+
+            // Headline
+            curY += 28;
+            pdf.setTextColor(model.colors.white);
+            pdf.setFont("times", "bold");
+            pdf.setFontSize(30);
+            pdf.text(model.headline, startX, curY);
+
+            // Rule
+            curY += 12;
+            pdf.setDrawColor(model.colors.rule);
+            pdf.setLineWidth(1);
+            pdf.line(startX, curY, startX + contentW, curY);
+
+            // Deck
+            curY += 22;
+            pdf.setTextColor("#cccccc");
+            pdf.setFont("times", "italic");
+            pdf.setFontSize(13);
+            const deckLines = pdf.splitTextToSize(model.deck, contentW);
+            pdf.text(deckLines, startX, curY);
+            curY += (deckLines.length * 16) + 12;
+
+            // EMBED IMAGE (Rasterized in exact clipped frame bounds)
+            const imgFrameY = curY;
+            const imgFrameH = model.image.height;
+
+            if (model.image.element && model.image.element.complete) {
+                // Render offscreen canvas to enforce crop/fit before PDF injection
+                const clipCanvas = document.createElement('canvas');
+                clipCanvas.width = contentW * 2;
+                clipCanvas.height = imgFrameH * 2;
+                const clipCtx = clipCanvas.getContext('2d');
+                clipCtx.scale(2, 2);
+
+                drawCoverContainImage(clipCtx, model.image.element, 0, 0, contentW, imgFrameH, model.image.fit);
+                const clippedDataUrl = clipCanvas.toDataURL('image/jpeg', 0.95);
+
+                pdf.addImage(clippedDataUrl, 'JPEG', startX, imgFrameY, contentW, imgFrameH);
+            }
+
+            // Frame Outline
+            pdf.setDrawColor(model.colors.rule);
+            pdf.rect(startX, imgFrameY, contentW, imgFrameH, "D");
+
+            // Caption
+            curY = imgFrameY + imgFrameH + 14;
+            pdf.setTextColor(model.colors.muted);
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(8);
+            pdf.text(model.image.caption, startX, curY);
+
+            // Pull Quote Box
+            curY += 20;
+            pdf.setFillColor(model.colors.grey);
+            pdf.rect(startX, curY, contentW, 40, "F");
+            pdf.setDrawColor(model.colors.red);
+            pdf.rect(startX, curY, contentW, 40, "D");
+
+            pdf.setTextColor(model.colors.white);
+            pdf.setFont("times", "italic");
+            pdf.setFontSize(12);
+            pdf.text(model.quote, startX + 14, curY + 24);
+
+            // 2 Columns
+            curY += 60;
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(10);
+            pdf.setTextColor("#dddddd");
+
+            const colGap = 20;
+            const colW = (contentW - colGap) / 2;
+            const paras = model.body.split('\n\n');
+
+            if (paras[0]) {
+                const c1 = pdf.splitTextToSize(paras[0], colW);
+                pdf.text(c1, startX, curY);
+            }
+            if (paras[1]) {
+                const c2 = pdf.splitTextToSize(paras[1], colW);
+                pdf.text(c2, startX + colW + colGap, curY);
+            }
+
+            // Footer
+            pdf.setTextColor(model.colors.muted);
+            pdf.setFont("courier", "normal");
+            pdf.setFontSize(8);
+            pdf.text("DESIGNCRAFT QUARTERLY // ISSUE 01", startX, h - 30);
+            pdf.text("PAGE 03", startX + contentW - 45, h - 30);
+
+            pdf.save("editorial-spread.pdf");
+        }
+
+        renderPdfBtn.addEventListener('click', exportPDF);
+    </script>
+</body>
+</html>
