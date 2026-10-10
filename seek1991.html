@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEEK 1991</title>
+<link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/svg/inky.svg">
+<meta property="og:title" content="SEEK 1991">
+<meta property="og:description" content="// TITLE SEARCH + STATS //">
+<meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/tsa.inkrealm1991.png">
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+<style>
+:root {
+  --bg: #000;
+  --text: #e0e0e0;
+  --accent: #FF1991;
+  --dim: #333;
+  --border: #555;
+  --mono: 'Courier New', Courier, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  margin: 0;
+  padding: 16px;
+  min-height: 100vh;
+}
+header {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; text-transform: uppercase; }
+h1 span { color: var(--accent); }
+.sisters { display: flex; gap: 12px; font-size: 0.75rem; }
+.sisters a {
+  color: #888;
+  text-decoration: none;
+  border: 1px solid #333;
+  padding: 4px 8px;
+}
+.sisters a:hover { color: var(--accent); border-color: var(--accent); }
+#status { font-size: 0.75rem; color: #888; }
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  min-height: calc(100vh - 120px);
+}
+@media (max-width: 800px) {
+  body { padding: 10px; }
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  h1 { font-size: 1.5rem; letter-spacing: 1px; }
+  .sisters { gap: 8px; flex-wrap: wrap; }
+  .sisters a { padding: 6px 10px; font-size: 0.7rem; }
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: auto;
+  }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--dim);
+    padding-right: 0;
+    padding-bottom: 12px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .search-box { padding: 8px; }
+  #q { font-size: 16px; padding: 10px; }
+  .modes button, .filter-btn, button.action {
+    padding: 10px 12px;
+    min-height: 44px;
+    font-size: 0.8rem;
+  }
+  .results {
+    max-height: 55vh;
+  }
+  .result { padding: 12px 10px; }
+  .result .title { font-size: 0.95rem; }
+}
+@media (max-width: 480px) {
+  body { padding: 8px; }
+  h1 { font-size: 1.3rem; }
+  .modes { gap: 4px; }
+}
+.sidebar {
+  border-right: 1px solid var(--dim);
+  padding-right: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+}
+.sidebar h3 { color: var(--accent); margin: 16px 0 8px; font-size: 0.9rem; border-bottom: 1px solid var(--dim); padding-bottom: 4px; }
+.stat { font-size: 0.8rem; margin: 4px 0; color: #ccc; }
+.stat b { color: white; }
+.search-box {
+  background: #111;
+  border: 1px solid var(--accent);
+  padding: 10px;
+  margin-bottom: 12px;
+}
+#q {
+  width: 100%;
+  background: black;
+  color: white;
+  border: none;
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  padding: 8px;
+  outline: none;
+}
+.modes { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.modes button, .filter-btn {
+  background: black;
+  color: #aaa;
+  border: 1px solid #555;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.modes button.active, .filter-btn.active {
+  background: var(--accent);
+  color: black;
+  border-color: var(--accent);
+}
+.modes button:hover, .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.results {
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  border: 1px solid var(--dim);
+}
+.result {
+  padding: 10px 12px;
+  border-bottom: 1px solid #222;
+  cursor: pointer;
+}
+.result:hover { background: #111; }
+.result .id { color: var(--accent); font-size: 0.8rem; }
+.result .title { font-size: 1rem; }
+.result .meta { font-size: 0.75rem; color: #888; margin-top: 2px; }
+.highlight { background: var(--accent); color: black; padding: 0 2px; }
+.stats-panel { font-size: 0.8rem; line-height: 1.5; }
+.bar { height: 8px; background: #222; margin: 2px 0 8px; }
+.bar span { display: block; height: 100%; background: var(--accent); }
+.help { font-size: 0.75rem; color: #888; margin-top: 12px; border: 1px dashed #333; padding: 8px; }
+button.action {
+  background: black; color: var(--accent); border: 1px solid var(--accent);
+  padding: 6px 12px; font-family: var(--mono); cursor: pointer; font-size: 0.75rem;
+}
+button.action:hover { background: var(--accent); color: black; }
+#semantic-status { font-size: 0.7rem; color: #666; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>SEEK<span>1991</span></h1>
+    <div id="status">Loading archive...</div>
+  </div>
+  <div class="sisters">
+    <a href="https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html" target="_blank">SOURCE</a>
+    <a href="https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/view1991.html" target="_blank">VIEW</a>
+    <a href="https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.html" target="_blank">CODEX</a>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="search-box">
+      <input id="q" type="text" placeholder="search titles..." autocomplete="off">
+      <div class="modes">
+        <button data-mode="fuzzy" class="active">Fuzzy</button>
+        <button data-mode="exact">Exact</button>
+        <button data-mode="semantic">Semantic</button>
+      </div>
+      <div id="semantic-status"></div>
+    </div>
+
+    <h3>Filters</h3>
+    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="has-director">Has Director</button>
+      <button class="filter-btn" data-filter="has-year">Has Year</button>
+    </div>
+
+    <h3>Stats</h3>
+    <div id="stats" class="stats-panel">—</div>
+
+    <h3>Actions</h3>
+    <button class="action" id="random-btn">Random 5</button>
+    <button class="action" id="recent-btn">Latest 20</button>
+    <button class="action" id="export-btn">Export CSV</button>
+
+    <div class="help">
+      Fuzzy tolerates typos. Exact matches substrings. Semantic finds related titles (loads model on first use).<br>
+      Click a result to copy its ID.
+    </div>
+  </aside>
+
+  <main>
+    <div id="result-count" style="font-size:0.8rem; color:#888; margin-bottom:8px;"></div>
+    <div id="results" class="results"></div>
+  </main>
+</div>
+
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+env.allowLocalModels = false;
+
+const SOURCE = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
+let entries = [];
+let fuse = null;
+let mode = 'fuzzy';
+let filter = 'all';
+let embedder = null;
+let embeddings = new Map();
+
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+const qEl = document.getElementById('q');
+const statsEl = document.getElementById('stats');
+const countEl = document.getElementById('result-count');
+const semStatus = document.getElementById('semantic-status');
+
+function parseEntries(html) {
+  const re = /<strong[^>]*>([0-9]+)[_]+([^<]+)<\/strong>/gi;
+  const out = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const id = parseInt(m[1], 10);
+    let raw = m[2].replace(/&nbsp;/g, ' ').replace(/&/g, '&').replace(/&rsquo;/g, "'").trim();
+    let title = raw;
+    let director = '';
+    let year = null;
+    const yearMatch = raw.match(/\((\d{4})\)|\b(19|20)\d{2}\b/);
+    if (yearMatch) year = parseInt(yearMatch[1] || yearMatch[0], 10);
+    if (raw.includes(',')) {
+      const parts = raw.split(',');
+      title = parts.slice(0, -1).join(',').trim();
+      director = parts[parts.length - 1].trim();
+    }
+    title = title.replace(/^\s*[_]+\s*/, '').trim();
+    if (title) out.push({ id, title, director, year, raw });
+  }
+  // dedupe by id (last wins)
+  const map = new Map();
+  for (const e of out) map.set(e.id, e);
+  return Array.from(map.values()).sort((a, b) => a.id - b.id);
+}
+
+async function load() {
+  try {
+    const res = await fetch(SOURCE);
+    const html = await res.text();
+    entries = parseEntries(html);
+    statusEl.textContent = `Ready — ${entries.length} titles`;
+    rebuildFuse();
+    renderStats();
+    show(entries.slice(0, 50));
+  } catch (err) {
+    statusEl.textContent = 'Load failed: ' + err.message;
+    console.error(err);
+  }
+}
+
+function rebuildFuse() {
+  const pool = getFiltered();
+  fuse = new Fuse(pool, {
+    keys: ['title', 'director'],
+    threshold: 0.4,
+    ignoreLocation: true,
+    includeScore: true
+  });
+}
+
+function getFiltered() {
+  if (filter === 'has-director') return entries.filter(e => e.director);
+  if (filter === 'has-year') return entries.filter(e => e.year);
+  return entries;
+}
+
+function renderStats() {
+  const total = entries.length;
+  const withDir = entries.filter(e => e.director).length;
+  const withYear = entries.filter(e => e.year).length;
+  const decades = {};
+  entries.forEach(e => {
+    if (e.year) {
+      const d = Math.floor(e.year / 10) * 10;
+      decades[d] = (decades[d] || 0) + 1;
+    }
+  });
+  const topDecades = Object.entries(decades).sort((a,b) => b[1]-a[1]).slice(0, 6);
+  const dirCount = {};
+  entries.forEach(e => {
+    if (e.director) dirCount[e.director] = (dirCount[e.director] || 0) + 1;
+  });
+  const topDirs = Object.entries(dirCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+
+  let html = `<div class="stat">Total: <b>${total}</b></div>`;
+  html += `<div class="stat">With director: <b>${withDir}</b></div>`;
+  html += `<div class="stat">With year: <b>${withYear}</b></div>`;
+  html += `<div class="stat" style="margin-top:10px;">By decade</div>`;
+  const maxD = Math.max(...topDecades.map(d => d[1]), 1);
+  topDecades.forEach(([dec, n]) => {
+    html += `<div class="stat">${dec}s <b>${n}</b></div><div class="bar"><span style="width:${(n/maxD)*100}%"></span></div>`;
+  });
+  html += `<div class="stat" style="margin-top:10px;">Top directors</div>`;
+  topDirs.forEach(([d, n]) => {
+    html += `<div class="stat">${d} <b>${n}</b></div>`;
+  });
+  statsEl.innerHTML = html;
+}
+
+function highlight(text, query) {
+  if (!query || mode === 'semantic') return text;
+  const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(re, '<span class="highlight">$1</span>');
+}
+
+function show(list, query = '') {
+  countEl.textContent = list.length ? `${list.length} results` : 'No matches';
+  if (!list.length) {
+    resultsEl.innerHTML = '<div style="padding:20px; color:#666;">No results.</div>';
+    return;
+  }
+  resultsEl.innerHTML = list.slice(0, 200).map(e => `
+    <div class="result" data-id="${e.id}">
+      <div class="id">${e.id}</div>
+      <div class="title">${highlight(e.title, query)}</div>
+      <div class="meta">${e.year || '—'} · ${e.director || '—'}</div>
+    </div>
+  `).join('');
+}
+
+async function search() {
+  const q = qEl.value.trim();
+  const pool = getFiltered();
+  if (!q) {
+    show(pool.slice(0, 50));
+    return;
+  }
+  if (mode === 'exact') {
+    const lower = q.toLowerCase();
+    const hits = pool.filter(e => 
+      e.title.toLowerCase().includes(lower) || 
+      (e.director && e.director.toLowerCase().includes(lower)) ||
+      String(e.id) === q
+    );
+    show(hits, q);
+  } else if (mode === 'fuzzy') {
+    const hits = fuse.search(q).map(r => r.item);
+    show(hits, q);
+  } else if (mode === 'semantic') {
+    await semanticSearch(q, pool);
+  }
+}
+
+async function ensureEmbedder() {
+  if (embedder) return;
+  semStatus.textContent = 'Loading embedding model…';
+  embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+  semStatus.textContent = 'Model ready.';
+}
+
+async function semanticSearch(q, pool) {
+  await ensureEmbedder();
+  semStatus.textContent = 'Embedding query…';
+  const qEmb = await embedder(q, { pooling: 'mean', normalize: true });
+  const qVec = Array.from(qEmb.data);
+
+  // embed missing titles (batch a few)
+  const toEmbed = pool.filter(e => !embeddings.has(e.id)).slice(0, 40);
+  if (toEmbed.length) {
+    semStatus.textContent = `Embedding ${toEmbed.length} titles…`;
+    for (const e of toEmbed) {
+      const emb = await embedder(e.title, { pooling: 'mean', normalize: true });
+      embeddings.set(e.id, Array.from(emb.data));
+    }
+  }
+
+  const scored = pool.map(e => {
+    const vec = embeddings.get(e.id);
+    if (!vec) return { e, score: 0 };
+    let dot = 0;
+    for (let i = 0; i < qVec.length; i++) dot += qVec[i] * vec[i];
+    return { e, score: dot };
+  }).filter(x => x.score > 0.25)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 40)
+    .map(x => x.e);
+
+  semStatus.textContent = scored.length ? `${scored.length} semantic matches` : 'No strong semantic matches';
+  show(scored, q);
+}
+
+// events
+let t;
+qEl.addEventListener('input', () => {
+  clearTimeout(t);
+  t = setTimeout(search, 180);
+});
+
+document.querySelectorAll('.modes button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.modes button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    if (mode === 'fuzzy') rebuildFuse();
+    search();
+  });
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filter = btn.dataset.filter;
+    rebuildFuse();
+    search();
+  });
+});
+
+document.getElementById('random-btn').onclick = () => {
+  const pool = getFiltered();
+  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 5);
+  show(shuffled);
+  countEl.textContent = '5 random';
+};
+
+document.getElementById('recent-btn').onclick = () => {
+  const pool = getFiltered();
+  show(pool.slice(-20).reverse());
+  countEl.textContent = 'Latest 20';
+};
+
+document.getElementById('export-btn').onclick = () => {
+  const rows = ['ID,TITLE,YEAR,DIRECTOR'];
+  getFiltered().forEach(e => {
+    rows.push(`${e.id},"${e.title.replace(/"/g,'""')}",${e.year||''},"${(e.director||'').replace(/"/g,'""')}"`);
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seek1991.csv';
+  a.click();
+};
+
+resultsEl.addEventListener('click', e => {
+  const row = e.target.closest('.result');
+  if (!row) return;
+  const id = row.dataset.id;
+  navigator.clipboard?.writeText(id);
+  statusEl.textContent = `Copied ID ${id}`;
+  setTimeout(() => statusEl.textContent = `Ready — ${entries.length} titles`, 1500);
+});
+
+load();
+</script>
+</body>
+</html>
