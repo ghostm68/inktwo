@@ -1082,37 +1082,232 @@ const fontPairings = {
     document.documentElement.style.setProperty('--doc-font-body', e.target.value);
   });
 
+  // ── History (reliable undo/redo without execCommand) ──
+  const history = { stack: [], index: -1, max: 40, locked: false };
+
+  function pushHistory() {
+    if (history.locked) return;
+    const html = editor.innerHTML;
+    if (history.index >= 0 && history.stack[history.index] === html) return;
+    history.stack = history.stack.slice(0, history.index + 1);
+    history.stack.push(html);
+    if (history.stack.length > history.max) history.stack.shift();
+    history.index = history.stack.length - 1;
+  }
+
+  function restoreHistory(dir) {
+    const next = history.index + dir;
+    if (next < 0 || next >= history.stack.length) return;
+    history.locked = true;
+    history.index = next;
+    editor.innerHTML = history.stack[next];
+    // Re-bind image events after restore
+    editor.querySelectorAll('.img-block').forEach(block => bindImageEvents(block));
+    const hero = editor.querySelector('.hero');
+    if (hero) hero.onclick = () => selectImageContainer(hero);
+    selectImageContainer(null);
+    updateCounts();
+    history.locked = false;
+    showToast(dir < 0 ? 'Undo' : 'Redo');
+  }
+
+  // Debounced history capture on input
+  let historyTimer = null;
+  editor.addEventListener('input', () => {
+    updateCounts();
+    clearTimeout(historyTimer);
+    historyTimer = setTimeout(pushHistory, 400);
+  });
+
+  // ── Modern Selection helpers (no execCommand) ──
+  function getSelectionRange() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return null;
+    return sel.getRangeAt(0);
+  }
+
+  function wrapSelection(tagName, className) {
+    const range = getSelectionRange();
+    if (!range || range.collapsed) {
+      showToast('Select some text first');
+      return;
+    }
+    const el = document.createElement(tagName);
+    if (className) el.className = className;
+    try {
+      range.surroundContents(el);
+    } catch {
+      // Selection crosses element boundaries — extract and re-wrap
+      const contents = range.extractContents();
+      el.appendChild(contents);
+      range.insertNode(el);
+    }
+    // Restore selection inside the new element
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(el);
+    sel.addRange(newRange);
+    pushHistory();
+    updateCounts();
+  }
+
+  function toggleInlineStyle(styleProp, onValue, offValue) {
+    const range = getSelectionRange();
+    if (!range || range.collapsed) {
+      showToast('Select some text first');
+      return;
+    }
+    // Prefer wrapping with semantic tags when possible
+    if (styleProp === 'fontWeight') {
+      wrapSelection('strong');
+      return;
+    }
+    if (styleProp === 'fontStyle') {
+      wrapSelection('em');
+      return;
+    }
+    if (styleProp === 'textDecoration') {
+      wrapSelection('u');
+      return;
+    }
+  }
+
+  function setBlockAlignment(align) {
+    const range = getSelectionRange();
+    if (!range) return;
+    let node = range.commonAncestorContainer;
+    if (node.nodeType === 3) node = node.parentElement;
+    // Climb to a block-level element inside the editor
+    while (node && node !== editor) {
+      const display = window.getComputedStyle(node).display;
+      if (['block', 'flex', 'grid', 'list-item', 'table'].includes(display) ||
+          /^(H[1-6]|P|DIV|BLOCKQUOTE|LI)$/i.test(node.tagName)) {
+        node.style.textAlign = align;
+        pushHistory();
+        return;
+      }
+      node = node.parentElement;
+    }
+  }
+
+  function replaceBlockTag(tagName) {
+    const range = getSelectionRange();
+    if (!range) {
+      // No selection — create a new empty block at caret or end
+      const el = document.createElement(tagName);
+      el.innerHTML = '<br>';
+      editor.appendChild(el);
+      const sel = window.getSelection();
+      const r = document.createRange();
+      r.setStart(el, 0);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      pushHistory();
+      updateCounts();
+      return;
+    }
+
+    let node = range.commonAncestorContainer;
+    if (node.nodeType === 3) node = node.parentElement;
+
+    // Find nearest block parent
+    while (node && node !== editor) {
+      if (/^(H[1-6]|P|DIV|BLOCKQUOTE)$/i.test(node.tagName) &&
+          !node.classList.contains('img-block') &&
+          !node.classList.contains('hero') &&
+          !node.classList.contains('body-grid') &&
+          !node.classList.contains('hero-content')) {
+        const newEl = document.createElement(tagName);
+        newEl.innerHTML = node.innerHTML;
+        node.parentNode.replaceChild(newEl, node);
+
+        // Restore selection
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(newEl);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        pushHistory();
+        updateCounts();
+        return;
+      }
+      node = node.parentElement;
+    }
+
+    // Fallback: wrap selection
+    const el = document.createElement(tagName);
+    try {
+      range.surroundContents(el);
+    } catch {
+      const contents = range.extractContents();
+      el.appendChild(contents);
+      range.insertNode(el);
+    }
+    pushHistory();
+    updateCounts();
+  }
+
+  function applyFontToSelection(fontFamily) {
+    const range = getSelectionRange();
+    if (!range || range.collapsed) {
+      showToast('Highlight text first to apply font');
+      return;
+    }
+    const span = document.createElement('span');
+    span.style.fontFamily = fontFamily;
+    try {
+      range.surroundContents(span);
+    } catch {
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+    }
+    pushHistory();
+    showToast('Font applied to selection');
+  }
+
   // Topbar quick font for highlighted text
   document.getElementById('fontQuickSelect').addEventListener('change', e => {
     const font = e.target.value;
     if (!font) return;
     editor.focus();
-    const sel = window.getSelection();
-    if (sel.rangeCount && !sel.isCollapsed) {
-      document.execCommand('fontName', false, font);
-      // Ensure custom font CSS family is preserved
-      const fonts = editor.querySelectorAll('font[face]');
-      fonts.forEach(f => {
-        f.style.fontFamily = f.getAttribute('face');
-        f.removeAttribute('face');
-      });
-      showToast('Font applied to selection');
-    } else {
-      showToast('Highlight text first to apply font');
-    }
+    applyFontToSelection(font);
     e.target.value = '';
   });
 
-  // ── Toolbar basic commands ──
+  // ── Toolbar basic commands (modern) ──
   document.querySelectorAll('[data-cmd]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.execCommand(btn.dataset.cmd, false, null);
+      const cmd = btn.dataset.cmd;
       editor.focus();
+      switch (cmd) {
+        case 'bold':
+          toggleInlineStyle('fontWeight', 'bold', 'normal');
+          break;
+        case 'italic':
+          toggleInlineStyle('fontStyle', 'italic', 'normal');
+          break;
+        case 'underline':
+          toggleInlineStyle('textDecoration', 'underline', 'none');
+          break;
+        case 'justifyLeft':
+          setBlockAlignment('left');
+          break;
+        case 'justifyCenter':
+          setBlockAlignment('center');
+          break;
+        case 'justifyRight':
+          setBlockAlignment('right');
+          break;
+      }
     });
   });
 
-  document.getElementById('btnUndo').onclick = () => { document.execCommand('undo'); updateCounts(); };
-  document.getElementById('btnRedo').onclick = () => { document.execCommand('redo'); updateCounts(); };
+  document.getElementById('btnUndo').onclick = () => restoreHistory(-1);
+  document.getElementById('btnRedo').onclick = () => restoreHistory(1);
 
   // ── Paragraph Styles ──
   document.getElementById('paraStyles').addEventListener('click', e => {
@@ -1128,13 +1323,13 @@ const fontPairings = {
     const sel = window.getSelection();
     switch (style) {
       case 'kicker':
-        document.execCommand('formatBlock', false, 'h3');
+        replaceBlockTag('h3');
         break;
       case 'h1':
-        document.execCommand('formatBlock', false, 'h1');
+        replaceBlockTag('h1');
         break;
       case 'h2':
-        document.execCommand('formatBlock', false, 'h2');
+        replaceBlockTag('h2');
         break;
       case 'deck':
         if (sel.rangeCount) {
@@ -1145,10 +1340,11 @@ const fontPairings = {
           el.className = 'deck';
           el.textContent = text;
           range.insertNode(el);
+          pushHistory();
         }
         break;
       case 'body':
-        document.execCommand('formatBlock', false, 'p');
+        replaceBlockTag('p');
         break;
       case 'quote':
         if (sel.rangeCount) {
@@ -1159,6 +1355,7 @@ const fontPairings = {
           el.className = 'pull-quote';
           el.textContent = text;
           range.insertNode(el);
+          pushHistory();
         }
         break;
       case 'caption':
@@ -1170,6 +1367,7 @@ const fontPairings = {
           el.className = 'caption';
           el.textContent = text;
           range.insertNode(el);
+          pushHistory();
         }
         break;
     }
@@ -1208,6 +1406,7 @@ const fontPairings = {
       }
       selectImageContainer(block);
       updateCounts();
+      pushHistory();
       showToast('Image inserted — drag ⠿ to reposition');
     };
     reader.readAsDataURL(file);
@@ -1271,6 +1470,7 @@ const fontPairings = {
         block.remove();
         selectImageContainer(null);
         updateCounts();
+        pushHistory();
       });
     }
   }
@@ -1329,6 +1529,7 @@ const fontPairings = {
       }
       showToast('Image repositioned');
       selectImageContainer(draggedBlock);
+      pushHistory();
     }
     hideDropIndicator();
   });
@@ -1724,9 +1925,16 @@ const fontPairings = {
   });
 
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key === 's') {
       e.preventDefault();
       document.getElementById('btnSave').click();
+    } else if (e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      restoreHistory(-1);
+    } else if (e.key === 'z' && e.shiftKey || e.key === 'y') {
+      e.preventDefault();
+      restoreHistory(1);
     }
   });
 
@@ -1743,34 +1951,35 @@ const fontPairings = {
     }
   });
 
-  editor.addEventListener('input', updateCounts);
-
   // ── Magazine template initialization ──
   function loadTemplate() {
+    // Bold flag-like stripes in Pressline brand colors (#ff0033 red / black / white)
     const heroSvg = `data:image/svg+xml,${encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640">
-        <defs>
-          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#1a0a2e"/>
-            <stop offset="40%" style="stop-color:#ff6b35"/>
-            <stop offset="70%" style="stop-color:#f7c59f"/>
-            <stop offset="100%" style="stop-color:#2d1b4e"/>
-          </linearGradient>
-          <radialGradient id="r" cx="70%" cy="40%" r="50%">
-            <stop offset="0%" style="stop-color:#ffcc88;stop-opacity:0.9"/>
-            <stop offset="100%" style="stop-color:#ff6b35;stop-opacity:0"/>
-          </radialGradient>
-        </defs>
-        <rect width="1200" height="640" fill="url(#g)"/>
-        <ellipse cx="850" cy="220" rx="280" ry="200" fill="url(#r)"/>
-        <rect y="480" width="1200" height="160" fill="#0d0d0d" opacity="0.55"/>
+        <rect width="1200" height="640" fill="#050505"/>
+        <!-- Bold horizontal stripes -->
+        <rect y="0"   width="1200" height="80"  fill="#ff0033"/>
+        <rect y="80"  width="1200" height="40"  fill="#ffffff"/>
+        <rect y="120" width="1200" height="100" fill="#050505"/>
+        <rect y="220" width="1200" height="80"  fill="#ff0033"/>
+        <rect y="300" width="1200" height="40"  fill="#1a1a1a"/>
+        <rect y="340" width="1200" height="100" fill="#050505"/>
+        <rect y="440" width="1200" height="80"  fill="#ff0033"/>
+        <rect y="520" width="1200" height="40"  fill="#ffffff"/>
+        <rect y="560" width="1200" height="80"  fill="#050505"/>
+        <!-- Vertical accent bar (flag-like) -->
+        <rect x="0" y="0" width="140" height="640" fill="#ff0033"/>
+        <rect x="140" y="0" width="18" height="640" fill="#ffffff"/>
+        <!-- Subtle diagonal shear for energy -->
+        <polygon points="158,0 320,0 220,640 158,640" fill="#ff0033" opacity="0.18"/>
       </svg>
     `)}`;
 
+    // Fine grain texture for the blend layer
     const textureSvg = `data:image/svg+xml,${encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="800" height="400">
-        <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" stitchTiles="stitch"/></filter>
-        <rect width="100%" height="100%" filter="url(#n)" opacity="0.35"/>
+        <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="4" stitchTiles="stitch"/></filter>
+        <rect width="100%" height="100%" filter="url(#n)" opacity="0.28"/>
       </svg>
     `)}`;
 
@@ -1802,6 +2011,9 @@ const fontPairings = {
     const hero = editor.querySelector('.hero');
     if (hero) hero.onclick = () => selectImageContainer(hero);
     updateCounts();
+    // Seed history with the template state
+    history.stack = [editor.innerHTML];
+    history.index = 0;
   }
 
   loadTemplate();
