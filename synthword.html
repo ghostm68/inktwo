@@ -128,16 +128,28 @@ h1 {
   max-height: 70vh;
   background: #050505;
   color: var(--phosphor);
-  border: 1px solid #333;
-  border-radius: 4px;
-  padding: 16px;
+  border: 1px solid #222;
+  border-radius: 2px;
+  padding: 48px 56px 40px 56px;
   font-family: 'VT323', 'IBM Plex Mono', monospace;
-  font-size: 19px;
-  line-height: 1.35;
+  font-size: 20px;
+  line-height: 1.55;
+  letter-spacing: 0.3px;
   resize: vertical;
   outline: none;
-  text-shadow: 0 0 4px var(--phosphor-glow);
+  text-shadow: 0 0 6px var(--phosphor-glow), 0 0 1px rgba(224,224,224,0.4);
   caret-color: var(--accent);
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.7), inset 0 0 2px rgba(255,51,51,0.15);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+#editor:focus {
+  border-color: #444;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.8), inset 0 0 8px rgba(255,51,51,0.25), 0 0 12px rgba(255,51,51,0.1);
+}
+#editor::placeholder {
+  color: #444;
+  text-shadow: none;
+  opacity: 0.7;
 }
 .counts {
   display: flex;
@@ -162,7 +174,32 @@ button:hover, select:hover {
   color: #fff;
   box-shadow: 0 0 6px var(--accent-dim);
 }
-.toolbar { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.knob.small {
+  width: 48px;
+  height: 48px;
+}
+.knob.small::before {
+  top: 4px;
+  height: 12px;
+  width: 3px;
+  transform-origin: center 20px;
+}
+.knob-container.small {
+  width: 64px;
+}
+.knob-container.small .knob-label {
+  font-size: 0.65em;
+}
+.knob-container.small .knob-value {
+  font-size: 0.7em;
+}
+.toolbar-knobs {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
 .ai-panel h3, .audio-panel h3 { color: var(--accent); margin: 0 0 8px; font-size: 1.1em; }
 .voice-indicator {
   position: fixed;
@@ -241,7 +278,7 @@ canvas#pong {
   .console { grid-template-columns: 1fr; gap: 10px; padding: 8px; }
   h1 { font-size: 2em; }
   .status-bar { flex-wrap: wrap; gap: 6px; font-size: 0.8em; }
-  #editor { height: 50vh; min-height: 240px; font-size: 17px; padding: 12px; }
+  #editor { height: 50vh; min-height: 240px; font-size: 17px; padding: 28px 24px; }
   .knob { width: 80px; height: 80px; }
   .toolbar button, .ai-panel button { flex: 1 1 auto; min-width: 100px; }
   .panel { padding: 10px; }
@@ -250,7 +287,7 @@ canvas#pong {
 @media (max-width: 480px) {
   body { font-size: 16px; }
   h1 { font-size: 1.7em; letter-spacing: 1px; }
-  #editor { height: 45vh; font-size: 16px; }
+  #editor { height: 45vh; font-size: 16px; padding: 20px 16px; }
   .knob-row { gap: 12px; }
   .knob { width: 70px; height: 70px; }
   .status-bar span { font-size: 0.75em; }
@@ -287,11 +324,6 @@ canvas#pong {
         <div class="knob" id="volKnob" data-min="0" data-max="100" data-value="30"></div>
         <div class="knob-value" id="volVal">30%</div>
       </div>
-      <div class="knob-container">
-        <div class="knob-label">FONT</div>
-        <div class="knob" id="fontKnob" data-min="0" data-max="3" data-value="0"></div>
-        <div class="knob-value" id="fontVal">VT323</div>
-      </div>
     </div>
     <div style="text-align:center; margin:8px 0;">
       <select id="waveType">
@@ -326,12 +358,25 @@ canvas#pong {
 
   <!-- Center: Editor -->
   <div class="panel">
-    <div class="toolbar">
-      <button onclick="insertText('**')">Bold</button>
-      <button onclick="insertText('*')">Italic</button>
+    <div class="toolbar-knobs">
+      <div class="knob-container small">
+        <div class="knob-label">FONT</div>
+        <div class="knob small" id="fontKnob" data-min="0" data-max="3" data-value="0"></div>
+        <div class="knob-value" id="fontVal">VT323</div>
+      </div>
+      <div class="knob-container small">
+        <div class="knob-label">STYLE</div>
+        <div class="knob small" id="styleKnob" data-min="0" data-max="3" data-value="0"></div>
+        <div class="knob-value" id="styleVal">None</div>
+      </div>
+      <div class="knob-container small">
+        <div class="knob-label">EXPORT</div>
+        <div class="knob small" id="exportKnob" data-min="0" data-max="1" data-value="0"></div>
+        <div class="knob-value" id="exportVal">TXT</div>
+      </div>
+      <button onclick="applyStyle()">APPLY</button>
+      <button onclick="doExport()">EXPORT</button>
       <button onclick="toggleVoice()">Voice</button>
-      <button onclick="exportTxt()">Export TXT</button>
-      <button onclick="exportPdf()">Export PDF</button>
       <button onclick="clearEditor()">IPL CLR</button>
     </div>
     <div class="system-notice">
@@ -573,6 +618,32 @@ setupKnob(document.getElementById('fontKnob'), v => {
   editor.style.fontFamily = f.family;
   document.getElementById('notes').style.fontFamily = f.family;
 });
+
+const styles = ['None', 'Bold', 'Italic', 'Underline'];
+const styleMarkers = ['', '**', '*', '__'];
+
+setupKnob(document.getElementById('styleKnob'), v => {
+  const idx = Math.round(v);
+  document.getElementById('styleVal').textContent = styles[idx] || 'None';
+});
+
+setupKnob(document.getElementById('exportKnob'), v => {
+  const idx = Math.round(v);
+  document.getElementById('exportVal').textContent = idx === 0 ? 'TXT' : 'PDF';
+});
+
+function applyStyle() {
+  const idx = Math.round(parseFloat(document.getElementById('styleKnob').dataset.value));
+  const marker = styleMarkers[idx];
+  if (!marker) return;
+  insertText(marker);
+}
+
+function doExport() {
+  const idx = Math.round(parseFloat(document.getElementById('exportKnob').dataset.value));
+  if (idx === 0) exportTxt();
+  else exportPdf();
+}
 
 document.getElementById('freqPresets').addEventListener('change', e => {
   const val = parseFloat(e.target.value);
