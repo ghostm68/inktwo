@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SynthWord // Sovereign Console</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap">
 <style>
 :root {
   --panel: #0a0a0a;
@@ -205,13 +205,37 @@ canvas#pong {
   border: 1px solid #444;
   padding: 6px;
 }
-.system-notice {
-  background: #111;
-  border: 1px dashed var(--accent);
-  padding: 8px;
-  font-size: 0.8em;
-  color: var(--dim);
-  margin-bottom: 10px;
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 10001;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal.active { display: flex; }
+.modal-content {
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 16px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 0 20px rgba(255,51,51,0.3);
+}
+.modal-content h3 { margin-top: 0; color: var(--accent); }
+.close-modal {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 1.4em;
+  cursor: pointer;
+  padding: 0 4px;
 }
 @media (max-width: 1100px) {
   .console { grid-template-columns: 1fr; gap: 10px; padding: 8px; }
@@ -249,7 +273,7 @@ canvas#pong {
     </div>
   </header>
 
-  <!-- Left: Audio + Knobs + Notes -->
+  <!-- Left: Audio + Knobs -->
   <div class="panel audio-panel">
     <h3>FREQUENCY CONTROL</h3>
     <div class="knob-row">
@@ -263,6 +287,11 @@ canvas#pong {
         <div class="knob" id="volKnob" data-min="0" data-max="100" data-value="30"></div>
         <div class="knob-value" id="volVal">30%</div>
       </div>
+      <div class="knob-container">
+        <div class="knob-label">FONT</div>
+        <div class="knob" id="fontKnob" data-min="0" data-max="3" data-value="0"></div>
+        <div class="knob-value" id="fontVal">VT323</div>
+      </div>
     </div>
     <div style="text-align:center; margin:8px 0;">
       <select id="waveType">
@@ -271,11 +300,27 @@ canvas#pong {
         <option value="sawtooth">Sawtooth</option>
         <option value="square">Square</option>
       </select>
+      <select id="freqPresets">
+        <option value="">Presets…</option>
+        <option value="7.83">7.83 Hz Schumann</option>
+        <option value="40">40 Hz Gamma</option>
+        <option value="128">128 Hz Ohm</option>
+        <option value="174">174 Hz Stress</option>
+        <option value="285">285 Hz Healing</option>
+        <option value="396">396 Hz Liberating</option>
+        <option value="417">417 Hz Change</option>
+        <option value="432">432 Hz Verdi A</option>
+        <option value="440">440 Hz Concert</option>
+        <option value="528">528 Hz Repair</option>
+        <option value="639">639 Hz Relations</option>
+        <option value="741">741 Hz Solving</option>
+        <option value="852">852 Hz Spiritual</option>
+        <option value="963">963 Hz Pineal</option>
+      </select>
       <button id="playBtn">ACTIVATE</button>
     </div>
-    <div style="margin-top:12px;">
-      <h3>NOTES</h3>
-      <textarea id="notes" placeholder="Scratch notes…"></textarea>
+    <div style="margin-top:8px; font-size:0.8em; color:var(--dim);">
+      Font size via browser zoom or later knob. Phosphor tone fixed for now.
     </div>
   </div>
 
@@ -297,15 +342,32 @@ canvas#pong {
       <span>WORDS <span id="wordCount">0000</span></span>
       <span>CHARS <span id="charCount">0000</span></span>
     </div>
+    <div style="margin-top:12px;">
+      <h3 style="font-size:1em; color:var(--accent); margin:0 0 4px;">SCRATCH NOTES</h3>
+      <textarea id="notes" placeholder="Notes stay here — separate from the main draft…" style="width:100%; height:100px; background:#050505; color:var(--text); border:1px solid #333; padding:8px; font-family:inherit; resize:vertical;"></textarea>
+    </div>
   </div>
 
   <!-- Right: AI + Extras -->
   <div class="panel ai-panel">
-    <h3>SOVEREIGN AI</h3>
-    <div class="system-notice">
-      Local models (WebLLM / transformers.js style) preferred for privacy. Optional NVIDIA NIM BYOK for larger models.
-    </div>
-    <label>LOCAL MODEL</label>
+    <h3>MODULES</h3>
+    <button id="openLocalAi" style="width:100%; margin:4px 0;">LOCAL AI MODULE</button>
+    <button id="openByokAi" style="width:100%; margin:4px 0;">NVIDIA BYOK MODULE</button>
+    <div id="aiStatus" style="font-size:0.8em; color:var(--dim); margin:8px 0;">OFFLINE</div>
+    <hr style="border-color:#333; margin:12px 0;">
+    <button id="togglePong" style="width:100%;">TOGGLE BREAK (PONG)</button>
+    <canvas id="pong" width="280" height="160"></canvas>
+    <div id="pongScore" style="text-align:center; color:var(--accent); display:none;">Player 0 | AI 0</div>
+  </div>
+</div>
+
+<!-- Local AI Modal -->
+<div class="modal" id="localModal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeModal('localModal')">×</button>
+    <h3>LOCAL AI MODULE</h3>
+    <p class="system-notice">Self-loading local models (WebLLM / transformers.js style). Offline after first download. Privacy-first.</p>
+    <label>MODEL</label>
     <select id="localModel">
       <option value="qwen2.5-0.5b">QWEN 2.5 (0.5B) - NANO</option>
       <option value="qwen2.5-1.5b">QWEN 2.5 (1.5B) - CORE</option>
@@ -313,34 +375,37 @@ canvas#pong {
       <option value="phi-3.5">PHI 3.5 MINI</option>
       <option value="llama-1b">LLAMA 3.2 (1B)</option>
     </select>
-    <button id="initLocal" style="width:100%; margin:6px 0;">INITIALIZE LOCAL</button>
-    <div id="aiStatus" style="font-size:0.8em; color:var(--dim); margin:6px 0;">OFFLINE</div>
+    <button id="initLocal" style="width:100%; margin:8px 0;">INITIALIZE LOCAL</button>
+    <textarea id="localPrompt" placeholder="Ask local model…" style="width:100%; height:70px; background:#050505; color:#fff; border:1px solid #333; padding:6px; font-family:inherit; margin:6px 0;"></textarea>
+    <button id="sendLocal" style="width:100%;">SEND</button>
+    <div id="localResponse" style="margin-top:8px; font-size:0.85em; max-height:140px; overflow:auto; color:var(--phosphor);"></div>
+  </div>
+</div>
 
-    <hr style="border-color:#333; margin:12px 0;">
-
-    <div class="byok-form">
-      <label>NVIDIA NIM / OpenAI-compatible BYOK</label>
-      <input type="password" id="apiKey" placeholder="nvapi-... or sk-...">
-      <input type="text" id="baseUrl" value="https://integrate.api.nvidia.com/v1" placeholder="Base URL">
-      <select id="byokModel">
-        <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B</option>
-        <option value="mistralai/mistral-7b-instruct-v0.3">Mistral 7B</option>
-        <option value="google/gemma-2-9b-it">Gemma 2 9B</option>
-        <option value="nvidia/llama-3.1-nemotron-70b-instruct">Nemotron 70B</option>
-      </select>
-      <button id="testByok" style="width:100%;">TEST CONNECTION</button>
-    </div>
-
-    <div style="margin-top:12px;">
-      <textarea id="aiPrompt" placeholder="Ask the terminal…" style="width:100%; height:60px; background:#050505; color:#fff; border:1px solid #333; padding:6px; font-family:inherit;"></textarea>
-      <button id="sendAi" style="width:100%;">SEND TO AI</button>
-      <div id="aiResponse" style="margin-top:8px; font-size:0.85em; max-height:120px; overflow:auto; color:var(--phosphor);"></div>
-    </div>
-
-    <hr style="border-color:#333; margin:12px 0;">
-    <button id="togglePong" style="width:100%;">TOGGLE BREAK (PONG)</button>
-    <canvas id="pong" width="280" height="160"></canvas>
-    <div id="pongScore" style="text-align:center; color:var(--accent); display:none;">Player 0 | AI 0</div>
+<!-- BYOK AI Modal -->
+<div class="modal" id="byokModal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeModal('byokModal')">×</button>
+    <h3>NVIDIA NIM BYOK MODULE</h3>
+    <p class="system-notice">Optional. Uses your NVIDIA API key at integrate.api.nvidia.com. Free tier available.</p>
+    <label>API KEY</label>
+    <input type="password" id="apiKey" placeholder="nvapi-..." style="width:100%; margin:4px 0; background:#111; color:#fff; border:1px solid #444; padding:6px;">
+    <label>BASE URL</label>
+    <input type="text" id="baseUrl" value="https://integrate.api.nvidia.com/v1" style="width:100%; margin:4px 0; background:#111; color:#fff; border:1px solid #444; padding:6px;">
+    <label>MODEL</label>
+    <select id="byokModel">
+      <option value="nvidia/nemotron-3.5-lightning-30b-a3b">Nemotron 3.5 Lightning (30B-A3B) — Fast</option>
+      <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning">Nemotron 3 Nano Omni</option>
+      <option value="nvidia/nemotron-3-super-120b-a12b">Nemotron 3 Super</option>
+      <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra</option>
+      <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+      <option value="google/gemma-2-9b-it">Gemma 2 9B</option>
+      <option value="mistralai/mistral-7b-instruct-v0.3">Mistral 7B</option>
+    </select>
+    <button id="testByok" style="width:100%; margin:6px 0;">TEST CONNECTION</button>
+    <textarea id="byokPrompt" placeholder="Ask NVIDIA model…" style="width:100%; height:70px; background:#050505; color:#fff; border:1px solid #333; padding:6px; font-family:inherit; margin:6px 0;"></textarea>
+    <button id="sendByok" style="width:100%;">SEND</button>
+    <div id="byokResponse" style="margin-top:8px; font-size:0.85em; max-height:140px; overflow:auto; color:var(--phosphor);"></div>
   </div>
 </div>
 
@@ -494,10 +559,31 @@ setupKnob(freqKnob, v => {
   freqVal.textContent = f + ' Hz';
   if (osc && playing) osc.frequency.setValueAtTime(f, audioCtx.currentTime);
 });
-setupKnob(volKnob, v => {
-  const vol = Math.round(v);
-  volVal.textContent = vol + '%';
-  if (gain && playing) gain.gain.setValueAtTime(vol / 100 * 0.4, audioCtx.currentTime);
+const fonts = [
+  {name: 'VT323', family: "'VT323', monospace"},
+  {name: 'IBM Plex', family: "'IBM Plex Mono', monospace"},
+  {name: 'Courier', family: "'Courier New', monospace"},
+  {name: 'Share Tech', family: "'Share Tech Mono', monospace"}
+];
+
+setupKnob(document.getElementById('fontKnob'), v => {
+  const idx = Math.round(v);
+  const f = fonts[idx] || fonts[0];
+  document.getElementById('fontVal').textContent = f.name;
+  editor.style.fontFamily = f.family;
+  document.getElementById('notes').style.fontFamily = f.family;
+});
+
+document.getElementById('freqPresets').addEventListener('change', e => {
+  const val = parseFloat(e.target.value);
+  if (!val) return;
+  const knob = document.getElementById('freqKnob');
+  knob.dataset.value = val;
+  // trigger visual + audio update
+  const angle = -135 + ((Math.log(val) - Math.log(1)) / (Math.log(10000) - Math.log(1))) * 270;
+  knob.style.setProperty('--angle', angle + 'deg');
+  document.getElementById('freqVal').textContent = Math.round(val) + ' Hz';
+  if (osc && playing) osc.frequency.setValueAtTime(val, audioCtx.currentTime);
 });
 
 playBtn.addEventListener('click', () => {
@@ -557,15 +643,28 @@ function toggleVoice() {
   recognition.start();
 }
 
+// ========== MODALS ==========
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+document.getElementById('openLocalAi').addEventListener('click', () => openModal('localModal'));
+document.getElementById('openByokAi').addEventListener('click', () => openModal('byokModal'));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('active'); }));
+
 // ========== AI ==========
 document.getElementById('initLocal').addEventListener('click', () => {
   const model = document.getElementById('localModel').value;
   const status = document.getElementById('aiStatus');
-  status.textContent = 'INITIALIZING ' + model.toUpperCase() + '… (WebGPU preferred)';
-  // Stub for local WebLLM / transformers.js — full implementation would load @mlc-ai/web-llm or transformers.js here
+  status.textContent = 'INITIALIZING ' + model.toUpperCase() + '…';
   setTimeout(() => {
-    status.textContent = 'LOCAL STUB READY — full model download would occur on first use (see /q for reference implementation)';
-  }, 800);
+    status.textContent = 'LOCAL STUB READY — full WebLLM load would cache on first use';
+  }, 600);
+});
+
+document.getElementById('sendLocal').addEventListener('click', () => {
+  const prompt = document.getElementById('localPrompt').value.trim();
+  const resp = document.getElementById('localResponse');
+  if (!prompt) return;
+  resp.textContent = '[LOCAL STUB] Response to: "' + prompt.slice(0, 50) + '…" — full model would generate here after initialize.';
 });
 
 document.getElementById('testByok').addEventListener('click', async () => {
@@ -578,61 +677,47 @@ document.getElementById('testByok').addEventListener('click', async () => {
   try {
     const res = await fetch(url + '/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + key,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [{role: 'user', content: 'Say "LINK ESTABLISHED" in 3 words.'}],
-        max_tokens: 20
+        messages: [{role: 'user', content: 'Say LINK ESTABLISHED'}],
+        max_tokens: 16
       })
     });
     const data = await res.json();
-    if (data.choices) {
-      status.textContent = 'BYOK LINK OK — ' + model;
-    } else {
-      status.textContent = 'BYOK ERROR: ' + (data.error?.message || res.status);
-    }
+    status.textContent = data.choices ? 'BYOK LINK OK — ' + model.split('/').pop() : 'BYOK ERROR';
+    document.getElementById('byokResponse').textContent = data.choices?.[0]?.message?.content || JSON.stringify(data.error || data);
   } catch (err) {
     status.textContent = 'BYOK FAIL: ' + err.message;
   }
 });
 
-document.getElementById('sendAi').addEventListener('click', async () => {
-  const prompt = document.getElementById('aiPrompt').value.trim();
+document.getElementById('sendByok').addEventListener('click', async () => {
+  const prompt = document.getElementById('byokPrompt').value.trim();
   if (!prompt) return;
-  const respEl = document.getElementById('aiResponse');
-  respEl.textContent = 'PROCESSING…';
   const key = document.getElementById('apiKey').value.trim();
-  if (key) {
-    // Use BYOK
-    const url = document.getElementById('baseUrl').value.trim();
-    const model = document.getElementById('byokModel').value;
-    try {
-      const res = await fetch(url + '/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + key,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {role: 'system', content: 'You are a concise creative writing assistant. Respond in plain text.'},
-            {role: 'user', content: prompt}
-          ],
-          max_tokens: 300
-        })
-      });
-      const data = await res.json();
-      respEl.textContent = data.choices?.[0]?.message?.content || JSON.stringify(data.error || data);
-    } catch (err) {
-      respEl.textContent = 'Error: ' + err.message;
-    }
-  } else {
-    // Local stub response
-    respEl.textContent = '[LOCAL STUB] Idea based on prompt: "' + prompt.slice(0, 40) + '…" → Consider a character who discovers an old console that writes back.';
+  const url = document.getElementById('baseUrl').value.trim();
+  const model = document.getElementById('byokModel').value;
+  const respEl = document.getElementById('byokResponse');
+  if (!key) { respEl.textContent = 'Enter API key first.'; return; }
+  respEl.textContent = 'PROCESSING…';
+  try {
+    const res = await fetch(url + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {role: 'system', content: 'You are a concise creative writing assistant.'},
+          {role: 'user', content: prompt}
+        ],
+        max_tokens: 400
+      })
+    });
+    const data = await res.json();
+    respEl.textContent = data.choices?.[0]?.message?.content || JSON.stringify(data.error || data);
+  } catch (err) {
+    respEl.textContent = 'Error: ' + err.message;
   }
 });
 
@@ -679,6 +764,20 @@ pongCanvas.addEventListener('mousemove', e => {
   py = e.clientY - r.top - 15;
   py = Math.max(0, Math.min(130, py));
 });
+pongCanvas.addEventListener('touchmove', e => {
+  if (!e.touches.length) return;
+  const r = pongCanvas.getBoundingClientRect();
+  py = e.touches[0].clientY - r.top - 15;
+  py = Math.max(0, Math.min(130, py));
+  e.preventDefault();
+}, {passive: false});
+pongCanvas.addEventListener('touchstart', e => {
+  if (!e.touches.length) return;
+  const r = pongCanvas.getBoundingClientRect();
+  py = e.touches[0].clientY - r.top - 15;
+  py = Math.max(0, Math.min(130, py));
+  e.preventDefault();
+}, {passive: false});
 
 document.getElementById('status').textContent = 'READY FOR INPUT';
 </script>
