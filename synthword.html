@@ -11,11 +11,12 @@
   --panel-light: #161616;
   --accent: #ff3333;
   --accent-dim: #aa2222;
-  --phosphor: #e0e0e0;
-  --phosphor-glow: rgba(255, 51, 51, 0.4);
+  --phosphor: #ff6666;
+  --phosphor-glow: rgba(255, 51, 51, 0.45);
   --border: #333;
   --text: #cccccc;
   --dim: #666;
+  --crt-bg: #050505;
 }
 * { box-sizing: border-box; }
 body {
@@ -126,7 +127,7 @@ h1 {
   height: 60vh;
   min-height: 280px;
   max-height: 70vh;
-  background: #050505;
+  background: var(--crt-bg);
   color: var(--phosphor);
   border: 1px solid #222;
   border-radius: 2px;
@@ -363,6 +364,16 @@ canvas#pong {
         <div class="knob-label">FONT</div>
         <div class="knob small" id="fontKnob" data-min="0" data-max="3" data-value="0"></div>
         <div class="knob-value" id="fontVal">VT323</div>
+      </div>
+      <div class="knob-container small">
+        <div class="knob-label">THEME</div>
+        <div class="knob small" id="themeKnob" data-min="0" data-max="3" data-value="0"></div>
+        <div class="knob-value" id="themeVal">Red</div>
+      </div>
+      <div class="knob-container small">
+        <div class="knob-label">PITCH</div>
+        <div class="knob small" id="pitchKnob" data-min="1.2" data-max="2.0" data-value="1.55"></div>
+        <div class="knob-value" id="pitchVal">1.55</div>
       </div>
       <div class="knob-container small">
         <div class="knob-label">STYLE</div>
@@ -611,7 +622,37 @@ const fonts = [
   {name: 'Share Tech', family: "'Share Tech Mono', monospace"}
 ];
 
+const themes = [
+  {name: 'Red', accent: '#ff3333', accentDim: '#aa2222', phosphor: '#ff6666', glow: 'rgba(255,51,51,0.45)', crt: '#050505'},
+  {name: 'Green', accent: '#33ff66', accentDim: '#1f993d', phosphor: '#66ff99', glow: 'rgba(51,255,102,0.4)', crt: '#050d07'},
+  {name: 'Amber', accent: '#ffb000', accentDim: '#996900', phosphor: '#ffcc66', glow: 'rgba(255,176,0,0.4)', crt: '#0f0a02'},
+  {name: 'White', accent: '#e1effa', accentDim: '#738390', phosphor: '#e1effa', glow: 'rgba(220,240,255,0.35)', crt: '#080c10'}
+];
+
+setupKnob(document.getElementById('themeKnob'), v => {
+  const idx = Math.round(v);
+  const t = themes[idx] || themes[0];
+  document.getElementById('themeVal').textContent = t.name;
+  document.documentElement.style.setProperty('--accent', t.accent);
+  document.documentElement.style.setProperty('--accent-dim', t.accentDim);
+  document.documentElement.style.setProperty('--phosphor', t.phosphor);
+  document.documentElement.style.setProperty('--phosphor-glow', t.glow);
+  document.documentElement.style.setProperty('--crt-bg', t.crt);
+});
+
+setupKnob(document.getElementById('pitchKnob'), v => {
+  const pitch = v.toFixed(2);
+  document.getElementById('pitchVal').textContent = pitch;
+  editor.style.lineHeight = pitch;
+});
+
 setupKnob(document.getElementById('fontKnob'), v => {
+  const idx = Math.round(v);
+  const f = fonts[idx] || fonts[0];
+  document.getElementById('fontVal').textContent = f.name;
+  editor.style.fontFamily = f.family;
+  document.getElementById('notes').style.fontFamily = f.family;
+});
   const idx = Math.round(v);
   const f = fonts[idx] || fonts[0];
   document.getElementById('fontVal').textContent = f.name;
@@ -812,9 +853,9 @@ document.getElementById('togglePong').addEventListener('click', () => {
 });
 
 function pongFrame() {
-  pongCtx.fillStyle = '#050505';
+  pongCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--crt-bg').trim() || '#050505';
   pongCtx.fillRect(0, 0, 280, 160);
-  pongCtx.fillStyle = '#ff3333';
+  pongCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff3333';
   pongCtx.fillRect(px, py, 6, 30);
   pongCtx.fillRect(274, aiy, 6, 30);
   pongCtx.fillStyle = '#fff';
