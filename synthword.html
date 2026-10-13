@@ -425,6 +425,22 @@ canvas#pong {
     <button id="togglePong" style="width:100%;">TOGGLE BREAK (PONG)</button>
     <canvas id="pong" width="280" height="160"></canvas>
     <div id="pongScore" style="text-align:center; color:var(--accent); display:none;">Player 0 | AI 0</div>
+    <hr style="border-color:#333; margin:12px 0;">
+    <button id="toggleSynth" style="width:100%;">TOGGLE SYNTH</button>
+    <div id="synthPanel" style="display:none; margin-top:8px;">
+      <div style="display:flex; gap:4px; margin-bottom:6px; align-items:center; flex-wrap:wrap;">
+        <select id="synthWave" style="flex:1;">
+          <option value="sine">Sine</option>
+          <option value="triangle" selected>Triangle</option>
+          <option value="sawtooth">Sawtooth</option>
+          <option value="square">Square</option>
+        </select>
+        <label style="font-size:0.75em;">Vol</label>
+        <input type="range" id="synthVol" min="0" max="100" value="40" style="width:60px;">
+      </div>
+      <div id="piano" style="position:relative; height:110px; background:#111; border:1px solid #333; border-radius:4px; user-select:none; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;"></div>
+      <div style="font-size:0.7em; color:var(--dim); text-align:center; margin-top:4px;">A S D F G H J K L ; ' / W E T Y U O P</div>
+    </div>
   </div>
 </div>
 
@@ -850,7 +866,143 @@ document.getElementById('sendByok').addEventListener('click', async () => {
   }
 });
 
-// ========== PONG (optional break) ==========
+// ========== SYNTH / PIANO ==========
+const synthPanel = document.getElementById('synthPanel');
+const piano = document.getElementById('piano');
+const synthWave = document.getElementById('synthWave');
+const synthVol = document.getElementById('synthVol');
+let synthCtx, synthMaster;
+const activeNotes = {};
+
+const notes = [
+  {note:'C4', freq:261.63, key:'a', black:false},
+  {note:'C#4', freq:277.18, key:'w', black:true},
+  {note:'D4', freq:293.66, key:'s', black:false},
+  {note:'D#4', freq:311.13, key:'e', black:true},
+  {note:'E4', freq:329.63, key:'d', black:false},
+  {note:'F4', freq:349.23, key:'f', black:false},
+  {note:'F#4', freq:369.99, key:'t', black:true},
+  {note:'G4', freq:392.00, key:'g', black:false},
+  {note:'G#4', freq:415.30, key:'y', black:true},
+  {note:'A4', freq:440.00, key:'h', black:false},
+  {note:'A#4', freq:466.16, key:'u', black:true},
+  {note:'B4', freq:493.88, key:'j', black:false},
+  {note:'C5', freq:523.25, key:'k', black:false},
+  {note:'C#5', freq:554.37, key:'o', black:true},
+  {note:'D5', freq:587.33, key:'l', black:false},
+  {note:'D#5', freq:622.25, key:'p', black:true},
+  {note:'E5', freq:659.25, key:';', black:false}
+];
+
+function buildPiano() {
+  piano.innerHTML = '';
+  const whiteCount = notes.filter(n => !n.black).length;
+  const keyW = 32;
+  const blackW = 20;
+  let whiteIndex = 0;
+  notes.forEach(n => {
+    const key = document.createElement('div');
+    key.dataset.freq = n.freq;
+    key.dataset.note = n.note;
+    key.style.position = 'absolute';
+    key.style.bottom = '0';
+    key.style.border = '1px solid #444';
+    key.style.cursor = 'pointer';
+    key.style.boxSizing = 'border-box';
+    key.style.touchAction = 'none';
+    if (n.black) {
+      key.style.background = '#222';
+      key.style.height = '65px';
+      key.style.width = blackW + 'px';
+      key.style.zIndex = '2';
+      key.style.left = (whiteIndex * keyW - blackW / 2) + 'px';
+    } else {
+      key.style.background = '#eee';
+      key.style.height = '110px';
+      key.style.width = keyW + 'px';
+      key.style.zIndex = '1';
+      key.style.left = (whiteIndex * keyW) + 'px';
+      whiteIndex++;
+    }
+    const start = (e) => { e.preventDefault(); playNote(n.freq, key); };
+    const end = () => stopNote(n.freq);
+    key.addEventListener('pointerdown', start);
+    key.addEventListener('pointerup', end);
+    key.addEventListener('pointercancel', end);
+    key.addEventListener('pointerleave', end);
+    piano.appendChild(key);
+  });
+  piano.style.minWidth = (whiteCount * keyW + 8) + 'px';
+}
+buildPiano();
+
+function ensureSynth() {
+  if (!synthCtx) {
+    synthCtx = new (window.AudioContext || window.webkitAudioContext)();
+    synthMaster = synthCtx.createGain();
+    synthMaster.gain.value = synthVol.value / 100 * 0.4;
+    synthMaster.connect(synthCtx.destination);
+  }
+  if (synthCtx.state === 'suspended') synthCtx.resume();
+}
+
+function playNote(freq, el) {
+  ensureSynth();
+  if (activeNotes[freq]) return;
+  const osc = synthCtx.createOscillator();
+  const gain = synthCtx.createGain();
+  osc.type = synthWave.value;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, synthCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.5, synthCtx.currentTime + 0.02);
+  osc.connect(gain);
+  gain.connect(synthMaster);
+  osc.start();
+  activeNotes[freq] = {osc, gain, el};
+  if (el) el.style.background = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff3333';
+}
+
+function stopNote(freq) {
+  const note = activeNotes[freq];
+  if (!note) return;
+  const now = synthCtx.currentTime;
+  note.gain.gain.cancelScheduledValues(now);
+  note.gain.gain.setValueAtTime(note.gain.gain.value, now);
+  note.gain.gain.linearRampToValueAtTime(0, now + 0.15);
+  note.osc.stop(now + 0.16);
+  if (note.el) {
+    note.el.style.background = note.el.dataset.note.includes('#') ? '#222' : '#eee';
+  }
+  delete activeNotes[freq];
+}
+
+document.getElementById('toggleSynth').addEventListener('click', () => {
+  const show = synthPanel.style.display === 'none';
+  synthPanel.style.display = show ? 'block' : 'none';
+  if (show) ensureSynth();
+});
+
+synthVol.addEventListener('input', () => {
+  if (synthMaster) synthMaster.gain.value = synthVol.value / 100 * 0.4;
+});
+
+const keyMap = {};
+notes.forEach(n => keyMap[n.key] = n.freq);
+
+document.addEventListener('keydown', e => {
+  if (e.repeat || synthPanel.style.display === 'none') return;
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const freq = keyMap[e.key.toLowerCase()];
+  if (freq) {
+    e.preventDefault();
+    const el = piano.querySelector(`[data-freq="${freq}"]`);
+    playNote(freq, el);
+  }
+});
+document.addEventListener('keyup', e => {
+  const freq = keyMap[e.key.toLowerCase()];
+  if (freq) stopNote(freq);
+});
 const pongCanvas = document.getElementById('pong');
 const pongCtx = pongCanvas.getContext('2d');
 const pongScore = document.getElementById('pongScore');
