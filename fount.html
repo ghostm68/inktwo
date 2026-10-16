@@ -310,9 +310,7 @@
                     </div>
                     <div id="specimen" contenteditable="true"
                         class="outline-none text-4xl md:text-5xl leading-relaxed min-h-[140px] relative z-10 whitespace-pre-wrap break-words"
-                        style="font-family: var(--font-display);">
-The quick brown fox jumped over the lazy dog.
-                    </div>
+                        style="font-family: var(--font-display);">The quick brown fox jumped over the lazy dog.</div>
                 </div>
             </main>
         </div>
@@ -328,7 +326,7 @@ The quick brown fox jumped over the lazy dog.
         </div>
 
         <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
-            Inkrealm · Citadelle Type Engine · Improved
+            Inkrealm · Citadelle Type Engine · Live Reactive Mode
         </footer>
     </div>
 
@@ -363,7 +361,7 @@ The quick brown fox jumped over the lazy dog.
                 <button onclick="clearGlyphPixels()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Letter</button>
                 <button onclick="commitDrawing()" class="btn-primary text-[10px] px-2 py-1 rounded">Commit Drawing</button>
             </div>
-            <p class="text-[9px] text-center text-white/50">Enable Draw Mode to sketch. Use Clear Letter to wipe the existing shape first so you can draw on a blank canvas. Commit replaces the glyph and updates the specimen.</p>
+            <p class="text-[9px] text-center text-white/50">Draw to add strokes to the letter, or click "Clear Letter" to paint fresh. "Commit Drawing" immediately updates the live specimen preview.</p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -425,20 +423,21 @@ The quick brown fox jumped over the lazy dog.
         let currentRotation = 0;
         let blobs = [];
         let font = null;
+        let fontBuildCount = 0;
         let cropRect = null;
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let activeBlobIndex = null;
+        let activeBlob = null;
 
         // Drawing mode state
         let drawMode = false;
-        let drawingStrokes = []; // array of {points: [[x,y],...], size: number}
+        let drawingStrokes = [];
         let currentStroke = null;
         let isPainting = false;
 
         const DESCENDERS = new Set(['g', 'j', 'p', 'q', 'y', ',', ';', 'Q']);
 
-        // Image file picker listener
         document.getElementById('imageInput').onchange = e => {
             if (e.target.files && e.target.files[0]) {
                 handleImage(e.target.files[0]);
@@ -446,7 +445,6 @@ The quick brown fox jumped over the lazy dog.
             }
         };
 
-        // Drag & Drop listener on canvas workspace
         const canvasWrapper = document.getElementById('canvasWrapper');
         canvasWrapper.addEventListener('dragover', e => {
             e.preventDefault();
@@ -460,7 +458,6 @@ The quick brown fox jumped over the lazy dog.
             }
         });
 
-        // Clipboard Paste Listener (Ctrl+V / Cmd+V)
         window.addEventListener('paste', e => {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let item of items) {
@@ -584,14 +581,11 @@ The quick brown fox jumped over the lazy dog.
             analyze();
         }
 
-        /* --- DRAG TO CROP (scroll-safe) --- */
+        /* --- DRAG TO CROP --- */
         function getDisplayPosFromCanvas(cx, cy) {
             const scaleX = canvas.clientWidth / canvas.width;
             const scaleY = canvas.clientHeight / canvas.height;
-            return {
-                left: cx * scaleX,
-                top: cy * scaleY
-            };
+            return { left: cx * scaleX, top: cy * scaleY };
         }
 
         canvas.parentElement.addEventListener('mousedown', e => {
@@ -661,7 +655,7 @@ The quick brown fox jumped over the lazy dog.
             analyze();
         }
 
-        /* --- BLOB EXTRACTION (full-res, 8-connected, more sensitive) --- */
+        /* --- BLOB EXTRACTION --- */
         function analyze() {
             if (!canvas.width || !canvas.height) return;
             const threshold = parseInt(document.getElementById('threshold').value);
@@ -672,7 +666,7 @@ The quick brown fox jumped over the lazy dog.
             const visited = new Uint8Array(w * h);
 
             let rawBlobs = [];
-            const step = 1; // full resolution for better pickup of thin/graffiti strokes
+            const step = 1;
 
             const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
             const maxX = cropRect ? Math.min(w, Math.ceil(cropRect.x + cropRect.w)) : w;
@@ -687,7 +681,6 @@ The quick brown fox jumped over the lazy dog.
 
                     if (isInk && !visited[idx]) {
                         const blob = floodFill(x, y, visited, data, w, h, threshold, invert, minX, maxX, minY, maxY);
-                        // Lowered minimums so thin or smaller graffiti letters are kept
                         if (blob.w >= 2 && blob.h >= 3 && blob.points.length > 6) {
                             blob.yOffset = 0;
                             blob.xOffset = 0;
@@ -707,7 +700,6 @@ The quick brown fox jumped over the lazy dog.
             const chars = document.getElementById('charset').value.split('');
             blobs.forEach((b, i) => { 
                 b.char = chars[i] || ''; 
-                // Automatic subtle descender baseline compensation
                 if (DESCENDERS.has(b.char) && b.yOffset === 0) {
                     b.yOffset = -Math.round(b.lineH * 0.18);
                 }
@@ -722,7 +714,6 @@ The quick brown fox jumped over the lazy dog.
             let bx0 = startX, bx1 = startX, by0 = startY, by1 = startY;
             const stack = [[startX, startY]];
             const points = [];
-            // 8-connected for better stroke pickup
             const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
             while (stack.length) {
                 const [cx, cy] = stack.pop();
@@ -797,8 +788,6 @@ The quick brown fox jumped over the lazy dog.
             for (const line of lines) {
                 line.blobs.sort((a, b) => a.x - b.x);
                 const lineH = Math.max(...line.blobs.map(b => b.h));
-
-                // 65th-percentile robust baseline finder (immune to descenders throwing line off)
                 const bottoms = line.blobs.map(b => b.y + b.h).sort((a, b) => a - b);
                 const robustBottom = bottoms[Math.floor(bottoms.length * 0.65)] || bottoms[bottoms.length - 1];
                 const baseline = robustBottom - Math.max(1, Math.round(lineH * 0.05));
@@ -812,62 +801,140 @@ The quick brown fox jumped over the lazy dog.
             return result;
         }
 
-        /* --- CONTOUR & HOLE EXTRACTION (updated for 1px grid) --- */
-        function extractContoursWithHoles(b) {
-            const pad = 3;
-            const gw = b.w + pad * 2, gh = b.h + pad * 2;
-            const grid = new Uint8Array(gw * gh);
-
-            for (let [px, py] of b.points) {
-                const lx = px - b.x + pad, ly = py - b.y + pad;
-                if (lx >= 0 && lx < gw && ly >= 0 && ly < gh) grid[ly * gw + lx] = 1;
-            }
-
-            const queue = [0];
-            grid[0] = 2;
-            const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-            let head = 0;
-            while(head < queue.length) {
-                const curr = queue[head++];
-                const cx = curr % gw, cy = Math.floor(curr / gw);
-                for (let [dx, dy] of dirs) {
-                    const nx = cx + dx, ny = cy + dy;
-                    if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
-                        const nIdx = ny * gw + nx;
-                        if (grid[nIdx] === 0) { grid[nIdx] = 2; queue.push(nIdx); }
+        /* --- MULTI-PART CONTOUR EXTRACTION & HOLES --- */
+        function groupPointsIntoComponents(points) {
+            if (!points || !points.length) return [];
+            const pointSet = new Map();
+            points.forEach(p => pointSet.set(`${p[0]},${p[1]}`, p));
+            
+            const visited = new Set();
+            const components = [];
+            const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+            
+            for (const p of points) {
+                const key = `${p[0]},${p[1]}`;
+                if (visited.has(key)) continue;
+                
+                const comp = [];
+                const queue = [p];
+                visited.add(key);
+                
+                let qHead = 0;
+                while (qHead < queue.length) {
+                    const [cx, cy] = queue[qHead++];
+                    comp.push([cx, cy]);
+                    
+                    for (const [dx, dy] of dirs) {
+                        const nx = cx + dx, ny = cy + dy;
+                        const nKey = `${nx},${ny}`;
+                        if (pointSet.has(nKey) && !visited.has(nKey)) {
+                            visited.add(nKey);
+                            queue.push([nx, ny]);
+                        }
                     }
                 }
+                if (comp.length >= 3) {
+                    components.push(comp);
+                }
+            }
+            return components;
+        }
+
+        function extractContoursWithHoles(b) {
+            if (!b.points || b.points.length < 3) {
+                return { outer: [], outers: [], holes: [] };
             }
 
-            const holePointLists = [];
-            for (let ly = 1; ly < gh - 1; ly++) {
-                for (let lx = 1; lx < gw - 1; lx++) {
-                    const idx = ly * gw + lx;
-                    if (grid[idx] === 0) {
-                        const hPts = [];
-                        const hq = [idx];
-                        grid[idx] = 3;
-                        let hHead = 0;
-                        while(hHead < hq.length) {
-                            const c = hq[hHead++];
-                            const hx = c % gw, hy = Math.floor(c / gw);
-                            hPts.push([b.x + hx - pad, b.y + hy - pad]);
-                            for (let [dx, dy] of dirs) {
-                                const nx = hx + dx, ny = hy + dy;
-                                if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
-                                    const nIdx = ny * gw + nx;
-                                    if (grid[nIdx] === 0) { grid[nIdx] = 3; hq.push(nIdx); }
+            const components = groupPointsIntoComponents(b.points);
+            const outers = [];
+            const allHoles = [];
+
+            for (const comp of components) {
+                if (comp.length < 3) continue;
+                const outer = getContour(comp);
+                if (outer.length >= 3) {
+                    outers.push(outer);
+                }
+
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                for (const [px, py] of comp) {
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
+                }
+
+                const pad = 3;
+                const gw = (maxX - minX + 1) + pad * 2;
+                const gh = (maxY - minY + 1) + pad * 2;
+                const grid = new Uint8Array(gw * gh);
+
+                for (const [px, py] of comp) {
+                    const lx = px - minX + pad;
+                    const ly = py - minY + pad;
+                    if (lx >= 0 && lx < gw && ly >= 0 && ly < gh) {
+                        grid[ly * gw + lx] = 1;
+                    }
+                }
+
+                const queue = [0];
+                grid[0] = 2;
+                const dirs4 = [[1,0],[-1,0],[0,1],[0,-1]];
+                let head = 0;
+                while (head < queue.length) {
+                    const curr = queue[head++];
+                    const cx = curr % gw, cy = Math.floor(curr / gw);
+                    for (const [dx, dy] of dirs4) {
+                        const nx = cx + dx, ny = cy + dy;
+                        if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
+                            const nIdx = ny * gw + nx;
+                            if (grid[nIdx] === 0) {
+                                grid[nIdx] = 2;
+                                queue.push(nIdx);
+                            }
+                        }
+                    }
+                }
+
+                for (let ly = 1; ly < gh - 1; ly++) {
+                    for (let lx = 1; lx < gw - 1; lx++) {
+                        const idx = ly * gw + lx;
+                        if (grid[idx] === 0) {
+                            const hPts = [];
+                            const hq = [idx];
+                            grid[idx] = 3;
+                            let hHead = 0;
+                            while (hHead < hq.length) {
+                                const c = hq[hHead++];
+                                const hx = c % gw, hy = Math.floor(c / gw);
+                                hPts.push([minX + hx - pad, minY + hy - pad]);
+                                for (const [dx, dy] of dirs4) {
+                                    const nx = hx + dx, ny = hy + dy;
+                                    if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
+                                        const nIdx = ny * gw + nx;
+                                        if (grid[nIdx] === 0) {
+                                            grid[nIdx] = 3;
+                                            hq.push(nIdx);
+                                        }
+                                    }
+                                }
+                            }
+                            if (hPts.length >= 6) {
+                                const holeContour = getContour(hPts);
+                                if (holeContour.length >= 3) {
+                                    allHoles.push(holeContour);
                                 }
                             }
                         }
-                        if (hPts.length >= 8) holePointLists.push(hPts);
                     }
                 }
             }
 
-            const outer = getContour(b.points);
-            const holes = holePointLists.map(hp => getContour(hp)).filter(c => c.length > 3);
-            return { outer, holes };
+            return {
+                outer: outers[0] || [],
+                outers,
+                holes: allHoles
+            };
         }
 
         function getContour(bPoints) {
@@ -877,27 +944,30 @@ The quick brown fox jumped over the lazy dog.
             for (let p of bPoints) {
                 if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) start = p;
             }
-            // 8 directions at 1px step (matches new full-res detection)
             const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
             let current = start, prevDir = 6;
             const path = [];
+            const maxSteps = Math.max(120, bPoints.length * 4);
 
-            for (let iter = 0; iter < bPoints.length * 3; iter++) {
+            for (let iter = 0; iter < maxSteps; iter++) {
                 path.push(current);
-                let found = false, nextPixel = null;
+                let found = false, nextPixel = null, nextDir = -1;
                 for (let i = 0; i < 8; i++) {
                     const testDir = (prevDir + i) % 8;
                     const nx = current[0] + dirs[testDir][0];
                     const ny = current[1] + dirs[testDir][1];
                     if (pointSet.has(`${nx},${ny}`)) {
                         nextPixel = [nx, ny];
-                        prevDir = (testDir + 5) % 8;
+                        nextDir = testDir;
                         found = true;
                         break;
                     }
                 }
                 if (!found) break;
-                if (nextPixel[0] === start[0] && nextPixel[1] === start[1]) break;
+                if (path.length > 2 && nextPixel[0] === start[0] && nextPixel[1] === start[1]) {
+                    break;
+                }
+                prevDir = (nextDir + 5) % 8;
                 current = nextPixel;
             }
             return path;
@@ -929,7 +999,6 @@ The quick brown fox jumped over the lazy dog.
             return (px - (x1 + t * dx)) ** 2 + (py - (y1 + t * dy)) ** 2;
         }
 
-        /* --- TRUETYPE WINDING POLARITY ENFORCEMENT --- */
         function computeSignedArea(pts) {
             let area = 0;
             const n = pts.length;
@@ -940,7 +1009,6 @@ The quick brown fox jumped over the lazy dog.
             return area / 2;
         }
 
-        // TrueType specifications: In Y-Up coordinates, Outer = Clockwise (Area < 0), Holes = Counter-Clockwise (Area > 0)
         function forceWinding(pts, wantClockwise) {
             if (pts.length < 3) return pts;
             const area = computeSignedArea(pts);
@@ -951,16 +1019,33 @@ The quick brown fox jumped over the lazy dog.
             return pts;
         }
 
-        /* --- FONT COMPILATION --- */
+        /* --- FONT COMPILATION (Reactive with dynamic family versioning) --- */
         function generateFont() {
             const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
             if (!mappedBlobs.length) return;
 
-            const tol = parseFloat(document.getElementById('smoothTol').value);
-            const globalTracking = parseInt(document.getElementById('globalTracking').value);
+            const tol = parseFloat(document.getElementById('smoothTol').value) || 1.5;
+            const globalTracking = parseInt(document.getElementById('globalTracking').value) || 80;
             const isMonospace = document.getElementById('monoToggle').checked;
 
-            const refCapHeight = Math.max(...mappedBlobs.map(b => b.h));
+            // Deduplicate glyphs by character, prioritizing the currently active blob
+            const charBlobMap = new Map();
+            const currentActive = activeBlob || (activeBlobIndex !== null ? mappedBlobs[activeBlobIndex] : null);
+            if (currentActive && currentActive.char && currentActive.char.trim()) {
+                charBlobMap.set(currentActive.char, currentActive);
+            }
+            mappedBlobs.forEach(b => {
+                if (!charBlobMap.has(b.char)) {
+                    charBlobMap.set(b.char, b);
+                }
+            });
+
+            const uniqueBlobs = Array.from(charBlobMap.values());
+            // Sort by Unicode code point strictly ascending to guarantee valid TrueType cmap format 4
+            uniqueBlobs.sort((a, b) => a.char.charCodeAt(0) - b.char.charCodeAt(0));
+
+            const heights = uniqueBlobs.filter(b => b.points && b.points.length > 0).map(b => b.h);
+            const refCapHeight = heights.length ? Math.max(...heights) : 60;
             const globalScale = 680 / Math.max(refCapHeight, 20);
             const monoWidth = Math.round(520 + globalTracking * 1.5);
 
@@ -973,52 +1058,57 @@ The quick brown fox jumped over the lazy dog.
                 new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: spaceWidth, path: new opentype.Path() })
             ];
 
-            mappedBlobs.forEach(b => {
+            uniqueBlobs.forEach((b, idx) => {
                 const path = new opentype.Path();
-                const { outer, holes } = extractContoursWithHoles(b);
+                const { outers, holes } = extractContoursWithHoles(b);
 
                 const xNudge = (b.xOffset || 0) * globalScale;
                 const yNudge = (b.yOffset || 0) * globalScale;
                 const leftBearing = 40 + xNudge;
 
-                // Transform points directly to Font Coordinate Space (Y is up)
                 const toFontCoord = (p) => [
                     (p[0] - b.x) * globalScale + leftBearing,
                     (b.baseline - p[1]) * globalScale + yNudge
                 ];
 
-                let added = false;
-                if (outer.length >= 3) {
-                    // Outer Loop -> Clockwise
-                    const outerFontPts = forceWinding(simplify(outer.map(toFontCoord), tol), true);
-                    if (outerFontPts.length >= 3) {
-                        path.moveTo(outerFontPts[0][0], outerFontPts[0][1]);
-                        for (let i = 1; i < outerFontPts.length; i++) {
-                            path.lineTo(outerFontPts[i][0], outerFontPts[i][1]);
-                        }
-                        path.close();
-                        added = true;
-                    }
+                let addedAny = false;
 
-                    // Inner Holes -> Counter-Clockwise
-                    holes.forEach(hp => {
-                        const holeFontPts = forceWinding(simplify(hp.map(toFontCoord), tol), false);
-                        if (holeFontPts.length >= 3) {
-                            path.moveTo(holeFontPts[0][0], holeFontPts[0][1]);
-                            for (let i = 1; i < holeFontPts.length; i++) {
-                                path.lineTo(holeFontPts[i][0], holeFontPts[i][1]);
+                if (outers && outers.length > 0) {
+                    outers.forEach(outerLoop => {
+                        let pts = outerLoop.map(toFontCoord);
+                        let simplified = simplify(pts, tol);
+                        if (simplified.length < 3 && pts.length >= 3) simplified = pts;
+                        const fontPts = forceWinding(simplified, true);
+                        if (fontPts.length >= 3) {
+                            path.moveTo(fontPts[0][0], fontPts[0][1]);
+                            for (let i = 1; i < fontPts.length; i++) {
+                                path.lineTo(fontPts[i][0], fontPts[i][1]);
+                            }
+                            path.close();
+                            addedAny = true;
+                        }
+                    });
+
+                    holes.forEach(holeLoop => {
+                        let pts = holeLoop.map(toFontCoord);
+                        let simplified = simplify(pts, tol);
+                        if (simplified.length < 3 && pts.length >= 3) simplified = pts;
+                        const fontPts = forceWinding(simplified, false);
+                        if (fontPts.length >= 3) {
+                            path.moveTo(fontPts[0][0], fontPts[0][1]);
+                            for (let i = 1; i < fontPts.length; i++) {
+                                path.lineTo(fontPts[i][0], fontPts[i][1]);
                             }
                             path.close();
                         }
                     });
                 }
 
-                // Fallback: if contour extraction failed (common with sparse hand drawings), draw a simple rect so the glyph still appears
-                if (!added && b.points && b.points.length > 0) {
+                if (!addedAny && b.points && b.points.length > 0) {
                     const bx = leftBearing;
                     const by = (b.baseline - (b.y + b.h)) * globalScale + yNudge;
-                    const bw = b.w * globalScale;
-                    const bh = b.h * globalScale;
+                    const bw = Math.max(b.w * globalScale, 10);
+                    const bh = Math.max(b.h * globalScale, 10);
                     path.moveTo(bx, by);
                     path.lineTo(bx + bw, by);
                     path.lineTo(bx + bw, by + bh);
@@ -1034,7 +1124,7 @@ The quick brown fox jumped over the lazy dog.
                 }
 
                 glyphs.push(new opentype.Glyph({
-                    name: b.char + '_' + glyphs.length, // unique name to avoid collisions
+                    name: 'glyph_' + b.char.charCodeAt(0) + '_' + idx,
                     unicode: b.char.charCodeAt(0),
                     advanceWidth: advWidth,
                     path
@@ -1051,20 +1141,29 @@ The quick brown fox jumped over the lazy dog.
             });
 
             try {
-                // Remove any previous ArchiveFont so the new one reliably replaces it
-                document.fonts.forEach(f => {
-                    if (f.family === 'ArchiveFont') document.fonts.delete(f);
-                });
+                const buffer = font.toArrayBuffer();
+                // Increment font family name on each compilation so browsers are forced to re-shape and re-render
+                const liveFamily = 'CitadelleLive_' + (++fontBuildCount);
+                const fontFace = new FontFace(liveFamily, buffer);
 
-                const fontUrl = URL.createObjectURL(new Blob([font.toArrayBuffer()], { type: 'font/ttf' }));
-                const fontFace = new FontFace('ArchiveFont', `url(${fontUrl})`);
                 fontFace.load().then(f => {
+                    document.fonts.forEach(existingFace => {
+                        if (existingFace.family.startsWith('CitadelleLive_')) {
+                            document.fonts.delete(existingFace);
+                        }
+                    });
+
                     document.fonts.add(f);
-                    specimen.style.fontFamily = 'ArchiveFont, Courier Prime, monospace';
-                    // Force reflow so the specimen actually switches
+
+                    // Deactivate any vault font selection and force live preview update
+                    activeVaultFamily = null;
+                    renderVault();
+
+                    specimen.style.fontFamily = `"${liveFamily}", 'Courier Prime', monospace`;
                     specimen.style.display = 'none';
                     specimen.offsetHeight; // trigger reflow
                     specimen.style.display = '';
+
                     document.getElementById('dlBtn').disabled = false;
                 }).catch(err => {
                     console.error("FontFace load failed:", err);
@@ -1080,9 +1179,9 @@ The quick brown fox jumped over the lazy dog.
 
         function updateOverlay() {
             overlay.innerHTML = '';
-            if (!canvas.clientWidth) return;
+            if (!canvas.clientWidth || !canvas.width) return;
             const ratio = canvas.clientWidth / canvas.width;
-            blobs.forEach((b, idx) => {
+            blobs.forEach(b => {
                 const box = document.createElement('div');
                 box.className = `detection-box ${b.char ? 'mapped' : ''}`;
                 box.style.left = (b.x * ratio) + 'px';
@@ -1096,21 +1195,24 @@ The quick brown fox jumped over the lazy dog.
         function addBlankGlyph() {
             const chars = document.getElementById('charset').value.split('');
             const nextChar = chars[blobs.length] || '?';
+            const refH = blobs.length ? Math.max(...blobs.map(b => b.h)) : 50;
+            const refBaseline = blobs.length ? blobs[0].baseline : 140;
+
             const blank = {
-                x: 100, y: 100, w: 40, h: 60,
-                points: [], // will be filled by drawing
+                x: 100, y: refBaseline - Math.round(refH * 0.8), w: Math.round(refH * 0.6), h: refH,
+                points: [],
                 yOffset: 0, xOffset: 0, wOffset: 0,
                 char: nextChar,
-                baseline: 150,
-                lineH: 60
+                baseline: refBaseline,
+                lineH: refH
             };
             blobs.push(blank);
             renderGlyphTray();
             updateOverlay();
-            // Open inspector on the new one
+            
             const mapped = blobs.filter(b => b.char);
             openInspector(mapped.length - 1);
-            // Auto-enable draw mode
+            
             setTimeout(() => {
                 const toggle = document.getElementById('drawModeToggle');
                 if (toggle) {
@@ -1140,22 +1242,23 @@ The quick brown fox jumped over the lazy dog.
             });
         }
 
-        /* --- GLYPH INSPECTOR MODAL (now draws the actual letter live) --- */
+        /* --- GLYPH INSPECTOR MODAL --- */
         function openInspector(idx) {
             const mapped = blobs.filter(b => b.char);
             const b = mapped[idx];
             if (!b) return;
 
-            // Reset drawing state for new glyph
+            activeBlob = b;
+            activeBlobIndex = idx;
             drawingStrokes = [];
             drawMode = false;
+            
             const toggle = document.getElementById('drawModeToggle');
             if (toggle) toggle.checked = false;
             inspectCanvas.style.cursor = 'default';
 
-            activeBlobIndex = idx;
-            document.getElementById('inspectCharTitle').innerText = b.char;
-            document.getElementById('inspectCharInput').value = b.char;
+            document.getElementById('inspectCharTitle').innerText = b.char || '?';
+            document.getElementById('inspectCharInput').value = b.char || '';
 
             document.getElementById('inspectY').value = b.yOffset || 0;
             document.getElementById('inspectYVal').innerText = (b.yOffset || 0) + 'px';
@@ -1171,7 +1274,7 @@ The quick brown fox jumped over the lazy dog.
 
             document.getElementById('inspectCharInput').oninput = e => {
                 b.char = e.target.value;
-                document.getElementById('inspectCharTitle').innerText = b.char;
+                document.getElementById('inspectCharTitle').innerText = b.char || '?';
                 generateFont();
                 renderGlyphTray();
             };
@@ -1201,17 +1304,16 @@ The quick brown fox jumped over the lazy dog.
         }
 
         function drawInspectorPreview(b) {
+            if (!b) return;
             const w = inspectCanvas.width;
             const h = inspectCanvas.height;
             inspectCtx.clearRect(0, 0, w, h);
-            // Solid dark background so strokes are always visible
             inspectCtx.fillStyle = '#111';
             inspectCtx.fillRect(0, 0, w, h);
 
             const scale = 2.5;
             const cx = w / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
             const cy = h / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
-
             const baselineY = cy + (b.baseline - b.y) * scale;
 
             // Baseline (Red)
@@ -1222,7 +1324,7 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.lineTo(w, baselineY);
             inspectCtx.stroke();
 
-            // Left & Right Bearing Guides (Cyan)
+            // Bearing Guides (Cyan)
             inspectCtx.strokeStyle = '#06b6d4';
             inspectCtx.lineWidth = 1;
             inspectCtx.setLineDash([4, 4]);
@@ -1232,25 +1334,27 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.stroke();
             inspectCtx.setLineDash([]);
 
-            // Draw the actual letter as a filled vector path (live with offsets)
-            const { outer, holes } = extractContoursWithHoles(b);
-            if (outer.length >= 3) {
+            // Draw letter live with multi-part contour support
+            const { outers, holes } = extractContoursWithHoles(b);
+            if (outers && outers.length > 0) {
                 inspectCtx.beginPath();
                 const toScreen = (p) => [
                     cx + (p[0] - b.x) * scale,
                     cy + (p[1] - b.y) * scale
                 ];
 
-                // Outer
-                const o0 = toScreen(outer[0]);
-                inspectCtx.moveTo(o0[0], o0[1]);
-                for (let i = 1; i < outer.length; i++) {
-                    const pt = toScreen(outer[i]);
-                    inspectCtx.lineTo(pt[0], pt[1]);
-                }
-                inspectCtx.closePath();
+                outers.forEach(outerLoop => {
+                    if (outerLoop.length >= 3) {
+                        const o0 = toScreen(outerLoop[0]);
+                        inspectCtx.moveTo(o0[0], o0[1]);
+                        for (let i = 1; i < outerLoop.length; i++) {
+                            const pt = toScreen(outerLoop[i]);
+                            inspectCtx.lineTo(pt[0], pt[1]);
+                        }
+                        inspectCtx.closePath();
+                    }
+                });
 
-                // Holes
                 holes.forEach(hp => {
                     if (hp.length >= 3) {
                         const h0 = toScreen(hp[0]);
@@ -1268,8 +1372,7 @@ The quick brown fox jumped over the lazy dog.
                 inspectCtx.strokeStyle = 'rgba(255,255,255,0.6)';
                 inspectCtx.lineWidth = 1;
                 inspectCtx.stroke();
-            } else {
-                // Fallback to pixels if contour fails
+            } else if (b.points && b.points.length > 0) {
                 inspectCtx.fillStyle = '#ffffff';
                 for (let [px, py] of b.points) {
                     inspectCtx.fillRect(cx + (px - b.x) * scale, cy + (py - b.y) * scale, scale, scale);
@@ -1280,28 +1383,34 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.fillStyle = '#ef4444';
             inspectCtx.fillText('BASELINE', 8, baselineY - 4);
 
-            // Overlay any active drawing strokes (bright cyan/white for visibility)
+            // Overlay active drawing strokes
             if (drawingStrokes.length) {
                 inspectCtx.strokeStyle = '#7dd3fc';
+                inspectCtx.fillStyle = '#7dd3fc';
                 inspectCtx.lineCap = 'round';
                 inspectCtx.lineJoin = 'round';
                 for (const stroke of drawingStrokes) {
-                    if (stroke.points.length < 2) continue;
+                    if (!stroke.points || !stroke.points.length) continue;
                     inspectCtx.lineWidth = stroke.size;
-                    inspectCtx.beginPath();
-                    inspectCtx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-                    for (let i = 1; i < stroke.points.length; i++) {
-                        inspectCtx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                    if (stroke.points.length === 1) {
+                        inspectCtx.beginPath();
+                        inspectCtx.arc(stroke.points[0][0], stroke.points[0][1], stroke.size / 2, 0, Math.PI * 2);
+                        inspectCtx.fill();
+                    } else {
+                        inspectCtx.beginPath();
+                        inspectCtx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+                        for (let i = 1; i < stroke.points.length; i++) {
+                            inspectCtx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                        }
+                        inspectCtx.stroke();
                     }
-                    inspectCtx.stroke();
                 }
             }
         }
 
         function deleteCurrentGlyph() {
-            const mapped = blobs.filter(b => b.char);
-            if (activeBlobIndex !== null && mapped[activeBlobIndex]) {
-                const targetBlob = mapped[activeBlobIndex];
+            const targetBlob = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
+            if (targetBlob) {
                 const realIdx = blobs.indexOf(targetBlob);
                 if (realIdx !== -1) {
                     blobs.splice(realIdx, 1);
@@ -1318,6 +1427,7 @@ The quick brown fox jumped over the lazy dog.
         function closeInspector() {
             inspectModal.style.display = 'none';
             activeBlobIndex = null;
+            activeBlob = null;
             drawMode = false;
             document.getElementById('drawModeToggle').checked = false;
             drawingStrokes = [];
@@ -1331,73 +1441,88 @@ The quick brown fox jumped over the lazy dog.
 
         function clearDrawing() {
             drawingStrokes = [];
-            if (activeBlobIndex !== null) {
-                const mapped = blobs.filter(b => b.char);
-                const b = mapped[activeBlobIndex];
-                if (b) drawInspectorPreview(b);
-            }
+            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
+            if (b) drawInspectorPreview(b);
         }
 
         function clearGlyphPixels() {
-            if (activeBlobIndex === null) return;
-            const mapped = blobs.filter(b => b.char);
-            const b = mapped[activeBlobIndex];
+            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
             if (!b) return;
-            // Wipe the existing letter so the canvas is blank for fresh drawing
             b.points = [];
-            b.w = 60;
-            b.h = 80;
-            b.x = 100;
-            b.y = 100;
-            b.baseline = b.y + b.h * 0.8;
+            b.w = 40;
+            b.h = 60;
             drawingStrokes = [];
             drawInspectorPreview(b);
             generateFont();
         }
 
         function commitDrawing() {
-            if (!drawingStrokes.length || activeBlobIndex === null) return;
-            const mapped = blobs.filter(b => b.char);
-            const b = mapped[activeBlobIndex];
+            if (!drawingStrokes.length) return;
+            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
             if (!b) return;
 
-            // Rasterize drawing strokes onto a temp canvas matching inspect size
+            const scale = 2.5;
+            const cx = inspectCanvas.width / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
+            const cy = inspectCanvas.height / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
+            const originX = cx - b.x * scale;
+            const originY = cy - b.y * scale;
+            const savedBaseline = b.baseline;
+
             const temp = document.createElement('canvas');
             temp.width = inspectCanvas.width;
             temp.height = inspectCanvas.height;
             const tctx = temp.getContext('2d');
             tctx.fillStyle = '#000';
             tctx.fillRect(0, 0, temp.width, temp.height);
+
+            // Preserve existing points if not cleared (allows adding strokes / refining)
+            if (b.points && b.points.length > 0) {
+                tctx.fillStyle = '#fff';
+                for (const [px, py] of b.points) {
+                    const sx = originX + px * scale;
+                    const sy = originY + py * scale;
+                    tctx.fillRect(Math.floor(sx), Math.floor(sy), Math.ceil(scale), Math.ceil(scale));
+                }
+            }
+
             tctx.strokeStyle = '#fff';
+            tctx.fillStyle = '#fff';
             tctx.lineCap = 'round';
             tctx.lineJoin = 'round';
 
             for (const stroke of drawingStrokes) {
-                if (stroke.points.length < 2) continue;
-                tctx.lineWidth = stroke.size;
-                tctx.beginPath();
-                tctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    tctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                if (!stroke.points || !stroke.points.length) continue;
+                tctx.lineWidth = Math.max(stroke.size, 3);
+                if (stroke.points.length === 1) {
+                    tctx.beginPath();
+                    tctx.arc(stroke.points[0][0], stroke.points[0][1], tctx.lineWidth / 2, 0, Math.PI * 2);
+                    tctx.fill();
+                } else {
+                    tctx.beginPath();
+                    tctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        tctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                    }
+                    tctx.stroke();
                 }
-                tctx.stroke();
             }
 
-            // Sample white pixels and map back to blob local coordinates
             const imgData = tctx.getImageData(0, 0, temp.width, temp.height);
             const data = imgData.data;
+            const pointMap = new Set();
             const newPoints = [];
-            const scale = 2.5;
-            const cx = inspectCanvas.width / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
-            const cy = inspectCanvas.height / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
 
-            for (let y = 0; y < temp.height; y += 1) {
-                for (let x = 0; x < temp.width; x += 1) {
+            for (let y = 0; y < temp.height; y++) {
+                for (let x = 0; x < temp.width; x++) {
                     const idx = (y * temp.width + x) * 4;
-                    if (data[idx] > 128) { // white-ish
-                        const localX = Math.round((x - cx) / scale + b.x);
-                        const localY = Math.round((y - cy) / scale + b.y);
-                        newPoints.push([localX, localY]);
+                    if (data[idx] > 128) {
+                        const bx = Math.round((x - originX) / scale);
+                        const by = Math.round((y - originY) / scale);
+                        const key = `${bx},${by}`;
+                        if (!pointMap.has(key)) {
+                            pointMap.add(key);
+                            newPoints.push([bx, by]);
+                        }
                     }
                 }
             }
@@ -1407,7 +1532,6 @@ The quick brown fox jumped over the lazy dog.
                 return;
             }
 
-            // Update blob bounds and points
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             for (const [px, py] of newPoints) {
                 if (px < minX) minX = px;
@@ -1415,13 +1539,13 @@ The quick brown fox jumped over the lazy dog.
                 if (py < minY) minY = py;
                 if (py > maxY) maxY = py;
             }
+
             b.x = minX;
             b.y = minY;
             b.w = maxX - minX + 1;
             b.h = maxY - minY + 1;
             b.points = newPoints;
-            // Keep baseline roughly relative; user can re-nudge
-            b.baseline = b.y + b.h * 0.85;
+            b.baseline = savedBaseline;
 
             drawingStrokes = [];
             document.getElementById('drawModeToggle').checked = false;
@@ -1434,7 +1558,6 @@ The quick brown fox jumped over the lazy dog.
             updateOverlay();
         }
 
-        // Drawing pointer handlers (mouse + touch + pen) on inspect canvas
         function getCanvasPos(e) {
             const rect = inspectCanvas.getBoundingClientRect();
             const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
@@ -1456,6 +1579,7 @@ The quick brown fox jumped over the lazy dog.
             currentStroke = { points: [[pos.x, pos.y]], size };
             drawingStrokes.push(currentStroke);
             inspectCanvas.setPointerCapture(e.pointerId);
+            if (activeBlob) drawInspectorPreview(activeBlob);
         });
 
         inspectCanvas.addEventListener('pointermove', e => {
@@ -1463,11 +1587,7 @@ The quick brown fox jumped over the lazy dog.
             e.preventDefault();
             const pos = getCanvasPos(e);
             currentStroke.points.push([pos.x, pos.y]);
-            if (activeBlobIndex !== null) {
-                const mapped = blobs.filter(b => b.char);
-                const b = mapped[activeBlobIndex];
-                if (b) drawInspectorPreview(b);
-            }
+            if (activeBlob) drawInspectorPreview(activeBlob);
         });
 
         inspectCanvas.addEventListener('pointerup', e => {
@@ -1480,10 +1600,10 @@ The quick brown fox jumped over the lazy dog.
             isPainting = false;
             currentStroke = null;
         });
-
     </script>
+
+    <!-- ARCHIVAL VAULT RACK SCRIPT -->
     <script>
-        /* --- REPOSITORY FONT VAULT MANIFEST --- */
         const archiveVault = [
             {
                 name: "Inkrealm Regular",
