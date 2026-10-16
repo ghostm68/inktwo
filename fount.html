@@ -1059,76 +1059,93 @@
             ];
 
             uniqueBlobs.forEach((b, idx) => {
-                const path = new opentype.Path();
-                const { outers, holes } = extractContoursWithHoles(b);
+                try {
+                    const path = new opentype.Path();
+                    const { outers, holes } = extractContoursWithHoles(b);
 
-                const xNudge = (b.xOffset || 0) * globalScale;
-                const yNudge = (b.yOffset || 0) * globalScale;
-                const leftBearing = 40 + xNudge;
+                    const xNudge = (b.xOffset || 0) * globalScale;
+                    const yNudge = (b.yOffset || 0) * globalScale;
+                    const leftBearing = 40 + xNudge;
 
-                const toFontCoord = (p) => [
-                    (p[0] - b.x) * globalScale + leftBearing,
-                    (b.baseline - p[1]) * globalScale + yNudge
-                ];
+                    const toFontCoord = (p) => [
+                        (p[0] - b.x) * globalScale + leftBearing,
+                        (b.baseline - p[1]) * globalScale + yNudge
+                    ];
 
-                let addedAny = false;
+                    let addedAny = false;
 
-                if (outers && outers.length > 0) {
-                    outers.forEach(outerLoop => {
-                        let pts = outerLoop.map(toFontCoord);
-                        let simplified = simplify(pts, tol);
-                        if (simplified.length < 3 && pts.length >= 3) simplified = pts;
-                        const fontPts = forceWinding(simplified, true);
-                        if (fontPts.length >= 3) {
-                            path.moveTo(fontPts[0][0], fontPts[0][1]);
-                            for (let i = 1; i < fontPts.length; i++) {
-                                path.lineTo(fontPts[i][0], fontPts[i][1]);
+                    if (outers && outers.length > 0) {
+                        outers.forEach(outerLoop => {
+                            let pts = outerLoop.map(toFontCoord);
+                            let simplified = simplify(pts, tol);
+                            if (simplified.length < 3 && pts.length >= 3) simplified = pts;
+                            const fontPts = forceWinding(simplified, true);
+                            if (fontPts.length >= 3) {
+                                path.moveTo(fontPts[0][0], fontPts[0][1]);
+                                for (let i = 1; i < fontPts.length; i++) {
+                                    path.lineTo(fontPts[i][0], fontPts[i][1]);
+                                }
+                                path.close();
+                                addedAny = true;
                             }
-                            path.close();
-                            addedAny = true;
-                        }
-                    });
+                        });
 
-                    holes.forEach(holeLoop => {
-                        let pts = holeLoop.map(toFontCoord);
-                        let simplified = simplify(pts, tol);
-                        if (simplified.length < 3 && pts.length >= 3) simplified = pts;
-                        const fontPts = forceWinding(simplified, false);
-                        if (fontPts.length >= 3) {
-                            path.moveTo(fontPts[0][0], fontPts[0][1]);
-                            for (let i = 1; i < fontPts.length; i++) {
-                                path.lineTo(fontPts[i][0], fontPts[i][1]);
+                        holes.forEach(holeLoop => {
+                            let pts = holeLoop.map(toFontCoord);
+                            let simplified = simplify(pts, tol);
+                            if (simplified.length < 3 && pts.length >= 3) simplified = pts;
+                            const fontPts = forceWinding(simplified, false);
+                            if (fontPts.length >= 3) {
+                                path.moveTo(fontPts[0][0], fontPts[0][1]);
+                                for (let i = 1; i < fontPts.length; i++) {
+                                    path.lineTo(fontPts[i][0], fontPts[i][1]);
+                                }
+                                path.close();
                             }
-                            path.close();
-                        }
-                    });
-                }
+                        });
+                    }
 
-                if (!addedAny && b.points && b.points.length > 0) {
-                    const bx = leftBearing;
-                    const by = (b.baseline - (b.y + b.h)) * globalScale + yNudge;
-                    const bw = Math.max(b.w * globalScale, 10);
-                    const bh = Math.max(b.h * globalScale, 10);
-                    path.moveTo(bx, by);
-                    path.lineTo(bx + bw, by);
-                    path.lineTo(bx + bw, by + bh);
-                    path.lineTo(bx, by + bh);
-                    path.close();
-                }
+                    if (!addedAny && b.points && b.points.length > 0) {
+                        const bx = leftBearing;
+                        const by = (b.baseline - (b.y + b.h)) * globalScale + yNudge;
+                        const bw = Math.max(b.w * globalScale, 10);
+                        const bh = Math.max(b.h * globalScale, 10);
+                        path.moveTo(bx, by);
+                        path.lineTo(bx + bw, by);
+                        path.lineTo(bx + bw, by + bh);
+                        path.lineTo(bx, by + bh);
+                        path.close();
+                    }
 
-                let advWidth;
-                if (isMonospace) {
-                    advWidth = monoWidth;
-                } else {
-                    advWidth = Math.round(b.w * globalScale + 100 + globalTracking + (b.wOffset || 0));
-                }
+                    let advWidth;
+                    if (isMonospace) {
+                        advWidth = monoWidth;
+                    } else {
+                        advWidth = Math.round((b.w || 40) * globalScale + 100 + globalTracking + (b.wOffset || 0));
+                    }
 
-                glyphs.push(new opentype.Glyph({
-                    name: 'glyph_' + b.char.charCodeAt(0) + '_' + idx,
-                    unicode: b.char.charCodeAt(0),
-                    advanceWidth: advWidth,
-                    path
-                }));
+                    glyphs.push(new opentype.Glyph({
+                        name: 'glyph_' + (b.char.charCodeAt(0) || 63) + '_' + idx,
+                        unicode: b.char.charCodeAt(0) || 63,
+                        advanceWidth: advWidth,
+                        path
+                    }));
+                } catch (glyphErr) {
+                    console.warn('Skipped bad glyph', b.char, glyphErr);
+                    // Still add a placeholder so the character slot exists
+                    const placeholder = new opentype.Path();
+                    placeholder.moveTo(40, 0);
+                    placeholder.lineTo(200, 0);
+                    placeholder.lineTo(200, 400);
+                    placeholder.lineTo(40, 400);
+                    placeholder.close();
+                    glyphs.push(new opentype.Glyph({
+                        name: 'placeholder_' + idx,
+                        unicode: b.char.charCodeAt(0) || 63,
+                        advanceWidth: monoWidth,
+                        path: placeholder
+                    }));
+                }
             });
 
             font = new opentype.Font({
@@ -1142,34 +1159,44 @@
 
             try {
                 const buffer = font.toArrayBuffer();
-                // Increment font family name on each compilation so browsers are forced to re-shape and re-render
+                const blob = new Blob([buffer], { type: 'font/ttf' });
+                const fontUrl = URL.createObjectURL(blob);
+
+                // Unique family name forces the browser to treat it as a fresh font
                 const liveFamily = 'CitadelleLive_' + (++fontBuildCount);
-                const fontFace = new FontFace(liveFamily, buffer);
+                const fontFace = new FontFace(liveFamily, `url(${fontUrl})`);
 
                 fontFace.load().then(f => {
+                    // Clean up any previous live fonts
                     document.fonts.forEach(existingFace => {
-                        if (existingFace.family.startsWith('CitadelleLive_')) {
+                        if (existingFace.family && existingFace.family.startsWith('CitadelleLive_')) {
                             document.fonts.delete(existingFace);
                         }
                     });
 
                     document.fonts.add(f);
 
-                    // Deactivate any vault font selection and force live preview update
-                    activeVaultFamily = null;
-                    renderVault();
+                    // Deactivate vault selection
+                    if (typeof activeVaultFamily !== 'undefined') {
+                        activeVaultFamily = null;
+                        if (typeof renderVault === 'function') renderVault();
+                    }
 
                     specimen.style.fontFamily = `"${liveFamily}", 'Courier Prime', monospace`;
+                    // Force the browser to re-layout with the new font
                     specimen.style.display = 'none';
-                    specimen.offsetHeight; // trigger reflow
+                    void specimen.offsetHeight;
                     specimen.style.display = '';
 
                     document.getElementById('dlBtn').disabled = false;
+                    console.log('Font loaded successfully:', liveFamily, 'glyphs:', glyphs.length);
                 }).catch(err => {
                     console.error("FontFace load failed:", err);
+                    specimen.style.fontFamily = 'Courier Prime, monospace';
                 });
             } catch (err) {
                 console.error("Font compilation error:", err);
+                specimen.style.fontFamily = 'Courier Prime, monospace';
             }
         }
 
