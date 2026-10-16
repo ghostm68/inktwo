@@ -357,12 +357,12 @@ The quick brown fox jumped over the lazy dog.
                 </label>
                 <div class="flex items-center gap-1">
                     <span>Brush</span>
-                    <input type="range" id="brushSize" min="1" max="16" value="4" class="w-16">
+                    <input type="range" id="brushSize" min="1" max="20" value="6" class="w-16">
                 </div>
                 <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Drawing</button>
                 <button onclick="commitDrawing()" class="btn-primary text-[10px] px-2 py-1 rounded">Commit Drawing</button>
             </div>
-            <p class="text-[9px] text-center text-white/50">Enable Draw Mode, sketch on the canvas (over the letter or blank), then Commit to replace the glyph pixels.</p>
+            <p class="text-[9px] text-center text-white/50">Enable Draw Mode, then sketch with finger, pen, or mouse. Strokes appear in bright cyan on the dark canvas. Commit to replace the glyph.</p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -1176,6 +1176,9 @@ The quick brown fox jumped over the lazy dog.
             const w = inspectCanvas.width;
             const h = inspectCanvas.height;
             inspectCtx.clearRect(0, 0, w, h);
+            // Solid dark background so strokes are always visible
+            inspectCtx.fillStyle = '#111';
+            inspectCtx.fillRect(0, 0, w, h);
 
             const scale = 2.5;
             const cx = w / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
@@ -1249,9 +1252,9 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.fillStyle = '#ef4444';
             inspectCtx.fillText('BASELINE', 8, baselineY - 4);
 
-            // Overlay any active drawing strokes
+            // Overlay any active drawing strokes (bright cyan/white for visibility)
             if (drawingStrokes.length) {
-                inspectCtx.strokeStyle = '#38bdf8';
+                inspectCtx.strokeStyle = '#7dd3fc';
                 inspectCtx.lineCap = 'round';
                 inspectCtx.lineJoin = 'round';
                 for (const stroke of drawingStrokes) {
@@ -1386,25 +1389,35 @@ The quick brown fox jumped over the lazy dog.
             updateOverlay();
         }
 
-        // Drawing mouse handlers on inspect canvas
-        inspectCanvas.addEventListener('mousedown', e => {
-            if (!drawMode) return;
-            isPainting = true;
+        // Drawing pointer handlers (mouse + touch + pen) on inspect canvas
+        function getCanvasPos(e) {
             const rect = inspectCanvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (inspectCanvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (inspectCanvas.height / rect.height);
+            const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+            return {
+                x: (clientX - rect.left) * (inspectCanvas.width / rect.width),
+                y: (clientY - rect.top) * (inspectCanvas.height / rect.height)
+            };
+        }
+
+        inspectCanvas.style.touchAction = 'none';
+
+        inspectCanvas.addEventListener('pointerdown', e => {
+            if (!drawMode) return;
+            e.preventDefault();
+            isPainting = true;
+            const pos = getCanvasPos(e);
             const size = parseInt(document.getElementById('brushSize').value) || 4;
-            currentStroke = { points: [[x, y]], size };
+            currentStroke = { points: [[pos.x, pos.y]], size };
             drawingStrokes.push(currentStroke);
+            inspectCanvas.setPointerCapture(e.pointerId);
         });
 
-        inspectCanvas.addEventListener('mousemove', e => {
+        inspectCanvas.addEventListener('pointermove', e => {
             if (!isPainting || !currentStroke) return;
-            const rect = inspectCanvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (inspectCanvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (inspectCanvas.height / rect.height);
-            currentStroke.points.push([x, y]);
-            // Live redraw
+            e.preventDefault();
+            const pos = getCanvasPos(e);
+            currentStroke.points.push([pos.x, pos.y]);
             if (activeBlobIndex !== null) {
                 const mapped = blobs.filter(b => b.char);
                 const b = mapped[activeBlobIndex];
@@ -1412,7 +1425,13 @@ The quick brown fox jumped over the lazy dog.
             }
         });
 
-        window.addEventListener('mouseup', () => {
+        inspectCanvas.addEventListener('pointerup', e => {
+            isPainting = false;
+            currentStroke = null;
+            try { inspectCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        });
+
+        inspectCanvas.addEventListener('pointercancel', () => {
             isPainting = false;
             currentStroke = null;
         });
