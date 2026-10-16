@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (Improved)</title>
+    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (Draw Mode)</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
@@ -171,7 +171,7 @@
                     Fount // Typewriter Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Adaptive Contrast & TrueType Metric Compiler · Improved Detection & Inspector
+                    Adaptive Contrast & TrueType Metric Compiler · Detection + Live Draw Mode
                 </p>
             </div>
             <div class="flex gap-3 items-center">
@@ -286,7 +286,10 @@
                         <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
                             Extracted Glyphs (<span id="glyphCount">0</span> mapped)
                         </h2>
-                        <span class="text-[10px] text-cyan-300">Click any card below to fine-tune baseline & width — letter draws live</span>
+                        <div class="flex gap-2">
+                            <button onclick="addBlankGlyph()" class="btn-ghost text-[9px] px-2 py-1 rounded">+ Draw New</button>
+                            <span class="text-[10px] text-cyan-300">Click any card below to fine-tune baseline & width — letter draws live</span>
+                        </div>
                     </div>
                     <div id="glyphTray" class="flex gap-2 overflow-x-auto pb-2 text-xs font-mono">
                         <span class="text-white/40 italic text-xs">No glyphs extracted yet.</span>
@@ -345,6 +348,21 @@ The quick brown fox jumped over the lazy dog.
                 <canvas id="inspectCanvas" width="280" height="200" class="border border-white/5"></canvas>
             </div>
             <p class="text-[10px] text-center text-cyan-300/80">Letter redraws live as you adjust baseline / bearings</p>
+
+            <!-- Drawing Controls -->
+            <div class="flex flex-wrap gap-2 items-center text-xs bg-black/30 p-2 rounded">
+                <label class="flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" id="drawModeToggle" class="w-4 h-4 accent-white" onchange="toggleDrawMode()">
+                    <span>Draw Mode</span>
+                </label>
+                <div class="flex items-center gap-1">
+                    <span>Brush</span>
+                    <input type="range" id="brushSize" min="1" max="16" value="4" class="w-16">
+                </div>
+                <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Drawing</button>
+                <button onclick="commitDrawing()" class="btn-primary text-[10px] px-2 py-1 rounded">Commit Drawing</button>
+            </div>
+            <p class="text-[9px] text-center text-white/50">Enable Draw Mode, sketch on the canvas (over the letter or blank), then Commit to replace the glyph pixels.</p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -410,6 +428,12 @@ The quick brown fox jumped over the lazy dog.
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
         let activeBlobIndex = null;
+
+        // Drawing mode state
+        let drawMode = false;
+        let drawingStrokes = []; // array of {points: [[x,y],...], size: number}
+        let currentStroke = null;
+        let isPainting = false;
 
         const DESCENDERS = new Set(['g', 'j', 'p', 'q', 'y', ',', ';', 'Q']);
 
@@ -1041,6 +1065,33 @@ The quick brown fox jumped over the lazy dog.
             });
         }
 
+        function addBlankGlyph() {
+            const chars = document.getElementById('charset').value.split('');
+            const nextChar = chars[blobs.length] || '?';
+            const blank = {
+                x: 100, y: 100, w: 40, h: 60,
+                points: [], // will be filled by drawing
+                yOffset: 0, xOffset: 0, wOffset: 0,
+                char: nextChar,
+                baseline: 150,
+                lineH: 60
+            };
+            blobs.push(blank);
+            renderGlyphTray();
+            updateOverlay();
+            // Open inspector on the new one
+            const mapped = blobs.filter(b => b.char);
+            openInspector(mapped.length - 1);
+            // Auto-enable draw mode
+            setTimeout(() => {
+                const toggle = document.getElementById('drawModeToggle');
+                if (toggle) {
+                    toggle.checked = true;
+                    toggleDrawMode();
+                }
+            }, 50);
+        }
+
         function renderGlyphTray() {
             glyphTray.innerHTML = '';
             const mapped = blobs.filter(b => b.char);
@@ -1066,6 +1117,13 @@ The quick brown fox jumped over the lazy dog.
             const mapped = blobs.filter(b => b.char);
             const b = mapped[idx];
             if (!b) return;
+
+            // Reset drawing state for new glyph
+            drawingStrokes = [];
+            drawMode = false;
+            const toggle = document.getElementById('drawModeToggle');
+            if (toggle) toggle.checked = false;
+            inspectCanvas.style.cursor = 'default';
 
             activeBlobIndex = idx;
             document.getElementById('inspectCharTitle').innerText = b.char;
@@ -1190,6 +1248,23 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.font = '9px monospace';
             inspectCtx.fillStyle = '#ef4444';
             inspectCtx.fillText('BASELINE', 8, baselineY - 4);
+
+            // Overlay any active drawing strokes
+            if (drawingStrokes.length) {
+                inspectCtx.strokeStyle = '#38bdf8';
+                inspectCtx.lineCap = 'round';
+                inspectCtx.lineJoin = 'round';
+                for (const stroke of drawingStrokes) {
+                    if (stroke.points.length < 2) continue;
+                    inspectCtx.lineWidth = stroke.size;
+                    inspectCtx.beginPath();
+                    inspectCtx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        inspectCtx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                    }
+                    inspectCtx.stroke();
+                }
+            }
         }
 
         function deleteCurrentGlyph() {
@@ -1212,7 +1287,136 @@ The quick brown fox jumped over the lazy dog.
         function closeInspector() {
             inspectModal.style.display = 'none';
             activeBlobIndex = null;
+            drawMode = false;
+            document.getElementById('drawModeToggle').checked = false;
+            drawingStrokes = [];
         }
+
+        /* --- DRAWING MODE --- */
+        function toggleDrawMode() {
+            drawMode = document.getElementById('drawModeToggle').checked;
+            inspectCanvas.style.cursor = drawMode ? 'crosshair' : 'default';
+        }
+
+        function clearDrawing() {
+            drawingStrokes = [];
+            if (activeBlobIndex !== null) {
+                const mapped = blobs.filter(b => b.char);
+                const b = mapped[activeBlobIndex];
+                if (b) drawInspectorPreview(b);
+            }
+        }
+
+        function commitDrawing() {
+            if (!drawingStrokes.length || activeBlobIndex === null) return;
+            const mapped = blobs.filter(b => b.char);
+            const b = mapped[activeBlobIndex];
+            if (!b) return;
+
+            // Rasterize drawing strokes onto a temp canvas matching inspect size
+            const temp = document.createElement('canvas');
+            temp.width = inspectCanvas.width;
+            temp.height = inspectCanvas.height;
+            const tctx = temp.getContext('2d');
+            tctx.fillStyle = '#000';
+            tctx.fillRect(0, 0, temp.width, temp.height);
+            tctx.strokeStyle = '#fff';
+            tctx.lineCap = 'round';
+            tctx.lineJoin = 'round';
+
+            for (const stroke of drawingStrokes) {
+                if (stroke.points.length < 2) continue;
+                tctx.lineWidth = stroke.size;
+                tctx.beginPath();
+                tctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    tctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+                }
+                tctx.stroke();
+            }
+
+            // Sample white pixels and map back to blob local coordinates
+            const imgData = tctx.getImageData(0, 0, temp.width, temp.height);
+            const data = imgData.data;
+            const newPoints = [];
+            const scale = 2.5;
+            const cx = inspectCanvas.width / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
+            const cy = inspectCanvas.height / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
+
+            for (let y = 0; y < temp.height; y += 1) {
+                for (let x = 0; x < temp.width; x += 1) {
+                    const idx = (y * temp.width + x) * 4;
+                    if (data[idx] > 128) { // white-ish
+                        const localX = Math.round((x - cx) / scale + b.x);
+                        const localY = Math.round((y - cy) / scale + b.y);
+                        newPoints.push([localX, localY]);
+                    }
+                }
+            }
+
+            if (newPoints.length < 4) {
+                alert('Drawing too small or empty. Draw more strokes and try again.');
+                return;
+            }
+
+            // Update blob bounds and points
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const [px, py] of newPoints) {
+                if (px < minX) minX = px;
+                if (px > maxX) maxX = px;
+                if (py < minY) minY = py;
+                if (py > maxY) maxY = py;
+            }
+            b.x = minX;
+            b.y = minY;
+            b.w = maxX - minX + 1;
+            b.h = maxY - minY + 1;
+            b.points = newPoints;
+            // Keep baseline roughly relative; user can re-nudge
+            b.baseline = b.y + b.h * 0.85;
+
+            drawingStrokes = [];
+            document.getElementById('drawModeToggle').checked = false;
+            drawMode = false;
+            inspectCanvas.style.cursor = 'default';
+
+            drawInspectorPreview(b);
+            generateFont();
+            renderGlyphTray();
+            updateOverlay();
+        }
+
+        // Drawing mouse handlers on inspect canvas
+        inspectCanvas.addEventListener('mousedown', e => {
+            if (!drawMode) return;
+            isPainting = true;
+            const rect = inspectCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (inspectCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (inspectCanvas.height / rect.height);
+            const size = parseInt(document.getElementById('brushSize').value) || 4;
+            currentStroke = { points: [[x, y]], size };
+            drawingStrokes.push(currentStroke);
+        });
+
+        inspectCanvas.addEventListener('mousemove', e => {
+            if (!isPainting || !currentStroke) return;
+            const rect = inspectCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (inspectCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (inspectCanvas.height / rect.height);
+            currentStroke.points.push([x, y]);
+            // Live redraw
+            if (activeBlobIndex !== null) {
+                const mapped = blobs.filter(b => b.char);
+                const b = mapped[activeBlobIndex];
+                if (b) drawInspectorPreview(b);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPainting = false;
+            currentStroke = null;
+        });
+
     </script>
     <script>
         /* --- REPOSITORY FONT VAULT MANIFEST --- */
