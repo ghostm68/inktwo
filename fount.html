@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE</title>
+    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (Improved)</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
@@ -171,7 +171,7 @@
                     Fount // Typewriter Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Adaptive Contrast & TrueType Metric Compiler
+                    Adaptive Contrast & TrueType Metric Compiler · Improved Detection & Inspector
                 </p>
             </div>
             <div class="flex gap-3 items-center">
@@ -215,7 +215,7 @@
                         <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">Reset Crop</button>
                         <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">Re-Trace</button>
                     </div>
-                    <p class="text-[10px] text-white/60 text-center">💡 Drag crop box on canvas or paste (Ctrl+V) anytime.</p>
+                    <p class="text-[10px] text-white/60 text-center">💡 Drag crop box on canvas (works while scrolled) or paste (Ctrl+V) anytime.</p>
                 </div>
 
                 <!-- Global Metrics Panel -->
@@ -286,7 +286,7 @@
                         <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
                             Extracted Glyphs (<span id="glyphCount">0</span> mapped)
                         </h2>
-                        <span class="text-[10px] text-cyan-300">Click any card below to fine-tune baseline & width</span>
+                        <span class="text-[10px] text-cyan-300">Click any card below to fine-tune baseline & width — letter draws live</span>
                     </div>
                     <div id="glyphTray" class="flex gap-2 overflow-x-auto pb-2 text-xs font-mono">
                         <span class="text-white/40 italic text-xs">No glyphs extracted yet.</span>
@@ -325,7 +325,7 @@ The quick brown fox jumped over the lazy dog.
         </div>
 
         <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
-            Inkrealm · Citadelle Type Engine
+            Inkrealm · Citadelle Type Engine · Improved
         </footer>
     </div>
 
@@ -340,10 +340,11 @@ The quick brown fox jumped over the lazy dog.
                 <button onclick="closeInspector()" class="text-white/60 hover:text-white text-lg">&times;</button>
             </div>
 
-            <!-- Mini Preview Canvas with Baseline/Bearing Guides -->
+            <!-- Mini Preview Canvas with Baseline/Bearing Guides + Live Letter -->
             <div class="flex justify-center bg-black/60 p-4 rounded border border-white/10 relative">
                 <canvas id="inspectCanvas" width="280" height="200" class="border border-white/5"></canvas>
             </div>
+            <p class="text-[10px] text-center text-cyan-300/80">Letter redraws live as you adjust baseline / bearings</p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -558,7 +559,16 @@ The quick brown fox jumped over the lazy dog.
             analyze();
         }
 
-        /* --- DRAG TO CROP --- */
+        /* --- DRAG TO CROP (scroll-safe) --- */
+        function getDisplayPosFromCanvas(cx, cy) {
+            const scaleX = canvas.clientWidth / canvas.width;
+            const scaleY = canvas.clientHeight / canvas.height;
+            return {
+                left: cx * scaleX,
+                top: cy * scaleY
+            };
+        }
+
         canvas.parentElement.addEventListener('mousedown', e => {
             if (canvas.classList.contains('hidden')) return;
             const rect = canvas.getBoundingClientRect();
@@ -566,14 +576,13 @@ The quick brown fox jumped over the lazy dog.
             const scaleY = canvas.height / rect.height;
             dragStart = {
                 canvasX: (e.clientX - rect.left) * scaleX,
-                canvasY: (e.clientY - rect.top) * scaleY,
-                screenX: e.clientX - rect.left,
-                screenY: e.clientY - rect.top
+                canvasY: (e.clientY - rect.top) * scaleY
             };
             isDragging = true;
             cropOverlay.style.display = 'block';
-            cropOverlay.style.left = dragStart.screenX + 'px';
-            cropOverlay.style.top = dragStart.screenY + 'px';
+            const pos = getDisplayPosFromCanvas(dragStart.canvasX, dragStart.canvasY);
+            cropOverlay.style.left = pos.left + 'px';
+            cropOverlay.style.top = pos.top + 'px';
             cropOverlay.style.width = '0px';
             cropOverlay.style.height = '0px';
         });
@@ -581,12 +590,22 @@ The quick brown fox jumped over the lazy dog.
         window.addEventListener('mousemove', e => {
             if (!isDragging) return;
             const rect = canvas.getBoundingClientRect();
-            const currX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-            const currY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
-            cropOverlay.style.left = Math.min(dragStart.screenX, currX) + 'px';
-            cropOverlay.style.top = Math.min(dragStart.screenY, currY) + 'px';
-            cropOverlay.style.width = Math.abs(currX - dragStart.screenX) + 'px';
-            cropOverlay.style.height = Math.abs(currY - dragStart.screenY) + 'px';
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const currCanvasX = Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX));
+            const currCanvasY = Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY));
+
+            const x = Math.min(dragStart.canvasX, currCanvasX);
+            const y = Math.min(dragStart.canvasY, currCanvasY);
+            const w = Math.abs(currCanvasX - dragStart.canvasX);
+            const h = Math.abs(currCanvasY - dragStart.canvasY);
+
+            const pos = getDisplayPosFromCanvas(x, y);
+            const size = getDisplayPosFromCanvas(w, h);
+            cropOverlay.style.left = pos.left + 'px';
+            cropOverlay.style.top = pos.top + 'px';
+            cropOverlay.style.width = size.left + 'px';
+            cropOverlay.style.height = size.top + 'px';
         });
 
         window.addEventListener('mouseup', e => {
@@ -595,8 +614,8 @@ The quick brown fox jumped over the lazy dog.
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const endCanvasX = (e.clientX - rect.left) * scaleX;
-            const endCanvasY = (e.clientY - rect.top) * scaleY;
+            const endCanvasX = Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX));
+            const endCanvasY = Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY));
 
             const x = Math.min(dragStart.canvasX, endCanvasX);
             const y = Math.min(dragStart.canvasY, endCanvasY);
@@ -617,7 +636,7 @@ The quick brown fox jumped over the lazy dog.
             analyze();
         }
 
-        /* --- BLOB EXTRACTION --- */
+        /* --- BLOB EXTRACTION (full-res, 8-connected, more sensitive) --- */
         function analyze() {
             if (!canvas.width || !canvas.height) return;
             const threshold = parseInt(document.getElementById('threshold').value);
@@ -628,7 +647,7 @@ The quick brown fox jumped over the lazy dog.
             const visited = new Uint8Array(w * h);
 
             let rawBlobs = [];
-            const step = 2;
+            const step = 1; // full resolution for better pickup of thin/graffiti strokes
 
             const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
             const maxX = cropRect ? Math.min(w, Math.ceil(cropRect.x + cropRect.w)) : w;
@@ -643,7 +662,8 @@ The quick brown fox jumped over the lazy dog.
 
                     if (isInk && !visited[idx]) {
                         const blob = floodFill(x, y, visited, data, w, h, threshold, invert, minX, maxX, minY, maxY);
-                        if (blob.w >= 4 && blob.h >= 6 && blob.points.length > 12) {
+                        // Lowered minimums so thin or smaller graffiti letters are kept
+                        if (blob.w >= 2 && blob.h >= 3 && blob.points.length > 6) {
                             blob.yOffset = 0;
                             blob.xOffset = 0;
                             blob.wOffset = 0;
@@ -677,6 +697,8 @@ The quick brown fox jumped over the lazy dog.
             let bx0 = startX, bx1 = startX, by0 = startY, by1 = startY;
             const stack = [[startX, startY]];
             const points = [];
+            // 8-connected for better stroke pickup
+            const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
             while (stack.length) {
                 const [cx, cy] = stack.pop();
                 const idx = cy * w + cx;
@@ -687,7 +709,6 @@ The quick brown fox jumped over the lazy dog.
                 if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx;
                 if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
 
-                const dirs = [[0,2],[2,0],[0,-2],[-2,0]];
                 for (let [dx, dy] of dirs) {
                     const nx = cx + dx, ny = cy + dy;
                     if (nx >= minX && nx < maxX && ny >= minY && ny < maxY) {
@@ -766,7 +787,7 @@ The quick brown fox jumped over the lazy dog.
             return result;
         }
 
-        /* --- CONTOUR & HOLE EXTRACTION --- */
+        /* --- CONTOUR & HOLE EXTRACTION (updated for 1px grid) --- */
         function extractContoursWithHoles(b) {
             const pad = 3;
             const gw = b.w + pad * 2, gh = b.h + pad * 2;
@@ -831,7 +852,8 @@ The quick brown fox jumped over the lazy dog.
             for (let p of bPoints) {
                 if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) start = p;
             }
-            const dirs = [[0,-2],[2,-2],[2,0],[2,2],[0,2],[-2,2],[-2,0],[-2,-2]];
+            // 8 directions at 1px step (matches new full-res detection)
+            const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
             let current = start, prevDir = 6;
             const path = [];
 
@@ -1039,7 +1061,7 @@ The quick brown fox jumped over the lazy dog.
             });
         }
 
-        /* --- GLYPH INSPECTOR MODAL --- */
+        /* --- GLYPH INSPECTOR MODAL (now draws the actual letter live) --- */
         function openInspector(idx) {
             const mapped = blobs.filter(b => b.char);
             const b = mapped[idx];
@@ -1121,10 +1143,48 @@ The quick brown fox jumped over the lazy dog.
             inspectCtx.stroke();
             inspectCtx.setLineDash([]);
 
-            // Draw Glyph Pixels
-            inspectCtx.fillStyle = '#ffffff';
-            for (let [px, py] of b.points) {
-                inspectCtx.fillRect(cx + (px - b.x) * scale, cy + (py - b.y) * scale, scale, scale);
+            // Draw the actual letter as a filled vector path (live with offsets)
+            const { outer, holes } = extractContoursWithHoles(b);
+            if (outer.length >= 3) {
+                inspectCtx.beginPath();
+                const toScreen = (p) => [
+                    cx + (p[0] - b.x) * scale,
+                    cy + (p[1] - b.y) * scale
+                ];
+
+                // Outer
+                const o0 = toScreen(outer[0]);
+                inspectCtx.moveTo(o0[0], o0[1]);
+                for (let i = 1; i < outer.length; i++) {
+                    const pt = toScreen(outer[i]);
+                    inspectCtx.lineTo(pt[0], pt[1]);
+                }
+                inspectCtx.closePath();
+
+                // Holes
+                holes.forEach(hp => {
+                    if (hp.length >= 3) {
+                        const h0 = toScreen(hp[0]);
+                        inspectCtx.moveTo(h0[0], h0[1]);
+                        for (let i = 1; i < hp.length; i++) {
+                            const pt = toScreen(hp[i]);
+                            inspectCtx.lineTo(pt[0], pt[1]);
+                        }
+                        inspectCtx.closePath();
+                    }
+                });
+
+                inspectCtx.fillStyle = '#ffffff';
+                inspectCtx.fill('evenodd');
+                inspectCtx.strokeStyle = 'rgba(255,255,255,0.6)';
+                inspectCtx.lineWidth = 1;
+                inspectCtx.stroke();
+            } else {
+                // Fallback to pixels if contour fails
+                inspectCtx.fillStyle = '#ffffff';
+                for (let [px, py] of b.points) {
+                    inspectCtx.fillRect(cx + (px - b.x) * scale, cy + (py - b.y) * scale, scale, scale);
+                }
             }
 
             inspectCtx.font = '9px monospace';
