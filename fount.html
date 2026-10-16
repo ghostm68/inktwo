@@ -360,9 +360,10 @@ The quick brown fox jumped over the lazy dog.
                     <input type="range" id="brushSize" min="1" max="20" value="6" class="w-16">
                 </div>
                 <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Drawing</button>
+                <button onclick="clearGlyphPixels()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Letter</button>
                 <button onclick="commitDrawing()" class="btn-primary text-[10px] px-2 py-1 rounded">Commit Drawing</button>
             </div>
-            <p class="text-[9px] text-center text-white/50">Enable Draw Mode, then sketch with finger, pen, or mouse. Strokes appear in bright cyan on the dark canvas. Commit to replace the glyph.</p>
+            <p class="text-[9px] text-center text-white/50">Enable Draw Mode to sketch. Use Clear Letter to wipe the existing shape first so you can draw on a blank canvas. Commit replaces the glyph and updates the specimen.</p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -975,7 +976,6 @@ The quick brown fox jumped over the lazy dog.
             mappedBlobs.forEach(b => {
                 const path = new opentype.Path();
                 const { outer, holes } = extractContoursWithHoles(b);
-                if (outer.length < 3) return;
 
                 const xNudge = (b.xOffset || 0) * globalScale;
                 const yNudge = (b.yOffset || 0) * globalScale;
@@ -987,27 +987,44 @@ The quick brown fox jumped over the lazy dog.
                     (b.baseline - p[1]) * globalScale + yNudge
                 ];
 
-                // Outer Loop -> Clockwise
-                const outerFontPts = forceWinding(simplify(outer.map(toFontCoord), tol), true);
-                if (outerFontPts.length >= 3) {
-                    path.moveTo(outerFontPts[0][0], outerFontPts[0][1]);
-                    for (let i = 1; i < outerFontPts.length; i++) {
-                        path.lineTo(outerFontPts[i][0], outerFontPts[i][1]);
-                    }
-                    path.close();
-                }
-
-                // Inner Holes -> Counter-Clockwise
-                holes.forEach(hp => {
-                    const holeFontPts = forceWinding(simplify(hp.map(toFontCoord), tol), false);
-                    if (holeFontPts.length >= 3) {
-                        path.moveTo(holeFontPts[0][0], holeFontPts[0][1]);
-                        for (let i = 1; i < holeFontPts.length; i++) {
-                            path.lineTo(holeFontPts[i][0], holeFontPts[i][1]);
+                let added = false;
+                if (outer.length >= 3) {
+                    // Outer Loop -> Clockwise
+                    const outerFontPts = forceWinding(simplify(outer.map(toFontCoord), tol), true);
+                    if (outerFontPts.length >= 3) {
+                        path.moveTo(outerFontPts[0][0], outerFontPts[0][1]);
+                        for (let i = 1; i < outerFontPts.length; i++) {
+                            path.lineTo(outerFontPts[i][0], outerFontPts[i][1]);
                         }
                         path.close();
+                        added = true;
                     }
-                });
+
+                    // Inner Holes -> Counter-Clockwise
+                    holes.forEach(hp => {
+                        const holeFontPts = forceWinding(simplify(hp.map(toFontCoord), tol), false);
+                        if (holeFontPts.length >= 3) {
+                            path.moveTo(holeFontPts[0][0], holeFontPts[0][1]);
+                            for (let i = 1; i < holeFontPts.length; i++) {
+                                path.lineTo(holeFontPts[i][0], holeFontPts[i][1]);
+                            }
+                            path.close();
+                        }
+                    });
+                }
+
+                // Fallback: if contour extraction failed (common with sparse hand drawings), draw a simple rect so the glyph still appears
+                if (!added && b.points && b.points.length > 0) {
+                    const bx = leftBearing;
+                    const by = (b.baseline - (b.y + b.h)) * globalScale + yNudge;
+                    const bw = b.w * globalScale;
+                    const bh = b.h * globalScale;
+                    path.moveTo(bx, by);
+                    path.lineTo(bx + bw, by);
+                    path.lineTo(bx + bw, by + bh);
+                    path.lineTo(bx, by + bh);
+                    path.close();
+                }
 
                 let advWidth;
                 if (isMonospace) {
@@ -1017,7 +1034,7 @@ The quick brown fox jumped over the lazy dog.
                 }
 
                 glyphs.push(new opentype.Glyph({
-                    name: b.char,
+                    name: b.char + '_' + glyphs.length, // unique name to avoid collisions
                     unicode: b.char.charCodeAt(0),
                     advanceWidth: advWidth,
                     path
@@ -1034,12 +1051,23 @@ The quick brown fox jumped over the lazy dog.
             });
 
             try {
+                // Remove any previous ArchiveFont so the new one reliably replaces it
+                document.fonts.forEach(f => {
+                    if (f.family === 'ArchiveFont') document.fonts.delete(f);
+                });
+
                 const fontUrl = URL.createObjectURL(new Blob([font.toArrayBuffer()], { type: 'font/ttf' }));
                 const fontFace = new FontFace('ArchiveFont', `url(${fontUrl})`);
                 fontFace.load().then(f => {
                     document.fonts.add(f);
                     specimen.style.fontFamily = 'ArchiveFont, Courier Prime, monospace';
+                    // Force reflow so the specimen actually switches
+                    specimen.style.display = 'none';
+                    specimen.offsetHeight; // trigger reflow
+                    specimen.style.display = '';
                     document.getElementById('dlBtn').disabled = false;
+                }).catch(err => {
+                    console.error("FontFace load failed:", err);
                 });
             } catch (err) {
                 console.error("Font compilation error:", err);
@@ -1308,6 +1336,23 @@ The quick brown fox jumped over the lazy dog.
                 const b = mapped[activeBlobIndex];
                 if (b) drawInspectorPreview(b);
             }
+        }
+
+        function clearGlyphPixels() {
+            if (activeBlobIndex === null) return;
+            const mapped = blobs.filter(b => b.char);
+            const b = mapped[activeBlobIndex];
+            if (!b) return;
+            // Wipe the existing letter so the canvas is blank for fresh drawing
+            b.points = [];
+            b.w = 60;
+            b.h = 80;
+            b.x = 100;
+            b.y = 100;
+            b.baseline = b.y + b.h * 0.8;
+            drawingStrokes = [];
+            drawInspectorPreview(b);
+            generateFont();
         }
 
         function commitDrawing() {
