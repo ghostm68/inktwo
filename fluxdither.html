@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FLUX // SHAPE SHIFTER DITHER LAB</title>
+  <title>FLUX // GEOMETRIC DITHER LAB</title>
 
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,7 +44,7 @@
       overflow-y: auto;
     }
 
-    /* Background Video Layer */
+    /* Looping Background Video */
     #video-backdrop {
       position: fixed;
       top: 0;
@@ -68,7 +68,7 @@
       pointer-events: none;
     }
 
-    /* Main Container */
+    /* Container */
     .app-container {
       position: relative;
       z-index: 1;
@@ -126,7 +126,7 @@
       letter-spacing: 1px;
     }
 
-    /* Layout */
+    /* Workspace */
     .workspace {
       display: grid;
       grid-template-columns: 360px 1fr;
@@ -352,7 +352,7 @@
       height: 100%;
     }
 
-    /* Buttons */
+    /* Action Buttons */
     .btn-group {
       display: flex;
       flex-direction: column;
@@ -405,12 +405,23 @@
       border-color: var(--gray-6);
     }
 
+    .btn-vector {
+      background: rgba(255, 0, 51, 0.12);
+      border: 1px solid var(--red);
+      color: var(--white);
+    }
+
+    .btn-vector:hover:not(:disabled) {
+      background: var(--red);
+      box-shadow: 0 0 16px var(--red-glow);
+    }
+
     button:disabled {
       opacity: 0.35;
       cursor: not-allowed;
     }
 
-    /* Dynamic Progress Bar */
+    /* Progress Indicator */
     .progress-container {
       display: none;
       flex-direction: column;
@@ -502,7 +513,7 @@
 </head>
 <body>
 
-  <!-- Background Video Element -->
+  <!-- Background Video Backdrop -->
   <video id="video-backdrop" autoplay loop muted playsinline>
     <source src="https://github.com/ghostm68/666/raw/main/sm802-16x9-loop.mp4" type="video/mp4" />
     <source src="https://raw.githubusercontent.com/ghostm68/666/main/sm802-16x9-loop.mp4" type="video/mp4" />
@@ -514,7 +525,7 @@
       <div class="brand">
         <div class="brand-cube"></div>
         <h1>Flux Dither</h1>
-        <span class="brand-tag">SHAPE SHIFTER LAB</span>
+        <span class="brand-tag">VECTOR GLYPH ENGINE</span>
       </div>
       <div class="status-pill" id="fileInfo">READY // AWAITING MEDIA</div>
     </header>
@@ -530,20 +541,20 @@
           <div class="upload-sub">Supports Animated GIF, PNG, JPG, WebP</div>
         </div>
 
-        <div class="panel-title"><span>02</span> Dither & Shape Engine</div>
+        <div class="panel-title"><span>02</span> Dither & Glyph Engine</div>
 
         <div class="control-group">
           <div class="control-header">
-            <span>ALGORITHM / SHAPE</span>
+            <span>ALGORITHM / GLYPH</span>
           </div>
           <select id="algoSelect">
-            <optgroup label="Shape Shifter (Vector Glyphs)">
-              <option value="shape-star">✦ 4-Point Star</option>
-              <option value="shape-cross">+ Cross Hatch</option>
-              <option value="shape-diamond">◆ Diamond Grid</option>
-              <option value="shape-circle">● Halftone Dot</option>
-              <option value="shape-x">✕ Diagonal Cross</option>
-              <option value="shape-ascii">A-Z Monospace ASCII Ramp</option>
+            <optgroup label="Geometric & Vector Glyphs">
+              <option value="glyph-star">✦ 4-Point Star</option>
+              <option value="glyph-cross">+ Cross Hatch</option>
+              <option value="glyph-diamond">◆ Diamond Grid</option>
+              <option value="glyph-circle">● Halftone Dot</option>
+              <option value="glyph-x">✕ Diagonal Cross</option>
+              <option value="glyph-ascii">A-Z Monospace ASCII Ramp</option>
             </optgroup>
             <optgroup label="Classic Pixel Dither">
               <option value="floyd">Floyd-Steinberg (Diffusion)</option>
@@ -556,10 +567,10 @@
           </select>
         </div>
 
-        <!-- Cell / Grid Size Slider (Shape Shifter Mode) -->
+        <!-- Cell / Grid Size Slider (Glyph Mode) -->
         <div class="control-group" id="cellGroup">
           <div class="control-header">
-            <span>SHAPE GRID CELL SIZE</span>
+            <span>GLYPH CELL SIZE</span>
             <span class="val-badge" id="cellVal">8px</span>
           </div>
           <input type="range" id="cellRange" min="3" max="32" step="1" value="8" />
@@ -594,7 +605,13 @@
           </div>
         </div>
 
-        <!-- Transparent Background Toggle (dithr.app feature) -->
+        <!-- Invert Luminance Toggle -->
+        <div class="toggle-row">
+          <label for="invertLum">Invert Luminance / Polarity</label>
+          <input type="checkbox" id="invertLum" />
+        </div>
+
+        <!-- Transparent Background Toggle -->
         <div class="toggle-row">
           <label for="transparentBg">Transparent Background (Alpha PNG)</label>
           <input type="checkbox" id="transparentBg" />
@@ -627,9 +644,10 @@
           </div>
         </div>
 
-        <!-- Action Buttons & Export Multiplier -->
+        <!-- Action Buttons & Export Section -->
         <div class="btn-group">
           <button id="processBtn" class="btn-primary">Execute Dither</button>
+          
           <div class="export-row">
             <button id="downloadBtn" class="btn-secondary" disabled>Export Output</button>
             <select id="exportScale" title="Export Integer Scaling">
@@ -638,6 +656,9 @@
               <option value="4">4x Crisp</option>
             </select>
           </div>
+
+          <!-- Dedicated Scalable Vector Export (.SVG) -->
+          <button id="exportSvgBtn" class="btn-vector" style="display: none;">Export Vector .SVG</button>
         </div>
       </div>
 
@@ -656,7 +677,7 @@
     </div>
   </div>
 
-  <!-- APPLICATION MODULE (GIF Pipeline + Shape Shifter Engine) -->
+  <!-- APPLICATION MODULE -->
   <script type="module">
     import { parseGIF, decompressFrame, decompressFrames } from 'https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm';
     import { GIFEncoder, quantize, applyPalette } from 'https://cdn.jsdelivr.net/npm/gifenc@1.0.3/+esm';
@@ -684,6 +705,7 @@
     const customColorRow = document.getElementById('customColorRow');
     const customFg = document.getElementById('customFg');
     const customBg = document.getElementById('customBg');
+    const invertLum = document.getElementById('invertLum');
     const transparentBg = document.getElementById('transparentBg');
     const scaleRange = document.getElementById('scaleRange');
     const scaleVal = document.getElementById('scaleVal');
@@ -691,6 +713,7 @@
     const thresholdVal = document.getElementById('thresholdVal');
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const exportSvgBtn = document.getElementById('exportSvgBtn');
     const exportScale = document.getElementById('exportScale');
     const progressBox = document.getElementById('progressBox');
     const progressStage = document.getElementById('progressStage');
@@ -755,11 +778,17 @@
       triggerLivePreview();
     });
 
+    invertLum.addEventListener('change', triggerLivePreview);
     transparentBg.addEventListener('change', triggerLivePreview);
 
+    function updateUiState() {
+      const isGlyph = algoSelect.value.startsWith('glyph-');
+      cellGroup.style.display = isGlyph ? 'flex' : 'none';
+      exportSvgBtn.style.display = (isGlyph && !isGif && loadedImage) ? 'block' : 'none';
+    }
+
     algoSelect.addEventListener('change', () => {
-      const isShape = algoSelect.value.startsWith('shape-');
-      cellGroup.style.display = isShape ? 'flex' : 'none';
+      updateUiState();
       triggerLivePreview();
     });
 
@@ -772,15 +801,29 @@
       ctx.fillStyle = '#ff0033';
       ctx.font = 'bold 16px "Fira Code", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText("FLUX // SHAPE SHIFTER LAB", 230, 140);
+      ctx.fillText("FLUX // GEOMETRIC DITHER LAB", 230, 140);
       ctx.fillStyle = '#777';
       ctx.font = '12px "Space Grotesk"';
-      ctx.fillText("Upload an image or animated GIF to process", 230, 168);
+      ctx.fillText("Upload an image or animated GIF to begin", 230, 168);
     }
     drawPlaceholder();
 
+    // Prevent navigation on drop & handle file drops cleanly
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evtName => {
+      dropZone.addEventListener(evtName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+
     ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('dragover')));
     ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('dragover')));
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
 
     fileInput.addEventListener('change', (e) => {
       if (e.target.files[0]) handleFile(e.target.files[0]);
@@ -797,6 +840,7 @@
     async function handleFile(file) {
       downloadBtn.disabled = true;
       processBtn.disabled = true;
+      exportSvgBtn.style.display = 'none';
       processedGifBlob = null;
       previewImg.style.display = 'none';
       previewCanvas.style.display = 'block';
@@ -862,6 +906,7 @@
 
           ctx.drawImage(patchCanvas, firstFrame.dims.left || 0, firstFrame.dims.top || 0);
           processBtn.disabled = false;
+          updateUiState();
 
         } catch (err) {
           console.error(err);
@@ -880,6 +925,7 @@
         img.onload = () => {
           loadedImage = img;
           processBtn.disabled = false;
+          updateUiState();
           executeStaticRender();
         };
         img.src = URL.createObjectURL(file);
@@ -901,7 +947,7 @@
     }
 
     // --- CLASSIC PIXEL DITHER ENGINE ---
-    function ditherImageData(srcImgData, algo, colors, threshold) {
+    function ditherImageData(srcImgData, algo, colors, threshold, isInverted) {
       const w = srcImgData.width;
       const h = srcImgData.height;
       const d = new Uint8ClampedArray(srcImgData.data);
@@ -927,7 +973,9 @@
       const lumBuffer = new Float32Array(w * h);
       for (let i = 0; i < w * h; i++) {
         const idx = i * 4;
-        lumBuffer[i] = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
+        let lum = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
+        if (isInverted) lum = 255 - lum;
+        lumBuffer[i] = lum;
       }
 
       const isTransparent = transparentBg.checked;
@@ -991,8 +1039,8 @@
       return new ImageData(d, w, h);
     }
 
-    // --- SHAPE SHIFTER VECTOR ENGINE ---
-    function renderShapeDither(targetCtx, sourceCanvas, width, height, shapeType, cellSize, colors, thresholdBias, isTransparent) {
+    // --- GEOMETRIC GLYPH VECTOR RENDERER ---
+    function renderGlyphDither(targetCtx, sourceCanvas, width, height, shapeType, cellSize, colors, thresholdBias, isTransparent, isInverted) {
       targetCtx.clearRect(0, 0, width, height);
 
       const bg = colors[0];
@@ -1018,8 +1066,8 @@
           const cy = Math.min(y + Math.floor(cellSize / 2), height - 1);
           const idx = (cy * width + cx) * 4;
 
-          // Perceived luminance normalized 0.0 - 1.0
           let lum = (0.299 * srcData[idx] + 0.587 * srcData[idx + 1] + 0.114 * srcData[idx + 2]) / 255;
+          if (isInverted) lum = 1.0 - lum;
           lum = Math.min(1.0, Math.max(0.0, lum * biasMultiplier));
 
           const r = (cellSize / 2) * lum;
@@ -1031,23 +1079,23 @@
           targetCtx.save();
           targetCtx.translate(px, py);
 
-          if (shapeType === 'shape-circle') {
+          if (shapeType === 'glyph-circle') {
             targetCtx.beginPath();
             targetCtx.arc(0, 0, r, 0, Math.PI * 2);
             targetCtx.fill();
-          } else if (shapeType === 'shape-cross') {
+          } else if (shapeType === 'glyph-cross') {
             targetCtx.lineWidth = Math.max(1, cellSize * 0.22 * lum);
             targetCtx.beginPath();
             targetCtx.moveTo(-r, 0); targetCtx.lineTo(r, 0);
             targetCtx.moveTo(0, -r); targetCtx.lineTo(0, r);
             targetCtx.stroke();
-          } else if (shapeType === 'shape-x') {
+          } else if (shapeType === 'glyph-x') {
             targetCtx.lineWidth = Math.max(1, cellSize * 0.22 * lum);
             targetCtx.beginPath();
             targetCtx.moveTo(-r, -r); targetCtx.lineTo(r, r);
             targetCtx.moveTo(r, -r); targetCtx.lineTo(-r, r);
             targetCtx.stroke();
-          } else if (shapeType === 'shape-diamond') {
+          } else if (shapeType === 'glyph-diamond') {
             targetCtx.beginPath();
             targetCtx.moveTo(0, -r);
             targetCtx.lineTo(r, 0);
@@ -1055,8 +1103,7 @@
             targetCtx.lineTo(-r, 0);
             targetCtx.closePath();
             targetCtx.fill();
-          } else if (shapeType === 'shape-star') {
-            // 4-point sparkle star
+          } else if (shapeType === 'glyph-star') {
             targetCtx.beginPath();
             targetCtx.moveTo(0, -r);
             targetCtx.quadraticCurveTo(0, 0, r, 0);
@@ -1064,7 +1111,7 @@
             targetCtx.quadraticCurveTo(0, 0, -r, 0);
             targetCtx.quadraticCurveTo(0, 0, 0, -r);
             targetCtx.fill();
-          } else if (shapeType === 'shape-ascii') {
+          } else if (shapeType === 'glyph-ascii') {
             targetCtx.font = `bold ${cellSize * 1.1}px "Fira Code", monospace`;
             targetCtx.textAlign = 'center';
             targetCtx.textBaseline = 'middle';
@@ -1075,6 +1122,72 @@
           targetCtx.restore();
         }
       }
+    }
+
+    // --- PURE VECTOR SVG BUILDER ---
+    function buildSVGString(sourceCanvas, width, height, shapeType, cellSize, colors, thresholdBias, isTransparent, isInverted) {
+      const bg = colors[0];
+      const fg = colors[colors.length - 1];
+      const fgHex = `rgb(${fg[0]},${fg[1]},${fg[2]})`;
+      const bgHex = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+
+      let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      svg += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">\n`;
+
+      if (!isTransparent) {
+        svg += `  <rect width="${width}" height="${height}" fill="${bgHex}"/>\n`;
+      }
+
+      svg += `  <g fill="${fgHex}" stroke="${fgHex}">\n`;
+
+      const sCtx = sourceCanvas.getContext('2d');
+      const srcData = sCtx.getImageData(0, 0, width, height).data;
+      const biasMultiplier = thresholdBias / 128;
+      const asciiRamp = " .:-=+*#%@";
+
+      for (let y = 0; y < height; y += cellSize) {
+        for (let x = 0; x < width; x += cellSize) {
+          const cx = Math.min(x + Math.floor(cellSize / 2), width - 1);
+          const cy = Math.min(y + Math.floor(cellSize / 2), height - 1);
+          const idx = (cy * width + cx) * 4;
+
+          let lum = (0.299 * srcData[idx] + 0.587 * srcData[idx + 1] + 0.114 * srcData[idx + 2]) / 255;
+          if (isInverted) lum = 1.0 - lum;
+          lum = Math.min(1.0, Math.max(0.0, lum * biasMultiplier));
+
+          const r = (cellSize / 2) * lum;
+          if (r < 0.3) continue;
+
+          const px = x + cellSize / 2;
+          const py = y + cellSize / 2;
+
+          if (shapeType === 'glyph-circle') {
+            svg += `    <circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="${r.toFixed(2)}" stroke="none"/>\n`;
+          } else if (shapeType === 'glyph-cross') {
+            const strokeW = Math.max(1, cellSize * 0.22 * lum).toFixed(2);
+            svg += `    <line x1="${(px - r).toFixed(2)}" y1="${py.toFixed(2)}" x2="${(px + r).toFixed(2)}" y2="${py.toFixed(2)}" stroke-width="${strokeW}"/>\n`;
+            svg += `    <line x1="${px.toFixed(2)}" y1="${(py - r).toFixed(2)}" x2="${px.toFixed(2)}" y2="${(py + r).toFixed(2)}" stroke-width="${strokeW}"/>\n`;
+          } else if (shapeType === 'glyph-x') {
+            const strokeW = Math.max(1, cellSize * 0.22 * lum).toFixed(2);
+            svg += `    <line x1="${(px - r).toFixed(2)}" y1="${(py - r).toFixed(2)}" x2="${(px + r).toFixed(2)}" y2="${(py + r).toFixed(2)}" stroke-width="${strokeW}"/>\n`;
+            svg += `    <line x1="${(px + r).toFixed(2)}" y1="${(py - r).toFixed(2)}" x2="${(px - r).toFixed(2)}" y2="${(py + r).toFixed(2)}" stroke-width="${strokeW}"/>\n`;
+          } else if (shapeType === 'glyph-diamond') {
+            svg += `    <polygon points="${px.toFixed(2)},${(py - r).toFixed(2)} ${(px + r).toFixed(2)},${py.toFixed(2)} ${px.toFixed(2)},${(py + r).toFixed(2)} ${(px - r).toFixed(2)},${py.toFixed(2)}" stroke="none"/>\n`;
+          } else if (shapeType === 'glyph-star') {
+            svg += `    <path d="M ${px.toFixed(2)} ${(py - r).toFixed(2)} Q ${px.toFixed(2)} ${py.toFixed(2)} ${(px + r).toFixed(2)} ${py.toFixed(2)} Q ${px.toFixed(2)} ${py.toFixed(2)} ${px.toFixed(2)} ${(py + r).toFixed(2)} Q ${px.toFixed(2)} ${py.toFixed(2)} ${(px - r).toFixed(2)} ${py.toFixed(2)} Q ${px.toFixed(2)} ${py.toFixed(2)} ${px.toFixed(2)} ${(py - r).toFixed(2)} Z" stroke="none"/>\n`;
+          } else if (shapeType === 'glyph-ascii') {
+            const charIdx = Math.min(asciiRamp.length - 1, Math.floor(lum * asciiRamp.length));
+            const char = asciiRamp[charIdx];
+            if (char !== ' ') {
+              const safeChar = char === '&' ? '&amp;' : (char === '<' ? '&lt;' : (char === '>' ? '&gt;' : char));
+              svg += `    <text x="${px.toFixed(2)}" y="${py.toFixed(2)}" font-family="monospace" font-size="${(cellSize * 1.1).toFixed(2)}" text-anchor="middle" dominant-baseline="central" stroke="none">${safeChar}</text>\n`;
+            }
+          }
+        }
+      }
+
+      svg += `  </g>\n</svg>`;
+      return svg;
     }
 
     let liveTimeout = null;
@@ -1093,6 +1206,7 @@
       const scale = parseFloat(scaleRange.value);
       const cellSize = parseInt(cellRange.value, 10);
       const isTransparent = transparentBg.checked;
+      const isInverted = invertLum.checked;
 
       const targetW = Math.max(1, Math.round(loadedImage.width * scale));
       const targetH = Math.max(1, Math.round(loadedImage.height * scale));
@@ -1100,20 +1214,22 @@
       previewCanvas.width = targetW;
       previewCanvas.height = targetH;
 
-      if (algo.startsWith('shape-')) {
+      if (algo.startsWith('glyph-')) {
         const offCanvas = document.createElement('canvas');
         offCanvas.width = targetW;
         offCanvas.height = targetH;
         const oCtx = offCanvas.getContext('2d');
         oCtx.drawImage(loadedImage, 0, 0, targetW, targetH);
 
-        renderShapeDither(ctx, offCanvas, targetW, targetH, algo, cellSize, colors, threshold, isTransparent);
+        renderGlyphDither(ctx, offCanvas, targetW, targetH, algo, cellSize, colors, threshold, isTransparent, isInverted);
+        exportSvgBtn.style.display = 'block';
       } else {
         ctx.clearRect(0, 0, targetW, targetH);
         ctx.drawImage(loadedImage, 0, 0, targetW, targetH);
         const imgData = ctx.getImageData(0, 0, targetW, targetH);
-        const dithered = ditherImageData(imgData, algo, colors, threshold);
+        const dithered = ditherImageData(imgData, algo, colors, threshold, isInverted);
         ctx.putImageData(dithered, 0, 0);
+        exportSvgBtn.style.display = 'none';
       }
 
       viewportStatus.textContent = `${targetW}x${targetH} // STATIC DITHERED`;
@@ -1127,6 +1243,7 @@
       const scale = parseFloat(scaleRange.value);
       const cellSize = parseInt(cellRange.value, 10);
       const isTransparent = transparentBg.checked;
+      const isInverted = invertLum.checked;
 
       if (isGif && gifFrames.length > 0) {
         processBtn.disabled = true;
@@ -1156,8 +1273,17 @@
         const patchCanvas = document.createElement('canvas');
         const patchCtx = patchCanvas.getContext('2d');
 
+        let lastDisposal = 0;
+        let lastDims = null;
+
         for (let i = 0; i < total; i++) {
           const frame = gifFrames[i];
+
+          // Handle previous frame disposal method (clean transparency & avoid ghost trails)
+          if (lastDisposal === 2 && lastDims) {
+            accumCtx.clearRect(lastDims.left || 0, lastDims.top || 0, lastDims.width, lastDims.height);
+          }
+
           patchCanvas.width = frame.dims.width;
           patchCanvas.height = frame.dims.height;
           const patchData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
@@ -1165,16 +1291,19 @@
 
           accumCtx.drawImage(patchCanvas, frame.dims.left || 0, frame.dims.top || 0);
 
+          lastDisposal = frame.disposalType;
+          lastDims = frame.dims;
+
           scaledCtx.clearRect(0, 0, baseW, baseH);
           scaledCtx.drawImage(accumCanvas, 0, 0, baseW, baseH);
 
           let finalData;
-          if (algo.startsWith('shape-')) {
-            renderShapeDither(fOutCtx, scaledCanvas, baseW, baseH, algo, cellSize, colors, threshold, isTransparent);
+          if (algo.startsWith('glyph-')) {
+            renderGlyphDither(fOutCtx, scaledCanvas, baseW, baseH, algo, cellSize, colors, threshold, isTransparent, isInverted);
             finalData = fOutCtx.getImageData(0, 0, baseW, baseH).data;
           } else {
             const currentImgData = scaledCtx.getImageData(0, 0, baseW, baseH);
-            const dithered = ditherImageData(currentImgData, algo, colors, threshold);
+            const dithered = ditherImageData(currentImgData, algo, colors, threshold, isInverted);
             finalData = dithered.data;
           }
 
@@ -1208,7 +1337,7 @@
       }
     });
 
-    // Export with integer scaling multiplier (1x, 2x, 4x)
+    // Raster Export (PNG / GIF with nearest-neighbor integer scaling)
     downloadBtn.addEventListener('click', () => {
       const multiplier = parseInt(exportScale.value, 10) || 1;
       const a = document.createElement('a');
@@ -1220,7 +1349,6 @@
         if (multiplier === 1) {
           a.href = previewCanvas.toDataURL('image/png');
         } else {
-          // Upscale crisp with nearest neighbor
           const upCanvas = document.createElement('canvas');
           upCanvas.width = previewCanvas.width * multiplier;
           upCanvas.height = previewCanvas.height * multiplier;
@@ -1229,8 +1357,37 @@
           upCtx.drawImage(previewCanvas, 0, 0, upCanvas.width, upCanvas.height);
           a.href = upCanvas.toDataURL('image/png');
         }
-        a.download = `flux-shape-dither-${Date.now()}.png`;
+        a.download = `flux-dither-${Date.now()}.png`;
       }
+      a.click();
+    });
+
+    // Pure Scalable Vector (.SVG) Export
+    exportSvgBtn.addEventListener('click', () => {
+      if (!loadedImage || isGif) return;
+
+      const algo = algoSelect.value;
+      const colors = getActiveColors();
+      const threshold = parseInt(thresholdRange.value, 10);
+      const scale = parseFloat(scaleRange.value);
+      const cellSize = parseInt(cellRange.value, 10);
+      const isTransparent = transparentBg.checked;
+      const isInverted = invertLum.checked;
+
+      const targetW = Math.max(1, Math.round(loadedImage.width * scale));
+      const targetH = Math.max(1, Math.round(loadedImage.height * scale));
+
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = targetW;
+      offCanvas.height = targetH;
+      const oCtx = offCanvas.getContext('2d');
+      oCtx.drawImage(loadedImage, 0, 0, targetW, targetH);
+
+      const svgContent = buildSVGString(offCanvas, targetW, targetH, algo, cellSize, colors, threshold, isTransparent, isInverted);
+      const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `flux-vector-${Date.now()}.svg`;
       a.click();
     });
   </script>
