@@ -311,6 +311,7 @@
                     <div id="specimen" contenteditable="true"
                         class="outline-none text-4xl md:text-5xl leading-relaxed min-h-[140px] relative z-10 whitespace-pre-wrap break-words"
                         style="font-family: var(--font-display);">The quick brown fox jumped over the lazy dog.</div>
+                    <div id="missingChars" class="mt-3 text-[11px] text-cyan-300/80 font-mono min-h-[1.2em]"></div>
                 </div>
             </main>
         </div>
@@ -415,6 +416,8 @@
         const glyphTray = document.getElementById('glyphTray');
         const glyphCount = document.getElementById('glyphCount');
 
+        specimen.addEventListener('input', updateMissing);
+
         const inspectModal = document.getElementById('inspectorModal');
         const inspectCanvas = document.getElementById('inspectCanvas');
         const inspectCtx = inspectCanvas.getContext('2d');
@@ -424,6 +427,7 @@
         let blobs = [];
         let font = null;
         let fontBuildCount = 0;
+        let lastFontUrl = null;
         let cropRect = null;
         let isDragging = false;
         let dragStart = { x: 0, y: 0 };
@@ -485,7 +489,29 @@
             document.getElementById('charset').value = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#";
             analyze();
         }
-        function setSample(text) { specimen.innerText = text; }
+        function setSample(text) { 
+            specimen.innerText = text; 
+            updateMissing();
+        }
+
+        function updateMissing() {
+            const el = document.getElementById('missingChars');
+            if (!el) return;
+            const text = specimen.innerText || '';
+            const needed = new Set();
+            for (const ch of text) {
+                if (ch.trim() && ch !== '\n' && ch !== '\r') needed.add(ch);
+            }
+            const have = new Set(blobs.filter(b => b.char && b.char.trim()).map(b => b.char));
+            const missing = [...needed].filter(ch => !have.has(ch)).sort();
+            if (missing.length === 0) {
+                el.textContent = needed.size ? 'All characters in specimen are mapped.' : '';
+                el.className = 'mt-3 text-[11px] text-emerald-300/80 font-mono min-h-[1.2em]';
+            } else {
+                el.textContent = 'Missing: ' + missing.join(' ');
+                el.className = 'mt-3 text-[11px] text-amber-300/90 font-mono min-h-[1.2em]';
+            }
+        }
 
         function handleImage(file) {
             if (!file) return;
@@ -493,19 +519,39 @@
             reader.onload = event => {
                 const img = new Image();
                 img.onload = () => {
-                    originalSourceImage = img;
-                    currentRotation = 0;
-                    document.getElementById('skewSlider').value = 0;
-                    document.getElementById('rotVal').innerText = '0.0°';
-                    renderSourceCanvas();
-                    canvas.classList.remove('hidden');
-                    document.getElementById('dropZone').classList.add('hidden');
-                    clearCrop();
-                    autoThreshold();
+                    // Downsample large images to keep flood-fill responsive
+                    const MAX_DIM = 1600;
+                    let src = img;
+                    if (img.width > MAX_DIM || img.height > MAX_DIM) {
+                        const scale = MAX_DIM / Math.max(img.width, img.height);
+                        const tmp = document.createElement('canvas');
+                        tmp.width = Math.round(img.width * scale);
+                        tmp.height = Math.round(img.height * scale);
+                        const tctx = tmp.getContext('2d');
+                        tctx.drawImage(img, 0, 0, tmp.width, tmp.height);
+                        src = new Image();
+                        src.src = tmp.toDataURL('image/png');
+                        // Wait for the downsampled image
+                        src.onload = () => finishImageLoad(src);
+                        return;
+                    }
+                    finishImageLoad(src);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        function finishImageLoad(img) {
+            originalSourceImage = img;
+            currentRotation = 0;
+            document.getElementById('skewSlider').value = 0;
+            document.getElementById('rotVal').innerText = '0.0°';
+            renderSourceCanvas();
+            canvas.classList.remove('hidden');
+            document.getElementById('dropZone').classList.add('hidden');
+            clearCrop();
+            autoThreshold();
         }
 
         /* --- ROTATION / DESKEW RENDERING --- */
@@ -1158,9 +1204,16 @@
             });
 
             try {
+                // Revoke previous object URL to avoid memory leak on repeated builds
+                if (lastFontUrl) {
+                    URL.revokeObjectURL(lastFontUrl);
+                    lastFontUrl = null;
+                }
+
                 const buffer = font.toArrayBuffer();
                 const blob = new Blob([buffer], { type: 'font/ttf' });
                 const fontUrl = URL.createObjectURL(blob);
+                lastFontUrl = fontUrl;
 
                 // Unique family name forces the browser to treat it as a fresh font
                 const liveFamily = 'CitadelleLive_' + (++fontBuildCount);
@@ -1190,6 +1243,7 @@
 
                     document.getElementById('dlBtn').disabled = false;
                     console.log('Font loaded successfully:', liveFamily, 'glyphs:', glyphs.length);
+                    updateMissing();
                 }).catch(err => {
                     console.error("FontFace load failed:", err);
                     specimen.style.fontFamily = 'Courier Prime, monospace';
@@ -1258,13 +1312,22 @@
                 const chip = document.createElement('div');
                 chip.className = `glyph-chip ${activeBlobIndex === idx ? 'active' : ''}`;
                 chip.onclick = () => openInspector(idx);
-                chip.innerHTML = `
-                    <span class="text-[9px] text-white/50 mb-1">#${idx+1}</span>
-                    <span class="w-8 h-8 flex items-center justify-center font-bold text-base bg-black/40 border border-white/20 rounded">
-                        ${b.char}
-                    </span>
-                    <span class="text-[8px] text-white/60 mt-1">${Math.round(b.yOffset || 0)}y</span>
-                `;
+
+                const num = document.createElement('span');
+                num.className = 'text-[9px] text-white/50 mb-1';
+                num.textContent = '#' + (idx + 1);
+
+                const charSpan = document.createElement('span');
+                charSpan.className = 'w-8 h-8 flex items-center justify-center font-bold text-base bg-black/40 border border-white/20 rounded';
+                charSpan.textContent = b.char || '?';
+
+                const yOff = document.createElement('span');
+                yOff.className = 'text-[8px] text-white/60 mt-1';
+                yOff.textContent = Math.round(b.yOffset || 0) + 'y';
+
+                chip.appendChild(num);
+                chip.appendChild(charSpan);
+                chip.appendChild(yOff);
                 glyphTray.appendChild(chip);
             });
         }
@@ -1750,6 +1813,7 @@
 
         renderVault();
         window.addEventListener('DOMContentLoaded', renderVault);
+        setTimeout(updateMissing, 200);
     </script>
 </body>
 </html>
