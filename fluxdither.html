@@ -311,7 +311,7 @@
       border-radius: 2px;
     }
 
-    /* Toggle Option */
+    /* Toggle Options */
     .toggle-row {
       display: flex;
       align-items: center;
@@ -416,7 +416,7 @@
       box-shadow: 0 0 16px var(--red-glow);
     }
 
-    button:disabled {
+    button:disabled, select:disabled {
       opacity: 0.35;
       cursor: not-allowed;
     }
@@ -592,7 +592,7 @@
           </select>
           <div class="palette-preview" id="palettePreview"></div>
 
-          <!-- Custom Colors (shown when custom is selected) -->
+          <!-- Custom Colors -->
           <div class="color-pickers-row" id="customColorRow" style="display: none;">
             <div class="color-input-wrapper">
               <label>FG</label>
@@ -613,7 +613,7 @@
 
         <!-- Transparent Background Toggle -->
         <div class="toggle-row">
-          <label for="transparentBg">Transparent Background (Alpha PNG)</label>
+          <label for="transparentBg">Transparent Background (Alpha PNG/GIF)</label>
           <input type="checkbox" id="transparentBg" />
         </div>
 
@@ -650,14 +650,14 @@
           
           <div class="export-row">
             <button id="downloadBtn" class="btn-secondary" disabled>Export Output</button>
-            <select id="exportScale" title="Export Integer Scaling">
+            <select id="exportScale" title="Export Integer Scaling (PNG)">
               <option value="1">1x Scale</option>
               <option value="2" selected>2x Scale</option>
               <option value="4">4x Crisp</option>
             </select>
           </div>
 
-          <!-- Dedicated Scalable Vector Export (.SVG) -->
+          <!-- Scalable Vector Export (.SVG) -->
           <button id="exportSvgBtn" class="btn-vector" style="display: none;">Export Vector .SVG</button>
         </div>
       </div>
@@ -731,6 +731,10 @@
     let gifCanvasHeight = 0;
     let processedGifBlob = null;
 
+    // Global drag-and-drop interceptor to prevent browser navigation accidents
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => e.preventDefault());
+
     function hexToRgb(hex) {
       const bigint = parseInt(hex.replace('#', ''), 16);
       return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
@@ -785,6 +789,7 @@
       const isGlyph = algoSelect.value.startsWith('glyph-');
       cellGroup.style.display = isGlyph ? 'flex' : 'none';
       exportSvgBtn.style.display = (isGlyph && !isGif && loadedImage) ? 'block' : 'none';
+      exportScale.disabled = isGif;
     }
 
     algoSelect.addEventListener('change', () => {
@@ -808,7 +813,7 @@
     }
     drawPlaceholder();
 
-    // Prevent navigation on drop & handle file drops cleanly
+    // Box drag/drop handlers
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evtName => {
       dropZone.addEventListener(evtName, (e) => {
         e.preventDefault();
@@ -865,7 +870,7 @@
             const currentRaw = rawFrames[i] || parsedGif.frames[i];
             try {
               const frame = decompressFrame(currentRaw, parsedGif.gct, true);
-              if (frame && frame.patch && frame.dims) {
+              if (frame && frame.patch && frame.dims && frame.dims.width > 0 && frame.dims.height > 0) {
                 gifFrames.push(frame);
               }
             } catch (err) {
@@ -1307,12 +1312,24 @@
             finalData = dithered.data;
           }
 
-          const pal = quantize(finalData, 256);
-          const index = applyPalette(finalData, pal);
+          // Preserve GIF transparency palette index
+          const pal = quantize(finalData, 256, {
+            format: isTransparent ? 'rgba4444' : 'rgb565',
+            oneBitAlpha: isTransparent
+          });
+
+          let transIdx = -1;
+          if (isTransparent) {
+            transIdx = pal.findIndex(p => p[3] === 0);
+          }
+
+          const index = applyPalette(finalData, pal, isTransparent ? 'rgba4444' : 'rgb565');
 
           gif.writeFrame(index, baseW, baseH, {
             palette: pal,
-            delay: frame.delay || 100
+            delay: frame.delay || 100,
+            transparent: transIdx >= 0,
+            transparentIndex: transIdx >= 0 ? transIdx : undefined
           });
 
           updateProgress("RENDERING & ENCODING", i + 1, total);
@@ -1337,7 +1354,7 @@
       }
     });
 
-    // Raster Export (PNG / GIF with nearest-neighbor integer scaling)
+    // Raster Export (PNG with nearest-neighbor integer scaling / GIF export)
     downloadBtn.addEventListener('click', () => {
       const multiplier = parseInt(exportScale.value, 10) || 1;
       const a = document.createElement('a');
