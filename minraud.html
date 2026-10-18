@@ -3130,5 +3130,104 @@ function contractQuantumVid(e) {
     isQuantumPlaying = false;
 }
 </script>
+    <!-- STANDALONE NOVA CUSTOM SELECT ENGINE -->
+<script>
+(function() {
+    function buildCustomDropdowns() {
+        const containers = document.querySelectorAll(".custom-select-container");
+
+        containers.forEach(container => {
+            const select = container.querySelector("select");
+            if (!select) return;
+
+            // Prevent duplicate creation if script runs more than once
+            if (container.querySelector(".select-selected")) return;
+
+            // Ensure native select is hidden
+            select.style.display = "none";
+
+            // 1. Create the main visible display box
+            const selectedBox = document.createElement("DIV");
+            selectedBox.className = "select-selected";
+            const initialOpt = select.options[select.selectedIndex] || select.options[0];
+            selectedBox.innerHTML = initialOpt ? initialOpt.innerHTML : "Select Model";
+            container.appendChild(selectedBox);
+
+            // 2. Create the dropdown container
+            const itemsBox = document.createElement("DIV");
+            itemsBox.className = "select-items select-hide";
+
+            // 3. Build each custom option item
+            Array.from(select.options).forEach((opt, index) => {
+                const item = document.createElement("DIV");
+                item.innerHTML = opt.innerHTML;
+
+                // Carry over the red highlight class (e.g. nova2-opt)
+                if (opt.classList.contains("nova2-opt")) {
+                    item.classList.add("nova2-opt");
+                }
+                if (index === select.selectedIndex) {
+                    item.classList.add("same-as-selected");
+                }
+
+                // Handle clicking an item
+                item.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    
+                    // Update native select so your AI code gets the new value
+                    select.selectedIndex = index;
+                    selectedBox.innerHTML = this.innerHTML;
+
+                    // Update active state in menu
+                    const siblings = itemsBox.querySelectorAll(".same-as-selected");
+                    siblings.forEach(el => el.classList.remove("same-as-selected"));
+                    this.classList.add("same-as-selected");
+
+                    // Close the dropdown
+                    itemsBox.classList.add("select-hide");
+                    selectedBox.classList.remove("select-arrow-active");
+
+                    // Trigger the 'change' event for Puter / Nova listeners
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                });
+
+                itemsBox.appendChild(item);
+            });
+
+            container.appendChild(itemsBox);
+
+            // Toggle dropdown open/close on header click
+            selectedBox.addEventListener("click", function(e) {
+                e.stopPropagation();
+                closeAllOtherDropdowns(selectedBox);
+                itemsBox.classList.toggle("select-hide");
+                selectedBox.classList.toggle("select-arrow-active");
+            });
+        });
+    }
+
+    function closeAllOtherDropdowns(activeHeader) {
+        document.querySelectorAll(".select-selected").forEach(header => {
+            if (header !== activeHeader) {
+                header.classList.remove("select-arrow-active");
+                const menu = header.nextElementSibling;
+                if (menu && menu.classList.contains("select-items")) {
+                    menu.classList.add("select-hide");
+                }
+            }
+        });
+    }
+
+    // Close when clicking outside
+    document.addEventListener("click", () => closeAllOtherDropdowns(null));
+
+    // Run when DOM is ready (or immediately if already parsed)
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", buildCustomDropdowns);
+    } else {
+        buildCustomDropdowns();
+    }
+})();
+</script>
 </body>
 </html>
