@@ -1,193 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
-  
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Icons -->
-	<link rel="icon" type="image/png" href="https://wordstar.nexus/svg/favicon-96x96.png" sizes="96x96" />
-	<link rel="icon" type="image/svg+xml" href="https://wordstar.nexus/svg/favicon.svg" />
-	<link rel="shortcut icon" href="https://wordstar.nexus/svg/favicon.ico" />
-	<link rel="apple-touch-icon" sizes="180x180" href="https://wordstar.nexus/svg/apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="https://wordstar.nexus/svg/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="https://wordstar.nexus/svg/favicon.svg" />
+<link rel="shortcut icon" href="https://wordstar.nexus/svg/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="https://wordstar.nexus/svg/apple-touch-icon.png" />
 <title>TYPEWRITER</title>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500&family=Courier+Prime&family=VT323&family=JetBrains+Mono&family=Source+Code+Pro&family=Roboto+Mono&family=Space+Mono&family=Fira+Code&family=EB+Garamond&family=Libre+Baskerville&family=Merriweather&family=Inter&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
-  --bg: #0a0a0a;
-  --panel: #111;
-  --red: #e10600;
-  --red-dim: #8a0400;
-  --white: #e8e8e8;
-  --grey: #888;
-  --grey-dark: #333;
-  --yellow: #e6c200;
+  --bg: #0a0a0a; --panel: #111; --red: #e10600; --red-dim: #8a0400;
+  --white: #e8e8e8; --grey: #888; --grey-dark: #333; --yellow: #e6c200;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--white); font-family: 'IBM Plex Mono', monospace; overflow: hidden; }
 body { display: flex; flex-direction: column; cursor: none; }
 
-/* Custom contrast cursor */
 #cursor-wrap {
   position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
   mix-blend-mode: difference; display: flex; align-items: center; justify-content: center;
   transform: translate(-50%, -50%);
 }
 #cursor {
-  width: 64px; height: 64px; border-radius: 50%; background: #fff;
-  box-shadow: 0 0 12px rgba(255,255,255,0.35);
-  transition: transform 0.18s cubic-bezier(0.16,1,0.3,1);
+  width: 56px; height: 56px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.3);
+  transition: transform 0.16s cubic-bezier(0.16,1,0.3,1), opacity 0.15s;
   display: flex; align-items: center; justify-content: center;
 }
-#cursor.hovering { transform: scale(1.55); }
+#cursor.hovering { transform: scale(1.45); }
 #cursor-text {
-  color: #000; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-  opacity: 0; transition: opacity 0.15s;
+  color: #000; font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  opacity: 0; transition: opacity 0.12s;
 }
 #cursor.hovering #cursor-text { opacity: 1; }
-body.typing #cursor-wrap { display: none; }
+body.typing #cursor-wrap { opacity: 0; pointer-events: none; }
 
-/* Header — more space and content */
 header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; background: rgba(0,0,0,0.82); border-bottom: 1px solid var(--grey-dark);
-  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; min-height: 56px; gap: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 18px 10px; background: rgba(0,0,0,0.88); border-bottom: 1px solid var(--grey-dark);
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
 }
-header .left, header .right { display: flex; align-items: center; gap: 10px; }
-header .title { color: var(--red); font-weight: 500; font-size: 13px; letter-spacing: 0.16em; }
-header select, header button, header input {
-  background: #000; color: var(--white); border: 1px solid var(--grey-dark);
-  padding: 5px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
-}
-header input { width: 140px; cursor: text; }
-header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.header-row.controls { justify-content: flex-start; gap: 8px; }
+header .title { color: var(--red); font-weight: 500; font-size: 13px; letter-spacing: 0.14em; }
 header .label { color: var(--grey); font-size: 9px; }
+header select, header button, header input[type="text"] {
+  background: #000; color: var(--white); border: 1px solid var(--grey-dark);
+  padding: 4px 8px; font-size: 10px; font-family: inherit; cursor: pointer;
+}
+header input[type="text"] { width: 130px; cursor: text; }
+header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
+header a { color: var(--grey); text-decoration: none; font-size: 9px; letter-spacing: 0.1em; }
+header a:hover { color: var(--red); }
+
+.img-bay { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.knob {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8px; color: var(--grey);
+}
+.knob input[type="range"] {
+  -webkit-appearance: none; width: 52px; height: 4px; background: #222; border-radius: 2px; outline: none;
+}
+.knob input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--red); cursor: pointer;
+}
+.seg { display: flex; border: 1px solid var(--grey-dark); }
+.seg button { border: none; border-right: 1px solid var(--grey-dark); padding: 3px 7px; background: #000; color: var(--grey); }
+.seg button:last-child { border-right: none; }
+.seg button.active { background: var(--red); color: #000; }
 
 .app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
+.main { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 8px; min-height: 0; }
 
-.main {
-  flex: 1; display: flex; flex-direction: column; padding: 16px 20px 8px;
-  min-height: 0;
-}
-
-/* Text area container — video lives here */
 .editor-wrap {
   flex: 1; position: relative; min-height: 0; border: 1px solid var(--grey-dark); border-radius: 2px;
   overflow: hidden; background: #000;
 }
-#video-layer {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  opacity: 0.35; filter: grayscale(0.35) contrast(1.05);
-}
+#video-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35; filter: grayscale(0.35) contrast(1.05); }
 #video-layer iframe { width: 100%; height: 100%; border: 0; }
-.editor-overlay {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.65));
-}
+.editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.65)); }
 #editor {
-  position: relative; z-index: 2; width: 100%; height: 100%;
-  background: transparent; color: var(--white);
-  border: none; padding: 28px 32px; font-family: 'Special Elite', serif; font-size: 1.15rem;
-  line-height: 1.7; resize: none; outline: none; caret-color: var(--red);
+  position: relative; z-index: 2; width: 100%; height: 100%; background: transparent; color: var(--white);
+  border: none; padding: 26px 30px; font-family: 'Special Elite', serif; font-size: 1.12rem;
+  line-height: 1.65; resize: none; outline: none; caret-color: var(--red);
 }
 #editor::placeholder { color: #555; }
 
-/* Mirrored marquee */
-.marquee-wrap {
-  height: 36px; margin-top: 8px; overflow: hidden; background: #000;
-  border: 1px solid var(--grey-dark); position: relative;
-}
+.marquee-wrap { height: 34px; margin-top: 8px; overflow: hidden; background: #000; border: 1px solid var(--grey-dark); }
 .marquee-wrap.hidden { display: none; }
-.marquee {
-  display: flex; white-space: nowrap; animation: marquee 40s linear infinite;
-  font-size: 13px; letter-spacing: 0.12em; color: var(--grey); padding: 8px 0;
-}
-.marquee span { padding: 0 40px; }
+.marquee { display: flex; white-space: nowrap; animation: marquee 40s linear infinite; font-size: 12px; letter-spacing: 0.1em; color: var(--grey); padding: 7px 0; }
+.marquee span { padding: 0 36px; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
 footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 20px; background: rgba(0,0,0,0.9); border-top: 1px solid var(--grey-dark);
-  font-size: 10px; letter-spacing: 0.06em; color: var(--grey);
+  padding: 7px 18px; background: rgba(0,0,0,0.92); border-top: 1px solid var(--grey-dark);
+  font-size: 10px; letter-spacing: 0.05em; color: var(--grey);
 }
-footer .status span { margin-right: 16px; }
+footer .status span { margin-right: 14px; }
 footer .status .ready { color: var(--red); }
 footer button {
   background: transparent; border: 1px solid var(--grey-dark); color: var(--grey);
-  padding: 4px 10px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 6px;
+  padding: 4px 9px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 5px;
 }
 footer button:hover { border-color: var(--red); color: var(--red); }
 
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   body { cursor: auto; }
   #cursor-wrap { display: none !important; }
+  header { padding: 10px 12px; }
+  .header-row { gap: 8px; }
   .main { padding: 10px 12px 6px; }
-  #editor { padding: 16px 18px; font-size: 1rem; }
-  header { flex-wrap: wrap; padding: 10px 12px; min-height: auto; }
-  header input { width: 100px; }
+  #editor { padding: 16px 16px; font-size: 1rem; }
   footer { flex-wrap: wrap; gap: 4px; }
+  header input[type="text"] { width: 110px; }
 }
 </style>
 </head>
 <body>
-<div id="cursor-wrap">
-  <div id="cursor"><span id="cursor-text">VIEW</span></div>
-</div>
+<div id="cursor-wrap"><div id="cursor"><span id="cursor-text">VIEW</span></div></div>
 
 <div class="app">
   <header>
-    <div class="left">
-      <div class="title">TYPEWRITER</div>
-      <span class="label">// INSTRUMENT // COMPANION SITE;</span>
-      <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener" style="color:var(--grey);text-decoration:none;font-size:9px;letter-spacing:0.12em;" data-hover>ACROHAT&#8599;</a>
+    <div class="header-row">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="title">TYPEWRITER</div>
+        <span class="label">// INSTRUMENT</span>
+        <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener" data-hover>ACROHAT&#8599;</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="font-select" title="Font">
+          <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+          <option value="'VT323', monospace">VT323</option>
+          <option value="'Courier Prime', monospace">Courier Prime</option>
+          <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+          <option value="'Source Code Pro', monospace">Source Code Pro</option>
+          <option value="'Roboto Mono', monospace">Roboto Mono</option>
+          <option value="'Space Mono', monospace">Space Mono</option>
+          <option value="'Fira Code', monospace">Fira Code</option>
+          <option value="'EB Garamond', serif">EB Garamond</option>
+          <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'Inter', sans-serif">Inter</option>
+          <option value="'Special Elite', serif">Special Elite</option>
+        </select>
+        <select id="video-select" title="Video">
+          <option value="Kz5HI-z8Nnc">Default runway</option>
+          <option value="DB7oO82OeD4">Live A</option>
+          <option value="8TDmgVs6HZE">Live B</option>
+          <option value="7Ux4GeY5MXQ">Live C</option>
+          <option value="none">Off</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <input id="custom-video" placeholder="YouTube ID or URL" style="display:none">
+        <button id="marquee-toggle">MARQUEE</button>
+        <button id="sound-toggle">SOUND</button>
+      </div>
     </div>
-    <div class="right">
-      <select id="font-select" title="Font">
-        <option value="'IBM Plex Mono', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-mono@latest/latin-400-normal.ttf">IBM Plex Mono</option>
-        <option value="'VT323', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.ttf">VT323</option>
-        <option value="'Courier Prime', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/courier-prime@latest/latin-400-normal.ttf">Courier Prime</option>
-        <option value="'JetBrains Mono', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-400-normal.ttf">JetBrains Mono</option>
-        <option value="'Source Code Pro', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/source-code-pro@latest/latin-400-normal.ttf">Source Code Pro</option>
-        <option value="'Roboto Mono', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/roboto-mono@latest/latin-400-normal.ttf">Roboto Mono</option>
-        <option value="'Space Mono', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/space-mono@latest/latin-400-normal.ttf">Space Mono</option>
-        <option value="'Fira Code', monospace" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/fira-code@latest/latin-400-normal.ttf">Fira Code</option>
-        <option value="'EB Garamond', serif" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/eb-garamond@latest/latin-400-normal.ttf">EB Garamond</option>
-        <option value="'Libre Baskerville', serif" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/libre-baskerville@latest/latin-400-normal.ttf">Libre Baskerville</option>
-        <option value="'Merriweather', serif" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/merriweather@latest/latin-400-normal.ttf">Merriweather</option>
-        <option value="'Inter', sans-serif" data-ttf="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf">Inter</option>
-        <option value="'Special Elite', serif">Special Elite</option>
-      </select>
-      <select id="video-select" title="Video">
-        <option value="Kz5HI-z8Nnc">Default runway</option>
-        <option value="DB7oO82OeD4">Live A</option>
-        <option value="8TDmgVs6HZE">Live B</option>
-        <option value="7Ux4GeY5MXQ">Live C</option>
-        <option value="none">Off</option>
-        <option value="custom">Custom…</option>
-      </select>
-      <input id="custom-video" placeholder="YouTube ID or URL" style="display:none">
-      <button id="marquee-toggle">MARQUEE</button>
-      <button id="sound-toggle">SOUND</button>
-      <span class="label" style="margin-left:8px;">IMG</span>
-      <input type="file" id="img-input" accept="image/*" hidden>
-      <button id="img-upload" title="Upload image">+</button>
-      <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;vertical-align:middle;">
-      <select id="img-width" title="Width" style="width:58px;">
-        <option value="120">120</option>
-        <option value="180" selected>180</option>
-        <option value="240">240</option>
-        <option value="320">320</option>
-      </select>
-      <select id="img-align" title="Align">
-        <option value="left">L</option>
-        <option value="center" selected>C</option>
-        <option value="right">R</option>
-      </select>
-      <select id="img-shape" title="Shape">
-        <option value="rect" selected>RECT</option>
-        <option value="circle">CIRCLE</option>
-      </select>
-      <button id="img-insert" title="Insert at cursor">INSERT</button>
+
+    <div class="header-row controls">
+      <div class="img-bay">
+        <span class="label">IMG</span>
+        <input type="file" id="img-input" accept="image/*" hidden>
+        <button id="img-upload" title="Upload">+</button>
+        <img id="img-thumb" style="height:20px;width:20px;object-fit:cover;border:1px solid var(--grey-dark);display:none;">
+        <div class="knob"><span>W</span><input type="range" id="img-width" min="80" max="360" value="180" step="20"></div>
+        <div class="seg" id="align-seg">
+          <button data-val="left">L</button>
+          <button data-val="center" class="active">C</button>
+          <button data-val="right">R</button>
+        </div>
+        <div class="seg" id="shape-seg">
+          <button data-val="rect" class="active">RECT</button>
+          <button data-val="circle">CIRCLE</button>
+        </div>
+        <button id="img-insert">INSERT</button>
+      </div>
     </div>
   </header>
 
@@ -197,9 +187,7 @@ footer button:hover { border-color: var(--red); color: var(--red); }
       <div class="editor-overlay"></div>
       <textarea id="editor" placeholder="Begin..." spellcheck="false"></textarea>
     </div>
-    <div class="marquee-wrap" id="marquee-wrap">
-      <div class="marquee" id="marquee"></div>
-    </div>
+    <div class="marquee-wrap" id="marquee-wrap"><div class="marquee" id="marquee"></div></div>
   </div>
 
   <footer>
@@ -239,8 +227,11 @@ const imgInput = document.getElementById('img-input');
 const imgThumb = document.getElementById('img-thumb');
 const imgUpload = document.getElementById('img-upload');
 const imgInsert = document.getElementById('img-insert');
+const imgWidth = document.getElementById('img-width');
 
 let currentImageData = null;
+let imgAlign = 'center';
+let imgShape = 'rect';
 
 const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
 let undoStack = [];
@@ -248,11 +239,11 @@ let soundOn = false;
 let marqueeOn = true;
 let audioCtx;
 
-// --- Cursor ---
+// Cursor — only activates on true interactive targets, fully hides over editor
 let mouseX = -100, mouseY = -100, curX = -100, curY = -100;
 function renderCursor() {
-  curX += (mouseX - curX) * 0.18;
-  curY += (mouseY - curY) * 0.18;
+  curX += (mouseX - curX) * 0.2;
+  curY += (mouseY - curY) * 0.2;
   cursorWrap.style.transform = `translate3d(${curX}px, ${curY}px, 0)`;
   requestAnimationFrame(renderCursor);
 }
@@ -260,28 +251,30 @@ renderCursor();
 window.addEventListener('mousemove', (e) => {
   mouseX = e.clientX;
   mouseY = e.clientY;
-  const overEditor = e.target.closest('#editor') || e.target.closest('.editor-wrap');
-  const hoverable = e.target.closest('button, select, a, [data-hover]') && !overEditor;
-  if (hoverable) {
-    cursor.classList.add('hovering');
-    cursorText.textContent = 'VIEW';
-  } else {
+  const overEditor = !!e.target.closest('#editor, .editor-wrap');
+  const interactive = e.target.closest('button, select, a, input, .seg, .knob');
+  if (overEditor) {
+    document.body.classList.add('typing');
     cursor.classList.remove('hovering');
+  } else {
+    document.body.classList.remove('typing');
+    if (interactive) {
+      cursor.classList.add('hovering');
+      cursorText.textContent = 'VIEW';
+    } else {
+      cursor.classList.remove('hovering');
+    }
   }
-  document.body.classList.toggle('typing', !!overEditor);
 });
 
-// --- Video (inside editor) ---
+// Video
 function extractId(val) {
   if (!val) return '';
   const m = val.trim().match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/)|[?&]v=)([\w-]{11})/);
   return m ? m[1] : val.trim().slice(0, 11);
 }
 function setVideo(id) {
-  if (!id || id === 'none') {
-    videoLayer.innerHTML = '';
-    return;
-  }
+  if (!id || id === 'none') { videoLayer.innerHTML = ''; return; }
   const isLive = LIVE_IDS.has(id);
   const params = isLive
     ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
@@ -297,7 +290,7 @@ customVideo.addEventListener('change', () => setVideo(extractId(customVideo.valu
 customVideo.addEventListener('keydown', (e) => { if (e.key === 'Enter') setVideo(extractId(customVideo.value)); });
 setVideo(videoSelect.value);
 
-// --- Image bay ---
+// Image bay — knobs / segments
 imgUpload.onclick = () => imgInput.click();
 imgInput.onchange = (e) => {
   const f = e.target.files[0];
@@ -310,6 +303,18 @@ imgInput.onchange = (e) => {
   };
   r.readAsDataURL(f);
 };
+document.getElementById('align-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  imgAlign = btn.dataset.val;
+  document.querySelectorAll('#align-seg button').forEach(b => b.classList.toggle('active', b === btn));
+});
+document.getElementById('shape-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  imgShape = btn.dataset.val;
+  document.querySelectorAll('#shape-seg button').forEach(b => b.classList.toggle('active', b === btn));
+});
 imgInsert.onclick = () => {
   if (!currentImageData) { alert('Upload an image first.'); return; }
   const marker = '{{IMG}}';
@@ -319,54 +324,41 @@ imgInsert.onclick = () => {
   editor.value = val.slice(0, start) + marker + val.slice(end);
   editor.selectionStart = editor.selectionEnd = start + marker.length;
   editor.focus();
-  updateStatus();
-  scheduleMarquee();
-  save();
-  pushUndo();
+  updateStatus(); scheduleMarquee(); save(); pushUndo();
 };
 
-// --- Font ---
-fontSelect.addEventListener('change', () => {
-  editor.style.fontFamily = fontSelect.value;
-});
+// Font
+fontSelect.addEventListener('change', () => { editor.style.fontFamily = fontSelect.value; });
 
-// --- Marquee ---
+// Marquee
 let marqueeTimer = null;
 function updateMarquee() {
   if (!marqueeOn) return;
   const text = editor.value.trim();
-  if (!text) {
-    marquee.innerHTML = '<span>— silence —</span><span>— silence —</span>';
-    return;
-  }
+  if (!text) { marquee.innerHTML = '<span>— silence —</span><span>— silence —</span>'; return; }
   const words = text.split(/\s+/).slice(-40);
   const reversed = words.reverse().join('  ·  ');
   const display = reversed + '     ' + reversed;
   marquee.innerHTML = `<span>${display}</span><span>${display}</span>`;
 }
-function scheduleMarquee() {
-  clearTimeout(marqueeTimer);
-  marqueeTimer = setTimeout(updateMarquee, 180);
-}
+function scheduleMarquee() { clearTimeout(marqueeTimer); marqueeTimer = setTimeout(updateMarquee, 180); }
 document.getElementById('marquee-toggle').onclick = () => {
   marqueeOn = !marqueeOn;
   marqueeWrap.classList.toggle('hidden', !marqueeOn);
   if (marqueeOn) updateMarquee();
 };
 
-// --- Status ---
+// Status
 function updateStatus() {
   const t = editor.value;
   const w = t.trim() ? t.trim().split(/\s+/).length : 0;
-  const c = t.length;
-  const l = t.split('\n').length;
   wordsEl.textContent = `WORDS ${w}`;
-  charsEl.textContent = `CHARS ${c}`;
-  linesEl.textContent = `LINES ${l}`;
+  charsEl.textContent = `CHARS ${t.length}`;
+  linesEl.textContent = `LINES ${t.split('\n').length}`;
   readyEl.textContent = t.length ? 'WRITING' : 'READY';
 }
 
-// --- Undo ---
+// Undo
 function pushUndo() {
   const v = editor.value;
   if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
@@ -376,13 +368,11 @@ document.getElementById('btn-undo').onclick = () => {
   if (undoStack.length > 1) {
     undoStack.pop();
     editor.value = undoStack[undoStack.length - 1] || '';
-    updateStatus();
-    scheduleMarquee();
-    save();
+    updateStatus(); scheduleMarquee(); save();
   }
 };
 
-// --- Persistence ---
+// Persistence
 function save() {
   localStorage.setItem('typewriter_text', editor.value);
   try {
@@ -392,18 +382,12 @@ function save() {
 }
 function load() {
   const fromHash = location.hash.slice(1);
-  if (fromHash) {
-    try { editor.value = decodeURIComponent(fromHash); } catch (e) {}
-  } else {
-    const saved = localStorage.getItem('typewriter_text');
-    if (saved) editor.value = saved;
-  }
-  updateStatus();
-  updateMarquee();
-  pushUndo();
+  if (fromHash) { try { editor.value = decodeURIComponent(fromHash); } catch (e) {} }
+  else { const saved = localStorage.getItem('typewriter_text'); if (saved) editor.value = saved; }
+  updateStatus(); updateMarquee(); pushUndo();
 }
 
-// --- File & PDF ---
+// File & PDF
 document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => {
   const f = e.target.files[0];
@@ -421,10 +405,7 @@ document.getElementById('btn-pdf').onclick = () => {
   let y = margin;
   doc.setFont('courier', 'normal');
   doc.setFontSize(11);
-
-  const width = parseInt(document.getElementById('img-width').value) || 180;
-  const align = document.getElementById('img-align').value;
-  const shape = document.getElementById('img-shape').value;
+  const width = parseInt(imgWidth.value) || 180;
 
   const parts = text.split('{{IMG}}');
   parts.forEach((part, idx) => {
@@ -439,16 +420,12 @@ document.getElementById('btn-pdf').onclick = () => {
     if (idx < parts.length - 1 && currentImageData) {
       if (y + width > pageHeight) { doc.addPage(); y = margin; }
       let x = margin;
-      if (align === 'center') x = (612 - width) / 2;
-      if (align === 'right') x = 612 - margin - width;
+      if (imgAlign === 'center') x = (612 - width) / 2;
+      if (imgAlign === 'right') x = 612 - margin - width;
       try {
-        if (shape === 'circle') {
-          // jsPDF doesn't clip to circle easily; draw as rect for reliability, note shape in comment
-          doc.addImage(currentImageData, 'JPEG', x, y, width, width);
-        } else {
-          doc.addImage(currentImageData, 'JPEG', x, y, width, width * 0.75);
-        }
-        y += (shape === 'circle' ? width : width * 0.75) + 12;
+        const h = imgShape === 'circle' ? width : width * 0.75;
+        doc.addImage(currentImageData, 'JPEG', x, y, width, h);
+        y += h + 12;
       } catch (err) {
         doc.text('[image]', x, y);
         y += 16;
@@ -460,18 +437,12 @@ document.getElementById('btn-pdf').onclick = () => {
 document.getElementById('btn-clear').onclick = () => {
   if (confirm('Clear the page?')) {
     editor.value = '';
-    updateStatus();
-    scheduleMarquee();
-    save();
-    pushUndo();
+    updateStatus(); scheduleMarquee(); save(); pushUndo();
   }
 };
 
-// --- Sound ---
-function initAudio() {
-  if (audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
+// Sound
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 function playClick() {
   if (!soundOn || !audioCtx) return;
   const o = audioCtx.createOscillator();
@@ -490,24 +461,13 @@ document.getElementById('sound-toggle').onclick = () => {
   if (soundOn) initAudio();
 };
 
-// --- Input ---
-editor.addEventListener('input', () => {
-  updateStatus();
-  scheduleMarquee();
-  save();
-  pushUndo();
-  if (soundOn) playClick();
-});
+editor.addEventListener('input', () => { updateStatus(); scheduleMarquee(); save(); pushUndo(); if (soundOn) playClick(); });
 editor.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-    e.preventDefault();
-    document.getElementById('btn-undo').click();
-  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); document.getElementById('btn-undo').click(); }
 });
 editor.addEventListener('focus', () => document.body.classList.add('typing'));
 editor.addEventListener('blur', () => document.body.classList.remove('typing'));
 
-// Drop
 editor.addEventListener('dragover', (e) => e.preventDefault());
 editor.addEventListener('drop', (e) => {
   e.preventDefault();
@@ -519,7 +479,6 @@ editor.addEventListener('drop', (e) => {
   }
 });
 
-// Init
 load();
 window.addEventListener('hashchange', load);
 </script>
