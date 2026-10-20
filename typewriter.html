@@ -162,6 +162,26 @@ footer button:hover { border-color: var(--red); color: var(--red); }
       <input id="custom-video" placeholder="YouTube ID or URL" style="display:none">
       <button id="marquee-toggle">MARQUEE</button>
       <button id="sound-toggle">SOUND</button>
+      <span class="label" style="margin-left:8px;">IMG</span>
+      <input type="file" id="img-input" accept="image/*" hidden>
+      <button id="img-upload" title="Upload image">+</button>
+      <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;vertical-align:middle;">
+      <select id="img-width" title="Width" style="width:58px;">
+        <option value="120">120</option>
+        <option value="180" selected>180</option>
+        <option value="240">240</option>
+        <option value="320">320</option>
+      </select>
+      <select id="img-align" title="Align">
+        <option value="left">L</option>
+        <option value="center" selected>C</option>
+        <option value="right">R</option>
+      </select>
+      <select id="img-shape" title="Shape">
+        <option value="rect" selected>RECT</option>
+        <option value="circle">CIRCLE</option>
+      </select>
+      <button id="img-insert" title="Insert at cursor">INSERT</button>
     </div>
   </header>
 
@@ -209,6 +229,12 @@ const readyEl = document.getElementById('ready');
 const cursorWrap = document.getElementById('cursor-wrap');
 const cursor = document.getElementById('cursor');
 const cursorText = document.getElementById('cursor-text');
+const imgInput = document.getElementById('img-input');
+const imgThumb = document.getElementById('img-thumb');
+const imgUpload = document.getElementById('img-upload');
+const imgInsert = document.getElementById('img-insert');
+
+let currentImageData = null;
 
 const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
 let undoStack = [];
@@ -264,6 +290,34 @@ videoSelect.addEventListener('change', () => {
 customVideo.addEventListener('change', () => setVideo(extractId(customVideo.value)));
 customVideo.addEventListener('keydown', (e) => { if (e.key === 'Enter') setVideo(extractId(customVideo.value)); });
 setVideo(videoSelect.value);
+
+// --- Image bay ---
+imgUpload.onclick = () => imgInput.click();
+imgInput.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    currentImageData = r.result;
+    imgThumb.src = currentImageData;
+    imgThumb.style.display = 'inline-block';
+  };
+  r.readAsDataURL(f);
+};
+imgInsert.onclick = () => {
+  if (!currentImageData) { alert('Upload an image first.'); return; }
+  const marker = '{{IMG}}';
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const val = editor.value;
+  editor.value = val.slice(0, start) + marker + val.slice(end);
+  editor.selectionStart = editor.selectionEnd = start + marker.length;
+  editor.focus();
+  updateStatus();
+  scheduleMarquee();
+  save();
+  pushUndo();
+};
 
 // --- Font ---
 fontSelect.addEventListener('change', () => {
@@ -357,14 +411,43 @@ document.getElementById('btn-pdf').onclick = () => {
   const text = editor.value || ' ';
   const margin = 54;
   const maxWidth = 504;
-  const lines = doc.splitTextToSize(text, maxWidth);
+  const pageHeight = 720;
   let y = margin;
   doc.setFont('courier', 'normal');
   doc.setFontSize(11);
-  lines.forEach(line => {
-    if (y > 720) { doc.addPage(); y = margin; }
-    doc.text(line, margin, y);
-    y += 16;
+
+  const width = parseInt(document.getElementById('img-width').value) || 180;
+  const align = document.getElementById('img-align').value;
+  const shape = document.getElementById('img-shape').value;
+
+  const parts = text.split('{{IMG}}');
+  parts.forEach((part, idx) => {
+    if (part) {
+      const lines = doc.splitTextToSize(part, maxWidth);
+      lines.forEach(line => {
+        if (y > pageHeight) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 16;
+      });
+    }
+    if (idx < parts.length - 1 && currentImageData) {
+      if (y + width > pageHeight) { doc.addPage(); y = margin; }
+      let x = margin;
+      if (align === 'center') x = (612 - width) / 2;
+      if (align === 'right') x = 612 - margin - width;
+      try {
+        if (shape === 'circle') {
+          // jsPDF doesn't clip to circle easily; draw as rect for reliability, note shape in comment
+          doc.addImage(currentImageData, 'JPEG', x, y, width, width);
+        } else {
+          doc.addImage(currentImageData, 'JPEG', x, y, width, width * 0.75);
+        }
+        y += (shape === 'circle' ? width : width * 0.75) + 12;
+      } catch (err) {
+        doc.text('[image]', x, y);
+        y += 16;
+      }
+    }
   });
   doc.save('typewriter.pdf');
 };
