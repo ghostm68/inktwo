@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TYPEWRITER</title>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500&family=Courier+Prime&family=VT323&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --bg: #0a0a0a;
@@ -18,45 +19,72 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--white); font-family: 'IBM Plex Mono', monospace; overflow: hidden; }
-body { display: flex; flex-direction: column; }
+body { display: flex; flex-direction: column; cursor: none; }
 
-/* Background video */
-#bg-video {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  opacity: 0.28; filter: grayscale(0.4) contrast(1.1);
+/* Custom contrast cursor */
+#cursor-wrap {
+  position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+  mix-blend-mode: difference; display: flex; align-items: center; justify-content: center;
+  transform: translate(-50%, -50%);
 }
-#bg-video iframe { width: 100%; height: 100%; border: 0; }
+#cursor {
+  width: 64px; height: 64px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 12px rgba(255,255,255,0.35);
+  transition: transform 0.18s cubic-bezier(0.16,1,0.3,1);
+  display: flex; align-items: center; justify-content: center;
+}
+#cursor.hovering { transform: scale(1.55); }
+#cursor-text {
+  color: #000; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  opacity: 0; transition: opacity 0.15s;
+}
+#cursor.hovering #cursor-text { opacity: 1; }
+body.typing #cursor-wrap { display: none; }
 
-/* Overlay to keep text readable */
-.overlay { position: fixed; inset: 0; z-index: 1; background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.75)); pointer-events: none; }
-
-/* Main layout */
-.app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
+/* Header — more space and content */
 header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px; background: rgba(0,0,0,0.7); border-bottom: 1px solid var(--grey-dark);
-  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 14px 20px; background: rgba(0,0,0,0.82); border-bottom: 1px solid var(--grey-dark);
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; min-height: 56px; gap: 16px;
 }
-header .title { color: var(--red); font-weight: 500; }
-header select, header button {
+header .left, header .right { display: flex; align-items: center; gap: 10px; }
+header .title { color: var(--red); font-weight: 500; font-size: 13px; letter-spacing: 0.16em; }
+header select, header button, header input {
   background: #000; color: var(--white); border: 1px solid var(--grey-dark);
-  padding: 4px 8px; font-size: 10px; font-family: inherit; cursor: pointer;
+  padding: 5px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
 }
+header input { width: 140px; cursor: text; }
 header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
+header .label { color: var(--grey); font-size: 9px; }
+
+.app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
 
 .main {
   flex: 1; display: flex; flex-direction: column; padding: 16px 20px 8px;
   min-height: 0;
 }
-#editor {
-  flex: 1; width: 100%; min-height: 0;
-  background: rgba(10,10,10,0.75); color: var(--white);
-  border: 1px solid var(--grey-dark); border-radius: 2px;
-  padding: 28px 32px; font-family: 'Special Elite', serif; font-size: 1.15rem;
-  line-height: 1.7; resize: none; outline: none; caret-color: var(--red);
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.4);
+
+/* Text area container — video lives here */
+.editor-wrap {
+  flex: 1; position: relative; min-height: 0; border: 1px solid var(--grey-dark); border-radius: 2px;
+  overflow: hidden; background: #000;
 }
-#editor::placeholder { color: #444; }
+#video-layer {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0.35; filter: grayscale(0.35) contrast(1.05);
+}
+#video-layer iframe { width: 100%; height: 100%; border: 0; }
+.editor-overlay {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.65));
+}
+#editor {
+  position: relative; z-index: 2; width: 100%; height: 100%;
+  background: transparent; color: var(--white);
+  border: none; padding: 28px 32px; font-family: 'Special Elite', serif; font-size: 1.15rem;
+  line-height: 1.7; resize: none; outline: none; caret-color: var(--red);
+}
+#editor::placeholder { color: #555; }
 
 /* Mirrored marquee */
 .marquee-wrap {
@@ -73,47 +101,66 @@ header button:hover, header select:hover { border-color: var(--red); color: var(
 
 footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 16px; background: rgba(0,0,0,0.85); border-top: 1px solid var(--grey-dark);
+  padding: 8px 20px; background: rgba(0,0,0,0.9); border-top: 1px solid var(--grey-dark);
   font-size: 10px; letter-spacing: 0.06em; color: var(--grey);
 }
 footer .status span { margin-right: 16px; }
 footer .status .ready { color: var(--red); }
 footer button {
   background: transparent; border: 1px solid var(--grey-dark); color: var(--grey);
-  padding: 3px 8px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 6px;
+  padding: 4px 10px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 6px;
 }
 footer button:hover { border-color: var(--red); color: var(--red); }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  body { cursor: auto; }
+  #cursor-wrap { display: none !important; }
   .main { padding: 10px 12px 6px; }
   #editor { padding: 16px 18px; font-size: 1rem; }
-  header { flex-wrap: wrap; gap: 6px; }
+  header { flex-wrap: wrap; padding: 10px 12px; min-height: auto; }
+  header input { width: 100px; }
   footer { flex-wrap: wrap; gap: 4px; }
 }
 </style>
 </head>
 <body>
-<div id="bg-video"></div>
-<div class="overlay"></div>
+<div id="cursor-wrap">
+  <div id="cursor"><span id="cursor-text">VIEW</span></div>
+</div>
 
 <div class="app">
   <header>
-    <div class="title">TYPEWRITER</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <select id="video-select" title="Background video">
+    <div class="left">
+      <div class="title">TYPEWRITER</div>
+      <span class="label">// INSTRUMENT</span>
+    </div>
+    <div class="right">
+      <select id="font-select" title="Font">
+        <option value="'Special Elite', serif">Special Elite</option>
+        <option value="'Courier Prime', monospace">Courier Prime</option>
+        <option value="'VT323', monospace">VT323</option>
+        <option value="'IBM Plex Mono', monospace">Plex Mono</option>
+      </select>
+      <select id="video-select" title="Video">
         <option value="Kz5HI-z8Nnc">Default runway</option>
         <option value="DB7oO82OeD4">Live A</option>
         <option value="8TDmgVs6HZE">Live B</option>
         <option value="7Ux4GeY5MXQ">Live C</option>
-        <option value="none">Video off</option>
+        <option value="none">Off</option>
+        <option value="custom">Custom…</option>
       </select>
+      <input id="custom-video" placeholder="YouTube ID or URL" style="display:none">
       <button id="marquee-toggle">MARQUEE</button>
       <button id="sound-toggle">SOUND</button>
     </div>
   </header>
 
   <div class="main">
-    <textarea id="editor" placeholder="Begin..." spellcheck="false"></textarea>
+    <div class="editor-wrap">
+      <div id="video-layer"></div>
+      <div class="editor-overlay"></div>
+      <textarea id="editor" placeholder="Begin..." spellcheck="false"></textarea>
+    </div>
     <div class="marquee-wrap" id="marquee-wrap">
       <div class="marquee" id="marquee"></div>
     </div>
@@ -128,7 +175,7 @@ footer button:hover { border-color: var(--red); color: var(--red); }
     </div>
     <div>
       <button id="btn-load">LOAD</button>
-      <button id="btn-export">EXPORT</button>
+      <button id="btn-pdf">PDF</button>
       <button id="btn-undo">UNDO</button>
       <button id="btn-clear">CLEAR</button>
       <input type="file" id="file-input" accept=".txt,.md" hidden>
@@ -137,38 +184,83 @@ footer button:hover { border-color: var(--red); color: var(--red); }
 </div>
 
 <script>
+const { jsPDF } = window.jspdf;
 const editor = document.getElementById('editor');
 const marquee = document.getElementById('marquee');
 const marqueeWrap = document.getElementById('marquee-wrap');
 const videoSelect = document.getElementById('video-select');
-const bgVideo = document.getElementById('bg-video');
+const customVideo = document.getElementById('custom-video');
+const videoLayer = document.getElementById('video-layer');
+const fontSelect = document.getElementById('font-select');
 const wordsEl = document.getElementById('words');
 const charsEl = document.getElementById('chars');
 const linesEl = document.getElementById('lines');
 const readyEl = document.getElementById('ready');
+const cursorWrap = document.getElementById('cursor-wrap');
+const cursor = document.getElementById('cursor');
+const cursorText = document.getElementById('cursor-text');
 
 const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
 let undoStack = [];
 let soundOn = false;
 let marqueeOn = true;
-let audioCtx, clickOsc;
+let audioCtx;
 
-// --- Video ---
+// --- Cursor ---
+let mouseX = -100, mouseY = -100, curX = -100, curY = -100;
+function renderCursor() {
+  curX += (mouseX - curX) * 0.18;
+  curY += (mouseY - curY) * 0.18;
+  cursorWrap.style.transform = `translate3d(${curX}px, ${curY}px, 0)`;
+  requestAnimationFrame(renderCursor);
+}
+renderCursor();
+window.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  const overEditor = e.target.closest('#editor') || e.target.closest('.editor-wrap');
+  const hoverable = e.target.closest('button, select, a, [data-hover]') && !overEditor;
+  if (hoverable) {
+    cursor.classList.add('hovering');
+    cursorText.textContent = 'VIEW';
+  } else {
+    cursor.classList.remove('hovering');
+  }
+  document.body.classList.toggle('typing', !!overEditor);
+});
+
+// --- Video (inside editor) ---
+function extractId(val) {
+  if (!val) return '';
+  const m = val.trim().match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/)|[?&]v=)([\w-]{11})/);
+  return m ? m[1] : val.trim().slice(0, 11);
+}
 function setVideo(id) {
-  if (id === 'none') {
-    bgVideo.innerHTML = '';
+  if (!id || id === 'none') {
+    videoLayer.innerHTML = '';
     return;
   }
   const isLive = LIVE_IDS.has(id);
   const params = isLive
     ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
     : `autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&modestbranding=1&showinfo=0`;
-  bgVideo.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?${params}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  videoLayer.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?${params}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
 }
-videoSelect.addEventListener('change', () => setVideo(videoSelect.value));
+videoSelect.addEventListener('change', () => {
+  const v = videoSelect.value;
+  customVideo.style.display = v === 'custom' ? 'inline-block' : 'none';
+  if (v !== 'custom') setVideo(v);
+});
+customVideo.addEventListener('change', () => setVideo(extractId(customVideo.value)));
+customVideo.addEventListener('keydown', (e) => { if (e.key === 'Enter') setVideo(extractId(customVideo.value)); });
 setVideo(videoSelect.value);
 
-// --- Marquee (delayed reverse echo of recent text) ---
+// --- Font ---
+fontSelect.addEventListener('change', () => {
+  editor.style.fontFamily = fontSelect.value;
+});
+
+// --- Marquee ---
 let marqueeTimer = null;
 function updateMarquee() {
   if (!marqueeOn) return;
@@ -241,7 +333,7 @@ function load() {
   pushUndo();
 }
 
-// --- File ---
+// --- File & PDF ---
 document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => {
   const f = e.target.files[0];
@@ -250,12 +342,21 @@ document.getElementById('file-input').onchange = (e) => {
   r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
   r.readAsText(f);
 };
-document.getElementById('btn-export').onclick = () => {
-  const blob = new Blob([editor.value], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'typewriter.txt';
-  a.click();
+document.getElementById('btn-pdf').onclick = () => {
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const text = editor.value || ' ';
+  const margin = 54;
+  const maxWidth = 504;
+  const lines = doc.splitTextToSize(text, maxWidth);
+  let y = margin;
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(11);
+  lines.forEach(line => {
+    if (y > 720) { doc.addPage(); y = margin; }
+    doc.text(line, margin, y);
+    y += 16;
+  });
+  doc.save('typewriter.pdf');
 };
 document.getElementById('btn-clear').onclick = () => {
   if (confirm('Clear the page?')) {
@@ -267,7 +368,7 @@ document.getElementById('btn-clear').onclick = () => {
   }
 };
 
-// --- Sound (simple click) ---
+// --- Sound ---
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -304,13 +405,15 @@ editor.addEventListener('keydown', (e) => {
     document.getElementById('btn-undo').click();
   }
 });
+editor.addEventListener('focus', () => document.body.classList.add('typing'));
+editor.addEventListener('blur', () => document.body.classList.remove('typing'));
 
 // Drop
 editor.addEventListener('dragover', (e) => e.preventDefault());
 editor.addEventListener('drop', (e) => {
   e.preventDefault();
   const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('text')) {
+  if (f && (f.type.startsWith('text') || f.name.endsWith('.txt') || f.name.endsWith('.md'))) {
     const r = new FileReader();
     r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
     r.readAsText(f);
