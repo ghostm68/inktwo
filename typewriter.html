@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TYPEWRITER</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --panel: #111;
+  --red: #e10600;
+  --red-dim: #8a0400;
+  --white: #e8e8e8;
+  --grey: #888;
+  --grey-dark: #333;
+  --yellow: #e6c200;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--white); font-family: 'IBM Plex Mono', monospace; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+
+/* Background video */
+#bg-video {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0.28; filter: grayscale(0.4) contrast(1.1);
+}
+#bg-video iframe { width: 100%; height: 100%; border: 0; }
+
+/* Overlay to keep text readable */
+.overlay { position: fixed; inset: 0; z-index: 1; background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.75)); pointer-events: none; }
+
+/* Main layout */
+.app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: rgba(0,0,0,0.7); border-bottom: 1px solid var(--grey-dark);
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+header .title { color: var(--red); font-weight: 500; }
+header select, header button {
+  background: #000; color: var(--white); border: 1px solid var(--grey-dark);
+  padding: 4px 8px; font-size: 10px; font-family: inherit; cursor: pointer;
+}
+header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
+
+.main {
+  flex: 1; display: flex; flex-direction: column; padding: 16px 20px 8px;
+  min-height: 0;
+}
+#editor {
+  flex: 1; width: 100%; min-height: 0;
+  background: rgba(10,10,10,0.75); color: var(--white);
+  border: 1px solid var(--grey-dark); border-radius: 2px;
+  padding: 28px 32px; font-family: 'Special Elite', serif; font-size: 1.15rem;
+  line-height: 1.7; resize: none; outline: none; caret-color: var(--red);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.4);
+}
+#editor::placeholder { color: #444; }
+
+/* Mirrored marquee */
+.marquee-wrap {
+  height: 36px; margin-top: 8px; overflow: hidden; background: #000;
+  border: 1px solid var(--grey-dark); position: relative;
+}
+.marquee-wrap.hidden { display: none; }
+.marquee {
+  display: flex; white-space: nowrap; animation: marquee 40s linear infinite;
+  font-size: 13px; letter-spacing: 0.12em; color: var(--grey); padding: 8px 0;
+}
+.marquee span { padding: 0 40px; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px; background: rgba(0,0,0,0.85); border-top: 1px solid var(--grey-dark);
+  font-size: 10px; letter-spacing: 0.06em; color: var(--grey);
+}
+footer .status span { margin-right: 16px; }
+footer .status .ready { color: var(--red); }
+footer button {
+  background: transparent; border: 1px solid var(--grey-dark); color: var(--grey);
+  padding: 3px 8px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 6px;
+}
+footer button:hover { border-color: var(--red); color: var(--red); }
+
+@media (max-width: 640px) {
+  .main { padding: 10px 12px 6px; }
+  #editor { padding: 16px 18px; font-size: 1rem; }
+  header { flex-wrap: wrap; gap: 6px; }
+  footer { flex-wrap: wrap; gap: 4px; }
+}
+</style>
+</head>
+<body>
+<div id="bg-video"></div>
+<div class="overlay"></div>
+
+<div class="app">
+  <header>
+    <div class="title">TYPEWRITER</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="video-select" title="Background video">
+        <option value="Kz5HI-z8Nnc">Default runway</option>
+        <option value="DB7oO82OeD4">Live A</option>
+        <option value="8TDmgVs6HZE">Live B</option>
+        <option value="7Ux4GeY5MXQ">Live C</option>
+        <option value="none">Video off</option>
+      </select>
+      <button id="marquee-toggle">MARQUEE</button>
+      <button id="sound-toggle">SOUND</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <textarea id="editor" placeholder="Begin..." spellcheck="false"></textarea>
+    <div class="marquee-wrap" id="marquee-wrap">
+      <div class="marquee" id="marquee"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="status">
+      <span class="ready" id="ready">READY</span>
+      <span id="words">WORDS 0</span>
+      <span id="chars">CHARS 0</span>
+      <span id="lines">LINES 1</span>
+    </div>
+    <div>
+      <button id="btn-load">LOAD</button>
+      <button id="btn-export">EXPORT</button>
+      <button id="btn-undo">UNDO</button>
+      <button id="btn-clear">CLEAR</button>
+      <input type="file" id="file-input" accept=".txt,.md" hidden>
+    </div>
+  </footer>
+</div>
+
+<script>
+const editor = document.getElementById('editor');
+const marquee = document.getElementById('marquee');
+const marqueeWrap = document.getElementById('marquee-wrap');
+const videoSelect = document.getElementById('video-select');
+const bgVideo = document.getElementById('bg-video');
+const wordsEl = document.getElementById('words');
+const charsEl = document.getElementById('chars');
+const linesEl = document.getElementById('lines');
+const readyEl = document.getElementById('ready');
+
+const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
+let undoStack = [];
+let soundOn = false;
+let marqueeOn = true;
+let audioCtx, clickOsc;
+
+// --- Video ---
+function setVideo(id) {
+  if (id === 'none') {
+    bgVideo.innerHTML = '';
+    return;
+  }
+  const isLive = LIVE_IDS.has(id);
+  const params = isLive
+    ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
+    : `autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&modestbranding=1&showinfo=0`;
+  bgVideo.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?${params}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+}
+videoSelect.addEventListener('change', () => setVideo(videoSelect.value));
+setVideo(videoSelect.value);
+
+// --- Marquee (delayed reverse echo of recent text) ---
+let marqueeTimer = null;
+function updateMarquee() {
+  if (!marqueeOn) return;
+  const text = editor.value.trim();
+  if (!text) {
+    marquee.innerHTML = '<span>— silence —</span><span>— silence —</span>';
+    return;
+  }
+  const words = text.split(/\s+/).slice(-40);
+  const reversed = words.reverse().join('  ·  ');
+  const display = reversed + '     ' + reversed;
+  marquee.innerHTML = `<span>${display}</span><span>${display}</span>`;
+}
+function scheduleMarquee() {
+  clearTimeout(marqueeTimer);
+  marqueeTimer = setTimeout(updateMarquee, 180);
+}
+document.getElementById('marquee-toggle').onclick = () => {
+  marqueeOn = !marqueeOn;
+  marqueeWrap.classList.toggle('hidden', !marqueeOn);
+  if (marqueeOn) updateMarquee();
+};
+
+// --- Status ---
+function updateStatus() {
+  const t = editor.value;
+  const w = t.trim() ? t.trim().split(/\s+/).length : 0;
+  const c = t.length;
+  const l = t.split('\n').length;
+  wordsEl.textContent = `WORDS ${w}`;
+  charsEl.textContent = `CHARS ${c}`;
+  linesEl.textContent = `LINES ${l}`;
+  readyEl.textContent = t.length ? 'WRITING' : 'READY';
+}
+
+// --- Undo ---
+function pushUndo() {
+  const v = editor.value;
+  if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
+  if (undoStack.length > 60) undoStack.shift();
+}
+document.getElementById('btn-undo').onclick = () => {
+  if (undoStack.length > 1) {
+    undoStack.pop();
+    editor.value = undoStack[undoStack.length - 1] || '';
+    updateStatus();
+    scheduleMarquee();
+    save();
+  }
+};
+
+// --- Persistence ---
+function save() {
+  localStorage.setItem('typewriter_text', editor.value);
+  try {
+    const hash = '#' + encodeURIComponent(editor.value.slice(0, 1800));
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+  } catch (e) {}
+}
+function load() {
+  const fromHash = location.hash.slice(1);
+  if (fromHash) {
+    try { editor.value = decodeURIComponent(fromHash); } catch (e) {}
+  } else {
+    const saved = localStorage.getItem('typewriter_text');
+    if (saved) editor.value = saved;
+  }
+  updateStatus();
+  updateMarquee();
+  pushUndo();
+}
+
+// --- File ---
+document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
+document.getElementById('file-input').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
+  r.readAsText(f);
+};
+document.getElementById('btn-export').onclick = () => {
+  const blob = new Blob([editor.value], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'typewriter.txt';
+  a.click();
+};
+document.getElementById('btn-clear').onclick = () => {
+  if (confirm('Clear the page?')) {
+    editor.value = '';
+    updateStatus();
+    scheduleMarquee();
+    save();
+    pushUndo();
+  }
+};
+
+// --- Sound (simple click) ---
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playClick() {
+  if (!soundOn || !audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(180 + Math.random() * 40, audioCtx.currentTime);
+  g.gain.setValueAtTime(0.04, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + 0.05);
+}
+document.getElementById('sound-toggle').onclick = () => {
+  soundOn = !soundOn;
+  document.getElementById('sound-toggle').style.color = soundOn ? 'var(--red)' : '';
+  document.getElementById('sound-toggle').style.borderColor = soundOn ? 'var(--red)' : '';
+  if (soundOn) initAudio();
+};
+
+// --- Input ---
+editor.addEventListener('input', () => {
+  updateStatus();
+  scheduleMarquee();
+  save();
+  pushUndo();
+  if (soundOn) playClick();
+});
+editor.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    document.getElementById('btn-undo').click();
+  }
+});
+
+// Drop
+editor.addEventListener('dragover', (e) => e.preventDefault());
+editor.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('text')) {
+    const r = new FileReader();
+    r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
+    r.readAsText(f);
+  }
+});
+
+// Init
+load();
+window.addEventListener('hashchange', load);
+</script>
+</body>
+</html>
