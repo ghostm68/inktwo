@@ -12,109 +12,173 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
-  --bg: #0a0a0a; --panel: #111; --red: #e10600; --red-dim: #8a0400;
-  --white: #e8e8e8; --grey: #888; --grey-dark: #333; --yellow: #e6c200;
+  --bg: #0a0a0a;
+  --panel: #111;
+  --panel-bg: rgba(0,0,0,0.92);
+  --red: #e10600;
+  --red-dim: #8a0400;
+  --text: #e8e8e8;
+  --text-dim: #555;
+  --grey: #888;
+  --grey-dark: #333;
+  --border: #2c2c2c;
+  --input-bg: #000;
+  --editor-overlay: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.70));
+  --cursor-bg: #ffffff;
+  --cursor-text: #000000;
+  --video-opacity: 0.35;
+  --video-filter: grayscale(0.35) contrast(1.05);
 }
+
+body.inverted {
+  --bg: #f5f2eb;
+  --panel: #e8e4d8;
+  --panel-bg: rgba(245, 242, 235, 0.94);
+  --red: #c90500;
+  --red-dim: #900400;
+  --text: #161616;
+  --text-dim: #9a958b;
+  --grey: #666;
+  --grey-dark: #c4beaF;
+  --border: #ccc5b6;
+  --input-bg: #ffffff;
+  --editor-overlay: linear-gradient(to bottom, rgba(245,242,235,0.55), rgba(245,242,235,0.85));
+  --cursor-bg: #161616;
+  --cursor-text: #ffffff;
+  --video-opacity: 0.22;
+  --video-filter: grayscale(1) invert(0.9) contrast(1.1);
+}
+
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--white); font-family: 'IBM Plex Mono', monospace; overflow: hidden; }
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  overflow: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
 body { display: flex; flex-direction: column; cursor: none; }
 
 #cursor-wrap {
   position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
-  mix-blend-mode: difference; display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   transform: translate(-50%, -50%);
 }
 #cursor {
-  width: 56px; height: 56px; border-radius: 50%; background: #fff;
-  box-shadow: 0 0 10px rgba(255,255,255,0.3);
-  transition: transform 0.16s cubic-bezier(0.16,1,0.3,1), opacity 0.15s;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--cursor-bg);
+  box-shadow: 0 0 12px rgba(0,0,0,0.25);
+  transition: transform 0.16s cubic-bezier(0.16,1,0.3,1), opacity 0.15s, background-color 0.25s;
   display: flex; align-items: center; justify-content: center;
 }
-#cursor.hovering { transform: scale(1.45); }
+#cursor.hovering { transform: scale(1.35); }
 #cursor-text {
-  color: #000; font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--cursor-text); font-size: 8px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
   opacity: 0; transition: opacity 0.12s;
 }
 #cursor.hovering #cursor-text { opacity: 1; }
 body.typing #cursor-wrap { opacity: 0; pointer-events: none; }
 
+/* Roomier Header */
 header {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 18px 10px; background: rgba(0,0,0,0.88); border-bottom: 1px solid var(--grey-dark);
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 24px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
   font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  z-index: 10;
 }
-.header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.header-row.controls { justify-content: flex-start; gap: 8px; }
-header .title { color: var(--red); font-weight: 500; font-size: 13px; letter-spacing: 0.14em; }
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.header-row.controls { justify-content: flex-start; gap: 14px; }
+header .title { color: var(--red); font-weight: 600; font-size: 14px; letter-spacing: 0.16em; }
 header .label { color: var(--grey); font-size: 9px; }
 header select, header button, header input[type="text"] {
-  background: #000; color: var(--white); border: 1px solid var(--grey-dark);
-  padding: 4px 8px; font-size: 10px; font-family: inherit; cursor: pointer;
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--grey-dark);
+  padding: 6px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
 }
-header input[type="text"] { width: 130px; cursor: text; }
+header input[type="text"] { width: 140px; cursor: text; }
 header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
-header a { color: var(--grey); text-decoration: none; font-size: 9px; letter-spacing: 0.1em; }
+header button.active { background: var(--red); color: #fff; border-color: var(--red); }
+header a { color: var(--grey); text-decoration: none; font-size: 10px; letter-spacing: 0.1em; }
 header a:hover { color: var(--red); }
 
-.img-bay { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.img-bay { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .knob {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8px; color: var(--grey);
+  display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8px; color: var(--grey);
 }
 .knob input[type="range"] {
-  -webkit-appearance: none; width: 52px; height: 4px; background: #222; border-radius: 2px; outline: none;
+  -webkit-appearance: none; width: 56px; height: 4px; background: var(--grey-dark); border-radius: 2px; outline: none;
 }
 .knob input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--red); cursor: pointer;
 }
 .seg { display: flex; border: 1px solid var(--grey-dark); }
-.seg button { border: none; border-right: 1px solid var(--grey-dark); padding: 3px 7px; background: #000; color: var(--grey); }
+.seg button { border: none; border-right: 1px solid var(--grey-dark); padding: 5px 9px; background: var(--input-bg); color: var(--grey); }
 .seg button:last-child { border-right: none; }
-.seg button.active { background: var(--red); color: #000; }
+.seg button.active { background: var(--red); color: #fff; }
 
 .app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
-.main { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 8px; min-height: 0; }
 
+/* Scaled-down, page-proportioned editor container */
+.main {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 18px 24px 12px; min-height: 0;
+}
 .editor-wrap {
-  flex: 1; position: relative; min-height: 0; border: 1px solid var(--grey-dark); border-radius: 2px;
-  overflow: hidden; background: #000;
+  width: 100%; max-width: 920px; height: 50vh; min-height: 280px;
+  position: relative; border: 1px solid var(--border); border-radius: 2px;
+  overflow: hidden; background: var(--bg);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.14);
 }
-#video-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.35; filter: grayscale(0.35) contrast(1.05); }
+#video-layer {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  opacity: var(--video-opacity); filter: var(--video-filter);
+  transition: opacity 0.3s, filter 0.3s;
+}
 #video-layer iframe { width: 100%; height: 100%; border: 0; }
-.editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.65)); }
+.editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--editor-overlay); }
 #editor {
-  position: relative; z-index: 2; width: 100%; height: 100%; background: transparent; color: var(--white);
-  border: none; padding: 26px 30px; font-family: 'Special Elite', serif; font-size: 1.12rem;
-  line-height: 1.65; resize: none; outline: none; caret-color: var(--red);
+  position: relative; z-index: 2; width: 100%; height: 100%; background: transparent; color: var(--text);
+  border: none; padding: 28px 34px; font-family: 'Special Elite', serif; font-size: 1.15rem;
+  line-height: 1.7; resize: none; outline: none; caret-color: var(--red);
 }
-#editor::placeholder { color: #555; }
+#editor::placeholder { color: var(--text-dim); }
 
-.marquee-wrap { height: 34px; margin-top: 8px; overflow: hidden; background: #000; border: 1px solid var(--grey-dark); }
+.marquee-wrap {
+  width: 100%; max-width: 920px; height: 34px; margin-top: 10px;
+  overflow: hidden; background: var(--input-bg); border: 1px solid var(--border);
+}
 .marquee-wrap.hidden { display: none; }
-.marquee { display: flex; white-space: nowrap; animation: marquee 40s linear infinite; font-size: 12px; letter-spacing: 0.1em; color: var(--grey); padding: 7px 0; }
+.marquee { display: flex; white-space: nowrap; animation: marquee 40s linear infinite; font-size: 11px; letter-spacing: 0.1em; color: var(--grey); padding: 7px 0; }
 .marquee span { padding: 0 36px; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
 footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 18px; background: rgba(0,0,0,0.92); border-top: 1px solid var(--grey-dark);
+  padding: 10px 24px; background: var(--panel-bg); border-top: 1px solid var(--border);
   font-size: 10px; letter-spacing: 0.05em; color: var(--grey);
 }
-footer .status span { margin-right: 14px; }
-footer .status .ready { color: var(--red); }
+footer .status span { margin-right: 16px; }
+footer .status .ready { color: var(--red); font-weight: 500; }
 footer button {
-  background: transparent; border: 1px solid var(--grey-dark); color: var(--grey);
-  padding: 4px 9px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 5px;
+  background: var(--input-bg); border: 1px solid var(--grey-dark); color: var(--grey);
+  padding: 5px 10px; font-size: 9px; font-family: inherit; cursor: pointer; margin-left: 6px;
 }
 footer button:hover { border-color: var(--red); color: var(--red); }
 
-@media (max-width: 800px) {
+@media (max-width: 860px) {
   body { cursor: auto; }
   #cursor-wrap { display: none !important; }
-  header { padding: 10px 12px; }
-  .header-row { gap: 8px; }
-  .main { padding: 10px 12px 6px; }
-  #editor { padding: 16px 16px; font-size: 1rem; }
-  footer { flex-wrap: wrap; gap: 4px; }
+  header { padding: 12px 14px; gap: 10px; }
+  .header-row { gap: 10px; }
+  .main { padding: 10px 12px; }
+  .editor-wrap { height: 56vh; }
+  #editor { padding: 18px 20px; font-size: 1rem; }
+  footer { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
   header input[type="text"] { width: 110px; }
 }
 </style>
@@ -125,13 +189,14 @@ footer button:hover { border-color: var(--red); color: var(--red); }
 <div class="app">
   <header>
     <div class="header-row">
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:12px;">
         <div class="title">TYPEWRITER</div>
         <span class="label">// INSTRUMENT</span>
-        <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener" data-hover>ACROHAT&#8599;</a>
+        <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener">ACROHAT&#8599;</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <select id="font-select" title="Font">
+          <option value="'Special Elite', serif" selected>Special Elite</option>
           <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
           <option value="'VT323', monospace">VT323</option>
           <option value="'Courier Prime', monospace">Courier Prime</option>
@@ -144,7 +209,6 @@ footer button:hover { border-color: var(--red); color: var(--red); }
           <option value="'Libre Baskerville', serif">Libre Baskerville</option>
           <option value="'Merriweather', serif">Merriweather</option>
           <option value="'Inter', sans-serif">Inter</option>
-          <option value="'Special Elite', serif">Special Elite</option>
         </select>
         <select id="video-select" title="Video">
           <option value="Kz5HI-z8Nnc">Default runway</option>
@@ -157,15 +221,16 @@ footer button:hover { border-color: var(--red); color: var(--red); }
         <input id="custom-video" placeholder="YouTube ID or URL" style="display:none">
         <button id="marquee-toggle">MARQUEE</button>
         <button id="sound-toggle">SOUND</button>
+        <button id="theme-toggle">INVERT</button>
       </div>
     </div>
 
     <div class="header-row controls">
       <div class="img-bay">
-        <span class="label">IMG</span>
+        <span class="label">IMG BAY</span>
         <input type="file" id="img-input" accept="image/*" hidden>
-        <button id="img-upload" title="Upload">+</button>
-        <img id="img-thumb" style="height:20px;width:20px;object-fit:cover;border:1px solid var(--grey-dark);display:none;">
+        <button id="img-upload" title="Upload Image">+</button>
+        <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;">
         <div class="knob"><span>W</span><input type="range" id="img-width" min="80" max="360" value="180" step="20"></div>
         <div class="seg" id="align-seg">
           <button data-val="left">L</button>
@@ -185,7 +250,7 @@ footer button:hover { border-color: var(--red); color: var(--red); }
     <div class="editor-wrap">
       <div id="video-layer"></div>
       <div class="editor-overlay"></div>
-      <textarea id="editor" placeholder="Begin..." spellcheck="false"></textarea>
+      <textarea id="editor" placeholder="Begin typing..." spellcheck="false"></textarea>
     </div>
     <div class="marquee-wrap" id="marquee-wrap"><div class="marquee" id="marquee"></div></div>
   </div>
@@ -228,6 +293,7 @@ const imgThumb = document.getElementById('img-thumb');
 const imgUpload = document.getElementById('img-upload');
 const imgInsert = document.getElementById('img-insert');
 const imgWidth = document.getElementById('img-width');
+const themeToggle = document.getElementById('theme-toggle');
 
 let currentImageData = null;
 let imgAlign = 'center';
@@ -237,9 +303,9 @@ const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
 let undoStack = [];
 let soundOn = false;
 let marqueeOn = true;
-let audioCtx;
+let audioCtx = null;
 
-// Cursor — only activates on true interactive targets, fully hides over editor
+// Cursor tracking
 let mouseX = -100, mouseY = -100, curX = -100, curY = -100;
 function renderCursor() {
   curX += (mouseX - curX) * 0.2;
@@ -260,18 +326,35 @@ window.addEventListener('mousemove', (e) => {
     document.body.classList.remove('typing');
     if (interactive) {
       cursor.classList.add('hovering');
-      cursorText.textContent = 'VIEW';
+      cursorText.textContent = 'SELECT';
     } else {
       cursor.classList.remove('hovering');
     }
   }
 });
 
-// Video
+// Theme Toggle
+function setTheme(isInverted) {
+  document.body.classList.toggle('inverted', isInverted);
+  themeToggle.textContent = isInverted ? 'DARK' : 'INVERT';
+  themeToggle.classList.toggle('active', isInverted);
+  localStorage.setItem('typewriter_theme', isInverted ? 'inverted' : 'dark');
+}
+themeToggle.onclick = () => {
+  const isInverted = !document.body.classList.contains('inverted');
+  setTheme(isInverted);
+};
+if (localStorage.getItem('typewriter_theme') === 'inverted') {
+  setTheme(true);
+}
+
+// Video Engine
 function extractId(val) {
   if (!val) return '';
   const m = val.trim().match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/)|[?&]v=)([\w-]{11})/);
-  return m ? m[1] : val.trim().slice(0, 11);
+  if (m) return m[1];
+  const cleaned = val.trim();
+  return /^[a-zA-Z0-9_-]{11}$/.test(cleaned) ? cleaned : '';
 }
 function setVideo(id) {
   if (!id || id === 'none') { videoLayer.innerHTML = ''; return; }
@@ -290,7 +373,7 @@ customVideo.addEventListener('change', () => setVideo(extractId(customVideo.valu
 customVideo.addEventListener('keydown', (e) => { if (e.key === 'Enter') setVideo(extractId(customVideo.value)); });
 setVideo(videoSelect.value);
 
-// Image bay — knobs / segments
+// Image Bay
 imgUpload.onclick = () => imgInput.click();
 imgInput.onchange = (e) => {
   const f = e.target.files[0];
@@ -324,11 +407,12 @@ imgInsert.onclick = () => {
   editor.value = val.slice(0, start) + marker + val.slice(end);
   editor.selectionStart = editor.selectionEnd = start + marker.length;
   editor.focus();
-  updateStatus(); scheduleMarquee(); save(); pushUndo();
+  updateStatus(); scheduleMarquee(); save(); pushUndo(true);
 };
 
 // Font
 fontSelect.addEventListener('change', () => { editor.style.fontFamily = fontSelect.value; });
+editor.style.fontFamily = fontSelect.value;
 
 // Marquee
 let marqueeTimer = null;
@@ -345,6 +429,7 @@ function scheduleMarquee() { clearTimeout(marqueeTimer); marqueeTimer = setTimeo
 document.getElementById('marquee-toggle').onclick = () => {
   marqueeOn = !marqueeOn;
   marqueeWrap.classList.toggle('hidden', !marqueeOn);
+  document.getElementById('marquee-toggle').classList.toggle('active', marqueeOn);
   if (marqueeOn) updateMarquee();
 };
 
@@ -358,11 +443,20 @@ function updateStatus() {
   readyEl.textContent = t.length ? 'WRITING' : 'READY';
 }
 
-// Undo
-function pushUndo() {
+// Undo Stack (debounced so typing creates logical restore points)
+let undoTimer = null;
+function pushUndo(force = false) {
   const v = editor.value;
-  if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
-  if (undoStack.length > 60) undoStack.shift();
+  if (force) {
+    if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
+    if (undoStack.length > 50) undoStack.shift();
+    return;
+  }
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
+    if (undoStack.length > 50) undoStack.shift();
+  }, 400);
 }
 document.getElementById('btn-undo').onclick = () => {
   if (undoStack.length > 1) {
@@ -372,28 +466,23 @@ document.getElementById('btn-undo').onclick = () => {
   }
 };
 
-// Persistence
+// LocalStorage Persistence (Auto-Save URL Hash removed)
 function save() {
   localStorage.setItem('typewriter_text', editor.value);
-  try {
-    const hash = '#' + encodeURIComponent(editor.value.slice(0, 1800));
-    if (location.hash !== hash) history.replaceState(null, '', hash);
-  } catch (e) {}
 }
 function load() {
-  const fromHash = location.hash.slice(1);
-  if (fromHash) { try { editor.value = decodeURIComponent(fromHash); } catch (e) {} }
-  else { const saved = localStorage.getItem('typewriter_text'); if (saved) editor.value = saved; }
-  updateStatus(); updateMarquee(); pushUndo();
+  const saved = localStorage.getItem('typewriter_text');
+  if (saved) editor.value = saved;
+  updateStatus(); updateMarquee(); pushUndo(true);
 }
 
-// File & PDF
+// PDF Export & File Loading
 document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').onchange = (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
-  r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
+  r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(true); };
   r.readAsText(f);
 };
 document.getElementById('btn-pdf').onclick = () => {
@@ -418,13 +507,14 @@ document.getElementById('btn-pdf').onclick = () => {
       });
     }
     if (idx < parts.length - 1 && currentImageData) {
-      if (y + width > pageHeight) { doc.addPage(); y = margin; }
+      const h = imgShape === 'circle' ? width : width * 0.75;
+      if (y + h > pageHeight) { doc.addPage(); y = margin; }
       let x = margin;
       if (imgAlign === 'center') x = (612 - width) / 2;
       if (imgAlign === 'right') x = 612 - margin - width;
       try {
-        const h = imgShape === 'circle' ? width : width * 0.75;
-        doc.addImage(currentImageData, 'JPEG', x, y, width, h);
+        const isPng = currentImageData.startsWith('data:image/png');
+        doc.addImage(currentImageData, isPng ? 'PNG' : 'JPEG', x, y, width, h);
         y += h + 12;
       } catch (err) {
         doc.text('[image]', x, y);
@@ -437,12 +527,17 @@ document.getElementById('btn-pdf').onclick = () => {
 document.getElementById('btn-clear').onclick = () => {
   if (confirm('Clear the page?')) {
     editor.value = '';
-    updateStatus(); scheduleMarquee(); save(); pushUndo();
+    updateStatus(); scheduleMarquee(); save(); pushUndo(true);
   }
 };
 
-// Sound
-function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+// Web Audio API Sound Generation
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
 function playClick() {
   if (!soundOn || !audioCtx) return;
   const o = audioCtx.createOscillator();
@@ -456,14 +551,13 @@ function playClick() {
 }
 document.getElementById('sound-toggle').onclick = () => {
   soundOn = !soundOn;
-  document.getElementById('sound-toggle').style.color = soundOn ? 'var(--red)' : '';
-  document.getElementById('sound-toggle').style.borderColor = soundOn ? 'var(--red)' : '';
+  document.getElementById('sound-toggle').classList.toggle('active', soundOn);
   if (soundOn) initAudio();
 };
 
-editor.addEventListener('input', () => { updateStatus(); scheduleMarquee(); save(); pushUndo(); if (soundOn) playClick(); });
-editor.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); document.getElementById('btn-undo').click(); }
+editor.addEventListener('input', () => {
+  updateStatus(); scheduleMarquee(); save(); pushUndo();
+  if (soundOn) playClick();
 });
 editor.addEventListener('focus', () => document.body.classList.add('typing'));
 editor.addEventListener('blur', () => document.body.classList.remove('typing'));
@@ -474,13 +568,12 @@ editor.addEventListener('drop', (e) => {
   const f = e.dataTransfer.files[0];
   if (f && (f.type.startsWith('text') || f.name.endsWith('.txt') || f.name.endsWith('.md'))) {
     const r = new FileReader();
-    r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(); };
+    r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(true); };
     r.readAsText(f);
   }
 });
 
 load();
-window.addEventListener('hashchange', load);
 </script>
 </body>
 </html>
