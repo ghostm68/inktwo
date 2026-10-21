@@ -6,8 +6,6 @@ const marqueeWrap = document.getElementById('marquee-wrap');
 const videoSelect = document.getElementById('video-select');
 const customVideo = document.getElementById('custom-video');
 const videoLayer = document.getElementById('video-layer');
-const fontSelect = document.getElementById('font-select');
-const themeSelect = document.getElementById('theme-select');
 const wordsEl = document.getElementById('words');
 const charsEl = document.getElementById('chars');
 const linesEl = document.getElementById('lines');
@@ -23,6 +21,8 @@ const lampIO = document.getElementById('lamp-io');
 const lampWait = document.getElementById('lamp-wait');
 const crtSysStatus = document.getElementById('crt-sys-status');
 
+let currentFontFamily = "'Special Elite', serif";
+let currentThemeClass = "";
 let currentImageData = null;
 let imgAlign = 'center';
 let imgShape = 'rect';
@@ -124,20 +124,18 @@ function playReturn() { playTone(130, 50, 'square', 0.065, 0.45); }
 function playBackspace() { playTone(380, 160, 'sawtooth', 0.032, 0.4); }
 function playKnobTick() { playTone(1500 + Math.random() * 200, null, 'square', 0.010, 0.18); }
 
-// Theme & Capsule Controller
+// Sole Phosphor Theme Controller (Capsules)
 function applyTheme(cls) {
+  currentThemeClass = cls || '';
   ['theme-invert', 'theme-green', 'theme-amber', 'theme-blue', 'theme-mono'].forEach(c => document.body.classList.remove(c));
   if (cls) document.body.classList.add(cls);
-  themeSelect.value = cls || '';
   
-  // Sync Theme Capsules
   document.querySelectorAll('#theme-capsules .capsule-pill').forEach(pill => {
-    pill.classList.toggle('active', pill.dataset.val === (cls || ''));
+    pill.classList.toggle('active', pill.dataset.val === currentThemeClass);
   });
-  localStorage.setItem('hybrid_theme', cls || '');
+  localStorage.setItem('hybrid_theme', currentThemeClass);
 }
 
-themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
 document.getElementById('theme-capsules').addEventListener('click', e => {
   const pill = e.target.closest('.capsule-pill');
   if (pill) applyTheme(pill.dataset.val);
@@ -146,17 +144,17 @@ document.getElementById('theme-capsules').addEventListener('click', e => {
 const savedTheme = localStorage.getItem('hybrid_theme');
 if (savedTheme !== null) { applyTheme(savedTheme); }
 
-// Font & Capsule Controller
+// Sole Font Controller (Capsules)
 function applyFont(family) {
+  currentFontFamily = family;
   editor.style.fontFamily = family;
-  fontSelect.value = family;
+  
   document.querySelectorAll('#font-capsules .capsule-pill').forEach(pill => {
     pill.classList.toggle('active', pill.dataset.val === family);
   });
   localStorage.setItem('hybrid_font', family);
 }
 
-fontSelect.addEventListener('change', () => applyFont(fontSelect.value));
 document.getElementById('font-capsules').addEventListener('click', e => {
   const pill = e.target.closest('.capsule-pill');
   if (pill) applyFont(pill.dataset.val);
@@ -164,7 +162,7 @@ document.getElementById('font-capsules').addEventListener('click', e => {
 
 const savedFont = localStorage.getItem('hybrid_font');
 if (savedFont) { applyFont(savedFont); }
-else { applyFont(fontSelect.value); }
+else { applyFont(currentFontFamily); }
 
 // Knob Controller with Wheel & Drag
 function setupKnobVisual(dial, readoutId, unit, val) {
@@ -669,7 +667,7 @@ document.getElementById('btn-pdf').onclick = () => {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const margin = 54, maxW = 504, pageH = 720;
   let y = margin;
-  const fontName = fontSelect.value.includes('Garamond') ? 'times' : 'courier';
+  const fontName = currentFontFamily.includes('Garamond') ? 'times' : 'courier';
   doc.setFont(fontName, 'normal');
   const sizePx = parseFloat(getComputedStyle(editor).fontSize) || 18;
   const fontSizePt = Math.max(9, Math.min(15, sizePx * 0.72));
