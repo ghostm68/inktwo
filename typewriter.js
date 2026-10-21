@@ -20,13 +20,13 @@ const lampProc = document.getElementById('lamp-proc');
 const lampIO = document.getElementById('lamp-io');
 const lampWait = document.getElementById('lamp-wait');
 const crtSysStatus = document.getElementById('crt-sys-status');
+const imageHud = document.getElementById('image-hud');
+const hudSizeVal = document.getElementById('hud-size-val');
+const quickImgInput = document.getElementById('quick-img-input');
 
 let currentFontFamily = "'Special Elite', serif";
 let currentThemeClass = "";
-let currentImageData = null;
-let imgAlign = 'center';
-let imgShape = 'rect';
-let currentImgWidth = 180;
+let selectedImage = null;
 let soundOn = false;
 let marqueeOn = true;
 let audioCtx = null;
@@ -83,7 +83,7 @@ window.addEventListener('mousemove', e => {
   mouseX = e.clientX; mouseY = e.clientY;
   trailPoints.push({ x: e.clientX, y: e.clientY, age: 0 });
   const over = !!e.target.closest('#editor, .crt-frame');
-  const inter = e.target.closest('button, select, a, input, .seg, .knob-dial, .tactile-btn, .storage-box, .capsule-pill');
+  const inter = e.target.closest('button, select, a, input, .seg, .knob-dial, .tactile-btn, .storage-box, .capsule-pill, .hud-btn');
   if (over) {
     document.body.classList.add('typing');
     cursor.classList.remove('hovering');
@@ -221,10 +221,6 @@ function setupKnob(id, readoutId, unit, onChange) {
 
 setupKnob('knob-zoom', 'readout-zoom', '%', v => editor.style.fontSize = `${(v / 100) * 1.15}rem`);
 setupKnob('knob-pitch', 'readout-pitch', 'X', v => editor.style.lineHeight = v);
-setupKnob('knob-img', 'readout-img', 'PX', v => {
-  currentImgWidth = Math.round(v);
-  editor.querySelectorAll('img.inline-img').forEach(img => img.style.width = currentImgWidth + 'px');
-});
 setupKnob('knob-vidgain', 'readout-vidgain', '%', v => document.documentElement.style.setProperty('--video-opacity', v / 100));
 setupKnob('knob-vol', 'readout-vol', '%', v => masterGain = v / 100);
 setupKnob('knob-marq', 'readout-marq', 'S', v => document.documentElement.style.setProperty('--marquee-speed', v + 's'));
@@ -263,44 +259,17 @@ if (lastVid) {
   setVideo(lastVid);
 } else setVideo(videoSelect.value);
 
-// Optical Bay / Image Insertion
-document.getElementById('img-upload').onclick = () => document.getElementById('img-input').click();
-document.getElementById('img-input').onchange = e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = () => {
-    currentImageData = r.result;
-    const t = document.getElementById('img-thumb');
-    t.src = currentImageData;
-    t.style.display = 'inline-block';
-  };
-  r.readAsDataURL(f);
-};
-
-document.getElementById('align-seg').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  imgAlign = b.dataset.val;
-  document.querySelectorAll('#align-seg button').forEach(x => x.classList.toggle('active', x === b));
-});
-
-document.getElementById('shape-seg').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  imgShape = b.dataset.val;
-  document.querySelectorAll('#shape-seg button').forEach(x => x.classList.toggle('active', x === b));
-});
-
-document.getElementById('img-insert').onclick = () => {
-  if (!currentImageData) { alert('Load an image into the optical bay first.'); return; }
+// =========================================================
+// ALTERNATIVE 2: IN-PLACE FLOATING CATHODE IMAGE HUD & INSERTION
+// =========================================================
+function insertImageAtCaret(dataUrl) {
   const img = document.createElement('img');
-  img.src = currentImageData;
-  img.className = `inline-img ${imgShape} align-${imgAlign}`;
-  img.style.width = currentImgWidth + 'px';
-  img.dataset.align = imgAlign;
-  img.dataset.shape = imgShape;
-  img.dataset.width = currentImgWidth;
+  img.src = dataUrl;
+  img.className = 'inline-img rect align-center';
+  img.dataset.align = 'center';
+  img.dataset.shape = 'rect';
+  img.dataset.width = '180';
+  img.style.width = '180px';
   img.alt = '';
 
   const sel = window.getSelection();
@@ -315,7 +284,146 @@ document.getElementById('img-insert').onclick = () => {
   } else {
     editor.appendChild(img);
   }
-  editor.focus();
+  attachImageHUD(img);
+  updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
+}
+
+// Clipboard Paste directly into Editor
+editor.addEventListener('paste', e => {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (let item of items) {
+    if (item.type.indexOf('image') === 0) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      const reader = new FileReader();
+      reader.onload = evt => insertImageAtCaret(evt.target.result);
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+});
+
+// Drag and drop image directly into Editor
+editor.addEventListener('dragover', e => e.preventDefault());
+editor.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.files.length) {
+    const file = e.dataTransfer.files[0];
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = evt => insertImageAtCaret(evt.target.result);
+      reader.readAsDataURL(file);
+    }
+  }
+});
+
+// Quick Upload Button in Deck
+document.getElementById('quick-img-btn').onclick = () => quickImgInput.click();
+quickImgInput.onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => insertImageAtCaret(evt.target.result);
+  reader.readAsDataURL(file);
+  quickImgInput.value = '';
+};
+
+// HUD Position & Sync
+function attachImageHUD(img) {
+  if (selectedImage) selectedImage.classList.remove('selected');
+  selectedImage = img;
+  img.classList.add('selected');
+
+  const editorRect = editor.getBoundingClientRect();
+  const imgRect = img.getBoundingClientRect();
+  const top = imgRect.top - editorRect.top + editor.scrollTop;
+  const left = imgRect.left - editorRect.left + (imgRect.width / 2);
+
+  imageHud.style.top = `${top}px`;
+  imageHud.style.left = `${left}px`;
+  imageHud.classList.add('active');
+
+  // Sync HUD states
+  const align = img.dataset.align || 'center';
+  const shape = img.dataset.shape || 'rect';
+  const width = img.dataset.width || '180';
+
+  document.querySelectorAll('#hud-align-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === align));
+  document.querySelectorAll('#hud-shape-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === shape));
+  hudSizeVal.textContent = `${width}PX`;
+}
+
+function dismissImageHUD() {
+  if (selectedImage) {
+    selectedImage.classList.remove('selected');
+    selectedImage = null;
+  }
+  imageHud.classList.remove('active');
+}
+
+// Click handling for images & clicking outside
+editor.addEventListener('click', e => {
+  const img = e.target.closest('img.inline-img');
+  if (img) {
+    e.stopPropagation();
+    attachImageHUD(img);
+  } else if (!e.target.closest('#image-hud')) {
+    dismissImageHUD();
+  }
+});
+
+editor.addEventListener('scroll', () => {
+  if (selectedImage) attachImageHUD(selectedImage);
+});
+
+// HUD Control Actions
+document.getElementById('hud-align-group').addEventListener('click', e => {
+  const btn = e.target.closest('.hud-btn');
+  if (!btn || !selectedImage) return;
+  const val = btn.dataset.val;
+  selectedImage.classList.remove('align-left', 'align-center', 'align-right');
+  selectedImage.classList.add(`align-${val}`);
+  selectedImage.dataset.align = val;
+  document.querySelectorAll('#hud-align-group .hud-btn').forEach(b => b.classList.toggle('active', b === btn));
+  attachImageHUD(selectedImage);
+  saveCurrentSheet(); pushUndo();
+});
+
+document.getElementById('hud-shape-group').addEventListener('click', e => {
+  const btn = e.target.closest('.hud-btn');
+  if (!btn || !selectedImage) return;
+  const val = btn.dataset.val;
+  selectedImage.classList.toggle('circle', val === 'circle');
+  selectedImage.dataset.shape = val;
+  document.querySelectorAll('#hud-shape-group .hud-btn').forEach(b => b.classList.toggle('active', b === btn));
+  attachImageHUD(selectedImage);
+  saveCurrentSheet(); pushUndo();
+});
+
+document.getElementById('hud-w-minus').onclick = () => {
+  if (!selectedImage) return;
+  let w = Math.max(80, (+selectedImage.dataset.width || 180) - 20);
+  selectedImage.dataset.width = w;
+  selectedImage.style.width = `${w}px`;
+  hudSizeVal.textContent = `${w}PX`;
+  attachImageHUD(selectedImage);
+  saveCurrentSheet(); pushUndo();
+};
+
+document.getElementById('hud-w-plus').onclick = () => {
+  if (!selectedImage) return;
+  let w = Math.min(480, (+selectedImage.dataset.width || 180) + 20);
+  selectedImage.dataset.width = w;
+  selectedImage.style.width = `${w}px`;
+  hudSizeVal.textContent = `${w}PX`;
+  attachImageHUD(selectedImage);
+  saveCurrentSheet(); pushUndo();
+};
+
+document.getElementById('hud-del').onclick = () => {
+  if (!selectedImage) return;
+  selectedImage.remove();
+  dismissImageHUD();
   updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
 };
 
@@ -571,6 +679,7 @@ document.getElementById('btn-undo').onclick = () => {
   if (undoStack.length > 1) {
     undoStack.pop();
     deserializeToEditor(undoStack[undoStack.length - 1] || '');
+    dismissImageHUD();
     updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet();
   }
 };
@@ -596,6 +705,7 @@ function switchSheet(id) {
   currentSheetId = id;
   const s = sheets[id];
   deserializeToEditor(s.content || '');
+  dismissImageHUD();
   const title = (s.name || id).toUpperCase();
   sheetNameEl.textContent = title.slice(0, 8);
   deckSheetTag.textContent = 'SECTOR: ' + title;
@@ -731,6 +841,7 @@ document.getElementById('btn-copy').onclick = async () => {
 document.getElementById('btn-clear').onclick = () => {
   if (confirm('Initial Program Load (IPL): Purge current console buffer?')) {
     editor.innerHTML = '';
+    dismissImageHUD();
     updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
   }
 };
@@ -772,6 +883,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === '/') { openHelp(); e.preventDefault(); }
   if (e.key === 'Escape') {
     closeHelp();
+    dismissImageHUD();
     if (document.body.classList.contains('zen')) {
       document.body.classList.remove('zen');
       document.getElementById('btn-zen').classList.remove('active');
