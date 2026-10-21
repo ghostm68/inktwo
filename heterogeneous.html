@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IBM SYSTEM/370 CONSOLE // HYBRID INSTRUMENT</title>
+<link rel="icon" type="image/png" href="https://wordstar.nexus/svg/favicon-96x96.png" sizes="96x96" />
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Share+Tech+Mono&family=Courier+Prime:wght@400;700&family=Special+Elite&family=JetBrains+Mono:wght@400;600&family=EB+Garamond:wght@400;600&family=Inter:wght@400;600&family=DotGothic16&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="typewriter.css">
+</head>
+<body class="custom-cursor">
+<canvas id="trailCanvas"></canvas>
+<div id="cursor-wrap"><div id="cursor"></div></div>
+
+<div class="app">
+  <header>
+    <!-- Top Console Bridge -->
+    <div class="header-top">
+      <div class="brand-block">
+        <div class="brand-title">
+          <span>IBM SYSTEM/370</span>
+          <span class="badge">S/371</span>
+        </div>
+        <div class="brand-sub">
+          <span>HYBRID CONSOLE</span> · <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener">ACROHAT↗</a>
+        </div>
+      </div>
+
+      <!-- Mainframe CPU Status Indicator Lamps -->
+      <div class="mainframe-status-bay">
+        <span class="status-label">STATUS</span>
+        <div class="lamps-row">
+          <div class="lamp green lit" id="lamp-power" title="POWER ON"></div>
+          <div class="lamp active" id="lamp-proc" title="PROCESSOR BUSY"></div>
+          <div class="lamp amber" id="lamp-io" title="I/O CHANNEL"></div>
+          <div class="lamp" id="lamp-wait" title="WAIT STATE"></div>
+        </div>
+      </div>
+
+      <!-- Header Controls -->
+      <div class="header-top-controls">
+        <select id="font-select" class="console-select" title="Console Font">
+          <option value="'Special Elite', serif" selected>Special Elite</option>
+          <option value="'VT323', monospace">VT323 Phosphor</option>
+          <option value="'Share Tech Mono', monospace">Share Tech</option>
+          <option value="'Courier Prime', monospace">Courier Prime</option>
+          <option value="'IBM Plex Mono', monospace">IBM Plex</option>
+          <option value="'JetBrains Mono', monospace">JetBrains</option>
+          <option value="'DotGothic16', monospace">DotGothic16</option>
+          <option value="'EB Garamond', serif">EB Garamond</option>
+          <option value="'Inter', sans-serif">Inter</option>
+        </select>
+        <select id="theme-select" class="console-select" title="Color Phosphor Scheme">
+          <option value="">Carbon 370</option>
+          <option value="theme-invert">Paper Ivory</option>
+          <option value="theme-green">3270 CRT Green</option>
+          <option value="theme-amber">Plasma Amber</option>
+          <option value="theme-blue">WordStar Blue</option>
+          <option value="theme-mono">Monochrome High</option>
+        </select>
+        <select id="video-select" class="console-select" title="Multiplex Video Feed">
+          <option value="Kz5HI-z8Nnc">Runway Stream</option>
+          <option value="DB7oO82OeD4">Live Deck A</option>
+          <option value="8TDmgVs6HZE">Live Deck B</option>
+          <option value="7Ux4GeY5MXQ">Live Deck C</option>
+          <option value="none">Video Off</option>
+          <option value="custom">Custom ID…</option>
+        </select>
+        <input id="custom-video" class="console-input" placeholder="YT ID / URL" style="display:none;width:100px;">
+        <button id="btn-help" class="console-btn" title="System Help">?</button>
+      </div>
+    </div>
+
+    <!-- Instrument Rotary Deck & Bays -->
+    <div class="instrument-deck">
+      <div class="storage-slot">
+        <span class="storage-tag">ACTIVE SECTOR</span>
+        <div class="storage-box" id="btn-sheet-quick" title="Click to Switch Sector">
+          <span id="deck-sheet-tag">SECTOR: SECTOR 1</span>
+        </div>
+      </div>
+
+      <div class="rotary-bay">
+        <div class="knob-pod">
+          <span class="knob-label">BEAM</span>
+          <div class="knob-dial" id="knob-zoom" role="slider" tabindex="0" aria-valuemin="80" aria-valuemax="150" aria-valuenow="100" data-min="80" data-max="150" data-val="100" data-step="1"></div>
+          <span class="readout" id="readout-zoom">100%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">PITCH</span>
+          <div class="knob-dial" id="knob-pitch" role="slider" tabindex="0" aria-valuemin="1.2" aria-valuemax="2.4" aria-valuenow="1.65" data-min="1.2" data-max="2.4" data-val="1.65" data-step="0.05"></div>
+          <span class="readout" id="readout-pitch">1.65X</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">IMG W</span>
+          <div class="knob-dial" id="knob-img" role="slider" tabindex="0" aria-valuemin="80" aria-valuemax="360" aria-valuenow="180" data-min="80" data-max="360" data-val="180" data-step="5"></div>
+          <span class="readout" id="readout-img">180PX</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">VID G</span>
+          <div class="knob-dial" id="knob-vidgain" role="slider" tabindex="0" aria-valuemin="10" aria-valuemax="90" aria-valuenow="28" data-min="10" data-max="90" data-val="28" data-step="5"></div>
+          <span class="readout" id="readout-vidgain">28%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">VOL</span>
+          <div class="knob-dial" id="knob-vol" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40" data-min="0" data-max="100" data-val="40" data-step="5"></div>
+          <span class="readout" id="readout-vol">40%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">MARQ</span>
+          <div class="knob-dial" id="knob-marq" role="slider" tabindex="0" aria-valuemin="12" aria-valuemax="70" aria-valuenow="36" data-min="12" data-max="70" data-val="36" data-step="2"></div>
+          <span class="readout" id="readout-marq">36S</span>
+        </div>
+      </div>
+
+      <div class="optical-bay">
+        <span class="status-label" style="margin-right:2px">OPTICAL</span>
+        <input type="file" id="img-input" accept="image/*" hidden>
+        <button id="img-upload" class="console-btn" title="Upload Bitmapped Frame">+</button>
+        <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--panel-border-bright);display:none" alt="">
+        <div class="seg" id="align-seg">
+          <button data-val="left">L</button>
+          <button data-val="center" class="active">C</button>
+          <button data-val="right">R</button>
+        </div>
+        <div class="seg" id="shape-seg">
+          <button data-val="rect" class="active">RECT</button>
+          <button data-val="circle">○</button>
+        </div>
+        <button id="img-insert" class="console-btn" style="color:var(--red);font-weight:700">INSRT</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace / CRT Console -->
+  <div class="workspace" id="workspace">
+    <div class="main">
+      <div class="crt-frame">
+        <div class="crt-telemetry-strip">
+          <div><span class="active">IBM 3270 CONSOLE</span> // BUFFER_HEX: 0x4B2</div>
+          <div>CATHODE FOCUS: 1.00 // DAMP: ACTIVE</div>
+          <div id="crt-sys-status">CH_READY</div>
+        </div>
+        <div class="crt-screen-inner">
+          <div id="video-layer"></div>
+          <div class="editor-overlay"></div>
+          <div class="crt-glass-lines"></div>
+          <div id="editor" contenteditable="true" spellcheck="false" data-placeholder="IBM SYSTEM/370 CONSOLE • READY FOR INPUT..." role="textbox" aria-multiline="true"></div>
+        </div>
+      </div>
+      <div class="marquee-wrap" id="marquee-wrap"><div class="marquee" id="marquee"></div></div>
+    </div>
+
+    <!-- Diagnostic Side Panel -->
+    <aside class="side-panel" id="side-panel">
+      <div class="panel-tabs">
+        <button class="active" data-tab="cadence">CADENCE</button>
+        <button data-tab="lexicon">LEXICON</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-section active" id="sec-cadence">
+          <div class="cadence-head">
+            <strong>PROSE RHYTHM</strong>
+            <span id="stat-diversity">DIV 100%</span>
+          </div>
+          <canvas id="cadenceCanvas"></canvas>
+          <div class="cadence-meta">
+            <span>SHORT</span><span>CADENCE DISTRIBUTION</span><span>LONG</span>
+          </div>
+          <div class="stat-row">
+            <div class="stat-pill"><span class="label">WORDS</span><span class="val" id="c-words">0</span></div>
+            <div class="stat-pill"><span class="label">SENTENCES</span><span class="val" id="c-sents">0</span></div>
+            <div class="stat-pill"><span class="label">AVG LEN</span><span class="val" id="c-avg">0</span></div>
+            <div class="stat-pill"><span class="label">READ</span><span class="val" id="c-read">0m</span></div>
+          </div>
+          <div style="font-size:8px;color:var(--text-dim);letter-spacing:.08em;margin-bottom:4px">ECHO / REPETITION RADAR</div>
+          <div class="echo-box" id="echo-box"><span style="color:var(--text-dim)">— tracking —</span></div>
+        </div>
+
+        <div class="panel-section" id="sec-lexicon">
+          <div class="lex-bar">
+            <input id="lex-query" placeholder="Enter term…" />
+            <button id="lex-go">FIND</button>
+          </div>
+          <div class="lex-group">
+            <h4>DEFINITIONS</h4>
+            <div id="lex-defs"><span style="color:var(--text-dim);font-size:11px">Highlight term in editor or input above.</span></div>
+          </div>
+          <div class="lex-group">
+            <h4>SYNONYMS / RELATED</h4>
+            <div id="lex-syns" class="word-cloud"><span style="color:var(--text-dim);font-size:10px">—</span></div>
+          </div>
+          <div class="lex-group">
+            <h4>RHYMES</h4>
+            <div id="lex-rhymes" class="word-cloud"><span style="color:var(--text-dim);font-size:10px">—</span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Channel Controller & Recessed Counters -->
+  <footer class="dock-chassis">
+    <div class="counter-cluster">
+      <span class="ready-badge" id="ready">ONLINE</span>
+      <div class="counter-box">
+        <span class="counter-tag">WORDS</span>
+        <span class="counter-val" id="words">0000</span>
+      </div>
+      <div class="counter-box">
+        <span class="counter-tag">CHARS</span>
+        <span class="counter-val" id="chars">0000</span>
+      </div>
+      <div class="counter-box">
+        <span class="counter-tag">LN</span>
+        <span class="counter-val" id="lines">001</span>
+      </div>
+      <div class="counter-box" style="border-color:var(--panel-border-bright)">
+        <span class="counter-tag">VOL</span>
+        <span class="counter-val" id="sheet-name" style="color:var(--text);font-size:12px;min-width:55px;text-align:center">SECTOR 1</span>
+      </div>
+    </div>
+
+    <!-- Pushbutton Matrix -->
+    <div class="pushbutton-bank">
+      <button class="tactile-btn" id="btn-panel"><span class="led-dot"></span>PANEL</button>
+      <button class="tactile-btn" id="sound-toggle"><span class="led-dot"></span>AUDIO</button>
+      <button class="tactile-btn active" id="marquee-toggle"><span class="led-dot"></span>MARQ</button>
+      <button class="tactile-btn" id="btn-scan"><span class="led-dot"></span>SCAN</button>
+      <button class="tactile-btn" id="btn-zen"><span class="led-dot"></span>ZEN</button>
+      <button class="tactile-btn mobile-panel-btn" id="btn-mobile-panel">DIAG</button>
+      <button class="tactile-btn" id="btn-pdf">PDF</button>
+      <button class="tactile-btn" id="btn-txt">TXT</button>
+      <button class="tactile-btn" id="btn-copy">COPY</button>
+      <button class="tactile-btn" id="btn-sheets">SECTORS</button>
+      <button class="tactile-btn" id="btn-undo">UNDO</button>
+      <button class="tactile-btn" id="btn-clear" style="color:var(--red)">IPL/CLR</button>
+    </div>
+  </footer>
+
+  <!-- Sector Selection Menu -->
+  <div class="sheet-menu" id="sheet-menu">
+    <div id="sheet-list"></div>
+    <div class="sheet-actions">
+      <button id="btn-new-sheet">+ NEW</button>
+      <button id="btn-rename-sheet">RENAME</button>
+      <button id="btn-del-sheet">DEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div class="help-overlay" id="help-overlay" role="dialog" aria-modal="true">
+  <div class="help-card">
+    <h2>IBM SYSTEM/370 CONSOLE // MANUAL</h2>
+    <h3>Optical Bay (Inline Graphics)</h3>
+    <p>1. Press <strong>+</strong> to mount local image into buffer.<br>
+       2. Choose alignment (L/C/R) and aperture shape (RECT/○).<br>
+       3. Scale diameter with <strong>IMG W</strong> dial.<br>
+       4. Position caret & press <strong>INSRT</strong> to inject bitstream inline.</p>
+    <h3>Cadence Rhythm Analysis</h3>
+    <p>Calculates Gary Provost sentence dynamics, lexical diversity percentage, and automated repetition detection. Clicking on any repetition badge mounts the query directly into the Lexicon.</p>
+    <h3>Multiplex Video Channel</h3>
+    <p>Displays a muted live cathode background under the phosphor buffer. Dial <strong>VID G</strong> regulates transparency gain.</p>
+    <h3>Operator Shortcuts</h3>
+    <ul>
+      <li><kbd>?</kbd> or <kbd>Ctrl</kbd>+<kbd>/</kbd> — Console Help</li>
+      <li><kbd>Esc</kbd> — Dismiss Overlay / Exit Zen</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> — Undo</li>
+      <li><kbd>Ctrl</kbd>+<kbd>S</kbd> — Sector Checkpoint</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — Cathode Zen Mode</li>
+      <li>Focused Dial → <kbd>↑</kbd><kbd>↓</kbd> or <kbd>[</kbd><kbd>]</kbd> or Mouse Wheel</li>
+    </ul>
+    <button class="close-help" id="close-help">ACKNOWLEDGE & RESUME</button>
+  </div>
+</div>
+
+<script src="typewriter.js"></script>
+</body>
+</html>
