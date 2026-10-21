@@ -262,30 +262,69 @@ if (lastVid) {
 // =========================================================
 // ALTERNATIVE 2: IN-PLACE FLOATING CATHODE IMAGE HUD & INSERTION
 // =========================================================
-function insertImageAtCaret(dataUrl) {
-  const img = document.createElement('img');
+function processImageDataUrl(dataUrl, callback) {
+  const img = new Image();
+  img.onload = () => {
+    const maxDim = 800;
+    let { width, height } = img;
+    if (width > maxDim || height > maxDim) {
+      const scale = Math.min(maxDim / width, maxDim / height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    // Prefer JPEG for smaller size, PNG if original had transparency (simple check)
+    const isPng = dataUrl.startsWith('data:image/png');
+    const out = isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.72);
+    callback(out);
+  };
+  img.onerror = () => callback(dataUrl); // fallback
   img.src = dataUrl;
-  img.className = 'inline-img rect align-center';
-  img.dataset.align = 'center';
-  img.dataset.shape = 'rect';
-  img.dataset.width = '180';
-  img.style.width = '180px';
-  img.alt = '';
+}
 
-  const sel = window.getSelection();
-  if (sel.rangeCount) {
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(img);
-    range.setStartAfter(img);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  } else {
-    editor.appendChild(img);
-  }
-  attachImageHUD(img);
-  updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
+function insertImageAtCaret(dataUrl) {
+  processImageDataUrl(dataUrl, processed => {
+    const img = document.createElement('img');
+    img.src = processed;
+    img.className = 'inline-img rect align-center';
+    img.dataset.align = 'center';
+    img.dataset.shape = 'rect';
+    img.dataset.width = '180';
+    img.style.width = '180px';
+    img.alt = '';
+
+    editor.focus();
+    const sel = window.getSelection();
+    let inserted = false;
+    if (sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        range.insertNode(img);
+        // Move caret after image
+        range.setStartAfter(img);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        inserted = true;
+      }
+    }
+    if (!inserted) {
+      editor.appendChild(img);
+      // Place caret after
+      const range = document.createRange();
+      range.setStartAfter(img);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    attachImageHUD(img);
+    updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
+  });
 }
 
 // Clipboard Paste directly into Editor
@@ -328,16 +367,19 @@ quickImgInput.onchange = e => {
   quickImgInput.value = '';
 };
 
-// HUD Position & Sync
+// HUD Position & Sync (now fixed to viewport so it is never clipped by CRT overflow)
 function attachImageHUD(img) {
-  if (selectedImage) selectedImage.classList.remove('selected');
+  if (selectedImage && selectedImage !== img) selectedImage.classList.remove('selected');
   selectedImage = img;
   img.classList.add('selected');
 
-  const editorRect = editor.getBoundingClientRect();
   const imgRect = img.getBoundingClientRect();
-  const top = imgRect.top - editorRect.top + editor.scrollTop;
-  const left = imgRect.left - editorRect.left + (imgRect.width / 2);
+  // Position above the image, centered; clamp so HUD stays on screen
+  let top = imgRect.top;
+  let left = imgRect.left + imgRect.width / 2;
+  const hudHeight = 36; // approximate
+  if (top < hudHeight + 10) top = imgRect.bottom + 8; // flip below if too high
+  left = Math.max(40, Math.min(window.innerWidth - 40, left));
 
   imageHud.style.top = `${top}px`;
   imageHud.style.left = `${left}px`;
@@ -367,12 +409,19 @@ editor.addEventListener('click', e => {
   if (img) {
     e.stopPropagation();
     attachImageHUD(img);
-  } else if (!e.target.closest('#image-hud')) {
+  }
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('img.inline-img') && !e.target.closest('#image-hud')) {
     dismissImageHUD();
   }
 });
 
 editor.addEventListener('scroll', () => {
+  if (selectedImage) attachImageHUD(selectedImage);
+});
+window.addEventListener('resize', () => {
   if (selectedImage) attachImageHUD(selectedImage);
 });
 
@@ -691,7 +740,14 @@ function loadSheets() {
   if (!sheets[currentSheetId]) currentSheetId = Object.keys(sheets)[0];
 }
 
-function saveSheets() { localStorage.setItem('hybrid_sheets', JSON.stringify(sheets)); }
+function saveSheets() {
+  try {
+    localStorage.setItem('hybrid_sheets', JSON.stringify(sheets));
+  } catch (e) {
+    console.warn('Storage quota exceeded; sector save skipped.', e);
+    // Optional: could strip images or notify, but keep running
+  }
+}
 function saveCurrentSheet() {
   if (!sheets[currentSheetId]) return;
   sheets[currentSheetId].content = serializeEditor();
