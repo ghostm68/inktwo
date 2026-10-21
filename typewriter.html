@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" href="https://wordstar.nexus/svg/favicon-96x96.png" sizes="96x96" />
 <link rel="icon" type="image/svg+xml" href="https://wordstar.nexus/svg/favicon.svg" />
 <link rel="shortcut icon" href="https://wordstar.nexus/svg/favicon.ico" />
@@ -30,6 +30,7 @@
   --cursor-text: #000000;
   --video-opacity: 0.35;
   --video-filter: grayscale(0.35) contrast(1.05);
+  --focus-ring: 0 0 0 2px var(--red);
 }
 
 body.inverted {
@@ -46,11 +47,9 @@ body.inverted {
   --input-bg: #ffffff;
   --knob-bg: radial-gradient(circle at 35% 35%, #f7f3ec, #cfc6b5);
   --knob-border: #b8af9c;
-  /* Crisp, translucent scrim without heavy milky fog */
   --editor-overlay: linear-gradient(to bottom, rgba(244,239,230,0.20), rgba(244,239,230,0.42));
   --cursor-bg: #161616;
   --cursor-text: #ffffff;
-  /* Crystal-clear video without photo-negative distortion */
   --video-opacity: 0.65;
   --video-filter: contrast(1.1) brightness(1.02) grayscale(0.12);
 }
@@ -64,14 +63,16 @@ html, body {
   overflow: hidden;
   transition: background-color 0.25s, color 0.25s;
 }
-body { display: flex; flex-direction: column; cursor: none; }
+body { display: flex; flex-direction: column; }
+body.custom-cursor { cursor: none; }
 
 /* Custom cursor */
 #cursor-wrap {
   position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   transform: translate(-50%, -50%);
 }
+body.custom-cursor #cursor-wrap { display: flex; }
 #cursor {
   width: 52px; height: 52px; border-radius: 50%;
   background: var(--cursor-bg);
@@ -90,7 +91,7 @@ body.typing #cursor-wrap { opacity: 0; pointer-events: none; }
 
 .app { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
 
-/* --- ROOMY ACROHAT RACK HEADER --- */
+/* Header */
 header {
   display: flex; flex-direction: column; gap: 14px;
   padding: 18px 24px 16px;
@@ -98,7 +99,9 @@ header {
   border-bottom: 1px solid var(--panel-border);
   font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
   z-index: 10;
+  transition: opacity 0.25s, transform 0.25s;
 }
+body.zen header { opacity: 0; pointer-events: none; transform: translateY(-12px); }
 .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .header-row.rack-shelf {
   justify-content: space-between; align-items: center;
@@ -109,15 +112,18 @@ header .label { color: var(--grey); font-size: 9px; }
 header select, header button, header input[type="text"] {
   background: var(--input-bg); color: var(--text); border: 1px solid var(--grey-dark);
   padding: 6px 10px; font-size: 10px; font-family: inherit; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+header select:focus-visible, header button:focus-visible, header input:focus-visible {
+  outline: none; box-shadow: var(--focus-ring); border-color: var(--red);
 }
 header input[type="text"] { width: 140px; cursor: text; }
 header button:hover, header select:hover { border-color: var(--red); color: var(--red); }
 header a { color: var(--grey); text-decoration: none; font-size: 10px; letter-spacing: 0.1em; }
 header a:hover { color: var(--red); }
 
-/* Acrohat Analog Rotary Knobs */
-.rack-dials { display: flex; align-items: center; gap: 20px; }
+/* Knobs */
+.rack-dials { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .knob-pod {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   user-select: none; -webkit-user-select: none;
@@ -131,7 +137,10 @@ header a:hover { color: var(--red); }
   position: relative; cursor: ns-resize; touch-action: none;
   transition: border-color 0.15s;
 }
-.knob-dial:hover, .knob-dial.active { border-color: var(--red); }
+.knob-dial:hover, .knob-dial.active, .knob-dial:focus-visible {
+  border-color: var(--red); outline: none;
+}
+.knob-dial:focus-visible { box-shadow: var(--focus-ring); }
 .knob-dial::after {
   content: ''; position: absolute; top: 3px; left: 50%;
   width: 3px; height: 12px; background: var(--red);
@@ -142,27 +151,32 @@ header a:hover { color: var(--red); }
   font-variant-numeric: tabular-nums; letter-spacing: 0.05em;
 }
 
-/* Image Bay Shelf */
+/* Image Bay */
 .img-bay { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .seg { display: flex; border: 1px solid var(--grey-dark); }
 .seg button {
   border: none; border-right: 1px solid var(--grey-dark); padding: 5px 9px;
-  background: var(--input-bg); color: var(--grey);
+  background: var(--input-bg); color: var(--grey); cursor: pointer;
 }
 .seg button:last-child { border-right: none; }
 .seg button.active { background: var(--red); color: #fff; }
+.seg button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--red); }
 
-/* Contained Desktop / Desk Platen */
+/* Main */
 .main {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 16px 20px 8px; min-height: 0;
+  transition: padding 0.25s;
 }
+body.zen .main { padding: 8px 12px; }
 .editor-wrap {
   width: 100%; max-width: 900px; height: 48vh; min-height: 270px;
   position: relative; border: 1px solid var(--panel-border); border-radius: 2px;
   overflow: hidden; background: var(--bg);
   box-shadow: 0 10px 32px rgba(0,0,0,0.16);
+  transition: height 0.25s, max-width 0.25s;
 }
+body.zen .editor-wrap { height: 78vh; max-width: 960px; }
 #video-layer {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   opacity: var(--video-opacity); filter: var(--video-filter);
@@ -170,27 +184,49 @@ header a:hover { color: var(--red); }
 }
 #video-layer iframe { width: 100%; height: 100%; border: 0; }
 .editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--editor-overlay); }
+
 #editor {
-  position: relative; z-index: 2; width: 100%; height: 100%; background: transparent; color: var(--text);
-  border: none; padding: 26px 32px; font-family: 'Special Elite', serif; font-size: 1.15rem;
-  line-height: 1.65; resize: none; outline: none; caret-color: var(--red);
+  position: relative; z-index: 2; width: 100%; height: 100%;
+  background: transparent; color: var(--text);
+  border: none; padding: 26px 32px;
+  font-family: 'Special Elite', serif; font-size: 1.15rem;
+  line-height: 1.65; outline: none; caret-color: var(--red);
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word;
 }
 body.inverted #editor {
-  /* Subtle drop shadow to ensure crisp readability over bright video areas */
   text-shadow: 0 1px 2px rgba(244,239,230,0.7);
 }
-#editor::placeholder { color: var(--text-dim); }
+#editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-dim); pointer-events: none;
+}
+#editor img.inline-img {
+  display: block; max-width: 100%; margin: 12px 0;
+  object-fit: cover; border: 1px solid var(--panel-border);
+}
+#editor img.inline-img.circle { border-radius: 50%; }
+#editor img.inline-img.align-left { margin-right: auto; }
+#editor img.inline-img.align-center { margin-left: auto; margin-right: auto; }
+#editor img.inline-img.align-right { margin-left: auto; }
 
+/* Marquee */
 .marquee-wrap {
   width: 100%; max-width: 900px; height: 32px; margin-top: 10px;
   overflow: hidden; background: var(--input-bg); border: 1px solid var(--panel-border);
+  transition: opacity 0.2s;
 }
+body.zen .marquee-wrap { max-width: 960px; }
 .marquee-wrap.hidden { display: none; }
-.marquee { display: flex; white-space: nowrap; animation: marquee 38s linear infinite; font-size: 11px; letter-spacing: 0.1em; color: var(--grey); padding: 6px 0; }
+.marquee {
+  display: flex; white-space: nowrap;
+  animation: marquee var(--marquee-speed, 38s) linear infinite;
+  font-size: 11px; letter-spacing: 0.1em; color: var(--grey); padding: 6px 0;
+}
+.marquee-wrap:hover .marquee { animation-play-state: paused; }
 .marquee span { padding: 0 32px; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-/* --- MONA-STYLE INSTRUMENT DOCK --- */
+/* Dock */
 .dock-chassis {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
   padding: 8px 20px; background: var(--dock-bg);
@@ -198,7 +234,9 @@ body.inverted #editor {
   box-shadow: 0 -4px 20px rgba(0,0,0,0.18);
   font-size: 10px; letter-spacing: 0.06em;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
+  transition: opacity 0.25s, transform 0.25s;
 }
+body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY(12px); }
 .dock-segment { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .dock-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -209,6 +247,7 @@ body.inverted #editor {
   transition: all 0.15s;
 }
 .dock-pill:hover { border-color: var(--red); color: var(--red); }
+.dock-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--red); }
 .dock-pill.active {
   background: var(--red); color: #ffffff !important; border-color: var(--red);
   box-shadow: 0 0 8px rgba(225,6,0,0.4);
@@ -220,7 +259,6 @@ body.inverted #editor {
   background: #ffffff; box-shadow: 0 0 5px #ffffff;
 }
 
-/* Telemetry Readout */
 .dock-status {
   display: flex; align-items: center; gap: 12px; font-size: 9px;
   color: var(--grey); white-space: nowrap; flex-shrink: 0;
@@ -228,10 +266,68 @@ body.inverted #editor {
 .dock-status .ready-badge {
   color: var(--red); font-weight: 600; padding: 2px 6px;
   border: 1px solid var(--red-dim); background: rgba(225,6,0,0.08);
+  transition: background 0.3s, color 0.3s;
+}
+.dock-status .ready-badge.idle {
+  color: var(--grey); border-color: var(--grey-dark); background: transparent;
 }
 
+/* Help overlay */
+.help-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.72); display: none;
+  align-items: center; justify-content: center; padding: 24px;
+}
+.help-overlay.open { display: flex; }
+.help-card {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  max-width: 520px; width: 100%; max-height: 85vh; overflow-y: auto;
+  padding: 28px 32px; font-size: 13px; line-height: 1.55;
+  color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+.help-card h2 {
+  margin: 0 0 16px; font-size: 14px; letter-spacing: 0.14em;
+  color: var(--red); text-transform: uppercase;
+}
+.help-card h3 {
+  margin: 20px 0 8px; font-size: 11px; letter-spacing: 0.1em;
+  color: var(--grey); text-transform: uppercase;
+}
+.help-card p, .help-card li { margin: 0 0 8px; color: var(--text); }
+.help-card ul { padding-left: 18px; margin: 0 0 12px; }
+.help-card kbd {
+  display: inline-block; padding: 1px 6px; border: 1px solid var(--grey-dark);
+  border-radius: 2px; font-size: 11px; background: var(--input-bg);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.help-card .close-help {
+  margin-top: 20px; width: 100%; padding: 10px;
+  background: var(--red); color: #fff; border: none;
+  font-family: inherit; font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; cursor: pointer;
+}
+.help-card .close-help:hover { filter: brightness(1.1); }
+
+/* Sheet menu */
+.sheet-menu {
+  position: absolute; bottom: 52px; left: 20px;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  min-width: 220px; max-height: 280px; overflow-y: auto;
+  display: none; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.sheet-menu.open { display: block; }
+.sheet-menu button {
+  display: block; width: 100%; text-align: left;
+  padding: 10px 14px; background: transparent; border: none;
+  border-bottom: 1px solid var(--panel-border); color: var(--text);
+  font-family: inherit; font-size: 11px; cursor: pointer;
+}
+.sheet-menu button:hover, .sheet-menu button.active { background: var(--red); color: #fff; }
+.sheet-menu .sheet-actions { display: flex; gap: 4px; padding: 8px; }
+.sheet-menu .sheet-actions button { flex: 1; border: 1px solid var(--grey-dark); text-align: center; }
+
 @media (max-width: 900px) {
-  body { cursor: auto; }
+  body.custom-cursor { cursor: auto; }
   #cursor-wrap { display: none !important; }
   header { padding: 12px 14px; gap: 10px; }
   .header-row.rack-shelf { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -240,14 +336,14 @@ body.inverted #editor {
   .editor-wrap { height: 50vh; }
   #editor { padding: 18px 16px; font-size: 1rem; }
   .dock-chassis { padding: 8px 12px; gap: 10px; justify-content: flex-start; }
+  body.zen .editor-wrap { height: 70vh; }
 }
 </style>
 </head>
-<body>
+<body class="custom-cursor">
 <div id="cursor-wrap"><div id="cursor"><span id="cursor-text">VIEW</span></div></div>
 
 <div class="app">
-  <!-- ACROHAT HARDWARE RACK HEADER -->
   <header>
     <div class="header-row">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -255,7 +351,7 @@ body.inverted #editor {
         <span class="label">// INSTRUMENT S/370</span>
         <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener">ACROHAT&#8599;</a>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <select id="font-select" title="Font">
           <option value="'Special Elite', serif" selected>Special Elite</option>
           <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
@@ -280,29 +376,60 @@ body.inverted #editor {
           <option value="custom">Custom ID…</option>
         </select>
         <input id="custom-video" placeholder="YouTube ID / URL" style="display:none">
+        <button id="btn-help" title="Help & shortcuts">?</button>
       </div>
     </div>
 
-    <!-- RACK SHELF: ROTARY KNOBS + IMAGE BAY -->
     <div class="header-row rack-shelf">
       <div class="rack-dials">
-        <!-- Knob 1: Beam Gain / Zoom -->
         <div class="knob-pod">
           <span class="knob-label">BEAM GAIN</span>
-          <div class="knob-dial" id="knob-zoom" data-min="80" data-max="150" data-val="100" data-step="1"></div>
+          <div class="knob-dial" id="knob-zoom" role="slider" tabindex="0"
+               aria-valuemin="80" aria-valuemax="150" aria-valuenow="100"
+               data-min="80" data-max="150" data-val="100" data-step="1"></div>
           <span class="readout" id="readout-zoom">100%</span>
         </div>
-        <!-- Knob 2: Line Pitch -->
         <div class="knob-pod">
           <span class="knob-label">LINE PITCH</span>
-          <div class="knob-dial" id="knob-pitch" data-min="1.2" data-max="2.4" data-val="1.65" data-step="0.05"></div>
+          <div class="knob-dial" id="knob-pitch" role="slider" tabindex="0"
+               aria-valuemin="1.2" aria-valuemax="2.4" aria-valuenow="1.65"
+               data-min="1.2" data-max="2.4" data-val="1.65" data-step="0.05"></div>
           <span class="readout" id="readout-pitch">1.65X</span>
         </div>
-        <!-- Knob 3: Image Scale Width -->
         <div class="knob-pod">
           <span class="knob-label">IMG WIDTH</span>
-          <div class="knob-dial" id="knob-img" data-min="80" data-max="360" data-val="180" data-step="5"></div>
+          <div class="knob-dial" id="knob-img" role="slider" tabindex="0"
+               aria-valuemin="80" aria-valuemax="360" aria-valuenow="180"
+               data-min="80" data-max="360" data-val="180" data-step="5"></div>
           <span class="readout" id="readout-img">180PX</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">VID GAIN</span>
+          <div class="knob-dial" id="knob-vidgain" role="slider" tabindex="0"
+               aria-valuemin="10" aria-valuemax="90" aria-valuenow="35"
+               data-min="10" data-max="90" data-val="35" data-step="5"></div>
+          <span class="readout" id="readout-vidgain">35%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">VID CONT</span>
+          <div class="knob-dial" id="knob-vidcont" role="slider" tabindex="0"
+               aria-valuemin="80" aria-valuemax="140" aria-valuenow="105"
+               data-min="80" data-max="140" data-val="105" data-step="5"></div>
+          <span class="readout" id="readout-vidcont">105%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">VOLUME</span>
+          <div class="knob-dial" id="knob-vol" role="slider" tabindex="0"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"
+               data-min="0" data-max="100" data-val="40" data-step="5"></div>
+          <span class="readout" id="readout-vol">40%</span>
+        </div>
+        <div class="knob-pod">
+          <span class="knob-label">MARQ SPD</span>
+          <div class="knob-dial" id="knob-marq" role="slider" tabindex="0"
+               aria-valuemin="12" aria-valuemax="80" aria-valuenow="38"
+               data-min="12" data-max="80" data-val="38" data-step="2"></div>
+          <span class="readout" id="readout-marq">38S</span>
         </div>
       </div>
 
@@ -310,7 +437,7 @@ body.inverted #editor {
         <span class="label">IMAGE BAY</span>
         <input type="file" id="img-input" accept="image/*" hidden>
         <button id="img-upload" title="Upload Image">+</button>
-        <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;">
+        <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;" alt="">
         <div class="seg" id="align-seg">
           <button data-val="left">L</button>
           <button data-val="center" class="active">C</button>
@@ -325,27 +452,24 @@ body.inverted #editor {
     </div>
   </header>
 
-  <!-- WORKSPACE -->
   <div class="main">
     <div class="editor-wrap">
       <div id="video-layer"></div>
       <div class="editor-overlay"></div>
-      <textarea id="editor" placeholder="Initialize instrument..." spellcheck="false"></textarea>
+      <div id="editor" contenteditable="true" spellcheck="false" data-placeholder="Initialize instrument..." role="textbox" aria-multiline="true"></div>
     </div>
     <div class="marquee-wrap" id="marquee-wrap"><div class="marquee" id="marquee"></div></div>
   </div>
 
-  <!-- MONA-STYLE BOTTOM DOCK -->
   <footer class="dock-chassis">
-    <!-- Telemetry -->
     <div class="dock-status">
       <span class="ready-badge" id="ready">READY</span>
       <span id="words">WORDS 0</span>
       <span id="chars">CHARS 0</span>
       <span id="lines">LN 1</span>
+      <span id="sheet-name" style="color:var(--grey);">SHEET 1</span>
     </div>
 
-    <!-- Execute controls -->
     <div class="dock-segment">
       <button class="dock-pill" id="theme-toggle">
         <span class="indicator-led"></span>
@@ -357,13 +481,62 @@ body.inverted #editor {
       <button class="dock-pill active" id="marquee-toggle">
         <span class="indicator-led"></span>MARQUEE: ON
       </button>
+      <button class="dock-pill" id="btn-zen">
+        <span class="indicator-led"></span>ZEN
+      </button>
       <button class="dock-pill" id="btn-pdf">EXPORT: PDF</button>
-      <button class="dock-pill" id="btn-load">LOAD</button>
+      <button class="dock-pill" id="btn-export-txt">TXT</button>
+      <button class="dock-pill" id="btn-export-md">MD</button>
+      <button class="dock-pill" id="btn-copy">COPY</button>
+      <button class="dock-pill" id="btn-sheets">SHEETS</button>
       <button class="dock-pill" id="btn-undo">UNDO</button>
       <button class="dock-pill" id="btn-clear">CLEAR</button>
       <input type="file" id="file-input" accept=".txt,.md" hidden>
     </div>
   </footer>
+
+  <div class="sheet-menu" id="sheet-menu">
+    <div id="sheet-list"></div>
+    <div class="sheet-actions">
+      <button id="btn-new-sheet">+ NEW</button>
+      <button id="btn-rename-sheet">RENAME</button>
+      <button id="btn-del-sheet">DEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Overlay -->
+<div class="help-overlay" id="help-overlay" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="help-card">
+    <h2 id="help-title">Typewriter // Instrument</h2>
+
+    <h3>Image Bay Workflow</h3>
+    <p>1. Click <strong>+</strong> and choose an image.</p>
+    <p>2. Set alignment (L / C / R) and shape (RECT / CIRCLE).</p>
+    <p>3. Adjust <strong>IMG WIDTH</strong> with the knob.</p>
+    <p>4. Place the caret where you want the image, then click <strong>INSERT</strong>.</p>
+    <p>The image appears immediately in the writing surface. It is stored as a marker so PDF export still works correctly.</p>
+
+    <h3>Keyboard Shortcuts</h3>
+    <ul>
+      <li><kbd>?</kbd> or <kbd>Ctrl</kbd>+<kbd>/</kbd> — Open this help</li>
+      <li><kbd>Esc</kbd> — Close help / exit Zen mode</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> — Undo</li>
+      <li><kbd>Ctrl</kbd>+<kbd>S</kbd> — Force save current sheet</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> — Toggle Zen mode</li>
+      <li>Focus a knob, then use <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>[</kbd> <kbd>]</kbd> to adjust</li>
+    </ul>
+
+    <h3>Other Notes</h3>
+    <ul>
+      <li>Marquee pauses while you hover it.</li>
+      <li>Sheets are saved locally in your browser.</li>
+      <li>PDF respects current font, size, and line pitch.</li>
+      <li>Custom YouTube IDs are remembered.</li>
+    </ul>
+
+    <button class="close-help" id="close-help">Close</button>
+  </div>
 </div>
 
 <script>
@@ -379,6 +552,7 @@ const wordsEl = document.getElementById('words');
 const charsEl = document.getElementById('chars');
 const linesEl = document.getElementById('lines');
 const readyEl = document.getElementById('ready');
+const sheetNameEl = document.getElementById('sheet-name');
 const cursorWrap = document.getElementById('cursor-wrap');
 const cursor = document.getElementById('cursor');
 const cursorText = document.getElementById('cursor-text');
@@ -390,23 +564,29 @@ const themeToggle = document.getElementById('theme-toggle');
 const themeText = document.getElementById('theme-text');
 const soundToggle = document.getElementById('sound-toggle');
 const marqueeToggle = document.getElementById('marquee-toggle');
+const helpOverlay = document.getElementById('help-overlay');
+const sheetMenu = document.getElementById('sheet-menu');
 
 let currentImageData = null;
 let imgAlign = 'center';
 let imgShape = 'rect';
 let currentImgWidth = 180;
-
-const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
-let undoStack = [];
 let soundOn = false;
 let marqueeOn = true;
 let audioCtx = null;
+let masterGain = 0.4;
+let undoStack = [];
+let idleTimer = null;
+let currentSheetId = 'sheet-1';
+let sheets = {};
 
-// Cursor tracking
+const LIVE_IDS = new Set(['DB7oO82OeD4','8TDmgVs6HZE','7Ux4GeY5MXQ']);
+
+// ---------- Cursor ----------
 let mouseX = -100, mouseY = -100, curX = -100, curY = -100;
 function renderCursor() {
-  curX += (mouseX - curX) * 0.2;
-  curY += (mouseY - curY) * 0.2;
+  curX += (mouseX - curX) * 0.22;
+  curY += (mouseY - curY) * 0.22;
   cursorWrap.style.transform = `translate3d(${curX}px, ${curY}px, 0)`;
   requestAnimationFrame(renderCursor);
 }
@@ -425,86 +605,94 @@ window.addEventListener('mousemove', (e) => {
       cursorText.textContent = 'ACT';
     } else {
       cursor.classList.remove('hovering');
+      cursorText.textContent = 'VIEW';
     }
   }
 });
 
-// Mobile-Tested Mechanical Typewriter Sound Engine
+// ---------- Audio ----------
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
-// Unlock mobile audio instantly on first touch
 window.addEventListener('touchstart', () => { if (soundOn) initAudio(); }, { passive: true, once: true });
 window.addEventListener('pointerdown', () => { if (soundOn) initAudio(); }, { passive: true, once: true });
 
-function playClick() {
+function playTone(freqStart, freqEnd, type, duration, gainMul = 1) {
   if (!soundOn) return;
   initAudio();
   if (!audioCtx || audioCtx.state === 'suspended') return;
   const now = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-
-  // Dual-frequency mechanical punch: sweeps from 820Hz down to 110Hz in 25ms
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(820 + Math.random() * 120, now);
-  osc.frequency.exponentialRampToValueAtTime(110, now + 0.024);
-
-  gain.gain.setValueAtTime(0.22, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
-
+  osc.type = type;
+  osc.frequency.setValueAtTime(freqStart, now);
+  if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, now + duration * 0.85);
+  const g = masterGain * gainMul;
+  gain.gain.setValueAtTime(g, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start(now);
-  osc.stop(now + 0.03);
+  osc.stop(now + duration + 0.01);
 }
 
+function playClick() {
+  playTone(820 + Math.random() * 120, 110, 'triangle', 0.028, 0.55);
+}
+function playSpace() {
+  playTone(180 + Math.random() * 40, 90, 'sine', 0.04, 0.35);
+}
+function playReturn() {
+  playTone(140, 60, 'square', 0.07, 0.45);
+}
+function playBackspace() {
+  playTone(420, 180, 'sawtooth', 0.035, 0.4);
+}
 function playKnobTick() {
-  initAudio();
-  if (!audioCtx || audioCtx.state === 'suspended') return;
-  const now = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'square';
-  osc.frequency.setValueAtTime(1400 + Math.random() * 200, now);
-  gain.gain.setValueAtTime(0.05, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start(now);
-  osc.stop(now + 0.015);
+  playTone(1400 + Math.random() * 200, null, 'square', 0.012, 0.18);
 }
 
-// Inverted Theme (Saved in localStorage, prominently in Mona Dock)
+// ---------- Theme ----------
 function setTheme(isInverted) {
   document.body.classList.toggle('inverted', isInverted);
   themeText.textContent = isInverted ? 'THEME: DARK' : 'THEME: INVERT';
   themeToggle.classList.toggle('active', isInverted);
   localStorage.setItem('typewriter_theme', isInverted ? 'inverted' : 'dark');
+  // Re-apply video opacity for theme defaults if user hasn't overridden heavily
+  const gainKnob = document.getElementById('knob-vidgain');
+  if (gainKnob && !gainKnob.dataset.userTouched) {
+    const def = isInverted ? 65 : 35;
+    gainKnob.dataset.val = def;
+    setupKnobVisual(gainKnob, 'readout-vidgain', '%', def);
+    document.documentElement.style.setProperty('--video-opacity', def / 100);
+  }
 }
-themeToggle.onclick = () => {
-  const isInverted = !document.body.classList.contains('inverted');
-  setTheme(isInverted);
-};
-if (localStorage.getItem('typewriter_theme') === 'inverted') {
-  setTheme(true);
+themeToggle.onclick = () => setTheme(!document.body.classList.contains('inverted'));
+if (localStorage.getItem('typewriter_theme') === 'inverted') setTheme(true);
+
+// ---------- Knobs ----------
+function setupKnobVisual(dial, readoutId, unit, val) {
+  const min = parseFloat(dial.dataset.min);
+  const max = parseFloat(dial.dataset.max);
+  const step = parseFloat(dial.dataset.step) || 1;
+  const fraction = (val - min) / (max - min);
+  const deg = -135 + fraction * 270;
+  dial.style.transform = `rotate(${deg}deg)`;
+  const readout = document.getElementById(readoutId);
+  readout.textContent = (step < 1 ? val.toFixed(2) : Math.round(val)) + unit;
+  dial.setAttribute('aria-valuenow', val);
 }
 
-// Acrohat Rotary Knobs Engine
 function setupKnob(elId, readoutId, unit, onChange) {
   const dial = document.getElementById(elId);
-  const readout = document.getElementById(readoutId);
   const min = parseFloat(dial.dataset.min);
   const max = parseFloat(dial.dataset.max);
   const step = parseFloat(dial.dataset.step) || 1;
   let val = parseFloat(dial.dataset.val);
 
-  function updateVisual(playTick = false) {
-    const fraction = (val - min) / (max - min);
-    const deg = -135 + fraction * 270;
-    dial.style.transform = `rotate(${deg}deg)`;
-    readout.textContent = (step < 1 ? val.toFixed(2) : Math.round(val)) + unit;
+  function apply(playTick = false) {
+    setupKnobVisual(dial, readoutId, unit, val);
     if (playTick) playKnobTick();
     onChange(val);
   }
@@ -516,29 +704,43 @@ function setupKnob(elId, readoutId, unit, onChange) {
     startVal = val;
     dial.classList.add('active');
     dial.setPointerCapture(e.pointerId);
+    dial.dataset.userTouched = '1';
   });
-
   dial.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     const dy = startY - e.clientY;
     const range = max - min;
-    const rawVal = startVal + (dy / 140) * range;
-    let clamped = Math.min(max, Math.max(min, rawVal));
+    let raw = startVal + (dy / 140) * range;
+    let clamped = Math.min(max, Math.max(min, raw));
     clamped = Math.round(clamped / step) * step;
     if (clamped !== val) {
       val = clamped;
-      updateVisual(true);
+      dial.dataset.val = val;
+      apply(true);
     }
   });
-
   const stop = () => { isDragging = false; dial.classList.remove('active'); };
   dial.addEventListener('pointerup', stop);
   dial.addEventListener('pointercancel', stop);
 
-  updateVisual(false);
+  // Keyboard
+  dial.addEventListener('keydown', (e) => {
+    let delta = 0;
+    if (e.key === 'ArrowUp' || e.key === ']') delta = step;
+    if (e.key === 'ArrowDown' || e.key === '[') delta = -step;
+    if (e.key === 'Home') { val = min; dial.dataset.val = val; apply(true); e.preventDefault(); return; }
+    if (e.key === 'End') { val = max; dial.dataset.val = val; apply(true); e.preventDefault(); return; }
+    if (delta !== 0) {
+      val = Math.min(max, Math.max(min, val + delta));
+      dial.dataset.val = val;
+      apply(true);
+      e.preventDefault();
+    }
+  });
+
+  apply(false);
 }
 
-// Initialize the 3 hardware dials
 setupKnob('knob-zoom', 'readout-zoom', '%', (v) => {
   editor.style.fontSize = `${(v / 100) * 1.15}rem`;
 });
@@ -547,9 +749,28 @@ setupKnob('knob-pitch', 'readout-pitch', 'X', (v) => {
 });
 setupKnob('knob-img', 'readout-img', 'PX', (v) => {
   currentImgWidth = Math.round(v);
+  // Update any existing images
+  editor.querySelectorAll('img.inline-img').forEach(img => {
+    img.style.width = currentImgWidth + 'px';
+  });
+});
+setupKnob('knob-vidgain', 'readout-vidgain', '%', (v) => {
+  document.documentElement.style.setProperty('--video-opacity', v / 100);
+});
+setupKnob('knob-vidcont', 'readout-vidcont', '%', (v) => {
+  const base = document.body.classList.contains('inverted')
+    ? 'brightness(1.02) grayscale(0.12)'
+    : 'grayscale(0.35)';
+  document.documentElement.style.setProperty('--video-filter', `contrast(${v / 100}) ${base}`);
+});
+setupKnob('knob-vol', 'readout-vol', '%', (v) => {
+  masterGain = v / 100;
+});
+setupKnob('knob-marq', 'readout-marq', 'S', (v) => {
+  document.documentElement.style.setProperty('--marquee-speed', v + 's');
 });
 
-// Video Background
+// ---------- Video ----------
 function extractId(val) {
   if (!val) return '';
   const m = val.trim().match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/)|[?&]v=)([\w-]{11})/);
@@ -564,17 +785,48 @@ function setVideo(id) {
     ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
     : `autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&modestbranding=1&showinfo=0`;
   videoLayer.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?${params}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  localStorage.setItem('typewriter_last_video', id);
 }
 videoSelect.addEventListener('change', () => {
   const v = videoSelect.value;
   customVideo.style.display = v === 'custom' ? 'inline-block' : 'none';
   if (v !== 'custom') setVideo(v);
 });
-customVideo.addEventListener('change', () => setVideo(extractId(customVideo.value)));
-customVideo.addEventListener('keydown', (e) => { if (e.key === 'Enter') setVideo(extractId(customVideo.value)); });
-setVideo(videoSelect.value);
+customVideo.addEventListener('change', () => {
+  const id = extractId(customVideo.value);
+  if (id) {
+    setVideo(id);
+    localStorage.setItem('typewriter_custom_id', id);
+  }
+});
+customVideo.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const id = extractId(customVideo.value);
+    if (id) setVideo(id);
+  }
+});
+// Restore last video
+const lastVid = localStorage.getItem('typewriter_last_video');
+const lastCustom = localStorage.getItem('typewriter_custom_id');
+if (lastVid && lastVid !== 'custom') {
+  if ([...videoSelect.options].some(o => o.value === lastVid)) {
+    videoSelect.value = lastVid;
+  } else {
+    videoSelect.value = 'custom';
+    customVideo.style.display = 'inline-block';
+    customVideo.value = lastVid;
+  }
+  setVideo(lastVid);
+} else if (lastCustom) {
+  videoSelect.value = 'custom';
+  customVideo.style.display = 'inline-block';
+  customVideo.value = lastCustom;
+  setVideo(lastCustom);
+} else {
+  setVideo(videoSelect.value);
+}
 
-// Image Bay & Segments
+// ---------- Image Bay ----------
 imgUpload.onclick = () => imgInput.click();
 imgInput.onchange = (e) => {
   const f = e.target.files[0];
@@ -599,34 +851,67 @@ document.getElementById('shape-seg').addEventListener('click', (e) => {
   imgShape = btn.dataset.val;
   document.querySelectorAll('#shape-seg button').forEach(b => b.classList.toggle('active', b === btn));
 });
+
 imgInsert.onclick = () => {
-  if (!currentImageData) { alert('Upload an image first.'); return; }
-  const marker = '{{IMG}}';
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  const val = editor.value;
-  editor.value = val.slice(0, start) + marker + val.slice(end);
-  editor.selectionStart = editor.selectionEnd = start + marker.length;
+  if (!currentImageData) {
+    alert('Upload an image first.');
+    return;
+  }
+  // Insert a real <img> that carries the data + meta for later serialization
+  const img = document.createElement('img');
+  img.src = currentImageData;
+  img.className = `inline-img ${imgShape} align-${imgAlign}`;
+  img.style.width = currentImgWidth + 'px';
+  img.dataset.align = imgAlign;
+  img.dataset.shape = imgShape;
+  img.dataset.width = currentImgWidth;
+  img.alt = '';
+
+  // Insert at caret
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(img);
+    // Move caret after image
+    range.setStartAfter(img);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    editor.appendChild(img);
+  }
   editor.focus();
-  updateStatus(); scheduleMarquee(); save(); pushUndo(true);
+  updateStatus();
+  scheduleMarquee();
+  saveCurrentSheet();
+  pushUndo(true);
 };
 
-// Font
-fontSelect.addEventListener('change', () => { editor.style.fontFamily = fontSelect.value; });
+// ---------- Font ----------
+fontSelect.addEventListener('change', () => {
+  editor.style.fontFamily = fontSelect.value;
+});
 editor.style.fontFamily = fontSelect.value;
 
-// Marquee Engine
+// ---------- Marquee ----------
 let marqueeTimer = null;
 function updateMarquee() {
   if (!marqueeOn) return;
-  const text = editor.value.trim();
-  if (!text) { marquee.innerHTML = '<span>— silence —</span><span>— silence —</span>'; return; }
-  const words = text.split(/\s+/).slice(-40);
+  const text = editor.innerText.trim();
+  if (!text) {
+    marquee.innerHTML = '<span>— silence —</span><span>— silence —</span>';
+    return;
+  }
+  const words = text.split(/\s+/).filter(Boolean).slice(-40);
   const reversed = words.reverse().join('  ·  ');
   const display = reversed + '     ' + reversed;
   marquee.innerHTML = `<span>${display}</span><span>${display}</span>`;
 }
-function scheduleMarquee() { clearTimeout(marqueeTimer); marqueeTimer = setTimeout(updateMarquee, 180); }
+function scheduleMarquee() {
+  clearTimeout(marqueeTimer);
+  marqueeTimer = setTimeout(updateMarquee, 180);
+}
 marqueeToggle.onclick = () => {
   marqueeOn = !marqueeOn;
   marqueeWrap.classList.toggle('hidden', !marqueeOn);
@@ -635,7 +920,7 @@ marqueeToggle.onclick = () => {
   if (marqueeOn) updateMarquee();
 };
 
-// Sound toggle
+// ---------- Sound toggle ----------
 soundToggle.onclick = () => {
   soundOn = !soundOn;
   soundToggle.classList.toggle('active', soundOn);
@@ -643,123 +928,398 @@ soundToggle.onclick = () => {
   if (soundOn) initAudio();
 };
 
-// Telemetry Status
+// ---------- Zen mode ----------
+document.getElementById('btn-zen').onclick = () => {
+  document.body.classList.toggle('zen');
+  document.getElementById('btn-zen').classList.toggle('active', document.body.classList.contains('zen'));
+};
+
+// ---------- Status + idle ----------
 function updateStatus() {
-  const t = editor.value;
+  const t = editor.innerText;
   const w = t.trim() ? t.trim().split(/\s+/).length : 0;
   wordsEl.textContent = `WORDS ${w}`;
   charsEl.textContent = `CHARS ${t.length}`;
   linesEl.textContent = `LN ${t.split('\n').length}`;
   readyEl.textContent = t.length ? 'WRITING' : 'READY';
+  readyEl.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (editor.innerText.trim()) {
+      readyEl.textContent = 'IDLE';
+      readyEl.classList.add('idle');
+    }
+  }, 30000);
 }
 
-// Undo Engine
+// ---------- Serialization helpers ----------
+function serializeEditor() {
+  // Convert live images back to {{IMG:meta}} markers for storage / PDF
+  const clone = editor.cloneNode(true);
+  clone.querySelectorAll('img.inline-img').forEach(img => {
+    const marker = document.createTextNode(
+      `{{IMG:${img.dataset.align || 'center'}:${img.dataset.shape || 'rect'}:${img.dataset.width || 180}:${img.src}}}`
+    );
+    img.parentNode.replaceChild(marker, img);
+  });
+  return clone.innerText;
+}
+
+function deserializeToEditor(raw) {
+  // Turn markers back into real images
+  editor.innerHTML = '';
+  if (!raw) return;
+  const parts = raw.split(/(\{\{IMG:[^}]+\}\})/g);
+  parts.forEach(part => {
+    const m = part.match(/^\{\{IMG:([^:]+):([^:]+):(\d+):(.+)\}\}$/);
+    if (m) {
+      const [, align, shape, width, data] = m;
+      const img = document.createElement('img');
+      img.src = data;
+      img.className = `inline-img ${shape} align-${align}`;
+      img.style.width = width + 'px';
+      img.dataset.align = align;
+      img.dataset.shape = shape;
+      img.dataset.width = width;
+      img.alt = '';
+      editor.appendChild(img);
+    } else if (part) {
+      // Preserve newlines
+      const lines = part.split('\n');
+      lines.forEach((line, i) => {
+        if (i > 0) editor.appendChild(document.createElement('br'));
+        if (line) editor.appendChild(document.createTextNode(line));
+      });
+    }
+  });
+}
+
+// ---------- Undo ----------
 let undoTimer = null;
 function pushUndo(force = false) {
-  const v = editor.value;
+  const v = serializeEditor();
   if (force) {
     if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
-    if (undoStack.length > 50) undoStack.shift();
+    if (undoStack.length > 60) undoStack.shift();
     return;
   }
   clearTimeout(undoTimer);
   undoTimer = setTimeout(() => {
     if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
-    if (undoStack.length > 50) undoStack.shift();
+    if (undoStack.length > 60) undoStack.shift();
   }, 400);
 }
 document.getElementById('btn-undo').onclick = () => {
   if (undoStack.length > 1) {
     undoStack.pop();
-    editor.value = undoStack[undoStack.length - 1] || '';
-    updateStatus(); scheduleMarquee(); save();
+    const prev = undoStack[undoStack.length - 1] || '';
+    deserializeToEditor(prev);
+    updateStatus();
+    scheduleMarquee();
+    saveCurrentSheet();
   }
 };
 
-// Persistence via LocalStorage
-function save() {
-  localStorage.setItem('typewriter_text', editor.value);
-}
-function load() {
-  const saved = localStorage.getItem('typewriter_text');
-  if (saved) editor.value = saved;
-  updateStatus(); updateMarquee(); pushUndo(true);
+// ---------- Sheets ----------
+function loadSheets() {
+  try {
+    sheets = JSON.parse(localStorage.getItem('typewriter_sheets') || '{}');
+  } catch {
+    sheets = {};
+  }
+  if (!Object.keys(sheets).length) {
+    sheets['sheet-1'] = { name: 'Sheet 1', content: '', created: Date.now() };
+  }
+  if (!sheets[currentSheetId]) currentSheetId = Object.keys(sheets)[0];
 }
 
-// PDF Export & File Loading
-document.getElementById('btn-load').onclick = () => document.getElementById('file-input').click();
-document.getElementById('file-input').onchange = (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(true); };
-  r.readAsText(f);
+function saveSheets() {
+  localStorage.setItem('typewriter_sheets', JSON.stringify(sheets));
+}
+
+function saveCurrentSheet() {
+  if (!sheets[currentSheetId]) return;
+  sheets[currentSheetId].content = serializeEditor();
+  sheets[currentSheetId].updated = Date.now();
+  saveSheets();
+}
+
+function switchSheet(id) {
+  if (id === currentSheetId) return;
+  saveCurrentSheet();
+  currentSheetId = id;
+  const s = sheets[id];
+  deserializeToEditor(s.content || '');
+  sheetNameEl.textContent = (s.name || id).toUpperCase();
+  undoStack = [serializeEditor()];
+  updateStatus();
+  scheduleMarquee();
+  renderSheetList();
+  sheetMenu.classList.remove('open');
+}
+
+function renderSheetList() {
+  const list = document.getElementById('sheet-list');
+  list.innerHTML = '';
+  Object.entries(sheets).forEach(([id, s]) => {
+    const btn = document.createElement('button');
+    btn.textContent = s.name || id;
+    if (id === currentSheetId) btn.classList.add('active');
+    btn.onclick = () => switchSheet(id);
+    list.appendChild(btn);
+  });
+}
+
+document.getElementById('btn-sheets').onclick = (e) => {
+  e.stopPropagation();
+  renderSheetList();
+  sheetMenu.classList.toggle('open');
 };
+document.addEventListener('click', (e) => {
+  if (!sheetMenu.contains(e.target) && e.target.id !== 'btn-sheets') {
+    sheetMenu.classList.remove('open');
+  }
+});
+
+document.getElementById('btn-new-sheet').onclick = () => {
+  const id = 'sheet-' + Date.now();
+  const name = 'Sheet ' + (Object.keys(sheets).length + 1);
+  sheets[id] = { name, content: '', created: Date.now() };
+  saveSheets();
+  switchSheet(id);
+};
+
+document.getElementById('btn-rename-sheet').onclick = () => {
+  const s = sheets[currentSheetId];
+  const name = prompt('Rename sheet', s.name || '');
+  if (name !== null && name.trim()) {
+    s.name = name.trim();
+    saveSheets();
+    sheetNameEl.textContent = s.name.toUpperCase();
+    renderSheetList();
+  }
+};
+
+document.getElementById('btn-del-sheet').onclick = () => {
+  if (Object.keys(sheets).length <= 1) {
+    alert('Cannot delete the last sheet.');
+    return;
+  }
+  if (!confirm('Delete this sheet?')) return;
+  delete sheets[currentSheetId];
+  saveSheets();
+  currentSheetId = Object.keys(sheets)[0];
+  switchSheet(currentSheetId);
+};
+
+// ---------- Export ----------
 document.getElementById('btn-pdf').onclick = () => {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-  const text = editor.value || ' ';
   const margin = 54;
   const maxWidth = 504;
   const pageHeight = 720;
   let y = margin;
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(11);
-  const width = currentImgWidth || 180;
 
-  const parts = text.split('{{IMG}}');
-  parts.forEach((part, idx) => {
-    if (part) {
-      const lines = doc.splitTextToSize(part, maxWidth);
-      lines.forEach(line => {
-        if (y > pageHeight) { doc.addPage(); y = margin; }
-        doc.text(line, margin, y);
-        y += 16;
-      });
-    }
-    if (idx < parts.length - 1 && currentImageData) {
-      const h = imgShape === 'circle' ? width : width * 0.75;
+  // Try to approximate the selected font
+  const fontName = fontSelect.value.includes('Garamond') || fontSelect.value.includes('Baskerville') || fontSelect.value.includes('Merriweather')
+    ? 'times' : 'courier';
+  doc.setFont(fontName, 'normal');
+
+  const sizePx = parseFloat(getComputedStyle(editor).fontSize) || 18.4;
+  const fontSizePt = Math.max(9, Math.min(16, sizePx * 0.75));
+  doc.setFontSize(fontSizePt);
+  const lineH = fontSizePt * (parseFloat(getComputedStyle(editor).lineHeight) || 1.65);
+
+  const raw = serializeEditor();
+  const parts = raw.split(/(\{\{IMG:[^}]+\}\})/g);
+
+  parts.forEach((part) => {
+    const m = part.match(/^\{\{IMG:([^:]+):([^:]+):(\d+):(.+)\}\}$/);
+    if (m) {
+      const [, align, shape, widthStr, data] = m;
+      const width = parseInt(widthStr, 10) || 180;
+      const h = shape === 'circle' ? width : width * 0.75;
       if (y + h > pageHeight) { doc.addPage(); y = margin; }
       let x = margin;
-      if (imgAlign === 'center') x = (612 - width) / 2;
-      if (imgAlign === 'right') x = 612 - margin - width;
+      if (align === 'center') x = (612 - width) / 2;
+      if (align === 'right') x = 612 - margin - width;
       try {
-        const isPng = currentImageData.startsWith('data:image/png');
-        doc.addImage(currentImageData, isPng ? 'PNG' : 'JPEG', x, y, width, h);
+        const isPng = data.startsWith('data:image/png');
+        doc.addImage(data, isPng ? 'PNG' : 'JPEG', x, y, width, h);
         y += h + 12;
-      } catch (err) {
+      } catch {
         doc.text('[image]', x, y);
-        y += 16;
+        y += lineH;
       }
+    } else if (part) {
+      const lines = doc.splitTextToSize(part, maxWidth);
+      lines.forEach(line => {
+        if (y > pageHeight - 20) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += lineH;
+      });
     }
   });
-  doc.save('typewriter.pdf');
+  doc.save((sheets[currentSheetId]?.name || 'typewriter') + '.pdf');
 };
-document.getElementById('btn-clear').onclick = () => {
-  if (confirm('Clear current sheet?')) {
-    editor.value = '';
-    updateStatus(); scheduleMarquee(); save(); pushUndo(true);
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+document.getElementById('btn-export-txt').onclick = () => {
+  const name = (sheets[currentSheetId]?.name || 'typewriter') + '.txt';
+  downloadText(name, editor.innerText);
+};
+
+document.getElementById('btn-export-md').onclick = () => {
+  // Simple markdown: images become ![img](data...)
+  let md = '';
+  editor.childNodes.forEach(node => {
+    if (node.nodeType === 3) md += node.textContent;
+    else if (node.nodeName === 'BR') md += '\n';
+    else if (node.nodeName === 'IMG') md += `\n![image](${node.src})\n`;
+    else md += node.innerText || '';
+  });
+  const name = (sheets[currentSheetId]?.name || 'typewriter') + '.md';
+  downloadText(name, md);
+};
+
+document.getElementById('btn-copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(editor.innerText);
+    const btn = document.getElementById('btn-copy');
+    const old = btn.textContent;
+    btn.textContent = 'COPIED';
+    setTimeout(() => btn.textContent = old, 1200);
+  } catch {
+    alert('Clipboard access denied.');
   }
 };
 
+document.getElementById('btn-clear').onclick = () => {
+  if (confirm('Clear current sheet?')) {
+    editor.innerHTML = '';
+    updateStatus();
+    scheduleMarquee();
+    saveCurrentSheet();
+    pushUndo(true);
+  }
+};
+
+// File load (text)
+document.getElementById('btn-load')?.addEventListener('click', () => document.getElementById('file-input').click());
+// (we kept the id in the original but it's not in the new dock; add a quick way)
+document.getElementById('file-input').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    editor.innerText = r.result;
+    updateStatus();
+    scheduleMarquee();
+    saveCurrentSheet();
+    pushUndo(true);
+  };
+  r.readAsText(f);
+};
+
+// ---------- Editor events ----------
 editor.addEventListener('input', () => {
-  updateStatus(); scheduleMarquee(); save(); pushUndo();
-  if (soundOn) playClick();
+  updateStatus();
+  scheduleMarquee();
+  saveCurrentSheet();
+  pushUndo();
 });
+
+editor.addEventListener('keydown', (e) => {
+  if (!soundOn) return;
+  if (e.key === 'Enter') playReturn();
+  else if (e.key === ' ') playSpace();
+  else if (e.key === 'Backspace') playBackspace();
+  else if (e.key.length === 1) playClick();
+});
+
 editor.addEventListener('focus', () => document.body.classList.add('typing'));
 editor.addEventListener('blur', () => document.body.classList.remove('typing'));
 
+// Drag & drop text files
 editor.addEventListener('dragover', (e) => e.preventDefault());
 editor.addEventListener('drop', (e) => {
   e.preventDefault();
   const f = e.dataTransfer.files[0];
   if (f && (f.type.startsWith('text') || f.name.endsWith('.txt') || f.name.endsWith('.md'))) {
     const r = new FileReader();
-    r.onload = () => { editor.value = r.result; updateStatus(); scheduleMarquee(); save(); pushUndo(true); };
+    r.onload = () => {
+      editor.innerText = r.result;
+      updateStatus();
+      scheduleMarquee();
+      saveCurrentSheet();
+      pushUndo(true);
+    };
     r.readAsText(f);
   }
 });
 
-load();
+// ---------- Help ----------
+function openHelp() { helpOverlay.classList.add('open'); }
+function closeHelp() { helpOverlay.classList.remove('open'); }
+document.getElementById('btn-help').onclick = openHelp;
+document.getElementById('close-help').onclick = closeHelp;
+helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) closeHelp(); });
+
+// Global shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement !== editor) {
+    openHelp();
+    e.preventDefault();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+    openHelp();
+    e.preventDefault();
+  }
+  if (e.key === 'Escape') {
+    closeHelp();
+    if (document.body.classList.contains('zen')) {
+      document.body.classList.remove('zen');
+      document.getElementById('btn-zen').classList.remove('active');
+    }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    document.getElementById('btn-undo').click();
+    e.preventDefault();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    saveCurrentSheet();
+    e.preventDefault();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    document.getElementById('btn-zen').click();
+    e.preventDefault();
+  }
+});
+
+// ---------- Init ----------
+loadSheets();
+const startContent = sheets[currentSheetId]?.content || '';
+deserializeToEditor(startContent);
+sheetNameEl.textContent = (sheets[currentSheetId]?.name || 'Sheet 1').toUpperCase();
+updateStatus();
+updateMarquee();
+pushUndo(true);
+
+// Migrate old single-text storage if present
+const old = localStorage.getItem('typewriter_text');
+if (old && !startContent) {
+  deserializeToEditor(old);
+  saveCurrentSheet();
+  localStorage.removeItem('typewriter_text');
+}
 </script>
 </body>
 </html>
