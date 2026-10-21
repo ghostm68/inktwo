@@ -83,7 +83,7 @@ window.addEventListener('mousemove', e => {
   mouseX = e.clientX; mouseY = e.clientY;
   trailPoints.push({ x: e.clientX, y: e.clientY, age: 0 });
   const over = !!e.target.closest('#editor, .crt-frame');
-  const inter = e.target.closest('button, select, a, input, .seg, .knob-dial, .tactile-btn, .storage-box');
+  const inter = e.target.closest('button, select, a, input, .seg, .knob-dial, .tactile-btn, .storage-box, .capsule-pill');
   if (over) {
     document.body.classList.add('typing');
     cursor.classList.remove('hovering');
@@ -124,17 +124,49 @@ function playReturn() { playTone(130, 50, 'square', 0.065, 0.45); }
 function playBackspace() { playTone(380, 160, 'sawtooth', 0.032, 0.4); }
 function playKnobTick() { playTone(1500 + Math.random() * 200, null, 'square', 0.010, 0.18); }
 
-// Theme Control
+// Theme & Capsule Controller
 function applyTheme(cls) {
   ['theme-invert', 'theme-green', 'theme-amber', 'theme-blue', 'theme-mono'].forEach(c => document.body.classList.remove(c));
   if (cls) document.body.classList.add(cls);
+  themeSelect.value = cls || '';
+  
+  // Sync Theme Capsules
+  document.querySelectorAll('#theme-capsules .capsule-pill').forEach(pill => {
+    pill.classList.toggle('active', pill.dataset.val === (cls || ''));
+  });
   localStorage.setItem('hybrid_theme', cls || '');
 }
-themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
-const savedTheme = localStorage.getItem('hybrid_theme');
-if (savedTheme) { themeSelect.value = savedTheme; applyTheme(savedTheme); }
 
-// Knob Controller
+themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
+document.getElementById('theme-capsules').addEventListener('click', e => {
+  const pill = e.target.closest('.capsule-pill');
+  if (pill) applyTheme(pill.dataset.val);
+});
+
+const savedTheme = localStorage.getItem('hybrid_theme');
+if (savedTheme !== null) { applyTheme(savedTheme); }
+
+// Font & Capsule Controller
+function applyFont(family) {
+  editor.style.fontFamily = family;
+  fontSelect.value = family;
+  document.querySelectorAll('#font-capsules .capsule-pill').forEach(pill => {
+    pill.classList.toggle('active', pill.dataset.val === family);
+  });
+  localStorage.setItem('hybrid_font', family);
+}
+
+fontSelect.addEventListener('change', () => applyFont(fontSelect.value));
+document.getElementById('font-capsules').addEventListener('click', e => {
+  const pill = e.target.closest('.capsule-pill');
+  if (pill) applyFont(pill.dataset.val);
+});
+
+const savedFont = localStorage.getItem('hybrid_font');
+if (savedFont) { applyFont(savedFont); }
+else { applyFont(fontSelect.value); }
+
+// Knob Controller with Wheel & Drag
 function setupKnobVisual(dial, readoutId, unit, val) {
   const min = +dial.dataset.min, max = +dial.dataset.max, step = +dial.dataset.step || 1;
   const frac = (val - min) / (max - min);
@@ -288,10 +320,6 @@ document.getElementById('img-insert').onclick = () => {
   editor.focus();
   updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo(true);
 };
-
-// Font Selection
-fontSelect.addEventListener('change', () => editor.style.fontFamily = fontSelect.value);
-editor.style.fontFamily = fontSelect.value;
 
 // Marquee Engine
 let marqueeTimer = null;
@@ -571,7 +599,7 @@ function switchSheet(id) {
   const s = sheets[id];
   deserializeToEditor(s.content || '');
   const title = (s.name || id).toUpperCase();
-  sheetNameEl.textContent = title.slice(0, 7);
+  sheetNameEl.textContent = title.slice(0, 8);
   deckSheetTag.textContent = 'SECTOR: ' + title;
   undoStack = [serializeEditor()];
   updateStatus(); scheduleMarquee(); scheduleCadence();
@@ -621,7 +649,7 @@ document.getElementById('btn-rename-sheet').onclick = () => {
     s.name = name.trim();
     saveSheets();
     const title = s.name.toUpperCase();
-    sheetNameEl.textContent = title.slice(0, 7);
+    sheetNameEl.textContent = title.slice(0, 8);
     deckSheetTag.textContent = 'SECTOR: ' + title;
     renderSheetList();
   }
@@ -636,7 +664,7 @@ document.getElementById('btn-del-sheet').onclick = () => {
   switchSheet(currentSheetId);
 };
 
-// Export (PDF / TXT / Clipboard / Clear)
+// Export Handlers
 document.getElementById('btn-pdf').onclick = () => {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const margin = 54, maxW = 504, pageH = 720;
@@ -709,7 +737,7 @@ document.getElementById('btn-clear').onclick = () => {
   }
 };
 
-// Editor Input & Keystrokes
+// Editor Keystroke Handlers
 editor.addEventListener('input', () => {
   updateStatus(); scheduleMarquee(); scheduleCadence(); saveCurrentSheet(); pushUndo();
 });
@@ -731,7 +759,7 @@ editor.addEventListener('mouseup', () => {
   }
 });
 
-// Help Modal Controls
+// Help Overlay Handlers
 function openHelp() { document.getElementById('help-overlay').classList.add('open'); }
 function closeHelp() { document.getElementById('help-overlay').classList.remove('open'); }
 document.getElementById('btn-help').onclick = openHelp;
@@ -740,7 +768,7 @@ document.getElementById('help-overlay').addEventListener('click', e => {
   if (e.target.id === 'help-overlay') closeHelp();
 });
 
-// Keyboard Shortcuts
+// Global Shortcuts
 document.addEventListener('keydown', e => {
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement !== editor) { openHelp(); e.preventDefault(); }
   if ((e.ctrlKey || e.metaKey) && e.key === '/') { openHelp(); e.preventDefault(); }
@@ -760,7 +788,7 @@ document.addEventListener('keydown', e => {
 loadSheets();
 deserializeToEditor(sheets[currentSheetId]?.content || '');
 const initialTitle = (sheets[currentSheetId]?.name || 'Sector 1').toUpperCase();
-sheetNameEl.textContent = initialTitle.slice(0, 7);
+sheetNameEl.textContent = initialTitle.slice(0, 8);
 deckSheetTag.textContent = 'SECTOR: ' + initialTitle;
 updateStatus(); updateMarquee(); scheduleCadence(); pushUndo(true);
 
