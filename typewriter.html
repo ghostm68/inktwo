@@ -157,8 +157,13 @@ header a:hover { color: var(--red); }
   font-variant-numeric: tabular-nums; letter-spacing: 0.05em;
 }
 
-/* Image Bay */
-.img-bay { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hud-insert-btn {
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--red);
+  padding: 6px 12px; font-size: 10px; font-family: inherit; letter-spacing: 0.1em;
+  cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  box-shadow: 0 0 6px rgba(255,42,42,0.25);
+}
+.hud-insert-btn:hover { background: var(--red); color: #000; }
 .seg { display: flex; border: 1px solid var(--grey-dark); }
 .seg button {
   border: none; border-right: 1px solid var(--grey-dark); padding: 5px 9px;
@@ -477,20 +482,8 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
       </div>
 
       <div class="img-bay">
-        <span class="label">IMAGE BAY</span>
         <input type="file" id="img-input" accept="image/*" hidden>
-        <button id="img-upload" title="Upload Image">+</button>
-        <img id="img-thumb" style="height:22px;width:22px;object-fit:cover;border:1px solid var(--grey-dark);display:none;" alt="">
-        <div class="seg" id="align-seg">
-          <button data-val="left">L</button>
-          <button data-val="center" class="active">C</button>
-          <button data-val="right">R</button>
-        </div>
-        <div class="seg" id="shape-seg">
-          <button data-val="rect" class="active">RECT</button>
-          <button data-val="circle">CIRCLE</button>
-        </div>
-        <button id="img-insert">INSERT</button>
+        <button id="img-upload" class="hud-insert-btn" title="Insert Image">&#9712; INSERT IMAGE</button>
       </div>
     </div>
   </header>
@@ -572,12 +565,9 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
   <div class="help-card">
     <h2 id="help-title">Typewriter // Instrument</h2>
 
-    <h3>Image Bay Workflow</h3>
-    <p>1. Click <strong>+</strong> and choose an image.</p>
-    <p>2. Set alignment (L / C / R) and shape (RECT / CIRCLE).</p>
-    <p>3. Adjust <strong>IMG WIDTH</strong> with the knob.</p>
-    <p>4. Place the caret where you want the image, then click <strong>INSERT</strong>.</p>
-    <p>The image appears immediately in the writing surface. It is stored as a marker so PDF export still works correctly.</p>
+    <h3>Image Insert</h3>
+    <p>Click <strong>INSERT IMAGE</strong>, choose a file. It drops at the caret.</p>
+    <p>Click the image to open the floating HUD: L/C/R alignment, RECT/○ shape, width −/+, delete.</p>
 
     <h3>Keyboard Shortcuts</h3>
     <ul>
@@ -619,9 +609,8 @@ const cursorWrap = document.getElementById('cursor-wrap');
 const cursor = document.getElementById('cursor');
 const cursorText = document.getElementById('cursor-text');
 const imgInput = document.getElementById('img-input');
-const imgThumb = document.getElementById('img-thumb');
 const imgUpload = document.getElementById('img-upload');
-const imgInsert = document.getElementById('img-insert');
+const imgInput = document.getElementById('img-input');
 const themeToggle = document.getElementById('theme-toggle');
 const themeText = document.getElementById('theme-text');
 const soundToggle = document.getElementById('sound-toggle');
@@ -888,66 +877,44 @@ if (lastVid && lastVid !== 'custom') {
   setVideo('none');
 }
 
-// ---------- Image Bay ----------
+// ---------- Image Insert (quick, HUD handles rest) ----------
 imgUpload.onclick = () => imgInput.click();
 imgInput.onchange = (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
   r.onload = () => {
-    currentImageData = r.result;
-    imgThumb.src = currentImageData;
-    imgThumb.style.display = 'inline-block';
+    const data = r.result;
+    const img = document.createElement('img');
+    img.src = data;
+    img.className = 'inline-img rect align-center';
+    img.style.width = currentImgWidth + 'px';
+    img.dataset.align = 'center';
+    img.dataset.shape = 'rect';
+    img.dataset.width = currentImgWidth;
+    img.alt = '';
+
+    const sel = window.getSelection();
+    if (sel.rangeCount && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      editor.appendChild(img);
+    }
+    editor.focus();
+    selectImage(img); // show HUD immediately
+    updateStatus();
+    scheduleMarquee();
+    saveCurrentSheet();
+    pushUndo(true);
   };
   r.readAsDataURL(f);
-};
-document.getElementById('align-seg').addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  imgAlign = btn.dataset.val;
-  document.querySelectorAll('#align-seg button').forEach(b => b.classList.toggle('active', b === btn));
-});
-document.getElementById('shape-seg').addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  imgShape = btn.dataset.val;
-  document.querySelectorAll('#shape-seg button').forEach(b => b.classList.toggle('active', b === btn));
-});
-
-imgInsert.onclick = () => {
-  if (!currentImageData) {
-    alert('Upload an image first.');
-    return;
-  }
-  // Insert a real <img> that carries the data + meta for later serialization
-  const img = document.createElement('img');
-  img.src = currentImageData;
-  img.className = `inline-img ${imgShape} align-${imgAlign}`;
-  img.style.width = currentImgWidth + 'px';
-  img.dataset.align = imgAlign;
-  img.dataset.shape = imgShape;
-  img.dataset.width = currentImgWidth;
-  img.alt = '';
-
-  // Insert at caret
-  const sel = window.getSelection();
-  if (sel.rangeCount) {
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(img);
-    // Move caret after image
-    range.setStartAfter(img);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  } else {
-    editor.appendChild(img);
-  }
-  editor.focus();
-  updateStatus();
-  scheduleMarquee();
-  saveCurrentSheet();
-  pushUndo(true);
+  e.target.value = '';
 };
 
 // ---------- Floating Image HUD ----------
