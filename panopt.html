@@ -1486,6 +1486,22 @@
     const dictMatrix = document.getElementById('dict-matrix');
     const recentWords = [];
     const STOP = new Set(['THE','A','AN','AND','OR','OF','TO','IN','ON','FOR','WITH','AT','BY','FROM','IS','IT','BE','AS','THIS','THAT','YOU','I','WE','THEY']);
+    let websterDict = null;
+    let dictLoading = false;
+
+    async function loadWebster() {
+      if (websterDict || dictLoading) return websterDict;
+      dictLoading = true;
+      try {
+        const res = await fetch('https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary.json');
+        if (!res.ok) throw new Error('fetch failed');
+        websterDict = await res.json();
+      } catch (e) {
+        websterDict = null;
+      }
+      dictLoading = false;
+      return websterDict;
+    }
 
     function addDictWord(word) {
       const w = word.replace(/[^A-Za-z\-']/g, '').toUpperCase();
@@ -1512,26 +1528,30 @@
 
     async function lookupWord(word) {
       popupTitle.textContent = `// DICT // ${word}`;
-      popupBody.innerHTML = `<div style="color:#fff;">QUERYING...</div>`;
+      popupBody.innerHTML = `<div style="color:#fff;">QUERYING WEBSTER...</div>`;
       gsap.to(toolModal, { duration: 0.25, autoAlpha: 1, scale: 1, ease: "power2.out" });
 
-      try {
-        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
-        if (!res.ok) throw new Error('no entry');
-        const data = await res.json();
-        const entry = data[0];
-        const meaning = entry.meanings?.[0];
-        const def = meaning?.definitions?.[0]?.definition || 'No definition found.';
-        const pos = meaning?.partOfSpeech || '';
+      const dict = await loadWebster();
+      const key = word.toLowerCase();
+      let def = null;
+
+      if (dict) {
+        // Webster JSON is typically { "word": "definition" } or similar
+        def = dict[key] || dict[key.toUpperCase()] || null;
+        if (Array.isArray(def)) def = def[0];
+        if (typeof def === 'object' && def !== null) def = def.definition || def.meaning || JSON.stringify(def);
+      }
+
+      if (def) {
         popupBody.innerHTML = `
           <div style="color:#fff; margin-bottom:4px;">${word}</div>
-          <div style="font-size:7.5px; color:var(--yel); margin-bottom:4px;">${pos.toUpperCase()}</div>
-          <div style="line-height:1.35;">${def}</div>
+          <div style="font-size:7.5px; color:var(--yel); margin-bottom:4px;">WEBSTER</div>
+          <div style="line-height:1.35; font-size:8.5px;">${def}</div>
         `;
-      } catch {
+      } else {
         popupBody.innerHTML = `
           <div style="color:#fff; margin-bottom:4px;">${word}</div>
-          <div style="line-height:1.35; color:var(--hud-dim);">NO ENTRY // INTERZONE TERM OR OFFLINE</div>
+          <div style="line-height:1.35; color:var(--hud-dim);">NO ENTRY IN WEBSTER // INTERZONE TERM</div>
         `;
       }
     }
@@ -1548,6 +1568,7 @@
     });
 
     renderDictMatrix();
+    loadWebster(); // preload
 
     /* ================= 8. LOWER STAGE DYNAMICS (RETICLE & CUT-UP) ================= */
     const lowerStage = document.getElementById('lower-stage');
