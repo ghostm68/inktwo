@@ -229,6 +229,15 @@
       .video-frame-wrap { height: 130px !important; }
       .avatar-display-box { height: 90px !important; }
       .platen-anchor { height: 45vh !important; }
+
+      /* Larger readable text on desktop */
+      #minraud-editor { font-size: 16px; line-height: 1.5; }
+      .hud-btn,
+      .custom-select-trigger,
+      .custom-option { font-size: 8.5px; padding: 4px 7px; }
+      .deck-header { font-size: 8px; }
+      .callout-stream { font-size: 11px; }
+      .brandText { font-size: 15px; }
     }
 
     /* Mobile / Small Screens (< 900px): Compact Stacking */
@@ -359,16 +368,18 @@
 
     .custom-options-menu {
       position: absolute;
-      bottom: 100%;
+      top: 100%;
       left: 0;
       right: 0;
       background: #000;
       border: 1px solid var(--red);
       display: none;
       flex-direction: column;
-      z-index: 60;
-      box-shadow: 0 -4px 12px rgba(0,0,0,0.9);
-      margin-bottom: 2px;
+      z-index: 70;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.9);
+      margin-top: 2px;
+      max-height: 180px;
+      overflow-y: auto;
     }
 
     .custom-options-menu.open { display: flex; }
@@ -498,6 +509,34 @@
       word-break: break-word;
       min-height: 20px;
     }
+
+    .signal-meters {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 6.5px;
+    }
+    .meter-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .meter-label { color: var(--hud-dim); width: 22px; flex-shrink: 0; }
+    .meter-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      overflow: hidden;
+    }
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--crimson-glow);
+      transition: width 0.12s ease-out;
+    }
+    .meter-val { color: var(--yel); width: 28px; text-align: right; flex-shrink: 0; }
 
     /* Tool Memory Matrix */
     .matrix-pod {
@@ -641,7 +680,7 @@
       </div>
 
       <div class="export-bar">
-        <div class="custom-select-container" id="font-select" style="flex: none; width: 100px;">
+        <div class="custom-select-container" id="font-select" style="flex: none; width: 108px; z-index: 80;">
           <div class="custom-select-trigger" id="font-trigger">
             <span id="font-label">COURIER</span>
             <span>▼</span>
@@ -698,6 +737,19 @@
             <div style="font-size:6.5px; color:var(--hud-dim); margin-top:2px; display:flex; justify-content:space-between;">
               <span>BURROUGHS FOLD-IN</span>
               <span id="keystroke-count">WORDS: 0</span>
+            </div>
+            <!-- Signal meters -->
+            <div class="signal-meters">
+              <div class="meter-row">
+                <span class="meter-label">SIG</span>
+                <div class="meter-bar"><div class="meter-fill" id="sig-fill"></div></div>
+                <span class="meter-val" id="sig-val">0.00</span>
+              </div>
+              <div class="meter-row">
+                <span class="meter-label">VEL</span>
+                <div class="meter-bar"><div class="meter-fill" id="vel-fill"></div></div>
+                <span class="meter-val" id="vel-val">0</span>
+              </div>
             </div>
           </div>
 
@@ -1331,6 +1383,33 @@
     let idleTimer = null;
     let wanderAngle = 0;
 
+    // Signal meter state
+    let keystrokeTimes = [];
+    let lastKeyTime = 0;
+    const sigFill = document.getElementById('sig-fill');
+    const sigVal = document.getElementById('sig-val');
+    const velFill = document.getElementById('vel-fill');
+    const velVal = document.getElementById('vel-val');
+
+    function updateSignalMeters() {
+      const now = performance.now();
+      // Keep last 2 seconds of keystrokes
+      keystrokeTimes = keystrokeTimes.filter(t => now - t < 2000);
+      const count = keystrokeTimes.length;
+      const velocity = count / 2; // keys per second approx
+      const signal = Math.min(1, velocity / 8); // normalize ~0-1
+
+      if (sigFill) sigFill.style.width = (signal * 100) + '%';
+      if (sigVal) sigVal.textContent = signal.toFixed(2);
+      if (velFill) velFill.style.width = Math.min(100, velocity * 12) + '%';
+      if (velVal) velVal.textContent = Math.round(velocity);
+
+      // Decay slowly when idle
+      if (!isTyping && signal > 0.01) {
+        // already filtered by time window
+      }
+    }
+
     function renderCutUp() {
       const res = MinraudEngine.process(editor.innerText);
       calloutStream.textContent = res;
@@ -1384,6 +1463,10 @@
 
     function triggerTextUpdate() {
       isTyping = true;
+      const now = performance.now();
+      keystrokeTimes.push(now);
+      lastKeyTime = now;
+
       const words = editor.innerText.trim().split(/\s+/).filter(Boolean);
       wordCounter.textContent = `WORDS: ${words.length}`;
       calloutMode.textContent = "// TRANSMITTING TOKENS";
@@ -1395,17 +1478,20 @@
       targetY = 40;
 
       renderCutUp();
+      updateSignalMeters();
 
       idleTimer = setTimeout(() => {
         isTyping = false;
         calloutMode.textContent = "// PLACEHOLDER INTERCEPT";
         targetX = stageRect.width * 0.45;
         targetY = stageRect.height * 0.45;
+        updateSignalMeters();
       }, 3500);
     }
 
     editor.addEventListener('input', triggerTextUpdate);
     setInterval(() => { if (!isTyping) renderCutUp(); }, 4000);
+    setInterval(updateSignalMeters, 300); // smooth decay of meters
 
     /* ================= FONT SELECTOR ================= */
     const fontTrigger = document.getElementById('font-trigger');
