@@ -7,30 +7,30 @@
 <link rel="icon" type="image/svg+xml" href="https://wordstar.nexus/svg/favicon.svg" />
 <link rel="shortcut icon" href="https://wordstar.nexus/svg/favicon.ico" />
 <link rel="apple-touch-icon" sizes="180x180" href="https://wordstar.nexus/svg/apple-touch-icon.png" />
-<title>TYPEWRITER // INSTRUMENT</title>
+<title>TYPEWRITER // HYBRID INSTRUMENT</title>
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&family=Courier+Prime&family=VT323&family=JetBrains+Mono&family=Source+Code+Pro&family=Roboto+Mono&family=Space+Mono&family=Fira+Code&family=EB+Garamond&family=Libre+Baskerville&family=Merriweather&family=Inter&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
-  --bg: #090909;
-  --panel: #111111;
-  --panel-border: #282828;
-  --dock-bg: rgba(14, 14, 14, 0.94);
-  --text: #eaeaea;
-  --text-dim: #555555;
-  --red: #e10600;
-  --red-dim: #8a0400;
+  --bg: #0a0b0e;
+  --panel: #141720;
+  --panel-border: #353a49;
+  --dock-bg: rgba(17, 19, 26, 0.94);
+  --text: #d8e0e8;
+  --text-dim: #71788e;
+  --red: #ff2a2a;
+  --red-dim: #7a1515;
   --grey: #858585;
-  --grey-dark: #303030;
-  --input-bg: #000000;
-  --knob-bg: radial-gradient(circle at 35% 35%, #2a2a2a, #080808);
-  --knob-border: #383838;
-  --editor-overlay: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.72));
-  --cursor-bg: #ffffff;
+  --grey-dark: #2c3140;
+  --input-bg: #0d0f15;
+  --knob-bg: radial-gradient(circle at 40% 35%, #3a3f50, #13151c);
+  --knob-border: #4a5166;
+  --editor-overlay: linear-gradient(180deg, rgba(6,7,10,0.45) 0%, rgba(6,7,10,0.78) 100%);
+  --cursor-bg: #ff2a2a;
   --cursor-text: #000000;
-  --video-opacity: 0.35;
-  --video-filter: grayscale(0.35) contrast(1.05);
-  --focus-ring: 0 0 0 2px var(--red);
+  --video-opacity: 0.42;
+  --video-filter: grayscale(0.25) contrast(1.15) brightness(0.85);
+  --focus-ring: 0 0 0 1px var(--red), 0 0 8px rgba(255,42,42,0.45);
 }
 
 body.inverted {
@@ -64,7 +64,13 @@ html, body {
   transition: background-color 0.25s, color 0.25s;
 }
 body { display: flex; flex-direction: column; }
-body.custom-cursor { cursor: none; }
+body.scanlines::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%),
+              linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02));
+  background-size: 100% 3px, 5px 100%;
+  opacity: 0.5;
+}
 
 /* Custom cursor */
 #cursor-wrap {
@@ -181,8 +187,10 @@ body.zen .editor-wrap { height: 78vh; max-width: 960px; }
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   opacity: var(--video-opacity); filter: var(--video-filter);
   transition: opacity 0.3s, filter 0.3s;
+  background: url('hud-background.jpg') center/cover no-repeat;
+  background-blend-mode: multiply;
 }
-#video-layer iframe { width: 100%; height: 100%; border: 0; }
+#video-layer iframe { width: 100%; height: 100%; border: 0; display: none; }
 .editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--editor-overlay); }
 
 #editor {
@@ -203,11 +211,46 @@ body.inverted #editor {
 #editor img.inline-img {
   display: block; max-width: 100%; margin: 12px 0;
   object-fit: cover; border: 1px solid var(--panel-border);
+  box-shadow: 0 0 12px rgba(0,0,0,0.7); cursor: pointer;
+  transition: outline 0.15s, box-shadow 0.15s;
 }
-#editor img.inline-img.circle { border-radius: 50%; }
-#editor img.inline-img.align-left { margin-right: auto; }
+#editor img.inline-img.selected {
+  outline: 2px solid var(--red);
+  box-shadow: 0 0 14px rgba(255,42,42,0.45);
+}
+#editor img.inline-img.circle { border-radius: 50%; aspect-ratio: 1/1; object-fit: cover; }
+#editor img.inline-img.align-left { margin-right: auto; margin-left: 0; }
 #editor img.inline-img.align-center { margin-left: auto; margin-right: auto; }
-#editor img.inline-img.align-right { margin-left: auto; }
+#editor img.inline-img.align-right { margin-left: auto; margin-right: 0; }
+
+/* Floating Image HUD */
+#image-hud {
+  position: fixed; z-index: 10001; display: none; align-items: center; gap: 5px;
+  background: var(--panel); border: 1px solid var(--red);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 8px rgba(255,42,42,0.45);
+  padding: 4px 8px; border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  transform: translate(-50%, -100%); margin-top: -8px; pointer-events: auto;
+}
+#image-hud.active { display: flex; }
+#image-hud::after {
+  content: ""; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+  border-width: 5px 5px 0; border-style: solid; border-color: var(--red) transparent;
+  width: 0;
+}
+.hud-btn {
+  background: var(--input-bg); border: 1px solid var(--grey-dark); color: var(--text);
+  padding: 3px 6px; font-size: 9px; cursor: pointer; border-radius: 2px;
+  font-family: inherit; transition: 0.12s;
+}
+.hud-btn:hover { border-color: var(--red); color: #fff; }
+.hud-btn.active { background: var(--red); color: #000; font-weight: 700; border-color: #ff6666; }
+.hud-size-display {
+  font-family: 'VT323', monospace; font-size: 13px; color: var(--red);
+  padding: 0 4px; min-width: 44px; text-align: center;
+}
+.hud-btn-del { color: var(--red); font-weight: 700; }
+.hud-btn-del:hover { background: var(--red); color: #000; }
 
 /* Marquee */
 .marquee-wrap {
@@ -340,7 +383,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
 }
 </style>
 </head>
-<body class="custom-cursor">
+<body class="custom-cursor scanlines">
 <div id="cursor-wrap"><div id="cursor"><span id="cursor-text">VIEW</span></div></div>
 
 <div class="app">
@@ -348,7 +391,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
     <div class="header-row">
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="title">TYPEWRITER</div>
-        <span class="label">// INSTRUMENT S/370</span>
+        <span class="label">// HYBRID INSTRUMENT S/370</span>
         <a href="https://wordstar.nexus/acrohat" target="_blank" rel="noopener">ACROHAT&#8599;</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -503,6 +546,25 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
       <button id="btn-del-sheet">DEL</button>
     </div>
   </div>
+</div>
+
+<!-- Floating Image HUD -->
+<div id="image-hud" role="toolbar" aria-label="Image Settings">
+  <div style="display:flex;gap:2px;" id="hud-align-group">
+    <button class="hud-btn" data-val="left">L</button>
+    <button class="hud-btn active" data-val="center">C</button>
+    <button class="hud-btn" data-val="right">R</button>
+  </div>
+  <div style="display:flex;gap:2px;" id="hud-shape-group">
+    <button class="hud-btn active" data-val="rect">RECT</button>
+    <button class="hud-btn" data-val="circle">○</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:2px;">
+    <button class="hud-btn" id="hud-w-minus">-</button>
+    <span class="hud-size-display" id="hud-size-val">180PX</span>
+    <button class="hud-btn" id="hud-w-plus">+</button>
+  </div>
+  <button class="hud-btn hud-btn-del" id="hud-del" title="Purge Frame">✕</button>
 </div>
 
 <!-- Help Overlay -->
@@ -823,7 +885,7 @@ if (lastVid && lastVid !== 'custom') {
   customVideo.value = lastCustom;
   setVideo(lastCustom);
 } else {
-  setVideo(videoSelect.value);
+  setVideo('none');
 }
 
 // ---------- Image Bay ----------
@@ -887,6 +949,109 @@ imgInsert.onclick = () => {
   saveCurrentSheet();
   pushUndo(true);
 };
+
+// ---------- Floating Image HUD ----------
+const imageHud = document.getElementById('image-hud');
+const hudSizeVal = document.getElementById('hud-size-val');
+let selectedImg = null;
+
+function positionHud(img) {
+  const rect = img.getBoundingClientRect();
+  imageHud.style.left = (rect.left + rect.width / 2) + 'px';
+  imageHud.style.top = rect.top + 'px';
+}
+
+function selectImage(img) {
+  if (selectedImg) selectedImg.classList.remove('selected');
+  selectedImg = img;
+  if (!img) {
+    imageHud.classList.remove('active');
+    return;
+  }
+  img.classList.add('selected');
+  // Sync HUD buttons
+  const align = img.dataset.align || 'center';
+  const shape = img.dataset.shape || 'rect';
+  const w = parseInt(img.dataset.width || img.style.width || 180, 10);
+  document.querySelectorAll('#hud-align-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === align));
+  document.querySelectorAll('#hud-shape-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === shape));
+  hudSizeVal.textContent = w + 'PX';
+  positionHud(img);
+  imageHud.classList.add('active');
+}
+
+editor.addEventListener('click', (e) => {
+  const img = e.target.closest('img.inline-img');
+  if (img) {
+    e.preventDefault();
+    selectImage(img);
+  } else if (!imageHud.contains(e.target)) {
+    selectImage(null);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!imageHud.contains(e.target) && !e.target.closest('img.inline-img')) {
+    selectImage(null);
+  }
+});
+
+document.getElementById('hud-align-group').addEventListener('click', (e) => {
+  const btn = e.target.closest('.hud-btn');
+  if (!btn || !selectedImg) return;
+  const val = btn.dataset.val;
+  selectedImg.dataset.align = val;
+  selectedImg.classList.remove('align-left','align-center','align-right');
+  selectedImg.classList.add('align-' + val);
+  document.querySelectorAll('#hud-align-group .hud-btn').forEach(b => b.classList.toggle('active', b === btn));
+  saveCurrentSheet();
+  pushUndo(true);
+});
+
+document.getElementById('hud-shape-group').addEventListener('click', (e) => {
+  const btn = e.target.closest('.hud-btn');
+  if (!btn || !selectedImg) return;
+  const val = btn.dataset.val;
+  selectedImg.dataset.shape = val;
+  selectedImg.classList.toggle('circle', val === 'circle');
+  document.querySelectorAll('#hud-shape-group .hud-btn').forEach(b => b.classList.toggle('active', b === btn));
+  saveCurrentSheet();
+  pushUndo(true);
+});
+
+document.getElementById('hud-w-minus').onclick = () => {
+  if (!selectedImg) return;
+  let w = Math.max(40, (parseInt(selectedImg.dataset.width, 10) || 180) - 20);
+  selectedImg.dataset.width = w;
+  selectedImg.style.width = w + 'px';
+  hudSizeVal.textContent = w + 'PX';
+  positionHud(selectedImg);
+  saveCurrentSheet();
+  pushUndo(true);
+};
+document.getElementById('hud-w-plus').onclick = () => {
+  if (!selectedImg) return;
+  let w = Math.min(600, (parseInt(selectedImg.dataset.width, 10) || 180) + 20);
+  selectedImg.dataset.width = w;
+  selectedImg.style.width = w + 'px';
+  hudSizeVal.textContent = w + 'PX';
+  positionHud(selectedImg);
+  saveCurrentSheet();
+  pushUndo(true);
+};
+
+document.getElementById('hud-del').onclick = () => {
+  if (!selectedImg) return;
+  selectedImg.remove();
+  selectImage(null);
+  updateStatus();
+  scheduleMarquee();
+  saveCurrentSheet();
+  pushUndo(true);
+};
+
+window.addEventListener('scroll', () => { if (selectedImg) positionHud(selectedImg); }, true);
+window.addEventListener('resize', () => { if (selectedImg) positionHud(selectedImg); });
 
 // ---------- Font ----------
 fontSelect.addEventListener('change', () => {
