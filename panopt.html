@@ -1434,12 +1434,12 @@
     const popupClose = document.getElementById('popup-close-btn');
 
     const tools = [
-      { label: 'FNT', name: 'FOUNT // TYPOGRAPHY', desc: 'Deployable vector typography and glyph matrix.' },
-      { label: 'MNR', name: 'MINRAUD // REALITY STUDIO', desc: 'Neural typewriter for Interzone tape scrambles.' },
-      { label: 'WST', name: 'WORDSTAR // PLATEN', desc: 'Cathode document generator and manuscript engine.' },
-      { label: 'ISS', name: 'ISIS // PLANETARY CONSOLE', desc: 'Real-time telemetry, signal intercepts, and node status.' },
-      { label: 'CUT', name: 'BURROUGHS // SLICER', desc: 'Multi-column fold-in processor and word-lock breaker.' },
-      { label: 'SCR', name: 'SCRATCHPAD // BUFFER', desc: 'Encrypted memory scratchpad and raw token dump.' }
+      { label: 'FNT', name: 'FOUNT // TYPOGRAPHY', desc: 'Deployable vector typography and glyph matrix.', url: 'https://wordstar.nexus/acrohat' },
+      { label: 'MNR', name: 'MINRAUD // REALITY STUDIO', desc: 'Neural typewriter for Interzone tape scrambles.', url: 'https://inkrealm.info/minraud' },
+      { label: 'WST', name: 'WORDSTAR // PLATEN', desc: 'Cathode document generator and manuscript engine.', url: 'https://wordstar.nexus/tmura' },
+      { label: 'ISS', name: 'ISIS // PLANETARY CONSOLE', desc: 'Real-time telemetry, signal intercepts, and node status.', url: 'https://inkrealm.info/isis' },
+      { label: 'CUT', name: 'BURROUGHS // SLICER', desc: 'Multi-column fold-in processor and word-lock breaker.', url: 'https://wordstar.nexus/typewriter' },
+      { label: 'SCR', name: 'SCRATCHPAD // BUFFER', desc: 'Encrypted memory scratchpad and raw token dump.', url: null }
     ];
 
     const toolPositions = [6, 7, 8, 11, 12, 13];
@@ -1456,11 +1456,45 @@
         cell.title = tool.name;
         cell.addEventListener('click', () => {
           popupTitle.textContent = `// ${tool.name}`;
+
+          if (tool.label === 'SCR') {
+            const saved = localStorage.getItem('minraud-scratch') || '';
+            popupBody.innerHTML = `
+              <textarea id="scratch-area" style="width:100%; height:110px; background:#000; color:#ededed; border:1px solid var(--hud-border); font-family:inherit; font-size:9px; padding:6px; resize:none; outline:none;" placeholder="LOCAL SCRATCH BUFFER...">${saved}</textarea>
+              <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:7.5px;">
+                <span style="color:var(--hud-dim);">PERSISTENT // LOCAL</span>
+                <button id="scratch-clear" style="background:none; border:1px solid var(--hud-border); color:#fff; font-family:inherit; font-size:7.5px; padding:1px 6px; cursor:pointer;">[ CLEAR ]</button>
+              </div>
+            `;
+            gsap.to(toolModal, { duration: 0.25, autoAlpha: 1, scale: 1, ease: "power2.out" });
+
+            const area = document.getElementById('scratch-area');
+            const clearBtn = document.getElementById('scratch-clear');
+            if (area) {
+              area.addEventListener('input', () => {
+                localStorage.setItem('minraud-scratch', area.value);
+              });
+            }
+            if (clearBtn) {
+              clearBtn.addEventListener('click', () => {
+                if (area) {
+                  area.value = '';
+                  localStorage.removeItem('minraud-scratch');
+                }
+              });
+            }
+            return;
+          }
+
+          const linkHtml = tool.url 
+            ? `<div style="margin-top:8px;"><a href="${tool.url}" target="_blank" rel="noopener" style="color:var(--red); text-decoration:none; border:1px solid var(--red); padding:3px 8px; font-size:8px; display:inline-block;">[ LAUNCH ]</a></div>`
+            : `<div style="margin-top:6px; font-size:7.5px; color:var(--hud-dim);">LOCAL BUFFER // NO EXTERNAL LAUNCH</div>`;
           popupBody.innerHTML = `
             <div style="margin-bottom:6px; color:#fff;">${tool.desc}</div>
             <div style="font-size:7.5px; border-top:1px dashed var(--hud-border); padding-top:4px;">
               STATUS: ONLINE // WEBGPU BUFFER: ATTACHED
             </div>
+            ${linkHtml}
           `;
           gsap.to(toolModal, { duration: 0.25, autoAlpha: 1, scale: 1, ease: "power2.out" });
         });
