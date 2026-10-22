@@ -233,25 +233,45 @@
 
     /* Mobile / Small Screens (< 900px): Compact Stacking */
     @media (max-width: 899px) {
+      .hud-shell { padding: 8px 14px 24px 14px; }
+      .workspace-grid { gap: 8px; }
+
       .main-column {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
         flex: 1;
       }
 
       .tactical-sidebar {
         display: flex;
         flex-direction: row;
-        gap: 6px;
+        gap: 8px;
         width: 100%;
         flex-shrink: 0;
       }
 
       .tactical-sidebar > div { flex: 1; }
-      .video-frame-wrap { height: 56px; }
-      .avatar-display-box { height: 56px; }
-      .platen-anchor { height: 20dvh; min-height: 80px; }
+      .video-frame-wrap { height: 92px; }
+      .avatar-display-box { height: 92px; }
+      .platen-anchor { height: 26dvh; min-height: 110px; }
+      .lower-stage { min-height: 100px; }
+
+      /* Readability & touch targets */
+      .hud-btn,
+      .custom-select-trigger,
+      .custom-option {
+        font-size: 10px;
+        padding: 6px 8px;
+      }
+
+      .deck-header,
+      .matrix-title,
+      .wire-beacon { font-size: 9px; }
+
+      .brandText { font-size: 13px; }
+      #gramChart { font-size: 10.5px; }
+      .vertical-bracket { font-size: 8.5px; }
     }
 
     /* Common Card Styles */
@@ -405,6 +425,37 @@
       display: inline-block; vertical-align: middle;
       width: 110px; height: 60px; margin: 2px 4px;
       border: 1px solid var(--hud-white); background: #000;
+    }
+
+    /* === MIRROR TEXT SCROLL (Heterogeneous-style) === */
+    .mirror-scroll-wrap {
+      width: 100%;
+      height: 22px;
+      overflow: hidden;
+      background: rgba(5, 6, 8, 0.85);
+      border: 1px solid var(--hud-border);
+      border-top: none;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .mirror-scroll {
+      display: flex;
+      white-space: nowrap;
+      animation: mirror-slide 32s linear infinite;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--hud-dim);
+      padding: 3px 0;
+    }
+    .mirror-scroll-wrap:hover .mirror-scroll { animation-play-state: paused; }
+    .mirror-text { 
+      padding: 0 28px; 
+      transform: scaleX(-1); /* mirror each segment */
+      display: inline-block;
+    }
+    @keyframes mirror-slide {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
 
     /* === LOWER OPERATIONAL STAGE === */
@@ -590,6 +641,19 @@
       </div>
 
       <div class="export-bar">
+        <div class="custom-select-container" id="font-select" style="flex: none; width: 100px;">
+          <div class="custom-select-trigger" id="font-trigger">
+            <span id="font-label">COURIER</span>
+            <span>▼</span>
+          </div>
+          <div class="custom-options-menu" id="font-options">
+            <div class="custom-option selected" data-font="'Courier New', Courier, monospace">COURIER</div>
+            <div class="custom-option" data-font="Consolas, 'Courier New', monospace">CONSOLAS</div>
+            <div class="custom-option" data-font="Monaco, Menlo, monospace">MONACO</div>
+            <div class="custom-option" data-font="'Lucida Console', Monaco, monospace">LUCIDA</div>
+            <div class="custom-option" data-font="ui-monospace, SFMono-Regular, Consolas, monospace">UI MONO</div>
+          </div>
+        </div>
         <button class="hud-btn" onclick="exportDossierHTML()">[HTML]</button>
         <button class="hud-btn" onclick="exportRawTXT()">[TXT]</button>
         <button class="hud-btn" onclick="exportMinraudJSON()">[JSON]</button>
@@ -604,6 +668,14 @@
         <!-- Anchored Typewriter Platen -->
         <div class="platen-anchor">
           <div id="minraud-editor" contenteditable="true" data-placeholder="Metal cities controlled by the elders... Heads preserved in bottles... The devious underground operating through telepathic misdirection... Click any Telegraph wire headline below to inject into manuscript."></div>
+        </div>
+
+        <!-- Mirror Text Scroll (Heterogeneous-style reverse marquee of manuscript) -->
+        <div class="mirror-scroll-wrap" id="mirror-scroll-wrap">
+          <div class="mirror-scroll" id="mirror-scroll">
+            <span class="mirror-text">// MIRROR BUFFER IDLE //</span>
+            <span class="mirror-text">// MIRROR BUFFER IDLE //</span>
+          </div>
         </div>
 
         <!-- Lower Operational Stage (Dynamic Cut-Up & Reticle) -->
@@ -824,6 +896,8 @@
 
     document.addEventListener('click', () => {
       selectOptions.classList.remove('open');
+      const fontOpts = document.getElementById('font-options');
+      if (fontOpts) fontOpts.classList.remove('open');
     });
 
     document.querySelectorAll('.custom-option').forEach(option => {
@@ -1332,6 +1406,62 @@
 
     editor.addEventListener('input', triggerTextUpdate);
     setInterval(() => { if (!isTyping) renderCutUp(); }, 4000);
+
+    /* ================= FONT SELECTOR ================= */
+    const fontTrigger = document.getElementById('font-trigger');
+    const fontOptions = document.getElementById('font-options');
+    const fontLabel = document.getElementById('font-label');
+
+    if (fontTrigger && fontOptions) {
+      fontTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fontOptions.classList.toggle('open');
+      });
+
+      document.querySelectorAll('#font-options .custom-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          const font = opt.dataset.font;
+          editor.style.fontFamily = font;
+          fontLabel.textContent = opt.textContent;
+          document.querySelectorAll('#font-options .custom-option').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          fontOptions.classList.remove('open');
+          localStorage.setItem('minraud-font', font);
+        });
+      });
+
+      // Restore saved font
+      const savedFont = localStorage.getItem('minraud-font');
+      if (savedFont) {
+        editor.style.fontFamily = savedFont;
+        const match = Array.from(document.querySelectorAll('#font-options .custom-option')).find(o => o.dataset.font === savedFont);
+        if (match) {
+          fontLabel.textContent = match.textContent;
+          document.querySelectorAll('#font-options .custom-option').forEach(o => o.classList.remove('selected'));
+          match.classList.add('selected');
+        }
+      }
+    }
+
+    /* ================= MIRROR TEXT SCROLL ================= */
+    const mirrorScroll = document.getElementById('mirror-scroll');
+    function updateMirrorScroll() {
+      if (!mirrorScroll) return;
+      let text = editor.innerText.trim();
+      if (!text) text = '// MIRROR BUFFER IDLE //';
+      // Reverse the text for a true mirrored "reflection" feel, then duplicate for seamless loop
+      const reversed = text.split('').reverse().join('');
+      const segment = ` ${reversed}  //  `;
+      mirrorScroll.innerHTML = `<span class="mirror-text">${segment}</span><span class="mirror-text">${segment}</span>`;
+    }
+
+    // Update mirror on input and periodically
+    editor.addEventListener('input', () => {
+      clearTimeout(window._mirrorTimer);
+      window._mirrorTimer = setTimeout(updateMirrorScroll, 180);
+    });
+    setInterval(updateMirrorScroll, 2500);
+    updateMirrorScroll();
 
     renderCutUp();
     requestAnimationFrame(renderHUD);
