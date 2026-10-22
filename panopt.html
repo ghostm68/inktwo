@@ -83,22 +83,22 @@
       z-index: 25;
       font-size: 7.5px;
       letter-spacing: 0.16em;
-      color: var(--hud-dim);
+      color: var(--red);
     }
 
     .bracket-left {
       left: 6px;
-      border-left: 1px solid var(--hud-border);
-      border-top: 1px solid var(--hud-border);
-      border-bottom: 1px solid var(--hud-border);
+      border-left: 1px solid var(--red);
+      border-top: 1px solid var(--red);
+      border-bottom: 1px solid var(--red);
       padding: 6px 2px;
     }
 
     .bracket-right {
       right: 6px;
-      border-right: 1px solid var(--hud-border);
-      border-top: 1px solid var(--hud-border);
-      border-bottom: 1px solid var(--hud-border);
+      border-right: 1px solid var(--red);
+      border-top: 1px solid var(--red);
+      border-bottom: 1px solid var(--red);
       padding: 6px 2px;
     }
 
@@ -239,6 +239,11 @@
       .m-cell { font-size: 7.5px; }
       .matrix-title { font-size: 8px; }
       .signal-box { width: 160px; font-size: 7.5px; }
+      .dict-matrix {
+        grid-template-columns: repeat(3, 36px);
+        grid-template-rows: repeat(3, 18px);
+      }
+      .d-cell { font-size: 7px; }
 
       /* Larger readable text on desktop */
       #minraud-editor { font-size: 16px; line-height: 1.5; }
@@ -351,6 +356,19 @@
       outline: none;
     }
     .hud-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .hud-input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--hud-white);
+      font-family: inherit;
+      font-size: 7px;
+      padding: 2px 4px;
+      outline: none;
+      text-transform: uppercase;
+      width: 100%;
+    }
+    .hud-input:focus { border-color: var(--red); }
 
     /* === CUSTOM SELECT CONTAINER (NO OS BLUE) === */
     .custom-select-container {
@@ -598,6 +616,38 @@
     }
     .m-cell.tool-cell:hover { background: var(--red); color: var(--black); border-color: var(--red); }
 
+    /* Dictionary Matrix */
+    .dict-pod {
+      position: absolute;
+      bottom: 2px;
+      left: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      z-index: 25;
+    }
+    .dict-matrix {
+      display: grid;
+      grid-template-columns: repeat(3, 28px);
+      grid-template-rows: repeat(3, 14px);
+      gap: 2px;
+    }
+    .d-cell {
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.04);
+      font-size: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--hud-dim);
+      cursor: pointer;
+      text-transform: uppercase;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .d-cell:hover { background: var(--red); color: var(--black); border-color: var(--red); }
+    .d-cell.empty { opacity: 0.4; cursor: default; }
+
     /* GSAP Tool Modal */
     .tool-popup {
       position: absolute;
@@ -786,6 +836,12 @@
             <div class="matrix-title">// TOOL MATRIX</div>
             <div class="memory-matrix" id="memory-matrix"></div>
           </div>
+
+          <!-- Dictionary Matrix -->
+          <div class="dict-pod">
+            <div class="matrix-title">// DICT</div>
+            <div class="dict-matrix" id="dict-matrix"></div>
+          </div>
         </div>
       </section>
 
@@ -840,6 +896,12 @@
             <button class="hud-btn" id="btn-inject-badge">[+ IMG]</button>
             <button class="hud-btn" id="btn-shape-toggle">SHAPE</button>
             <button class="hud-btn" id="btn-filter-inv">INV</button>
+          </div>
+          <!-- Editable ID fields -->
+          <div class="id-fields" style="display:flex; flex-direction:column; gap:2px; margin-top:3px;">
+            <input id="id-subject" class="hud-input" placeholder="SUBJECT" maxlength="22" />
+            <input id="id-role" class="hud-input" placeholder="ROLE / STATUS" maxlength="22" />
+            <input id="id-note" class="hud-input" placeholder="NOTE" maxlength="28" />
           </div>
         </div>
 
@@ -1175,10 +1237,33 @@
         return;
       }
       editor.focus();
+      const subject = (document.getElementById('id-subject').value || 'SUBJECT').toUpperCase();
+      const role = (document.getElementById('id-role').value || '').toUpperCase();
+      const note = (document.getElementById('id-note').value || '').toUpperCase();
+
+      const wrapper = document.createElement('span');
+      wrapper.style.display = 'inline-block';
+      wrapper.style.verticalAlign = 'middle';
+      wrapper.style.margin = '2px 4px';
+      wrapper.style.textAlign = 'center';
+      wrapper.style.fontSize = '7px';
+      wrapper.style.lineHeight = '1.1';
+
       const imgNode = document.createElement('img');
       imgNode.src = badgeImg.src;
       imgNode.className = 'inline-badge-node';
-      insertNodeAtCaret(imgNode);
+      imgNode.style.display = 'block';
+      imgNode.style.margin = '0 auto 1px';
+      wrapper.appendChild(imgNode);
+
+      const label = document.createElement('div');
+      label.style.color = 'var(--hud-dim)';
+      label.style.maxWidth = '70px';
+      label.style.wordBreak = 'break-word';
+      label.textContent = [subject, role, note].filter(Boolean).join(' // ');
+      wrapper.appendChild(label);
+
+      insertNodeAtCaret(wrapper);
       triggerTextUpdate();
     });
 
@@ -1396,6 +1481,73 @@
     popupClose.addEventListener('click', () => {
       gsap.to(toolModal, { duration: 0.2, autoAlpha: 0, scale: 0.8, ease: "power2.in" });
     });
+
+    /* ================= DICTIONARY MATRIX ================= */
+    const dictMatrix = document.getElementById('dict-matrix');
+    const recentWords = [];
+    const STOP = new Set(['THE','A','AN','AND','OR','OF','TO','IN','ON','FOR','WITH','AT','BY','FROM','IS','IT','BE','AS','THIS','THAT','YOU','I','WE','THEY']);
+
+    function addDictWord(word) {
+      const w = word.replace(/[^A-Za-z\-']/g, '').toUpperCase();
+      if (w.length < 3 || STOP.has(w) || recentWords.includes(w)) return;
+      recentWords.unshift(w);
+      if (recentWords.length > 9) recentWords.pop();
+      renderDictMatrix();
+    }
+
+    function renderDictMatrix() {
+      if (!dictMatrix) return;
+      dictMatrix.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'd-cell' + (recentWords[i] ? '' : ' empty');
+        cell.textContent = recentWords[i] ? recentWords[i].slice(0, 6) : '·';
+        cell.title = recentWords[i] || '';
+        if (recentWords[i]) {
+          cell.addEventListener('click', () => lookupWord(recentWords[i]));
+        }
+        dictMatrix.appendChild(cell);
+      }
+    }
+
+    async function lookupWord(word) {
+      popupTitle.textContent = `// DICT // ${word}`;
+      popupBody.innerHTML = `<div style="color:#fff;">QUERYING...</div>`;
+      gsap.to(toolModal, { duration: 0.25, autoAlpha: 1, scale: 1, ease: "power2.out" });
+
+      try {
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+        if (!res.ok) throw new Error('no entry');
+        const data = await res.json();
+        const entry = data[0];
+        const meaning = entry.meanings?.[0];
+        const def = meaning?.definitions?.[0]?.definition || 'No definition found.';
+        const pos = meaning?.partOfSpeech || '';
+        popupBody.innerHTML = `
+          <div style="color:#fff; margin-bottom:4px;">${word}</div>
+          <div style="font-size:7.5px; color:var(--yel); margin-bottom:4px;">${pos.toUpperCase()}</div>
+          <div style="line-height:1.35;">${def}</div>
+        `;
+      } catch {
+        popupBody.innerHTML = `
+          <div style="color:#fff; margin-bottom:4px;">${word}</div>
+          <div style="line-height:1.35; color:var(--hud-dim);">NO ENTRY // INTERZONE TERM OR OFFLINE</div>
+        `;
+      }
+    }
+
+    // Capture words on typing (debounced)
+    let dictTimer = null;
+    editor.addEventListener('input', () => {
+      clearTimeout(dictTimer);
+      dictTimer = setTimeout(() => {
+        const words = editor.innerText.trim().split(/\s+/).filter(Boolean);
+        const last = words[words.length - 1];
+        if (last) addDictWord(last);
+      }, 600);
+    });
+
+    renderDictMatrix();
 
     /* ================= 8. LOWER STAGE DYNAMICS (RETICLE & CUT-UP) ================= */
     const lowerStage = document.getElementById('lower-stage');
