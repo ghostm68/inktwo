@@ -7,553 +7,188 @@
     <link rel="shortcut icon" href="./Images/favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Nova+Mono&family=Nova+Square&family=Nova+Slim&family=Nova+Flat&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <style>
-        /* === DEFINE THEME & ACCENTS === */
         :root {
-            color-scheme: dark;
             --red: #ff0033;
+            --crimson: #b3001e;
+            --crimson-glow: #ff2a42;
+            --yel: #ffd24a;
             --black: #0a0a0a;
-            --bg: #0E0E0E;
-            --panel: #1A1A1A;
-            --editor-bg: #2B2B2B;
-            --border: #3A3A3A;
-            --text: #EAEAEA;
-            --text-dim: #B0B0B0;
-            --muted: #808080;
-            --accent-red: #ff0033;
-            --accent-red-hover: #ff2a55;
-            --accent-red-dark: #cc0029;
-            --input-bg: #252525;
+            --hud-bg: #090a0d;
+            --hud-white: #ededed;
+            --hud-dim: rgba(237,237,237,0.45);
+            --hud-faint: rgba(237,237,237,0.15);
+            --hud-border: rgba(255,255,255,0.25);
+            --panel: rgba(9,10,13,0.94);
+            --input-bg: rgba(255,255,255,0.05);
+            color-scheme: dark;
             accent-color: var(--red);
         }
-
-        /* === TOTAL ELIMINATION OF BLUE HIGHLIGHTS & FOCUS RINGS === */
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0;
-            -webkit-tap-highlight-color: transparent !important;
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent !important; }
+        *:focus, *:focus-visible { outline: none !important; }
+        ::selection { background: var(--red); color: var(--black); }
+        html, body {
+            width: 100%; height: 100dvh;
+            background: var(--hud-bg);
+            color: var(--hud-white);
+            font-family: "Courier New", Courier, monospace;
+            overflow: hidden;
+            position: fixed;
         }
-
-        *:focus, *:focus-visible {
-            outline: none !important;
+        .ocular-bed {
+            position: absolute; inset: 0; pointer-events: none; z-index: 40;
+            background: radial-gradient(circle at center, transparent 65%, rgba(0,0,0,0.88) 100%),
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 2px);
         }
-
-        ::selection {
-            background: var(--red) !important;
-            color: var(--black) !important;
-            text-shadow: none;
+        .vertical-bracket {
+            position: absolute; top: 50px; bottom: 26px; width: 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            pointer-events: none; z-index: 25; font-size: 7.5px; letter-spacing: 0.16em; color: var(--red);
         }
-        
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: "Nova Mono", monospace;
-            overflow-x: hidden;
-        }
+        .bracket-left { left: 6px; border-left: 1px solid var(--red); border-top: 1px solid var(--red); border-bottom: 1px solid var(--red); padding: 6px 2px; }
+        .bracket-right { right: 6px; border-right: 1px solid var(--red); border-top: 1px solid var(--red); border-bottom: 1px solid var(--red); padding: 6px 2px; }
+        .v-text { writing-mode: vertical-rl; text-orientation: upright; white-space: nowrap; margin: auto 0; }
 
+        .hud-shell {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            padding: env(safe-area-inset-top, 6px) 28px 26px 28px;
+            z-index: 20; gap: 6px;
+        }
         .ws-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            border-bottom: 2px solid var(--border);
-            background: linear-gradient(135deg, #1A1A1A 0%, #0E0E0E 100%);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--hud-border); padding-bottom: 5px; flex-shrink: 0;
         }
-
         .ws-brand {
-            font-family: "Nova Square", monospace;
-            font-weight: 700;
-            font-size: 20px;
-            letter-spacing: 1.2px;
-            background: linear-gradient(135deg, var(--accent-red) 0%, #ff6680 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #fff;
+            display: flex; align-items: center; gap: 8px;
         }
-
-        .ws-actions {
-            display: flex;
-            gap: 10px;
-        }
-
+        .ws-brand::before { content: "✦"; color: var(--red); }
+        .ws-actions { display: flex; gap: 3px; }
         .ws-topmenu {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            padding: 10px 20px;
-            border-bottom: 1px solid var(--border);
-            background: var(--panel);
+            display: flex; gap: 12px; align-items: center;
+            padding: 4px 0; border-bottom: 1px solid var(--hud-faint); flex-shrink: 0;
+            font-size: 8px;
         }
-
-        .ws-topmenu-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .ws-topmenu-group label {
-            font-size: 11px;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-family: "Nova Slim", monospace;
-            white-space: nowrap;
-        }
+        .ws-topmenu-group { display: flex; gap: 6px; align-items: center; }
+        .ws-topmenu-group label { font-size: 7.5px; color: var(--hud-dim); text-transform: uppercase; letter-spacing: 0.1em; }
 
         .ws-layout {
-            display: grid;
-            grid-template-columns: 340px 1fr;
-            gap: 0;
-            height: calc(100vh - 130px);
+            flex: 1; display: grid; grid-template-columns: 280px 1fr; gap: 6px;
+            min-height: 0; overflow: hidden;
         }
-
-        .ws-layout.sidebar-active {
-            grid-template-columns: 340px 1fr 380px;
-        }
-
+        .ws-layout.sidebar-active { grid-template-columns: 280px 1fr 300px; }
         .ws-panel {
-            background: var(--panel);
-            padding: 16px;
-            overflow-y: auto;
-            border-right: 1px solid var(--border);
+            background: var(--panel); border: 1px solid var(--hud-border);
+            padding: 8px; overflow-y: auto; font-size: 9px;
         }
-
-        .ws-panel.left {
-            border-left: 1px solid var(--border);
-        }
-
-        #wordstar-ai-sidebar {
-            display: none;
-        }
-        
-        #wordstar-ai-sidebar.active {
-            display: block;
-        }
-
         .ws-editor {
-            background: var(--editor-bg);
-            display: flex;
-            flex-direction: column;
-            border-left: 2px solid var(--accent-red-dark);
-            border-right: 2px solid var(--accent-red-dark);
+            background: rgba(14,16,22,0.9); border: 1px solid var(--hud-border);
+            border-bottom: 2px solid var(--hud-white);
+            display: flex; flex-direction: column; min-height: 0;
         }
-
         .ws-editor-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
-            border-bottom: 2px solid var(--border);
-            background: rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 8px; border-bottom: 1px solid var(--hud-faint); font-size: 7.5px;
+            color: var(--hud-dim); text-transform: uppercase; letter-spacing: 0.1em;
         }
-
-        .ws-editor-bar .mono {
-            font-family: "Nova Flat", monospace;
-            color: var(--accent-red);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .ws-editor-tools {
-            display: flex;
-            gap: 8px;
-        }
-
+        .ws-editor-tools { display: flex; gap: 3px; }
         .ws-input, .ws-textarea {
-            width: 100%;
-            background: var(--input-bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px 12px;
-            font-size: 13px;
-            font-family: "Nova Mono", monospace;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            width: 100%; background: var(--input-bg); color: var(--hud-white);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 0;
+            padding: 6px 8px; font-size: 11px; font-family: inherit;
         }
-
-        .ws-input:focus, .ws-textarea:focus {
-            border-color: var(--accent-red) !important;
-            box-shadow: 0 0 0 2px rgba(255, 0, 51, 0.25) !important;
-        }
-
-        .ws-textarea {
-            min-height: 80px;
-            resize: vertical;
-            line-height: 1.6;
-        }
-
+        .ws-input:focus, .ws-textarea:focus { border-color: var(--red); }
         .ws-textarea.editor {
-            flex: 1;
-            background: #F5F5F5;
-            color: #1A1A1A;
-            font-family: "Nova Mono", monospace;
-            font-size: 14px;
-            line-height: 1.8;
-            border: none;
-            border-radius: 0;
-            padding: 24px;
-            box-shadow: inset 0 4px 20px rgba(0,0,0,0.15);
+            flex: 1; background: transparent; color: var(--hud-white);
+            font-size: 13.5px; line-height: 1.45; padding: 10px 12px;
+            border: none; resize: none; outline: none;
         }
-
-        .ws-textarea.editor::placeholder {
-            color: #666;
-        }
-
         .ws-btn {
-            background: var(--accent-red);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 10px 16px;
-            cursor: pointer;
-            font-family: "Nova Mono", monospace;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(255, 0, 51, 0.3);
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.25);
+            color: var(--hud-white); font-family: inherit; font-size: 7.5px;
+            padding: 3px 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em;
         }
-
-        .ws-btn:hover {
-            background: var(--accent-red-hover);
-            box-shadow: 0 4px 16px rgba(255, 0, 51, 0.5);
-            transform: translateY(-1px);
-        }
-
-        .ws-btn:active {
-            transform: translateY(0);
-        }
-
-        .ws-btn.secondary {
-            background: #3A3A3A;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        }
-
-        .ws-btn.secondary:hover {
-            background: #4A4A4A;
-        }
-
-        .ws-btn.tertiary {
-            background: #2A2A2A;
-            box-shadow: none;
-        }
-
-        .ws-btn.tertiary:hover {
-            background: #353535;
-        }
-
-        .ws-btn.ghost {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            box-shadow: none;
-        }
-
-        .ws-btn.ghost:hover {
-            background: rgba(255, 0, 51, 0.1);
-            border-color: var(--accent-red);
-            color: var(--text);
-        }
-
-        .ws-block {
-            margin-bottom: 20px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 8px;
-            padding: 14px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
+        .ws-btn:hover { background: rgba(255,255,255,0.25); }
+        .ws-btn.secondary { background: rgba(255,0,51,0.15); border-color: var(--red); }
+        .ws-btn.tertiary { background: transparent; }
+        .ws-btn.ghost { background: transparent; border-color: var(--hud-faint); color: var(--hud-dim); }
+        .ws-btn.ghost:hover { border-color: var(--red); color: #fff; }
+        .ws-block { margin-bottom: 10px; }
         .ws-block-title {
-            font-family: "Nova Square", monospace;
-            font-size: 13px;
-            color: var(--accent-red);
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            font-size: 8px; color: var(--red); text-transform: uppercase; letter-spacing: 0.12em;
+            margin-bottom: 6px; border-bottom: 1px solid var(--hud-faint); padding-bottom: 2px;
         }
+        .ws-grid { display: grid; gap: 4px; grid-template-columns: 1fr 1fr; }
+        .act, .card { border: 1px solid var(--hud-border); padding: 6px; margin-bottom: 4px; background: rgba(0,0,0,0.3); }
+        .char-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 4px; }
+        .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .chat { height: 180px; overflow-y: auto; border: 1px solid var(--hud-border); padding: 6px; background: rgba(0,0,0,0.4); margin-bottom: 6px; font-size: 9px; }
+        .status { font-size: 8px; padding: 4px; }
+        .fountain-preview { border: 1px solid var(--hud-border); padding: 6px; max-height: 140px; overflow-y: auto; font-size: 8px; }
+        .fountain-scene { background: rgba(255,0,51,0.2); }
+        .fountain-character { background: rgba(255,210,74,0.15); }
+        .fountain-dialogue { background: rgba(255,255,255,0.05); }
+        .fountain-action { background: rgba(255,255,255,0.02); }
 
-        .ws-grid {
-            display: grid;
-            gap: 10px;
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .ws-grid.api {
-            grid-template-columns: 2fr 1fr;
-            align-items: center;
-        }
-
-        .act {
-            margin-bottom: 12px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 6px;
-            border-left: 3px solid var(--accent-red);
-        }
-
-        .char-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .cards-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .card {
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            transition: border-color 0.2s ease;
-        }
-
-        .card:hover {
-            border-color: var(--accent-red);
-        }
-
-        .card textarea {
-            width: 100%;
-            min-height: 90px;
-            resize: vertical;
-            background: transparent;
-            color: var(--text);
-            border: none;
-            outline: none;
-            font-family: "Nova Mono", monospace;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .chat {
-            height: 280px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px;
-            background: rgba(0,0,0,0.4);
-            margin-bottom: 10px;
-        }
-
-        .chat::-webkit-scrollbar, .ws-panel::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat::-webkit-scrollbar-track, .ws-panel::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
-        }
-
-        .chat::-webkit-scrollbar-thumb, .ws-panel::-webkit-scrollbar-thumb {
-            background: var(--accent-red);
-            border-radius: 4px;
-        }
-
-        .status {
-            font-size: 11px;
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 8px;
-            font-family: "Nova Slim", monospace;
-        }
-
-        .mono {
-            font-family: "Nova Mono", monospace;
-            color: var(--muted);
-            font-size: 12px;
-        }
-
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .fountain-preview {
-            background: var(--input-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px;
-            margin-top: 10px;
-            font-family: "Nova Mono", monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .fountain-element {
-            margin-bottom: 8px;
-            padding: 4px 8px;
-            border-radius: 3px;
-        }
-
-        .fountain-scene {
-            background: rgba(255, 0, 51, 0.2);
-            font-weight: bold;
-        }
-
-        .fountain-character {
-            background: rgba(75, 200, 75, 0.2);
-            margin-left: 20px;
-        }
-
-        .fountain-dialogue {
-            background: rgba(75, 75, 200, 0.2);
-            margin-left: 40px;
-        }
-
-        .fountain-action {
-            background: rgba(200, 200, 75, 0.2);
-        }
-
-        /* ======================================================
-           CUSTOM RED DROPDOWN ENGINE (ZERO OS BLUE)
-        ====================================================== */
-        .custom-select-container {
-            position: relative;
-            width: 100%;
-        }
-
-        .ws-topmenu .custom-select-container {
-            min-width: 150px;
-        }
-
-        .custom-select-container select {
-            display: none !important;
-        }
-
+        /* Custom select restyle to match panopt */
+        .custom-select-container { position: relative; }
         .select-selected {
-            background-color: #0a0a0a;
-            border: 1px solid #333;
-            color: #ff0033;
-            padding: 9px 14px;
-            font-family: 'Nova Mono', monospace;
-            font-size: 0.8rem;
-            cursor: pointer;
-            user-select: none;
-            position: relative;
-            border-radius: 6px;
-            transition: all 0.25s ease;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding-right: 28px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.25);
+            color: var(--hud-white); padding: 3px 6px; font-size: 7.5px; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.05em;
         }
-
-        .select-selected:after {
-            position: absolute;
-            content: "▼";
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.65rem;
-            color: #ff0033;
-            transition: transform 0.2s ease;
-        }
-
-        .select-selected.select-arrow-active:after {
-            content: "▲";
-        }
-
-        .select-selected:hover {
-            border-color: #ff0033;
-            box-shadow: 0 0 10px rgba(255, 0, 51, 0.25);
-        }
-
+        .select-selected:after { content: "▼"; float: right; font-size: 6px; }
         .select-items {
-            position: absolute;
-            background-color: #080808;
-            border: 1px solid #333;
-            border-top: none;
-            z-index: 99999;
-            width: 100%;
-            max-height: 240px;
-            overflow-y: auto;
-            border-radius: 0 0 6px 6px;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.85);
-            top: 100%;
-            left: 0;
+            position: absolute; background: #000; border: 1px solid var(--red); z-index: 70;
+            width: 100%; max-height: 180px; overflow-y: auto; margin-top: 2px;
         }
+        .select-items div.select-option { padding: 4px 6px; font-size: 7.5px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.08); text-transform: uppercase; }
+        .select-items div.select-option:hover, .select-items div.select-option.same-as-selected { background: var(--red); color: var(--black); }
+        .select-group-title { font-size: 7px; color: var(--red); padding: 4px 6px; background: #111; }
+        .select-hide { display: none !important; }
 
-        .select-items div.select-option {
-            color: #aaa;
-            padding: 9px 14px;
-            font-family: 'Nova Mono', monospace;
-            font-size: 0.8rem;
-            cursor: pointer;
-            border-bottom: 1px solid #1a1a1a;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        #wordstar-ai-sidebar { display: none; }
+        #wordstar-ai-sidebar.active { display: block; }
+
+        @media (max-width: 900px) {
+            .hud-shell { padding: 6px 10px 20px 10px; gap: 4px; }
+            .vertical-bracket { display: none; }
+            .ws-header { flex-wrap: wrap; gap: 6px; }
+            .ws-actions { flex-wrap: wrap; }
+            .ws-topmenu { flex-wrap: wrap; gap: 8px; }
+            .ws-layout, .ws-layout.sidebar-active {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                gap: 4px;
+            }
+            .ws-panel { max-height: 28vh; font-size: 10px; }
+            .ws-editor { min-height: 40vh; }
+            .ws-textarea.editor { font-size: 14px; padding: 12px; }
+            .ws-btn, .select-selected, .custom-option { font-size: 9px; padding: 6px 8px; }
+            #wordstar-ai-sidebar.active { max-height: 40vh; }
+            .chat { height: 120px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .char-row { grid-template-columns: 1fr; }
         }
-
-        .select-group-title {
-            font-family: 'Nova Square', monospace;
-            font-size: 0.68rem;
-            color: #ff0033;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 8px 12px 4px 12px;
-            background: #121212;
-            border-bottom: 1px solid #222;
-            user-select: none;
-            pointer-events: none;
-            font-weight: 700;
-        }
-
-        .select-items div.select-option:hover {
-            background-color: #ff0033 !important;
-            color: #000 !important;
-        }
-
-        .select-items div.select-option.same-as-selected {
-            background-color: #ff0033 !important;
-            color: #000 !important;
-            font-weight: bold;
-        }
-
-        .select-hide {
-            display: none !important;
-        }
-
-        .select-items::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .select-items::-webkit-scrollbar-track {
-            background: #080808;
-        }
-
-        .select-items::-webkit-scrollbar-thumb {
-            background: #ff0033;
-            border-radius: 3px;
+        @media (max-width: 480px) {
+            .hud-shell { padding: 4px 8px 16px 8px; }
+            .ws-brand { font-size: 12px; }
+            .ws-panel { max-height: 24vh; }
+            .ws-textarea.editor { font-size: 15px; }
         }
     </style>
+
 <base target="_blank">
 </head>
+
 <body>
+    <div class="ocular-bed"></div>
+    <aside class="vertical-bracket bracket-left"><span>[</span><span class="v-text" id="vclock-zulu">UTC 00:00:00.0</span><span>]</span></aside>
+    <aside class="vertical-bracket bracket-right"><span>[</span><span class="v-text" id="vclock-loc">TNG 00:00:00</span><span>]</span></aside>
+    <main class="hud-shell">
+
     <header class="ws-header">
         <div class="ws-brand">PLoTmAteRia</div>
         <div class="ws-actions">
@@ -760,15 +395,16 @@ Fountain Formatting Guide:
                 
                 <div class="custom-select-container">
                     <select id="wordstar-model-select" name="wordstar-model-select" class="ws-menu">
-                        <optgroup label="🌟 Creative Flagships">
-                            <option value="meta/llama-3.3-70b-instruct" selected>Meta Llama 3.3 70B (Recommended)</option>
-                            <option value="deepseek-ai/deepseek-r1">DeepSeek R1 (Plot Logic & Beats)</option>
-                            <option value="mistralai/mistral-large-2411">Mistral Large 2411 (Dialogue & Style)</option>
-                            <option value="meta/llama-3.1-405b-instruct">Meta Llama 3.1 405B (Deep Worldbuilding)</option>
+                        <optgroup label="🌟 Free Creative (Recommended)">
+                            <option value="meta/llama-3.3-70b-instruct" selected>Llama 3.3 70B (Free, solid all-rounder)</option>
+                            <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Free, long narrative)</option>
+                            <option value="nvidia/nemotron-3.5-lightning-30b-a3b">Nemotron 3.5 Lightning (Free, fast)</option>
+                            <option value="nvidia/nemotron-3-super-120b-a12b">Nemotron 3 Super 120B (Free)</option>
                         </optgroup>
-                        <optgroup label="⚡ Active Nemotron Series">
-                            <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron 3 Ultra 550B (Long Narrative)</option>
-                            <option value="nvidia/nemotron-3.5-lightning-30b-a3b">Nemotron 3.5 Lightning (High Speed)</option>
+                        <optgroup label="⚡ Other Free Endpoints">
+                            <option value="deepseek-ai/deepseek-v4.1-flash">DeepSeek V4.1 Flash (Free)</option>
+                            <option value="google/gemma-4-31b-it">Gemma 4 31B (Free)</option>
+                            <option value="meta/llama-3.1-70b-instruct">Llama 3.1 70B (Free)</option>
                         </optgroup>
                         <optgroup label="🔋 Diagnostic">
                             <option value="_TEST_API_">🔧 Test Connection via Proxy</option>
@@ -813,7 +449,6 @@ Fountain Formatting Guide:
                 </div>
             </div>
         </aside>
-    </main>
 
     <input type="file" id="file-input" class="file-input" accept=".fountain,.txt,.md">
 
@@ -1000,17 +635,38 @@ Fountain Formatting Guide:
             }
 
             function formatFountainForPdf(text) {
-                const left = 108, dialog = 158, parenth = 137, char = 237, margin = 72;
-                return text.split('\n').map(l => {
-                    const t = l.trimEnd();
-                    if (!t) return { txt: '', x: left };
-                    if (/^(INT\.|EXT\.)/.test(t)) return { txt: t.toUpperCase(), x: left };
-                    if (/^[A-Z0-9 ()'".-]+$/.test(t) && t.length <= 30 && !/^\(.*\)$/.test(t))
-                        return { txt: t.toUpperCase(), x: char };
-                    if (/^\(.*\)$/.test(t)) return { txt: t, x: parenth };
-                    if (/:$/.test(t)) return { txt: t, x: 612 - margin, align: 'right' };
-                    return { txt: t, x: dialog };
+                // Letter size: 612 x 792 pt. Standard screenplay margins ~1.5" left, 1" others.
+                const pageW = 612;
+                const marginLeft = 108;   // ~1.5"
+                const marginRight = 72;
+                const usableW = pageW - marginLeft - marginRight;
+                const dialogX = 158;
+                const parenthX = 137;
+                const charX = 237;
+                const lineH = 14;
+
+                const result = [];
+                text.split('\n').forEach(raw => {
+                    const t = raw.trimEnd();
+                    if (!t) {
+                        result.push({ txt: '', x: marginLeft, align: 'left' });
+                        return;
+                    }
+                    const upper = t.toUpperCase();
+                    if (/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/.test(t)) {
+                        result.push({ txt: upper, x: marginLeft, align: 'left', bold: true });
+                    } else if (/^[A-Z0-9 ()'".-]+$/.test(t) && t.length <= 40 && !/^\(.*\)$/.test(t) && !t.includes('.')) {
+                        result.push({ txt: upper, x: charX, align: 'left' });
+                    } else if (/^\(.*\)$/.test(t)) {
+                        result.push({ txt: t, x: parenthX, align: 'left' });
+                    } else if (/^[A-Z\s]+TO:$/.test(t) || t === 'FADE OUT.' || t === 'FADE IN:') {
+                        result.push({ txt: upper, x: pageW - marginRight, align: 'right' });
+                    } else {
+                        // Dialogue or action – prefer dialogue indent if previous was character, else left
+                        result.push({ txt: t, x: dialogX, align: 'left' });
+                    }
                 });
+                return result;
             }
 
             function updateFountainStats() {
@@ -1276,22 +932,40 @@ Requirements:
                     
                     const doc = new jsPDF({ unit: 'pt', format: 'letter' });
                     const margin = 72;
+                    const pageH = doc.internal.pageSize.getHeight();
                     doc.setFont('courier', 'normal');
                     doc.setFontSize(12);
 
                     const lines = formatFountainForPdf(text);
-                    let y = margin;
-                    
-                    lines.forEach(({ txt, x, align }) => {
-                        if (y > doc.internal.pageSize.getHeight() - margin) {
+                    let y = margin + 12;
+
+                    lines.forEach(item => {
+                        const { txt, x, align, bold } = item;
+                        if (y > pageH - margin - 10) {
                             doc.addPage();
-                            y = margin;
+                            y = margin + 12;
                         }
-                        doc.text(txt, x, y, { align: align || 'left' });
-                        y += 16;
+                        if (!txt) {
+                            y += 14;
+                            return;
+                        }
+                        if (bold) doc.setFont('courier', 'bold');
+                        else doc.setFont('courier', 'normal');
+
+                        // Simple wrap for long lines
+                        const maxW = 612 - (x || margin) - margin;
+                        const split = doc.splitTextToSize(txt, Math.max(200, maxW));
+                        split.forEach(part => {
+                            if (y > pageH - margin - 10) {
+                                doc.addPage();
+                                y = margin + 12;
+                            }
+                            doc.text(part, x || margin, y, { align: align || 'left' });
+                            y += 14;
+                        });
                     });
 
-                    const title = document.getElementById('project-title').value || 'screenplay';
+                    const title = (document.getElementById('project-title').value || 'screenplay').replace(/[^a-z0-9]/gi, '_');
                     doc.save(`${title}.pdf`);
                 } catch (error) {
                     console.error('PDF Export Error:', error);
@@ -1645,5 +1319,24 @@ Requirements:
             }
         });
     </script>
+
+    </main>
+    <script>
+        // HUD clocks
+        const vclockZulu = document.getElementById('vclock-zulu');
+        const vclockLoc = document.getElementById('vclock-loc');
+        function updateClocks() {
+            const now = new Date();
+            const uh = String(now.getUTCHours()).padStart(2,'0');
+            const um = String(now.getUTCMinutes()).padStart(2,'0');
+            const us = String(now.getUTCSeconds()).padStart(2,'0');
+            const ut = Math.floor(now.getUTCMilliseconds()/100);
+            const th = String((now.getUTCHours()+1)%24).padStart(2,'0');
+            if (vclockZulu) vclockZulu.textContent = `UTC·${uh}:${um}:${us}.${ut}`;
+            if (vclockLoc) vclockLoc.textContent = `TNG·${th}:${um}:${us}`;
+        }
+        setInterval(updateClocks, 80);
+    </script>
 </body>
+
 </html>
