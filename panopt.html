@@ -464,6 +464,8 @@
       display: inline-block; vertical-align: middle;
       width: 110px; height: 60px; margin: 2px 4px;
       border: 1px solid var(--hud-white); background: #000;
+      object-fit: cover;
+      filter: grayscale(1) contrast(1.3);
     }
 
     /* === MIRROR TEXT SCROLL (Heterogeneous-style) === */
@@ -1048,7 +1050,7 @@
       if (ch1) ch1.click();
     }, 400);
 
-    document.querySelectorAll('.custom-option').forEach(option => {
+    document.querySelectorAll('#select-options .custom-option').forEach(option => {
       option.addEventListener('click', async (e) => {
         document.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
         option.classList.add('selected');
@@ -1267,14 +1269,50 @@
       triggerTextUpdate();
     });
 
-    document.getElementById('btn-inject-video').addEventListener('click', () => {
+    document.getElementById('btn-inject-video').addEventListener('click', async () => {
       editor.focus();
       const iframe = document.getElementById('active-video-iframe');
-      const vidNode = document.createElement('iframe');
-      vidNode.className = 'inline-video-node';
-      vidNode.src = iframe.src || "https://www.youtube.com/embed/DB7oO82OeD4?autoplay=1&mute=1&controls=0";
-      vidNode.allow = "autoplay; encrypted-media";
-      insertNodeAtCaret(vidNode);
+      const video = document.getElementById('active-video-elem');
+      let frameSrc = null;
+      let label = 'FRAME';
+
+      if (video.style.display !== 'none' && video.srcObject) {
+        // Webcam: capture current frame
+        try {
+          const canvas = document.createElement('canvas');
+          const w = video.videoWidth || 320;
+          const h = video.videoHeight || 180;
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, w, h);
+          frameSrc = canvas.toDataURL('image/jpeg', 0.65);
+          label = 'WEBCAM';
+        } catch (e) {
+          console.warn('Webcam capture failed', e);
+        }
+      } else if (iframe.style.display !== 'none' && iframe.src) {
+        // YouTube embed: use thumbnail
+        const idMatch = iframe.src.match(/embed\/([^?&/]+)/);
+        if (idMatch) {
+          frameSrc = `https://img.youtube.com/vi/${idMatch[1]}/hqdefault.jpg`;
+          label = 'YT';
+        }
+      }
+
+      if (!frameSrc) {
+        alert('NO ACTIVE VIDEO FRAME AVAILABLE');
+        return;
+      }
+
+      const imgNode = document.createElement('img');
+      imgNode.className = 'inline-video-node';
+      imgNode.src = frameSrc;
+      imgNode.alt = label;
+      imgNode.title = `// ${label} FRAME`;
+      imgNode.style.display = 'inline-block';
+
+      insertNodeAtCaret(imgNode);
       triggerTextUpdate();
     });
 
@@ -1309,7 +1347,7 @@
             body { background: #0b0c10; color: #ededed; font-family: monospace; padding: 24px; }
             .card { border: 1px solid #444; padding: 18px; max-width: 680px; margin: auto; }
             .inline-badge-node { max-width: 80px; filter: grayscale(1) contrast(1.4); }
-            .inline-video-node { width: 120px; height: 70px; }
+            .inline-video-node { width: 120px; height: 70px; object-fit: cover; filter: grayscale(1) contrast(1.3); }
           </style>
         </head>
         <body>
@@ -1349,8 +1387,16 @@
     /* ================= 6. NOISE, BADGE & DIM CONTROLS ================= */
     const noiseCanvas = document.getElementById('noise-canvas');
     const nCtx = noiseCanvas.getContext('2d');
-    noiseCanvas.width = 110; 
-    noiseCanvas.height = 60;
+    const videoWrap = document.querySelector('.video-frame-wrap');
+
+    function resizeNoise() {
+      if (!videoWrap || !noiseCanvas) return;
+      const rect = videoWrap.getBoundingClientRect();
+      noiseCanvas.width = Math.max(80, Math.floor(rect.width));
+      noiseCanvas.height = Math.max(40, Math.floor(rect.height));
+    }
+    resizeNoise();
+    window.addEventListener('resize', resizeNoise);
 
     let noiseActive = true;
     function renderNoise() {
