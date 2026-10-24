@@ -778,9 +778,11 @@
       <!-- MAIN WORKSPACE: Platen + Lower Cut-Up Stage -->
       <section class="main-column">
         <!-- Anchored Typewriter Platen -->
-        <div class="platen-anchor">
-          <div id="minraud-editor" contenteditable="true" data-placeholder="Metal cities controlled by the elders... Heads preserved in bottles... The devious underground operating through telepathic misdirection... Click any Telegraph wire headline below to inject into manuscript."></div>
-        </div>
+     <div class="platen-anchor" style="position: relative;">
+  <div id="minraud-editor" contenteditable="true" data-placeholder="..."></div>
+  <!-- Walker Canvas Overlay -->
+  <canvas id="walker-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;"></canvas>
+</div>
 
         <!-- Mirror Text Scroll (Heterogeneous-style reverse marquee of manuscript) -->
         <div class="mirror-scroll-wrap" id="mirror-scroll-wrap">
@@ -1838,6 +1840,239 @@
 
     renderCutUp();
     requestAnimationFrame(renderHUD);
+	  
+/* ================= 9. PROCEDURAL IK "LITERAL CRAWLER" ================= */
+(function initLiteralWalker() {
+  const canvas = document.getElementById('walker-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  // Crawler State
+  const walker = {
+    x: 120,
+    y: 80,
+    targetX: 120,
+    targetY: 80,
+    angle: 0,
+    speed: 0.08,
+    radius: 7,
+    legs: []
+  };
+
+  // 8-Leg IK Setup (4 on left, 4 on right)
+  const numLegs = 8;
+  const L1 = 14; // Femur length
+  const L2 = 16; // Tibia length
+  const reach = L1 + L2;
+
+  for (let i = 0; i < numLegs; i++) {
+    const side = i < 4 ? -1 : 1; // -1 = Left, 1 = Right
+    const legIdx = i % 4;
+    const bodyAngle = (legIdx - 1.5) * 0.45; // spread along flank
+
+    walker.legs.push({
+      side,
+      bodyAngle,
+      currentX: walker.x + side * 25,
+      currentY: walker.y + (legIdx - 1.5) * 15,
+      targetX: walker.x + side * 25,
+      targetY: walker.y + (legIdx - 1.5) * 15,
+      lift: 0,
+      isStepping: false,
+      group: (i % 2) // Gait synchronization group
+    });
+  }
+
+  // Find word coordinates to step onto inside #minraud-editor
+  function getWordTargets() {
+    const editor = document.getElementById('minraud-editor');
+    const walkerRect = canvas.getBoundingClientRect();
+    const targets = [];
+    
+    // Scan text nodes
+    const walkerNodes = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walkerNodes.nextNode())) {
+      const text = node.textContent;
+      const regex = /\S+/g;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        try {
+          const range = document.createRange();
+          range.setStart(node, match.index);
+          range.setEnd(node, match.index + match[0].length);
+          const r = range.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            targets.push({
+              x: r.left - walkerRect.left + r.width / 2,
+              y: r.top - walkerRect.top + r.height / 2,
+              text: match[0]
+            });
+          }
+        } catch (e) {}
+      }
+    }
+    return targets;
+  }
+
+  // 2-Bone Inverse Kinematics solver
+  function solve2BoneIK(hipX, hipY, footX, footY, side) {
+    const dx = footX - hipX;
+    const dy = footY - hipY;
+    const dist = Math.min(Math.hypot(dx, dy), (L1 + L2) * 0.98);
+    const baseAngle = Math.atan2(dy, dx);
+
+    // Law of Cosines
+    const cosAngle1 = (L1 * L1 + dist * dist - L2 * L2) / (2 * L1 * dist);
+    const angle1 = Math.acos(Math.max(-1, Math.min(1, cosAngle1)));
+
+    // Joint flexion direction
+    const kneeAngle = baseAngle + side * angle1;
+    const kneeX = hipX + Math.cos(kneeAngle) * L1;
+    const kneeY = hipY + Math.sin(kneeAngle) * L1;
+
+    return { kneeX, kneeY };
+  }
+
+  // Animate & Update Loop
+  let frame = 0;
+  function updateWalker() {
+    frame++;
+
+    // Hunt either recent cursor, active text words, or wander
+    const words = getWordTargets();
+    if (words.length > 0 && frame % 120 === 0) {
+      // Pick random word to crawl over and "inspect"
+      const chosen = words[Math.floor(Math.random() * words.length)];
+      walker.targetX = Math.max(30, Math.min(canvas.width - 30, chosen.x));
+      walker.targetY = Math.max(20, Math.min(canvas.height - 20, chosen.y));
+    }
+
+    // Body ease toward target
+    const bdx = walker.targetX - walker.x;
+    const bdy = walker.targetY - walker.y;
+    const dist = Math.hypot(bdx, bdy);
+
+    if (dist > 2) {
+      walker.x += bdx * walker.speed;
+      walker.y += bdy * walker.speed;
+      const targetAngle = Math.atan2(bdy, bdx);
+      let dTheta = targetAngle - walker.angle;
+      while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+      while (dTheta > Math.PI) dTheta -= Math.PI * 2;
+      walker.angle += dTheta * 0.1;
+    }
+
+    // Leg Stepping & IK
+    const gaitPhase = Math.floor(frame / 8) % 2; // Alternating gait
+    walker.legs.forEach((leg, i) => {
+      // Hip anchor point
+      const hipOffsetAngle = walker.angle + leg.side * 1.57 + leg.bodyAngle;
+      const hipX = walker.x + Math.cos(hipOffsetAngle) * walker.radius;
+      const hipY = walker.y + Math.sin(hipOffsetAngle) * walker.radius;
+
+      // Desired footstep anchor point
+      const footReachAngle = walker.angle + leg.side * 1.35 + leg.bodyAngle * 1.2;
+      const idealX = hipX + Math.cos(footReachAngle) * (reach * 0.65);
+      const idealY = hipY + Math.sin(footReachAngle) * (reach * 0.65);
+
+      const dFoot = Math.hypot(idealX - leg.currentX, idealY - leg.currentY);
+
+      // Trigger step when foot falls behind or overextends
+      if (dFoot > 18 && !leg.isStepping && leg.group === gaitPhase) {
+        leg.isStepping = true;
+        leg.targetX = idealX + (bdx / (dist || 1)) * 12; // lead foot forward
+        leg.targetY = idealY + (bdy / (dist || 1)) * 12;
+      }
+
+      // Step interpolation
+      if (leg.isStepping) {
+        leg.currentX += (leg.targetX - leg.currentX) * 0.35;
+        leg.currentY += (leg.targetY - leg.currentY) * 0.35;
+        leg.lift = Math.sin((1 - Math.hypot(leg.targetX - leg.currentX, leg.targetY - leg.currentY) / 25) * Math.PI) * 4;
+        if (Math.hypot(leg.targetX - leg.currentX, leg.targetY - leg.currentY) < 1.5) {
+          leg.isStepping = false;
+          leg.lift = 0;
+        }
+      }
+
+      // Solve 2-bone IK joints
+      leg.hip = { x: hipX, y: hipY };
+      const solved = solve2BoneIK(hipX, hipY, leg.currentX, leg.currentY - leg.lift, leg.side);
+      leg.knee = solved;
+    });
+
+    // Render Crawler
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Legs
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+
+    walker.legs.forEach(leg => {
+      ctx.beginPath();
+      ctx.moveTo(leg.hip.x, leg.hip.y);
+      ctx.lineTo(leg.knee.kneeX, leg.knee.kneeY);
+      ctx.lineTo(leg.currentX, leg.currentY - leg.lift);
+      ctx.stroke();
+
+      // Foot contact pad
+      ctx.fillStyle = leg.isStepping ? '#ff0033' : 'rgba(237, 237, 237, 0.45)';
+      ctx.fillRect(leg.currentX - 1, leg.currentY - leg.lift - 1, 2, 2);
+    });
+
+    // Draw Central Carapace (Hexagonal / Cyberpunk Core)
+    ctx.save();
+    ctx.translate(walker.x, walker.y);
+    ctx.rotate(walker.angle);
+
+    ctx.fillStyle = '#0a0a0a';
+    ctx.strokeStyle = '#ff0033';
+    ctx.lineWidth = 1.2;
+
+    ctx.beginPath();
+    ctx.moveTo(-6, -4);
+    ctx.lineTo(6, -3);
+    ctx.lineTo(8, 0);
+    ctx.lineTo(6, 3);
+    ctx.lineTo(-6, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Optic node (Burroughs scanning eye)
+    ctx.fillStyle = '#ff2a42';
+    ctx.beginPath();
+    ctx.arc(4, 0, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    requestAnimationFrame(updateWalker);
+  }
+
+  // Hook into typing: typing directs the crawler directly to the caret/last typed token
+  editor.addEventListener('input', () => {
+    const sel = window.getSelection();
+    if (sel.rangeCount > 0) {
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      walker.targetX = rect.left - canvasRect.left + 20;
+      walker.targetY = rect.top - canvasRect.top;
+    }
+  });
+
+  requestAnimationFrame(updateWalker);
+})();	  
   </script>
 </body>
 </html>
