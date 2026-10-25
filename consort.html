@@ -237,11 +237,11 @@
       transition: width 0.2s, padding 0.2s;
       caret-color: #ffffff;
     }
-    .paper-sheet h2 {
+    .paper-sheet h1, .paper-sheet h2, .paper-sheet h3 {
       color: #ffffff;
       border-bottom: 1px solid #333842;
-      padding-bottom: 6px;
-      margin-bottom: 14px;
+      padding-bottom: 4px;
+      margin: 14px 0 8px 0;
       letter-spacing: 0.5px;
     }
 
@@ -502,7 +502,7 @@
         background: #ffffff !important;
         color: #000000 !important;
       }
-      .paper-sheet h2, .paper-sheet p, .paper-sheet li, .paper-sheet figcaption {
+      .paper-sheet h1, .paper-sheet h2, .paper-sheet h3, .paper-sheet p, .paper-sheet li, .paper-sheet figcaption {
         color: #000000 !important;
       }
       .consort-figure.selected img {
@@ -530,21 +530,24 @@
     <div class="menu-item" onclick="execCmd('undo')">Edit</div>
     <div class="menu-item" onclick="toggleDeck()">View</div>
     <div class="menu-item" onclick="openImageModal()">Insert Image...</div>
+    <div class="menu-item" onclick="triggerImport()">Import Text...</div>
     <div class="menu-item" onclick="toggleSplitView()">Split-Screen</div>
 
-    <!-- File Dropdown: Image-Safe Exports Only -->
+    <!-- File Dropdown: Image-Safe Exports & Imports -->
     <div id="file-menu" class="dropdown">
       <div class="dropdown-row" onclick="newDoc()">New Document</div>
+      <div class="dropdown-row" onclick="triggerImport()"><b>Open / Import Document...</b> <span>📂</span></div>
       <div class="dropdown-sep"></div>
-      <div class="dropdown-row" onclick="exportFile('pdf')"><b>Direct PDF Export</b> <span class="pdf-badge">PDF</span></div>
+      <div class="dropdown-row" onclick="exportFile('pdf')"><b>Print / Save as PDF</b> <span class="pdf-badge">PDF</span></div>
       <div class="dropdown-row" onclick="exportFile('html')">Save Standalone HTML (.html)</div>
       <div class="dropdown-row" onclick="exportFile('docx')">Save as MS Word (.docx)</div>
-      <div class="dropdown-row" onclick="exportFile('odt')">Save as OpenDocument (.odt)</div>
-      <div class="dropdown-row" onclick="exportFile('md')">Export Markdown (.md)</div>
       <div class="dropdown-sep"></div>
       <div class="dropdown-row" onclick="window.print()">Print Page...</div>
     </div>
   </div>
+
+  <!-- Hidden File Input for Text / Document Imports -->
+  <input type="file" id="import-file-input" accept=".txt,.html,.htm" style="display:none;" onchange="handleFileImport(event)" />
 
   <!-- Tab Strip -->
   <div class="tabstrip">
@@ -562,6 +565,7 @@
   <!-- Top Ribbon Toolbar -->
   <div class="toolbar">
     <div class="btn-group">
+      <button class="tool-btn" onclick="triggerImport()" title="Open / Import Document (.txt, .html)">📂</button>
       <button class="tool-btn" onclick="saveToLocalStorage(true)" title="Save to Memory">💾</button>
       <button class="tool-btn" onclick="window.print()" title="Print Page">🖨️</button>
       <button class="tool-btn" onclick="exportFile('pdf')" title="Quick PDF Export"><span class="pdf-badge">PDF</span></button>
@@ -616,10 +620,10 @@
           <div class="ruler-h"></div>
           <div class="ruler-v"></div>
 
-          <div class="scroll-pane" onclick="editor.focus()">
+          <div class="scroll-pane" id="scroll-pane" onclick="editor.focus()">
             <div id="editor" class="paper-sheet" contenteditable="true" spellcheck="true">
               <h2>Psychology research paper...</h2>
-              <p>Consort Studio initialized. The high-contrast dark manuscript field is framed by ivory enamel mechanical architecture.</p>
+              <p>Consort Studio initialized. Full two-way document workflow active: you can now open or drag-and-drop any Plain Text (.txt) or HTML document directly onto this sheet.</p>
               
               <!-- Sample Inserted Figure -->
               <figure class="consort-figure align-center filter-silver" style="max-width: 65%;" onclick="selectFigure(this, event)">
@@ -627,7 +631,7 @@
                 <figcaption>Figure 1: Synaptic potential mapping under cognitive load.</figcaption>
               </figure>
 
-              <p>Images uploaded here are automatically scaled and compressed via an offscreen canvas to prevent localStorage quota overflows, ensuring smooth multi-format exports.</p>
+              <p>Uploaded images automatically compress via HTML5 canvas to maintain safe local storage quotas and ensure seamless multi-format exports.</p>
             </div>
           </div>
         </div>
@@ -742,6 +746,7 @@
     <div class="rail">
       <button class="rail-btn active" onclick="toggleDeck()" title="Properties Deck">⚙</button>
       <button class="rail-btn" onclick="openImageModal()" title="Insert Picture">🖼️</button>
+      <button class="rail-btn" onclick="triggerImport()" title="Import File">📂</button>
       <button class="rail-btn" onclick="toggleSplitView()" title="Split Screen">◫</button>
       <button class="rail-btn" onclick="exportFile('pdf')" title="Export PDF"><span class="pdf-badge">PDF</span></button>
     </div>
@@ -822,6 +827,121 @@
     const editor = document.getElementById('editor');
     const saveStatus = document.getElementById('save-status');
 
+    // Simple undo/redo stack (snapshots of HTML)
+    const historyStack = [];
+    let historyIndex = -1;
+    let historyLock = false;
+
+    function pushHistory() {
+      if (historyLock) return;
+      const html = editor.innerHTML;
+      if (historyIndex >= 0 && historyStack[historyIndex] === html) return;
+      historyStack.splice(historyIndex + 1);
+      historyStack.push(html);
+      if (historyStack.length > 50) historyStack.shift();
+      historyIndex = historyStack.length - 1;
+    }
+
+    function undo() {
+      if (historyIndex <= 0) return;
+      historyLock = true;
+      historyIndex--;
+      editor.innerHTML = historyStack[historyIndex];
+      historyLock = false;
+      updateMetrics();
+      saveToLocalStorage();
+    }
+
+    function redo() {
+      if (historyIndex >= historyStack.length - 1) return;
+      historyLock = true;
+      historyIndex++;
+      editor.innerHTML = historyStack[historyIndex];
+      historyLock = false;
+      updateMetrics();
+      saveToLocalStorage();
+    }
+
+    // ==========================================================================
+    // TEXT & DOCUMENT IMPORT ENGINE (.txt, .html, plus Drag & Drop)
+    // ==========================================================================
+    function triggerImport() {
+      document.getElementById('import-file-input').click();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      processImportFile(file);
+      e.target.value = ''; // Reset file input
+    }
+
+    function processImportFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const raw = event.target.result;
+        let formattedHtml = '';
+
+        if (ext === 'html' || ext === 'htm') {
+          // Parse HTML and extract clean body content
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(raw, 'text/html');
+          formattedHtml = doc.body ? doc.body.innerHTML : raw;
+        } else {
+          // Plain Text: split double breaks into paragraphs
+          formattedHtml = raw.split(/\r?\n\r?\n/).map(p => {
+            const trimmed = p.trim();
+            if (!trimmed) return '';
+            return `<p>${escapeHtml(trimmed).replace(/\r?\n/g, '<br>')}</p>`;
+          }).join('');
+        }
+
+        if (confirm("Replace the current document with imported content?\n\n(Click Cancel to append to the end of your current draft)")) {
+          pushHistory();
+          editor.innerHTML = formattedHtml;
+        } else {
+          pushHistory();
+          editor.innerHTML += '<hr style="border:none; border-top:1px dashed #444; margin:20px 0;">' + formattedHtml;
+        }
+
+        saveToLocalStorage();
+        updateMetrics();
+      };
+
+      reader.readAsText(file);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Direct Drag and Drop file handler onto the document workspace
+    const scrollPane = document.getElementById('scroll-pane');
+    scrollPane.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    });
+
+    scrollPane.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        // If image file is dropped, insert via image tool
+        if (file.type.startsWith('image/')) {
+          handleFileSelect({ target: { files: [file] } });
+          openImageModal();
+        } else if (['txt', 'html', 'htm'].includes(ext)) {
+          processImportFile(file);
+        } else {
+          alert("Supported file formats for import: .txt, .html");
+        }
+      }
+    });
+
     // ==========================================================================
     // QUOTA-SAFE LOCALSTORAGE AUTOSAVE
     // ==========================================================================
@@ -842,14 +962,35 @@
         const saved = localStorage.getItem('consort_studio_draft');
         if (saved && saved.trim() !== '') editor.innerHTML = saved;
       } catch (e) {}
+      pushHistory(); // initial state
       updateMetrics();
+      // Seed browser history with the default URL
+      const initialUrl = browserUrlInput.value;
+      if (initialUrl) navigateBrowser(initialUrl, true);
     });
 
     editor.addEventListener('input', () => {
       saveStatus.innerText = "○ Saving...";
       saveStatus.style.color = "#a17828";
       clearTimeout(window.saveDebounce);
-      window.saveDebounce = setTimeout(saveToLocalStorage, 600);
+      window.saveDebounce = setTimeout(() => {
+        pushHistory();
+        saveToLocalStorage();
+      }, 600);
+      updateMetrics();
+    });
+
+    // Clean paste: prefer plain text, strip dangerous markup
+    editor.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (!text) return;
+      pushHistory();
+      const html = text.split(/\r?\n\r?\n/).map(p => {
+        const t = p.trim();
+        return t ? `<p>${escapeHtml(t).replace(/\r?\n/g, '<br>')}</p>` : '';
+      }).join('');
+      document.execCommand('insertHTML', false, html || escapeHtml(text));
       updateMetrics();
     });
 
@@ -871,11 +1012,14 @@
       const file = e.target.files[0];
       if (!file) return;
 
+      const urlInput = document.getElementById('img-url-input');
+      urlInput.value = "Compressing " + file.name + "…";
+      urlInput.disabled = true;
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          // Downscale to max 1200px width/height to safeguard localStorage
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
@@ -896,26 +1040,43 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Compress to lightweight 82% JPEG
           pendingImageData = canvas.toDataURL('image/jpeg', 0.82);
-          document.getElementById('img-url-input').value = file.name;
+          urlInput.value = file.name + " (ready)";
+          urlInput.disabled = false;
+        };
+        img.onerror = () => {
+          urlInput.value = "Failed to load image";
+          urlInput.disabled = false;
+          pendingImageData = null;
         };
         img.src = event.target.result;
+      };
+      reader.onerror = () => {
+        urlInput.value = "Read error";
+        urlInput.disabled = false;
       };
       reader.readAsDataURL(file);
     }
 
     function confirmInsertImage() {
-      const url = pendingImageData || document.getElementById('img-url-input').value.trim();
+      const urlInput = document.getElementById('img-url-input');
+      const url = pendingImageData || urlInput.value.trim();
       const caption = document.getElementById('img-caption-input').value.trim();
       const filter = document.getElementById('modal-filter-select').value;
       const align = document.getElementById('modal-align-select').value;
 
-      if (!url) {
-        alert("Please select a file or provide an image URL.");
+      if (!url || url.startsWith("Compressing") || url.startsWith("Failed") || url.startsWith("Read")) {
+        alert("Please wait for the image to finish processing, or provide a valid image URL.");
         return;
       }
 
+      // Basic URL check if not a data URL
+      if (!url.startsWith('data:') && !/^https?:\/\//i.test(url)) {
+        alert("Please provide a valid http(s) image URL or select a file.");
+        return;
+      }
+
+      pushHistory();
       const fig = document.createElement('figure');
       fig.className = `consort-figure ${align} ${filter}`;
       fig.style.maxWidth = align === 'align-center' ? '65%' : '45%';
@@ -963,14 +1124,6 @@
       else filterSelect.value = 'filter-none';
     }
 
-    window.addEventListener('click', (e) => {
-      if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section')) {
-        document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
-        selectedFigure = null;
-      }
-    });
-
-    // Keyboard backspace/delete support for figures
     window.addEventListener('keydown', (e) => {
       if ((e.key === 'Backspace' || e.key === 'Delete') && selectedFigure) {
         if (document.activeElement.tagName !== 'FIGCAPTION') {
@@ -1002,6 +1155,7 @@
     }
     function deleteSelectedFigure() {
       if (selectedFigure) {
+        pushHistory();
         selectedFigure.remove();
         selectedFigure = null;
         saveToLocalStorage();
@@ -1116,19 +1270,39 @@
 
     const browserFrame = document.getElementById('browser-frame');
     const browserUrlInput = document.getElementById('browser-url');
+    const browserHistory = [];
+    let browserHistIndex = -1;
 
-    function loadBrowserUrl() {
-      let url = browserUrlInput.value.trim();
+    function navigateBrowser(url, addToHistory = true) {
       if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
-      browserFrame.src = url;
-    }
-    function setBrowserPreset(url) {
       browserUrlInput.value = url;
       browserFrame.src = url;
+      if (addToHistory) {
+        browserHistory.splice(browserHistIndex + 1);
+        browserHistory.push(url);
+        browserHistIndex = browserHistory.length - 1;
+      }
+    }
+
+    function loadBrowserUrl() {
+      navigateBrowser(browserUrlInput.value.trim());
+    }
+    function setBrowserPreset(url) {
+      navigateBrowser(url);
     }
     function browserReload() { browserFrame.src = browserFrame.src; }
-    function browserGoBack() { window.history.back(); }
-    function browserGoForward() { window.history.forward(); }
+    function browserGoBack() {
+      if (browserHistIndex > 0) {
+        browserHistIndex--;
+        navigateBrowser(browserHistory[browserHistIndex], false);
+      }
+    }
+    function browserGoForward() {
+      if (browserHistIndex < browserHistory.length - 1) {
+        browserHistIndex++;
+        navigateBrowser(browserHistory[browserHistIndex], false);
+      }
+    }
 
     // ==========================================================================
     // ROTARY ZOOM KNOB
@@ -1145,7 +1319,13 @@
       currentZoom = Math.min(150, Math.max(70, Math.round(newZoom)));
       const deg = ((currentZoom - 70) / (150 - 70)) * 240 - 120;
       knob.style.transform = `rotate(${deg}deg)`;
-      editor.style.transform = `scale(${currentZoom / 100})`;
+      // Prefer CSS zoom for correct layout; fall back to transform
+      if (typeof editor.style.zoom !== 'undefined') {
+        editor.style.zoom = currentZoom / 100;
+        editor.style.transform = '';
+      } else {
+        editor.style.transform = `scale(${currentZoom / 100})`;
+      }
       zoomReadout.innerText = `${currentZoom}%`;
     }
 
@@ -1166,9 +1346,12 @@
     knobArea.addEventListener('dblclick', () => updateZoom(100));
 
     // ==========================================================================
-    // IMAGE-SAFE EXPORT ENGINE (PDF, HTML, DOCX, ODT, MARKDOWN)
+    // IMAGE-SAFE EXPORT ENGINE (PDF via print, HTML, OOXML .docx with images)
     // ==========================================================================
     function execCmd(command, val = null) {
+      if (command === 'undo') { undo(); return; }
+      if (command === 'redo') { redo(); return; }
+      pushHistory();
       document.execCommand(command, false, val);
       editor.focus();
       updateMetrics();
@@ -1184,20 +1367,35 @@
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
       document.getElementById('word-count').innerText = `Words: ${words}`;
       document.getElementById('char-count').innerText = `Chars: ${text.length}`;
+
+      // Approximate page count from content height (letter ≈ 9in usable after margins)
+      const pageHeightPx = 11 * 96; // rough CSS inches to px
+      const contentHeight = editor.scrollHeight;
+      const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+      const pageEl = document.querySelector('.status-left span');
+      if (pageEl) pageEl.innerText = `Page 1 / ${pages}`;
     }
 
     function toggleDropdown(id) { document.getElementById(id).classList.toggle('show'); }
-    window.onclick = function(e) {
-      if (!e.target.matches('.menu-item')) {
+
+    window.addEventListener('click', (e) => {
+      // Close menus if click is outside menu items
+      if (!e.target.closest('.menu-item') && !e.target.closest('.dropdown')) {
         document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
       }
-    };
+      // Deselect figures if click is outside figure or image properties
+      if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section')) {
+        document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
+        selectedFigure = null;
+      }
+    });
     function toggleDeck() {
       const deck = document.getElementById('prop-deck');
       deck.style.display = deck.style.display === 'none' ? 'flex' : 'none';
     }
     function newDoc() {
       if (confirm("Create new blank document?")) {
+        pushHistory();
         editor.innerHTML = "<p><br></p>";
         saveToLocalStorage();
         updateMetrics();
@@ -1205,7 +1403,7 @@
     }
 
     function downloadBlob(content, filename, mimeType) {
-      const blob = new Blob([content], { type: mimeType });
+      const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1217,39 +1415,270 @@
     }
 
     function exportFile(format) {
-      const html = editor.innerHTML;
-
       if (format === 'pdf') {
         window.print();
       } else if (format === 'html') {
+        const html = editor.innerHTML;
         const fullDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{background:#0c0d0f;color:#f8f9fa;font-family:'Courier Prime',monospace;padding:2rem;}figure{margin:1.5rem 0;}img{max-width:100%;height:auto;border-radius:2px;}figcaption{color:#8c93a0;font-style:italic;font-size:0.85rem;}</style></head><body>${html}</body></html>`;
         downloadBlob(fullDoc, 'Document1.html', 'text/html;charset=utf-8');
-      } else if (format === 'md') {
-        const clone = editor.cloneNode(true);
-        // Clean figure conversion supporting captionless and captioned images
-        clone.querySelectorAll('figure').forEach(fig => {
-          const img = fig.querySelector('img');
-          const cap = fig.querySelector('figcaption');
-          const alt = cap ? cap.innerText : (img ? img.alt || 'Figure' : 'Figure');
-          const src = img ? img.src : '';
-          const mdImg = document.createTextNode(`\n\n![${alt}](${src})\n*${alt}*\n\n`);
-          fig.replaceWith(mdImg);
-        });
-
-        let md = clone.innerHTML
-          .replace(/<h[1-6]>(.*?)<\/h[1-6]>/gi, '# $1\n\n')
-          .replace(/<b>(.*?)<\/b>/gi, '**$1**')
-          .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
-          .replace(/<i>(.*?)<\/i>/gi, '*$1*')
-          .replace(/<li>(.*?)<\/li>/gi, '- $1\n')
-          .replace(/<p>(.*?)<\/p>/gi, '$1\n\n')
-          .replace(/<br\s*[\/]?>/gi, '\n')
-          .replace(/<[^>]+>/g, '');
-        downloadBlob(md.trim(), 'Document1.md', 'text/markdown;charset=utf-8');
-      } else if (format === 'docx' || format === 'odt') {
-        const fileData = `<html><head><meta charset="utf-8"></head><body style="background:#0c0d0f;color:#fff;font-family:monospace;">${html}</body></html>`;
-        downloadBlob(fileData, `Document1.${format}`, 'application/msword');
+      } else if (format === 'docx') {
+        exportDocx();
       }
+    }
+
+    // ==========================================================================
+    // PURE OOXML (.docx) EXPORTER WITH EMBEDDED IMAGES
+    // ==========================================================================
+    function dataUrlToUint8Array(dataUrl) {
+      const base64 = dataUrl.split(',')[1];
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+
+    function escapeXml(str) {
+      return (str || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+    }
+
+    function buildDocumentXml(bodyParts) {
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>
+    ${bodyParts.join('\n')}
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+    }
+
+    function makeParagraph(text, style) {
+      const runs = escapeXml(text).split('\n').map(t => `<w:r><w:t xml:space="preserve">${t}</w:t></w:r>`).join('<w:br/>');
+      const pStyle = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : '';
+      return `<w:p>${pStyle}${runs}</w:p>`;
+    }
+
+    function makeImageParagraph(rId, cx, cy) {
+      // cx/cy in EMUs (1 inch = 914400 EMUs). Default ~4.5in wide if unknown.
+      const width = cx || 4114800;
+      const height = cy || 2743200;
+      return `<w:p>
+  <w:r>
+    <w:drawing>
+      <wp:inline distT="0" distB="0" distL="0" distR="0">
+        <wp:extent cx="${width}" cy="${height}"/>
+        <wp:docPr id="1" name="Picture"/>
+        <a:graphic>
+          <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:pic>
+              <pic:nvPicPr>
+                <pic:cNvPr id="0" name="image"/>
+                <pic:cNvPicPr/>
+              </pic:nvPicPr>
+              <pic:blipFill>
+                <a:blip r:embed="${rId}"/>
+                <a:stretch><a:fillRect/></a:stretch>
+              </pic:blipFill>
+              <pic:spPr>
+                <a:xfrm>
+                  <a:off x="0" y="0"/>
+                  <a:ext cx="${width}" cy="${height}"/>
+                </a:xfrm>
+                <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+              </pic:spPr>
+            </pic:pic>
+          </a:graphicData>
+        </a:graphic>
+      </wp:inline>
+    </w:drawing>
+  </w:r>
+</w:p>`;
+    }
+
+    async function exportDocx() {
+      const media = [];
+      const rels = [];
+      const bodyParts = [];
+      let imageCounter = 1;
+
+      // Walk editor children and build Word content
+      const children = Array.from(editor.childNodes);
+      for (const node of children) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const t = node.textContent.trim();
+          if (t) bodyParts.push(makeParagraph(t));
+          continue;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+        const tag = node.tagName;
+        if (tag === 'FIGURE' || node.classList?.contains('consort-figure')) {
+          const img = node.querySelector('img');
+          const cap = node.querySelector('figcaption');
+          if (img && img.src && img.src.startsWith('data:')) {
+            const bytes = dataUrlToUint8Array(img.src);
+            const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
+            const mediaName = `image${imageCounter}.${ext}`;
+            media.push({ name: mediaName, data: bytes, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
+            const rId = `rId${imageCounter + 1}`; // rId1 reserved for styles later if needed
+            rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
+            bodyParts.push(makeImageParagraph(rId));
+            imageCounter++;
+          }
+          if (cap && cap.textContent.trim()) {
+            bodyParts.push(makeParagraph(cap.textContent.trim()));
+          }
+        } else if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
+          bodyParts.push(makeParagraph(node.innerText, 'Heading1'));
+        } else if (tag === 'P' || tag === 'DIV') {
+          const text = node.innerText.trim();
+          if (text) bodyParts.push(makeParagraph(text));
+        } else if (tag === 'BR' || tag === 'HR') {
+          bodyParts.push('<w:p/>');
+        } else {
+          const text = node.innerText.trim();
+          if (text) bodyParts.push(makeParagraph(text));
+        }
+      }
+
+      if (bodyParts.length === 0) bodyParts.push('<w:p/>');
+
+      const documentXml = buildDocumentXml(bodyParts);
+
+      // Relationships for document
+      const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${rels.map(r => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"/>`).join('\n  ')}
+</Relationships>`;
+
+      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+      const relsRoot = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+      const files = [
+        { name: '[Content_Types].xml', data: new TextEncoder().encode(contentTypes) },
+        { name: '_rels/.rels', data: new TextEncoder().encode(relsRoot) },
+        { name: 'word/document.xml', data: new TextEncoder().encode(documentXml) },
+        { name: 'word/_rels/document.xml.rels', data: new TextEncoder().encode(docRels) },
+        ...media.map(m => ({ name: `word/media/${m.name}`, data: m.data }))
+      ];
+
+      const zipBytes = createZip(files);
+      downloadBlob(zipBytes, 'Document1.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    // Minimal uncompressed ZIP writer (store method)
+    function createZip(files) {
+      const encoder = new TextEncoder();
+      const parts = [];
+      const central = [];
+      let offset = 0;
+
+      for (const file of files) {
+        const nameBytes = encoder.encode(file.name);
+        const data = file.data instanceof Uint8Array ? file.data : encoder.encode(file.data);
+        const crc = crc32(data);
+
+        // Local file header
+        const local = new Uint8Array(30 + nameBytes.length);
+        const view = new DataView(local.buffer);
+        view.setUint32(0, 0x04034b50, true); // signature
+        view.setUint16(4, 20, true);         // version
+        view.setUint16(6, 0, true);          // flags
+        view.setUint16(8, 0, true);          // method = store
+        view.setUint16(10, 0, true);         // time
+        view.setUint16(12, 0, true);         // date
+        view.setUint32(14, crc, true);
+        view.setUint32(18, data.length, true);
+        view.setUint32(22, data.length, true);
+        view.setUint16(26, nameBytes.length, true);
+        view.setUint16(28, 0, true);         // extra length
+        local.set(nameBytes, 30);
+
+        parts.push(local, data);
+
+        // Central directory entry
+        const cd = new Uint8Array(46 + nameBytes.length);
+        const cdView = new DataView(cd.buffer);
+        cdView.setUint32(0, 0x02014b50, true);
+        cdView.setUint16(4, 20, true);
+        cdView.setUint16(6, 20, true);
+        cdView.setUint16(8, 0, true);
+        cdView.setUint16(10, 0, true);
+        cdView.setUint16(12, 0, true);
+        cdView.setUint16(14, 0, true);
+        cdView.setUint32(16, crc, true);
+        cdView.setUint32(20, data.length, true);
+        cdView.setUint32(24, data.length, true);
+        cdView.setUint16(28, nameBytes.length, true);
+        cdView.setUint16(30, 0, true);
+        cdView.setUint16(32, 0, true);
+        cdView.setUint16(34, 0, true);
+        cdView.setUint16(36, 0, true);
+        cdView.setUint32(38, 0, true);
+        cdView.setUint32(42, offset, true);
+        cd.set(nameBytes, 46);
+        central.push(cd);
+
+        offset += local.length + data.length;
+      }
+
+      const centralStart = offset;
+      const centralBytes = concatUint8Arrays(central);
+      const end = new Uint8Array(22);
+      const endView = new DataView(end.buffer);
+      endView.setUint32(0, 0x06054b50, true);
+      endView.setUint16(4, 0, true);
+      endView.setUint16(6, 0, true);
+      endView.setUint16(8, files.length, true);
+      endView.setUint16(10, files.length, true);
+      endView.setUint32(12, centralBytes.length, true);
+      endView.setUint32(16, centralStart, true);
+      endView.setUint16(20, 0, true);
+
+      return concatUint8Arrays([...parts, centralBytes, end]);
+    }
+
+    function concatUint8Arrays(arrays) {
+      const total = arrays.reduce((sum, a) => sum + a.length, 0);
+      const result = new Uint8Array(total);
+      let pos = 0;
+      for (const a of arrays) {
+        result.set(a, pos);
+        pos += a.length;
+      }
+      return result;
+    }
+
+    function crc32(data) {
+      let crc = 0xffffffff;
+      const table = crc32.table || (crc32.table = makeCrcTable());
+      for (let i = 0; i < data.length; i++) {
+        crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    function makeCrcTable() {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        table[i] = c;
+      }
+      return table;
     }
   </script>
 </body>
