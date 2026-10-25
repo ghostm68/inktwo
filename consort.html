@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consort Studio - Word & Research Workstation</title>
+  <style>
+    /* ==========================================================================
+       CONSORT STUDIO: VINTAGE HARDWARE CHASSIS + SOLID OBSIDIAN PAPER
+       ========================================================================== */
+    :root {
+      --shell-bg: #e6e3da;
+      --shell-surface: #edeae1;
+      --shell-elevated: #f4f2eb;
+      --shell-border: #bcb7a8;
+      --shell-border-dark: #8c8675;
+      --shell-text: #2c2824;
+      --shell-muted: #6e685c;
+      --shell-active: #d6d0c0;
+      --desk-bg: #222428;
+      --page-black: #0c0d0f;
+      --typewriter-white: #f8f9fa;
+      --typewriter-red: #c92a2a;
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif;
+      --font-mono: "Courier Prime", "Courier New", Courier, monospace;
+      --ruler-size: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* RED RIBBON SELECTION */
+    ::selection { background: var(--typewriter-red) !important; color: #ffffff !important; }
+    ::-moz-selection { background: var(--typewriter-red) !important; color: #ffffff !important; }
+
+    /* HARDWARE SCROLLBARS (Stripping Default Blue) */
+    * { scrollbar-width: thin; scrollbar-color: #9c9685 #ded9cb; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #ded9cb; }
+    ::-webkit-scrollbar-thumb { background: #9c9685; border-radius: 2px; border: 1px solid #827c6d; }
+    ::-webkit-scrollbar-thumb:hover { background: #736d5e; }
+    .scroll-pane::-webkit-scrollbar-track { background: #18191d; }
+    .scroll-pane::-webkit-scrollbar-thumb { background: #3c4049; border: 1px solid #23252a; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--shell-bg);
+      color: var(--shell-text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* TITLEBAR & MENUBAR */
+    .titlebar {
+      background: linear-gradient(180deg, #3d3b38 0%, #292825 100%);
+      color: #eae5d9;
+      font-size: 11px;
+      padding: 4px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1a1917;
+      letter-spacing: 0.5px;
+    }
+    .menubar {
+      background: var(--shell-surface);
+      display: flex;
+      padding: 3px 6px;
+      border-bottom: 1px solid var(--shell-border);
+      font-size: 12px;
+      position: relative;
+    }
+    .menu-item { padding: 3px 8px; cursor: pointer; border-radius: 2px; }
+    .menu-item:hover { background: var(--shell-active); }
+
+    .dropdown {
+      position: absolute;
+      top: 100%;
+      left: 6px;
+      background: var(--shell-elevated);
+      border: 1px solid var(--shell-border-dark);
+      box-shadow: 2px 4px 12px rgba(0,0,0,0.25);
+      min-width: 200px;
+      display: none;
+      z-index: 200;
+      border-radius: 2px;
+    }
+    .dropdown.show { display: block; }
+    .dropdown-row {
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+    .dropdown-row:hover { background: var(--typewriter-red); color: #ffffff; }
+    .dropdown-sep { height: 1px; background: var(--shell-border); margin: 3px 0; }
+
+    /* TAB STRIP */
+    .tabstrip {
+      background: #dad5c7;
+      display: flex;
+      align-items: flex-end;
+      padding: 4px 8px 0 8px;
+      border-bottom: 1px solid var(--shell-border);
+      gap: 3px;
+    }
+    .tab {
+      background: #c8c2b1;
+      padding: 5px 12px;
+      font-size: 11px;
+      border: 1px solid var(--shell-border);
+      border-bottom: none;
+      border-radius: 3px 3px 0 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--shell-text);
+    }
+    .tab.active {
+      background: var(--shell-surface);
+      font-weight: 600;
+      border-bottom: 1px solid var(--shell-surface);
+      margin-bottom: -1px;
+    }
+    .split-toggle-tab {
+      margin-left: auto;
+      background: #beb7a4;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid var(--shell-border-dark);
+    }
+    .split-toggle-tab.active { background: var(--shell-surface); font-weight: 700; }
+
+    /* TOOLBAR */
+    .toolbar {
+      background: var(--shell-surface);
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-bottom: 1px solid var(--shell-border);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .btn-group {
+      display: inline-flex;
+      align-items: center;
+      background: var(--shell-elevated);
+      border: 1px solid var(--shell-border);
+      border-radius: 2px;
+      padding: 1px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    button.tool-btn {
+      background: transparent;
+      border: none;
+      padding: 3px 6px;
+      cursor: pointer;
+      border-radius: 2px;
+      font-size: 11px;
+      color: var(--shell-text);
+      min-width: 24px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    button.tool-btn:hover { background: var(--shell-active); }
+    button.tool-btn.active { background: #b0a996; color: #000; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); }
+    .pdf-badge { color: var(--typewriter-red); font-weight: 800; font-size: 10px; }
+
+    select.tool-select {
+      font-size: 11px;
+      padding: 1px 4px;
+      border: 1px solid var(--shell-border);
+      background: var(--shell-elevated);
+      height: 22px;
+      color: var(--shell-text);
+      outline: none;
+    }
+    select.tool-select:focus { border-color: var(--shell-border-dark); box-shadow: 0 0 0 1px var(--shell-border-dark); }
+
+    /* WORKSPACE */
+    .workspace { display: flex; flex: 1; position: relative; overflow: hidden; }
+    .main-viewport { flex: 1; display: flex; overflow: hidden; }
+
+    /* DOCUMENT VIEW */
+    .view-container { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .editor-stage {
+      flex: 1;
+      display: grid;
+      grid-template-columns: var(--ruler-size) 1fr;
+      grid-template-rows: var(--ruler-size) 1fr;
+      background: var(--desk-bg);
+      overflow: hidden;
+    }
+
+    .ruler-corner { background: #3b3e45; border-right: 1px solid #4a4e57; border-bottom: 1px solid #4a4e57; }
+    .ruler-h {
+      background: #25272c url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="20"><line x1="0" y1="12" x2="0" y2="20" stroke="%23555b66" stroke-width="1"/><line x1="24" y1="16" x2="24" y2="20" stroke="%23555b66" stroke-width="1"/><line x1="48" y1="14" x2="48" y2="20" stroke="%23555b66" stroke-width="1"/><line x1="72" y1="16" x2="72" y2="20" stroke="%23555b66" stroke-width="1"/><text x="4" y="11" font-size="9" fill="%23717a8a" font-family="monospace">in</text></svg>');
+      border-bottom: 1px solid #3b3e45;
+    }
+    .ruler-v {
+      background: #25272c url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="96"><line x1="12" y1="0" x2="20" y2="0" stroke="%23555b66" stroke-width="1"/><line x1="16" y1="24" x2="20" y2="24" stroke="%23555b66" stroke-width="1"/><line x1="14" y1="48" x2="20" y2="48" stroke="%23555b66" stroke-width="1"/><line x1="16" y1="72" x2="20" y2="72" stroke="%23555b66" stroke-width="1"/></svg>');
+      border-right: 1px solid #3b3e45;
+    }
+
+    .scroll-pane {
+      overflow: auto;
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: radial-gradient(circle at center, #202227 0%, #151619 100%);
+    }
+
+    /* INVERTED DOCUMENT SHEET */
+    .paper-sheet {
+      background: var(--page-black);
+      color: var(--typewriter-white);
+      width: 8.5in;
+      min-height: 11in;
+      padding: 1in;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.08);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.65;
+      outline: none;
+      user-select: text;
+      transform-origin: top center;
+      transition: width 0.2s, padding 0.2s;
+      caret-color: #ffffff;
+    }
+    .paper-sheet h2 {
+      color: #ffffff;
+      border-bottom: 1px solid #333842;
+      padding-bottom: 6px;
+      margin-bottom: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    /* FIGURE & IMAGE STYLING */
+    .consort-figure {
+      display: block;
+      margin: 16px 0;
+      clear: both;
+      cursor: pointer;
+      user-select: none;
+    }
+    .consort-figure.align-center { margin-left: auto; margin-right: auto; text-align: center; }
+    .consort-figure.align-left { float: left; margin: 8px 18px 8px 0; clear: none; }
+    .consort-figure.align-right { float: right; margin: 8px 0 8px 18px; clear: none; }
+
+    .consort-figure img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #444;
+      display: inline-block;
+      border-radius: 2px;
+      transition: border-color 0.15s, filter 0.2s;
+    }
+    .consort-figure.selected img {
+      border: 2px solid var(--typewriter-red) !important;
+      box-shadow: 0 0 8px rgba(201, 42, 42, 0.5);
+    }
+    .consort-figure figcaption {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #8c93a0;
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    .filter-none { filter: none; }
+    .filter-silver { filter: grayscale(100%) contrast(110%); }
+    .filter-negative { filter: invert(100%) grayscale(100%) contrast(120%); }
+    .filter-sepia { filter: sepia(70%) contrast(105%); }
+
+    /* BROWSER VIEW */
+    #browser-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      background: #fff;
+      border-left: 2px solid var(--shell-border-dark);
+    }
+    .browser-toolbar {
+      background: var(--shell-surface);
+      border-bottom: 1px solid var(--shell-border);
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .browser-url-input {
+      flex: 1;
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border: 1px solid var(--shell-border-dark);
+      background: #fff;
+      border-radius: 2px;
+      outline: none;
+    }
+    .browser-frame { flex: 1; width: 100%; border: none; background: #ffffff; }
+
+    /* PROPERTIES DECK */
+    .properties-deck {
+      width: 250px;
+      background: var(--shell-surface);
+      border-left: 1px solid var(--shell-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .deck-section { border-bottom: 1px solid var(--shell-border); }
+    .deck-header {
+      background: #ded9cb;
+      padding: 6px 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      color: #2b2721;
+    }
+    .deck-content { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .deck-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .deck-row label { color: var(--shell-muted); font-size: 11px; }
+
+    /* RAIL */
+    .rail {
+      width: 32px;
+      background: #ded9cb;
+      border-left: 1px solid var(--shell-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 0;
+      gap: 8px;
+    }
+    .rail-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .rail-btn.active { background: var(--shell-elevated); border-color: var(--shell-border-dark); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: var(--shell-elevated);
+      border: 1px solid var(--shell-border-dark);
+      width: 440px;
+      max-width: 90vw;
+      border-radius: 3px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-title {
+      background: linear-gradient(180deg, #3d3b38 0%, #292825 100%);
+      color: #eae5d9;
+      padding: 6px 12px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 11px; }
+    .modal-input {
+      width: 100%;
+      padding: 5px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border: 1px solid var(--shell-border-dark);
+      background: #fff;
+      outline: none;
+    }
+    .dropzone {
+      border: 2px dashed var(--shell-border-dark);
+      background: var(--shell-surface);
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .dropzone:hover { background: var(--shell-active); }
+    .modal-footer {
+      background: var(--shell-surface);
+      padding: 8px 12px;
+      border-top: 1px solid var(--shell-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    /* ROTARY KNOB */
+    .knob-container { display: inline-flex; align-items: center; gap: 8px; }
+    .dial-wrapper { position: relative; width: 26px; height: 26px; cursor: ns-resize; }
+    .rotary-knob {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #4a4843 0%, #1f1e1c 70%, #121110 100%);
+      border: 1px solid #756f62;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+      position: relative;
+      transform: rotate(0deg);
+      transition: transform 0.05s linear;
+    }
+    .rotary-knob::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 7px;
+      background: #e8e3d5;
+      border-radius: 1px;
+      box-shadow: 0 0 2px rgba(255,255,255,0.6);
+    }
+
+    /* STATUS BAR */
+    .statusbar {
+      background: var(--shell-surface);
+      border-top: 1px solid var(--shell-border);
+      font-size: 11px;
+      padding: 3px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--shell-muted);
+    }
+    .status-left, .status-right { display: flex; align-items: center; gap: 12px; }
+    .auto-save-pill { color: #2b7336; font-weight: 600; font-size: 10px; display: flex; align-items: center; gap: 4px; }
+    .audio-toggle-btn {
+      background: transparent;
+      border: 1px solid var(--shell-border);
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-size: 10px;
+      cursor: pointer;
+      color: var(--shell-text);
+    }
+    .audio-toggle-btn.active { background: #d4cdc0; font-weight: bold; }
+
+    /* MOBILE ADJUSTMENTS */
+    @media (max-width: 800px) {
+      .ruler-v, .ruler-corner, .ruler-h { display: none; }
+      .editor-stage { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+      .properties-deck {
+        position: absolute;
+        right: 32px;
+        top: 0;
+        bottom: 0;
+        z-index: 90;
+        box-shadow: -4px 0 14px rgba(0,0,0,0.3);
+      }
+      .properties-deck.hidden { display: none; }
+      .paper-sheet { width: 100%; padding: 20px; }
+      .scroll-pane { padding: 8px; }
+      .main-viewport { flex-direction: column; }
+    }
+
+    /* CLEAN PRINT / PDF EXPORT INVERSION */
+    @media print {
+      body * { visibility: hidden; }
+      .paper-sheet, .paper-sheet * { visibility: visible; }
+      .paper-sheet {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        padding: 0.8in !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .paper-sheet h2, .paper-sheet p, .paper-sheet li, .paper-sheet figcaption {
+        color: #000000 !important;
+      }
+      .consort-figure.selected img {
+        border: 1px solid #444 !important;
+        box-shadow: none !important;
+      }
+      img {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Window Header -->
+  <div class="titlebar">
+    <span>Document1.odt — Consort Studio</span>
+    <span style="font-size:10px; letter-spacing:1px; opacity:0.85;">CONSORT DESKTOP WORKSTATION</span>
+  </div>
+
+  <!-- Menu Bar -->
+  <div class="menubar">
+    <div class="menu-item" onclick="toggleDropdown('file-menu')">File</div>
+    <div class="menu-item" onclick="execCmd('undo')">Edit</div>
+    <div class="menu-item" onclick="toggleDeck()">View</div>
+    <div class="menu-item" onclick="openImageModal()">Insert Image...</div>
+    <div class="menu-item" onclick="toggleSplitView()">Split-Screen</div>
+
+    <!-- File Dropdown: Image-Safe Exports Only -->
+    <div id="file-menu" class="dropdown">
+      <div class="dropdown-row" onclick="newDoc()">New Document</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-row" onclick="exportFile('pdf')"><b>Direct PDF Export</b> <span class="pdf-badge">PDF</span></div>
+      <div class="dropdown-row" onclick="exportFile('html')">Save Standalone HTML (.html)</div>
+      <div class="dropdown-row" onclick="exportFile('docx')">Save as MS Word (.docx)</div>
+      <div class="dropdown-row" onclick="exportFile('odt')">Save as OpenDocument (.odt)</div>
+      <div class="dropdown-row" onclick="exportFile('md')">Export Markdown (.md)</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-row" onclick="window.print()">Print Page...</div>
+    </div>
+  </div>
+
+  <!-- Tab Strip -->
+  <div class="tabstrip">
+    <div class="tab active" id="tab-doc" onclick="setViewMode('doc')">
+      <span>📄</span> Document1.odt
+    </div>
+    <div class="tab" id="tab-browser" onclick="setViewMode('browser')">
+      <span>🌐</span> Web Browser
+    </div>
+    <button class="split-toggle-tab" id="split-toggle-btn" onclick="toggleSplitView()" title="Side-by-side Editor and Browser">
+      ◫ Split Reference
+    </button>
+  </div>
+
+  <!-- Top Ribbon Toolbar -->
+  <div class="toolbar">
+    <div class="btn-group">
+      <button class="tool-btn" onclick="saveToLocalStorage(true)" title="Save to Memory">💾</button>
+      <button class="tool-btn" onclick="window.print()" title="Print Page">🖨️</button>
+      <button class="tool-btn" onclick="exportFile('pdf')" title="Quick PDF Export"><span class="pdf-badge">PDF</span></button>
+    </div>
+
+    <div class="btn-group">
+      <button class="tool-btn" onclick="openImageModal()" title="Insert Picture/Figure">🖼️ Insert Image</button>
+    </div>
+
+    <div class="btn-group">
+      <button class="tool-btn" onclick="execCmd('undo')" title="Undo">↩</button>
+      <button class="tool-btn" onclick="execCmd('redo')" title="Redo">↪</button>
+    </div>
+
+    <div class="btn-group">
+      <select class="tool-select" id="font-family" onchange="editor.style.fontFamily = this.value">
+        <option value="'Courier Prime', 'Courier New', monospace" selected>Courier Prime</option>
+        <option value="'Times New Roman', serif">Times Roman</option>
+        <option value="Arial, sans-serif">Arial Monolith</option>
+      </select>
+      <select class="tool-select" onchange="execCmd('fontSize', this.value)">
+        <option value="2">10pt</option>
+        <option value="3" selected>12pt</option>
+        <option value="4">14pt</option>
+        <option value="5">18pt</option>
+      </select>
+    </div>
+
+    <div class="btn-group">
+      <button class="tool-btn" onclick="execCmd('bold')"><b>B</b></button>
+      <button class="tool-btn" onclick="execCmd('italic')"><i>I</i></button>
+      <button class="tool-btn" onclick="execCmd('underline')"><u>U</u></button>
+      <button class="tool-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
+    </div>
+
+    <div class="btn-group">
+      <button class="tool-btn" onclick="execCmd('justifyLeft')">⇤</button>
+      <button class="tool-btn" onclick="execCmd('justifyCenter')">⇹</button>
+      <button class="tool-btn" onclick="execCmd('justifyRight')">⇥</button>
+      <button class="tool-btn" onclick="execCmd('justifyFull')">≡</button>
+    </div>
+  </div>
+
+  <!-- Workspace Area -->
+  <div class="workspace">
+    <div class="main-viewport" id="viewport">
+      
+      <!-- 1. The Word Processor Document View -->
+      <div class="view-container" id="doc-view">
+        <div class="editor-stage">
+          <div class="ruler-corner"></div>
+          <div class="ruler-h"></div>
+          <div class="ruler-v"></div>
+
+          <div class="scroll-pane" onclick="editor.focus()">
+            <div id="editor" class="paper-sheet" contenteditable="true" spellcheck="true">
+              <h2>Psychology research paper...</h2>
+              <p>Consort Studio initialized. The high-contrast dark manuscript field is framed by ivory enamel mechanical architecture.</p>
+              
+              <!-- Sample Inserted Figure -->
+              <figure class="consort-figure align-center filter-silver" style="max-width: 65%;" onclick="selectFigure(this, event)">
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='260' viewBox='0 0 600 260'><rect width='600' height='260' fill='%23191a1d'/><circle cx='300' cy='120' r='60' fill='none' stroke='%23f8f9fa' stroke-width='2'/><path d='M200 130 Q 300 40 400 130' fill='none' stroke='%23c92a2a' stroke-width='2'/><text x='300' y='210' fill='%238c93a0' font-family='monospace' font-size='12' text-anchor='middle'>NEURAL CIRCUIT ARCHITECTURE [FIG. 1]</text></svg>" alt="Sample Diagram" />
+                <figcaption>Figure 1: Synaptic potential mapping under cognitive load.</figcaption>
+              </figure>
+
+              <p>Images uploaded here are automatically scaled and compressed via an offscreen canvas to prevent localStorage quota overflows, ensuring smooth multi-format exports.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. The Integrated Symphony Browser View -->
+      <div class="view-container" id="browser-view">
+        <div class="browser-toolbar">
+          <button class="tool-btn" onclick="browserGoBack()">◀</button>
+          <button class="tool-btn" onclick="browserGoForward()">▶</button>
+          <button class="tool-btn" onclick="browserReload()">⟳</button>
+          
+          <input type="text" id="browser-url" class="browser-url-input" value="https://en.m.wikipedia.org/wiki/IBM_Lotus_Symphony" />
+          <button class="tool-btn" onclick="loadBrowserUrl()" style="padding:0 8px;">Go</button>
+          
+          <div class="btn-group">
+            <button class="tool-btn" onclick="setBrowserPreset('https://en.m.wikipedia.org/wiki/IBM_Lotus_Symphony')">Wiki</button>
+            <button class="tool-btn" onclick="setBrowserPreset('https://archive.org')">Archive</button>
+            <button class="tool-btn" onclick="setBrowserPreset('https://html.duckduckgo.com/html/')">Search</button>
+          </div>
+        </div>
+        <iframe id="browser-frame" class="browser-frame" src="https://en.m.wikipedia.org/wiki/IBM_Lotus_Symphony"></iframe>
+      </div>
+    </div>
+
+    <!-- Properties Deck (Right Sidebar) -->
+    <div class="properties-deck" id="prop-deck">
+      
+      <!-- Contextual Section: Active Image Properties -->
+      <div class="deck-section" id="image-props-section">
+        <div class="deck-header" style="background:#d4ccba;"><span>🖼️ Image Properties</span><span>▾</span></div>
+        <div class="deck-content">
+          <div class="deck-row">
+            <label>Width</label>
+            <select class="tool-select" id="img-width-select" onchange="updateSelectedImageWidth(this.value)">
+              <option value="35%">Small (35%)</option>
+              <option value="60%" selected>Medium (60%)</option>
+              <option value="85%">Large (85%)</option>
+              <option value="100%">Full Width (100%)</option>
+            </select>
+          </div>
+          <div class="deck-row">
+            <label>Alignment</label>
+            <div class="btn-group">
+              <button class="tool-btn" onclick="updateSelectedImageAlign('left')">Left</button>
+              <button class="tool-btn" onclick="updateSelectedImageAlign('center')">Center</button>
+              <button class="tool-btn" onclick="updateSelectedImageAlign('right')">Right</button>
+            </div>
+          </div>
+          <div class="deck-row">
+            <label>Print Filter</label>
+            <select class="tool-select" id="img-filter-select" onchange="updateSelectedImageFilter(this.value)">
+              <option value="filter-none">Standard</option>
+              <option value="filter-silver">Silver Gelatin</option>
+              <option value="filter-negative">Negative Invert</option>
+              <option value="filter-sepia">Sepia Archival</option>
+            </select>
+          </div>
+          <div class="deck-row">
+            <button class="tool-btn" style="width:100%; color:var(--typewriter-red);" onclick="deleteSelectedFigure()">Delete Figure (or Del key)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Typography -->
+      <div class="deck-section">
+        <div class="deck-header"><span>⊞ Type & Color</span><span>▴</span></div>
+        <div class="deck-content">
+          <div class="deck-row">
+            <label>Text Color</label>
+            <input type="color" onchange="execCmd('foreColor', this.value)" value="#ffffff" style="width:24px; height:22px; border:none; cursor:pointer;" />
+          </div>
+          <div class="deck-row">
+            <label>Paper Tint</label>
+            <input type="color" onchange="editor.style.background = this.value" value="#0c0d0f" style="width:24px; height:22px; border:none; cursor:pointer;" />
+          </div>
+          <div class="deck-row">
+            <label>Line Spacing</label>
+            <select class="tool-select" onchange="editor.style.lineHeight = this.value">
+              <option value="1.3">Compact (1.3)</option>
+              <option value="1.65" selected>Standard (1.65)</option>
+              <option value="2.0">Double (2.0)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Page Setup -->
+      <div class="deck-section">
+        <div class="deck-header"><span>⊞ Page Geometry</span><span>▴</span></div>
+        <div class="deck-content">
+          <div class="deck-row">
+            <label>Dimensions</label>
+            <select class="tool-select" onchange="setPageFormat(this.value)">
+              <option value="letter">Letter (8.5 × 11")</option>
+              <option value="a4">A4 (210 × 297mm)</option>
+            </select>
+          </div>
+          <div class="deck-row">
+            <label>Margins</label>
+            <select class="tool-select" onchange="editor.style.padding = this.value">
+              <option value="1in">1.0 in Standard</option>
+              <option value="0.5in">0.5 in Compact</option>
+              <option value="1.5in">1.5 in Wide</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Symphony Rail -->
+    <div class="rail">
+      <button class="rail-btn active" onclick="toggleDeck()" title="Properties Deck">⚙</button>
+      <button class="rail-btn" onclick="openImageModal()" title="Insert Picture">🖼️</button>
+      <button class="rail-btn" onclick="toggleSplitView()" title="Split Screen">◫</button>
+      <button class="rail-btn" onclick="exportFile('pdf')" title="Export PDF"><span class="pdf-badge">PDF</span></button>
+    </div>
+  </div>
+
+  <!-- Bottom Status Bar -->
+  <div class="statusbar">
+    <div class="status-left">
+      <span>Page 1 / 1</span>
+      <span id="word-count">Words: 0</span>
+      <span id="char-count">Chars: 0</span>
+      <span class="auto-save-pill" id="save-status">● Saved</span>
+    </div>
+
+    <div class="status-right">
+      <button class="audio-toggle-btn active" id="audio-toggle" onclick="toggleAudio()">🔊 Audio ON</button>
+      
+      <!-- Vintage Rotary Knob Zoom Control -->
+      <div class="knob-container">
+        <span>Zoom:</span>
+        <div class="dial-wrapper" id="knob-touch-area" title="Drag up/down to adjust Zoom (Double-click to reset)">
+          <div class="rotary-knob" id="zoom-knob"></div>
+        </div>
+        <span id="zoom-readout" style="width:36px; font-family:var(--font-mono);">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGE INSERT MODAL -->
+  <div class="modal-overlay" id="image-modal">
+    <div class="modal-box">
+      <div class="modal-title">
+        <span>Insert Picture / Manuscript Figure — Consort Studio</span>
+        <span style="cursor:pointer;" onclick="closeImageModal()">✕</span>
+      </div>
+      <div class="modal-body">
+        <div class="dropzone" onclick="document.getElementById('img-file-input').click()">
+          <span style="font-size:18px;">📁</span><br>
+          <b>Click to choose an image file</b> or drag & drop here<br>
+          <span style="color:var(--shell-muted); font-size:10px;">Auto-compressed via canvas (Protects LocalStorage Quota)</span>
+        </div>
+        <input type="file" id="img-file-input" accept="image/*" style="display:none;" onchange="handleFileSelect(event)" />
+
+        <div style="text-align:center; color:var(--shell-muted); font-size:10px;">— OR PASTE IMAGE URL —</div>
+        <input type="text" id="img-url-input" class="modal-input" placeholder="https://example.com/figure1.jpg" />
+
+        <label>Figure Caption</label>
+        <input type="text" id="img-caption-input" class="modal-input" placeholder="Figure 1: Observation diagram..." />
+
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1;">
+            <label>Filter Tone</label>
+            <select class="tool-select" id="modal-filter-select" style="width:100%;">
+              <option value="filter-silver" selected>Silver Gelatin (Grayscale)</option>
+              <option value="filter-negative">Negative Invert (For Black Paper)</option>
+              <option value="filter-sepia">Sepia Archival</option>
+              <option value="filter-none">Standard Full Color</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Placement</label>
+            <select class="tool-select" id="modal-align-select" style="width:100%;">
+              <option value="align-center" selected>Center Block</option>
+              <option value="align-left">Wrap Left</option>
+              <option value="align-right">Wrap Right</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="tool-btn" onclick="closeImageModal()" style="padding:2px 10px;">Cancel</button>
+        <button class="tool-btn" onclick="confirmInsertImage()" style="background:#ded9cb; font-weight:bold; padding:2px 12px; border:1px solid var(--shell-border-dark);">Insert Figure</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const saveStatus = document.getElementById('save-status');
+
+    // ==========================================================================
+    // QUOTA-SAFE LOCALSTORAGE AUTOSAVE
+    // ==========================================================================
+    function saveToLocalStorage(manual = false) {
+      try {
+        localStorage.setItem('consort_studio_draft', editor.innerHTML);
+        saveStatus.innerText = "● Saved";
+        saveStatus.style.color = "#2b7336";
+        if (manual) alert("Draft saved to memory!");
+      } catch (err) {
+        saveStatus.innerText = "⚠️ Quota Exceeded";
+        saveStatus.style.color = "var(--typewriter-red)";
+      }
+    }
+
+    window.addEventListener('load', () => {
+      try {
+        const saved = localStorage.getItem('consort_studio_draft');
+        if (saved && saved.trim() !== '') editor.innerHTML = saved;
+      } catch (e) {}
+      updateMetrics();
+    });
+
+    editor.addEventListener('input', () => {
+      saveStatus.innerText = "○ Saving...";
+      saveStatus.style.color = "#a17828";
+      clearTimeout(window.saveDebounce);
+      window.saveDebounce = setTimeout(saveToLocalStorage, 600);
+      updateMetrics();
+    });
+
+    // ==========================================================================
+    // CANVAS-COMPRESSED IMAGE INSERTION & MANAGEMENT
+    // ==========================================================================
+    let pendingImageData = null;
+    let selectedFigure = null;
+
+    function openImageModal() { document.getElementById('image-modal').classList.add('show'); }
+    function closeImageModal() {
+      document.getElementById('image-modal').classList.remove('show');
+      pendingImageData = null;
+      document.getElementById('img-url-input').value = "";
+      document.getElementById('img-caption-input').value = "";
+    }
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Downscale to max 1200px width/height to safeguard localStorage
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to lightweight 82% JPEG
+          pendingImageData = canvas.toDataURL('image/jpeg', 0.82);
+          document.getElementById('img-url-input').value = file.name;
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function confirmInsertImage() {
+      const url = pendingImageData || document.getElementById('img-url-input').value.trim();
+      const caption = document.getElementById('img-caption-input').value.trim();
+      const filter = document.getElementById('modal-filter-select').value;
+      const align = document.getElementById('modal-align-select').value;
+
+      if (!url) {
+        alert("Please select a file or provide an image URL.");
+        return;
+      }
+
+      const fig = document.createElement('figure');
+      fig.className = `consort-figure ${align} ${filter}`;
+      fig.style.maxWidth = align === 'align-center' ? '65%' : '45%';
+      fig.onclick = function(e) { selectFigure(fig, e); };
+
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = caption || 'Document figure';
+
+      fig.appendChild(img);
+      if (caption) {
+        const cap = document.createElement('figcaption');
+        cap.innerText = caption;
+        fig.appendChild(cap);
+      }
+
+      editor.focus();
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.insertNode(fig);
+        range.collapse(false);
+      } else {
+        editor.appendChild(fig);
+      }
+
+      closeImageModal();
+      saveToLocalStorage();
+      updateMetrics();
+    }
+
+    function selectFigure(fig, e) {
+      if (e) e.stopPropagation();
+      document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
+      selectedFigure = fig;
+      fig.classList.add('selected');
+
+      const currentWidth = fig.style.maxWidth || '60%';
+      document.getElementById('img-width-select').value = currentWidth;
+
+      const filterSelect = document.getElementById('img-filter-select');
+      if (fig.classList.contains('filter-silver')) filterSelect.value = 'filter-silver';
+      else if (fig.classList.contains('filter-negative')) filterSelect.value = 'filter-negative';
+      else if (fig.classList.contains('filter-sepia')) filterSelect.value = 'filter-sepia';
+      else filterSelect.value = 'filter-none';
+    }
+
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section')) {
+        document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
+        selectedFigure = null;
+      }
+    });
+
+    // Keyboard backspace/delete support for figures
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedFigure) {
+        if (document.activeElement.tagName !== 'FIGCAPTION') {
+          e.preventDefault();
+          deleteSelectedFigure();
+        }
+      }
+    });
+
+    function updateSelectedImageWidth(val) {
+      if (selectedFigure) {
+        selectedFigure.style.maxWidth = val;
+        saveToLocalStorage();
+      }
+    }
+    function updateSelectedImageAlign(alignClass) {
+      if (selectedFigure) {
+        selectedFigure.classList.remove('align-center', 'align-left', 'align-right');
+        selectedFigure.classList.add(`align-${alignClass}`);
+        saveToLocalStorage();
+      }
+    }
+    function updateSelectedImageFilter(filterClass) {
+      if (selectedFigure) {
+        selectedFigure.classList.remove('filter-none', 'filter-silver', 'filter-negative', 'filter-sepia');
+        selectedFigure.classList.add(filterClass);
+        saveToLocalStorage();
+      }
+    }
+    function deleteSelectedFigure() {
+      if (selectedFigure) {
+        selectedFigure.remove();
+        selectedFigure = null;
+        saveToLocalStorage();
+        updateMetrics();
+      }
+    }
+
+    // ==========================================================================
+    // WEB AUDIO TYPEWRITER ENGINE (Acoustic Strikes + Enter Bell)
+    // ==========================================================================
+    let audioCtx = null;
+    let audioEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playKeyClick(isSpace = false) {
+      if (!audioEnabled) return;
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      filter.type = "bandpass";
+      filter.frequency.value = isSpace ? 400 : 900;
+      filter.Q.value = 3;
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(isSpace ? 120 : 280, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.035);
+
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.035);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    function playCarriageReturnBell() {
+      if (!audioEnabled) return;
+      initAudio();
+      const bell = audioCtx.createOscillator();
+      const bellGain = audioCtx.createGain();
+
+      bell.type = "sine";
+      bell.frequency.setValueAtTime(2150, audioCtx.currentTime);
+      bellGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      bellGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+
+      bell.connect(bellGain);
+      bellGain.connect(audioCtx.destination);
+      bell.start();
+      bell.stop(audioCtx.currentTime + 0.6);
+      playKeyClick(true);
+    }
+
+    editor.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') playCarriageReturnBell();
+      else if (e.key === ' ') playKeyClick(true);
+      else if (!e.ctrlKey && !e.metaKey && e.key.length === 1) playKeyClick(false);
+    });
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      const btn = document.getElementById('audio-toggle');
+      btn.innerText = audioEnabled ? "🔊 Audio ON" : "🔇 Audio OFF";
+      btn.classList.toggle('active', audioEnabled);
+    }
+
+    // ==========================================================================
+    // SPLIT VIEW & BROWSER NAVIGATION
+    // ==========================================================================
+    let currentMode = 'doc';
+
+    function setViewMode(mode) {
+      currentMode = mode;
+      const docView = document.getElementById('doc-view');
+      const browserView = document.getElementById('browser-view');
+      const tabDoc = document.getElementById('tab-doc');
+      const tabBrowser = document.getElementById('tab-browser');
+      const splitBtn = document.getElementById('split-toggle-btn');
+
+      if (mode === 'doc') {
+        docView.style.display = 'flex';
+        browserView.style.display = 'none';
+        tabDoc.classList.add('active');
+        tabBrowser.classList.remove('active');
+        splitBtn.classList.remove('active');
+      } else if (mode === 'browser') {
+        docView.style.display = 'none';
+        browserView.style.display = 'flex';
+        tabDoc.classList.remove('active');
+        tabBrowser.classList.add('active');
+        splitBtn.classList.remove('active');
+      } else if (mode === 'split') {
+        docView.style.display = 'flex';
+        browserView.style.display = 'flex';
+        tabDoc.classList.remove('active');
+        tabBrowser.classList.remove('active');
+        splitBtn.classList.add('active');
+      }
+    }
+
+    function toggleSplitView() {
+      setViewMode(currentMode === 'split' ? 'doc' : 'split');
+    }
+
+    const browserFrame = document.getElementById('browser-frame');
+    const browserUrlInput = document.getElementById('browser-url');
+
+    function loadBrowserUrl() {
+      let url = browserUrlInput.value.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+      browserFrame.src = url;
+    }
+    function setBrowserPreset(url) {
+      browserUrlInput.value = url;
+      browserFrame.src = url;
+    }
+    function browserReload() { browserFrame.src = browserFrame.src; }
+    function browserGoBack() { window.history.back(); }
+    function browserGoForward() { window.history.forward(); }
+
+    // ==========================================================================
+    // ROTARY ZOOM KNOB
+    // ==========================================================================
+    let currentZoom = 100;
+    const knob = document.getElementById('zoom-knob');
+    const zoomReadout = document.getElementById('zoom-readout');
+    const knobArea = document.getElementById('knob-touch-area');
+    let isDraggingKnob = false;
+    let startY = 0;
+    let startZoom = 100;
+
+    function updateZoom(newZoom) {
+      currentZoom = Math.min(150, Math.max(70, Math.round(newZoom)));
+      const deg = ((currentZoom - 70) / (150 - 70)) * 240 - 120;
+      knob.style.transform = `rotate(${deg}deg)`;
+      editor.style.transform = `scale(${currentZoom / 100})`;
+      zoomReadout.innerText = `${currentZoom}%`;
+    }
+
+    knobArea.addEventListener('mousedown', (e) => {
+      isDraggingKnob = true;
+      startY = e.clientY;
+      startZoom = currentZoom;
+      document.body.style.cursor = 'ns-resize';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingKnob) return;
+      updateZoom(startZoom + (startY - e.clientY) * 0.7);
+    });
+    window.addEventListener('mouseup', () => {
+      isDraggingKnob = false;
+      document.body.style.cursor = 'default';
+    });
+    knobArea.addEventListener('dblclick', () => updateZoom(100));
+
+    // ==========================================================================
+    // IMAGE-SAFE EXPORT ENGINE (PDF, HTML, DOCX, ODT, MARKDOWN)
+    // ==========================================================================
+    function execCmd(command, val = null) {
+      document.execCommand(command, false, val);
+      editor.focus();
+      updateMetrics();
+    }
+
+    function setPageFormat(type) {
+      editor.style.width = type === 'letter' ? '8.5in' : '8.27in';
+      editor.style.minHeight = type === 'letter' ? '11in' : '11.69in';
+    }
+
+    function updateMetrics() {
+      const text = editor.innerText || '';
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      document.getElementById('word-count').innerText = `Words: ${words}`;
+      document.getElementById('char-count').innerText = `Chars: ${text.length}`;
+    }
+
+    function toggleDropdown(id) { document.getElementById(id).classList.toggle('show'); }
+    window.onclick = function(e) {
+      if (!e.target.matches('.menu-item')) {
+        document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
+      }
+    };
+    function toggleDeck() {
+      const deck = document.getElementById('prop-deck');
+      deck.style.display = deck.style.display === 'none' ? 'flex' : 'none';
+    }
+    function newDoc() {
+      if (confirm("Create new blank document?")) {
+        editor.innerHTML = "<p><br></p>";
+        saveToLocalStorage();
+        updateMetrics();
+      }
+    }
+
+    function downloadBlob(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportFile(format) {
+      const html = editor.innerHTML;
+
+      if (format === 'pdf') {
+        window.print();
+      } else if (format === 'html') {
+        const fullDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{background:#0c0d0f;color:#f8f9fa;font-family:'Courier Prime',monospace;padding:2rem;}figure{margin:1.5rem 0;}img{max-width:100%;height:auto;border-radius:2px;}figcaption{color:#8c93a0;font-style:italic;font-size:0.85rem;}</style></head><body>${html}</body></html>`;
+        downloadBlob(fullDoc, 'Document1.html', 'text/html;charset=utf-8');
+      } else if (format === 'md') {
+        const clone = editor.cloneNode(true);
+        // Clean figure conversion supporting captionless and captioned images
+        clone.querySelectorAll('figure').forEach(fig => {
+          const img = fig.querySelector('img');
+          const cap = fig.querySelector('figcaption');
+          const alt = cap ? cap.innerText : (img ? img.alt || 'Figure' : 'Figure');
+          const src = img ? img.src : '';
+          const mdImg = document.createTextNode(`\n\n![${alt}](${src})\n*${alt}*\n\n`);
+          fig.replaceWith(mdImg);
+        });
+
+        let md = clone.innerHTML
+          .replace(/<h[1-6]>(.*?)<\/h[1-6]>/gi, '# $1\n\n')
+          .replace(/<b>(.*?)<\/b>/gi, '**$1**')
+          .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
+          .replace(/<i>(.*?)<\/i>/gi, '*$1*')
+          .replace(/<li>(.*?)<\/li>/gi, '- $1\n')
+          .replace(/<p>(.*?)<\/p>/gi, '$1\n\n')
+          .replace(/<br\s*[\/]?>/gi, '\n')
+          .replace(/<[^>]+>/g, '');
+        downloadBlob(md.trim(), 'Document1.md', 'text/markdown;charset=utf-8');
+      } else if (format === 'docx' || format === 'odt') {
+        const fileData = `<html><head><meta charset="utf-8"></head><body style="background:#0c0d0f;color:#fff;font-family:monospace;">${html}</body></html>`;
+        downloadBlob(fileData, `Document1.${format}`, 'application/msword');
+      }
+    }
+  </script>
+</body>
+</html>
