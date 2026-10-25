@@ -84,7 +84,7 @@
       box-shadow: 2px 4px 12px rgba(0,0,0,0.25);
       min-width: 200px;
       display: none;
-      z-index: 200;
+      z-index: 1000;
       border-radius: 2px;
     }
     .dropdown.show { display: block; }
@@ -1430,11 +1430,16 @@
     // PURE OOXML (.docx) EXPORTER WITH EMBEDDED IMAGES
     // ==========================================================================
     function dataUrlToUint8Array(dataUrl) {
-      const base64 = dataUrl.split(',')[1];
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes;
+      if (!dataUrl.includes(';base64,')) return null; // Skip raw SVGs or non-base64
+      try {
+        const base64 = dataUrl.split(',')[1];
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      } catch (e) {
+        return null;
+      }
     }
 
     function escapeXml(str) {
@@ -1519,13 +1524,15 @@
           const cap = node.querySelector('figcaption');
           if (img && img.src && img.src.startsWith('data:')) {
             const bytes = dataUrlToUint8Array(img.src);
-            const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
-            const mediaName = `image${imageCounter}.${ext}`;
-            media.push({ name: mediaName, data: bytes, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
-            const rId = `rId${imageCounter + 1}`; // rId1 reserved for styles later if needed
-            rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
-            bodyParts.push(makeImageParagraph(rId));
-            imageCounter++;
+            if (bytes) {
+              const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
+              const mediaName = `image${imageCounter}.${ext}`;
+              media.push({ name: mediaName, data: bytes, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
+              const rId = `rId${imageCounter + 1}`; // rId1 reserved for styles later if needed
+              rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
+              bodyParts.push(makeImageParagraph(rId));
+              imageCounter++;
+            }
           }
           if (cap && cap.textContent.trim()) {
             bodyParts.push(makeParagraph(cap.textContent.trim()));
