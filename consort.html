@@ -216,16 +216,13 @@
     }
     .select-selected.select-arrow-active:after { content: "▴"; }
     .select-items {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
+      position: fixed;
       background: var(--shell-elevated);
       border: 1px solid var(--shell-border-dark);
-      z-index: 1000;
-      max-height: 180px;
+      z-index: 2000;
+      max-height: 200px;
       overflow-y: auto;
-      box-shadow: 2px 4px 8px rgba(0,0,0,0.2);
+      box-shadow: 2px 4px 12px rgba(0,0,0,0.3);
     }
     .select-items div {
       padding: 4px 8px;
@@ -1780,6 +1777,8 @@
 
         const itemsBox = document.createElement("div");
         itemsBox.className = "select-items select-hide";
+        // Keep in body so it is never clipped by overflow parents
+        document.body.appendChild(itemsBox);
 
         Array.from(select.options).forEach((opt, index) => {
           const item = document.createElement("div");
@@ -1798,18 +1797,34 @@
           });
           itemsBox.appendChild(item);
         });
-        container.appendChild(itemsBox);
+
+        function positionItems() {
+          const rect = selectedBox.getBoundingClientRect();
+          itemsBox.style.position = "fixed";
+          itemsBox.style.top = (rect.bottom + 1) + "px";
+          itemsBox.style.left = rect.left + "px";
+          itemsBox.style.width = Math.max(rect.width, 120) + "px";
+          itemsBox.style.zIndex = "2000";
+        }
 
         selectedBox.addEventListener("click", (e) => {
           e.stopPropagation();
+          const isHidden = itemsBox.classList.contains("select-hide");
+          // Close all others
           document.querySelectorAll(".select-items").forEach(m => {
             if (m !== itemsBox) m.classList.add("select-hide");
           });
           document.querySelectorAll(".select-selected").forEach(h => {
             if (h !== selectedBox) h.classList.remove("select-arrow-active");
           });
-          itemsBox.classList.toggle("select-hide");
-          selectedBox.classList.toggle("select-arrow-active");
+          if (isHidden) {
+            positionItems();
+            itemsBox.classList.remove("select-hide");
+            selectedBox.classList.add("select-arrow-active");
+          } else {
+            itemsBox.classList.add("select-hide");
+            selectedBox.classList.remove("select-arrow-active");
+          }
         });
       });
     }
@@ -1818,6 +1833,15 @@
       document.querySelectorAll(".select-items").forEach(m => m.classList.add("select-hide"));
       document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
     });
+
+    // Reposition open dropdowns on scroll/resize
+    window.addEventListener("scroll", () => {
+      document.querySelectorAll(".select-items:not(.select-hide)").forEach(box => {
+        // Find associated selected box by matching open state is harder; just close on scroll for simplicity
+        box.classList.add("select-hide");
+      });
+      document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
+    }, true);
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", buildCustomDropdowns);
