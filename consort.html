@@ -176,18 +176,7 @@
     button.tool-btn.active { background: #b0a996; color: #000; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); }
     .pdf-badge { color: var(--typewriter-red); font-weight: 800; font-size: 10px; }
 
-    select.tool-select {
-      font-size: 11px;
-      padding: 1px 4px;
-      border: 1px solid var(--shell-border);
-      background: var(--shell-elevated);
-      height: 22px;
-      color: var(--shell-text);
-      outline: none;
-    }
-    select.tool-select:focus { border-color: var(--shell-border-dark); box-shadow: 0 0 0 1px var(--shell-border-dark); }
-
-    /* Custom selects (replace native blue highlight) */
+    /* CUSTOM SELECTS (No native blue outline) */
     .custom-select-container {
       position: relative;
       display: inline-block;
@@ -197,7 +186,7 @@
     .select-selected {
       background: var(--shell-elevated);
       border: 1px solid var(--shell-border);
-      padding: 2px 6px;
+      padding: 2px 18px 2px 6px;
       font-size: 11px;
       height: 22px;
       line-height: 16px;
@@ -205,12 +194,16 @@
       color: var(--shell-text);
       user-select: none;
       position: relative;
+      border-radius: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .select-selected:after {
       content: "▾";
       position: absolute;
       right: 6px;
-      top: 1px;
+      top: 2px;
       font-size: 9px;
       color: var(--shell-muted);
     }
@@ -223,6 +216,7 @@
       max-height: 200px;
       overflow-y: auto;
       box-shadow: 2px 4px 12px rgba(0,0,0,0.3);
+      border-radius: 2px;
     }
     .select-items div {
       padding: 4px 8px;
@@ -891,6 +885,15 @@
     const editor = document.getElementById('editor');
     const saveStatus = document.getElementById('save-status');
 
+    // Prevent toolbar and menu clicks from stealing selection focus
+    document.querySelectorAll('.toolbar, .menubar').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.tagName !== 'INPUT' && !e.target.closest('.select-items')) {
+          e.preventDefault();
+        }
+      });
+    });
+
     // Simple undo/redo stack (snapshots of HTML)
     const historyStack = [];
     let historyIndex = -1;
@@ -937,7 +940,7 @@
       const file = e.target.files[0];
       if (!file) return;
       processImportFile(file);
-      e.target.value = ''; // Reset file input
+      e.target.value = '';
     }
 
     function processImportFile(file) {
@@ -949,12 +952,10 @@
         let formattedHtml = '';
 
         if (ext === 'html' || ext === 'htm') {
-          // Parse HTML and extract clean body content
           const parser = new DOMParser();
           const doc = parser.parseFromString(raw, 'text/html');
           formattedHtml = doc.body ? doc.body.innerHTML : raw;
         } else {
-          // Plain Text: split double breaks into paragraphs
           formattedHtml = raw.split(/\r?\n\r?\n/).map(p => {
             const trimmed = p.trim();
             if (!trimmed) return '';
@@ -981,7 +982,6 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    // Direct Drag and Drop file handler onto the document workspace
     const scrollPane = document.getElementById('scroll-pane');
     scrollPane.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -994,7 +994,6 @@
         const file = e.dataTransfer.files[0];
         const ext = file.name.split('.').pop().toLowerCase();
         
-        // If image file is dropped, insert via image tool
         if (file.type.startsWith('image/')) {
           handleFileSelect({ target: { files: [file] } });
           openImageModal();
@@ -1026,9 +1025,8 @@
         const saved = localStorage.getItem('consort_studio_draft');
         if (saved && saved.trim() !== '') editor.innerHTML = saved;
       } catch (e) {}
-      pushHistory(); // initial state
+      pushHistory();
       updateMetrics();
-      // Seed browser history with the default URL
       const initialUrl = browserUrlInput.value;
       if (initialUrl) navigateBrowser(initialUrl, true);
     });
@@ -1044,7 +1042,6 @@
       updateMetrics();
     });
 
-    // Clean paste: prefer plain text, strip dangerous markup
     editor.addEventListener('paste', (e) => {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData('text/plain');
@@ -1134,7 +1131,6 @@
         return;
       }
 
-      // Basic URL check if not a data URL
       if (!url.startsWith('data:') && !/^https?:\/\//i.test(url)) {
         alert("Please provide a valid http(s) image URL or select a file.");
         return;
@@ -1179,13 +1175,25 @@
       fig.classList.add('selected');
 
       const currentWidth = fig.style.maxWidth || '60%';
-      document.getElementById('img-width-select').value = currentWidth;
+      const widthSelect = document.getElementById('img-width-select');
+      widthSelect.value = currentWidth;
+      syncCustomSelect(widthSelect);
 
       const filterSelect = document.getElementById('img-filter-select');
       if (fig.classList.contains('filter-silver')) filterSelect.value = 'filter-silver';
       else if (fig.classList.contains('filter-negative')) filterSelect.value = 'filter-negative';
       else if (fig.classList.contains('filter-sepia')) filterSelect.value = 'filter-sepia';
       else filterSelect.value = 'filter-none';
+      syncCustomSelect(filterSelect);
+    }
+
+    function syncCustomSelect(selectEl) {
+      if (!selectEl) return;
+      const container = selectEl.closest('.custom-select-container');
+      if (!container) return;
+      const box = container.querySelector('.select-selected');
+      const opt = selectEl.options[selectEl.selectedIndex];
+      if (box && opt) box.textContent = opt.textContent;
     }
 
     window.addEventListener('keydown', (e) => {
@@ -1383,7 +1391,6 @@
       currentZoom = Math.min(150, Math.max(70, Math.round(newZoom)));
       const deg = ((currentZoom - 70) / (150 - 70)) * 240 - 120;
       knob.style.transform = `rotate(${deg}deg)`;
-      // Prefer CSS zoom for correct layout; fall back to transform
       if (typeof editor.style.zoom !== 'undefined') {
         editor.style.zoom = currentZoom / 100;
         editor.style.transform = '';
@@ -1432,8 +1439,7 @@
       document.getElementById('word-count').innerText = `Words: ${words}`;
       document.getElementById('char-count').innerText = `Chars: ${text.length}`;
 
-      // Approximate page count from content height (letter ≈ 9in usable after margins)
-      const pageHeightPx = 11 * 96; // rough CSS inches to px
+      const pageHeightPx = 11 * 96;
       const contentHeight = editor.scrollHeight;
       const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
       const pageEl = document.querySelector('.status-left span');
@@ -1443,20 +1449,20 @@
     function toggleDropdown(id) { document.getElementById(id).classList.toggle('show'); }
 
     window.addEventListener('click', (e) => {
-      // Close menus if click is outside menu items
       if (!e.target.closest('.menu-item') && !e.target.closest('.dropdown')) {
         document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
       }
-      // Deselect figures if click is outside figure or image properties
       if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section')) {
         document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
         selectedFigure = null;
       }
     });
+
     function toggleDeck() {
       const deck = document.getElementById('prop-deck');
       deck.style.display = deck.style.display === 'none' ? 'flex' : 'none';
     }
+
     function newDoc() {
       if (confirm("Create new blank document?")) {
         pushHistory();
@@ -1507,12 +1513,13 @@
       }
     }
 
+    /* Fixed XML escape so Word never corrupts on < or & */
     function escapeXml(str) {
       return (str || '')
-        .replace(/&/g, '&')
-        .replace(/</g, '<')
-        .replace(/>/g, '>')
-        .replace(/"/g, '"');
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     function buildDocumentXml(bodyParts) {
@@ -1535,7 +1542,6 @@
     }
 
     function makeImageParagraph(rId, cx, cy) {
-      // cx/cy in EMUs (1 inch = 914400 EMUs). Default ~4.5in wide if unknown.
       const width = cx || 4114800;
       const height = cy || 2743200;
       return `<w:p>
@@ -1577,7 +1583,6 @@
       const bodyParts = [];
       let imageCounter = 1;
 
-      // Walk editor children and build Word content
       const children = Array.from(editor.childNodes);
       for (const node of children) {
         if (node.nodeType === Node.TEXT_NODE) {
@@ -1597,7 +1602,7 @@
               const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
               const mediaName = `image${imageCounter}.${ext}`;
               media.push({ name: mediaName, data: bytes, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
-              const rId = `rId${imageCounter + 1}`; // rId1 reserved for styles later if needed
+              const rId = `rId${imageCounter + 1}`;
               rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
               bodyParts.push(makeImageParagraph(rId));
               imageCounter++;
@@ -1623,7 +1628,6 @@
 
       const documentXml = buildDocumentXml(bodyParts);
 
-      // Relationships for document
       const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   ${rels.map(r => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"/>`).join('\n  ')}
@@ -1655,7 +1659,6 @@
       downloadBlob(zipBytes, 'Document1.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     }
 
-    // Minimal uncompressed ZIP writer (store method)
     function createZip(files) {
       const encoder = new TextEncoder();
       const parts = [];
@@ -1667,25 +1670,23 @@
         const data = file.data instanceof Uint8Array ? file.data : encoder.encode(file.data);
         const crc = crc32(data);
 
-        // Local file header
         const local = new Uint8Array(30 + nameBytes.length);
         const view = new DataView(local.buffer);
-        view.setUint32(0, 0x04034b50, true); // signature
-        view.setUint16(4, 20, true);         // version
-        view.setUint16(6, 0, true);          // flags
-        view.setUint16(8, 0, true);          // method = store
-        view.setUint16(10, 0, true);         // time
-        view.setUint16(12, 0, true);         // date
+        view.setUint32(0, 0x04034b50, true);
+        view.setUint16(4, 20, true);
+        view.setUint16(6, 0, true);
+        view.setUint16(8, 0, true);
+        view.setUint16(10, 0, true);
+        view.setUint16(12, 0, true);
         view.setUint32(14, crc, true);
         view.setUint32(18, data.length, true);
         view.setUint32(22, data.length, true);
         view.setUint16(26, nameBytes.length, true);
-        view.setUint16(28, 0, true);         // extra length
+        view.setUint16(28, 0, true);
         local.set(nameBytes, 30);
 
         parts.push(local, data);
 
-        // Central directory entry
         const cd = new Uint8Array(46 + nameBytes.length);
         const cdView = new DataView(cd.buffer);
         cdView.setUint32(0, 0x02014b50, true);
@@ -1756,8 +1757,9 @@
       }
       return table;
     }
+
     // ==========================================================================
-    // CUSTOM SELECTS (no native blue highlight)
+    // CUSTOM SELECTS (No native blue outline)
     // ==========================================================================
     function buildCustomDropdowns() {
       document.querySelectorAll("select.tool-select").forEach(select => {
@@ -1777,7 +1779,6 @@
 
         const itemsBox = document.createElement("div");
         itemsBox.className = "select-items select-hide";
-        // Keep in body so it is never clipped by overflow parents
         document.body.appendChild(itemsBox);
 
         Array.from(select.options).forEach((opt, index) => {
@@ -1810,7 +1811,6 @@
         selectedBox.addEventListener("click", (e) => {
           e.stopPropagation();
           const isHidden = itemsBox.classList.contains("select-hide");
-          // Close all others
           document.querySelectorAll(".select-items").forEach(m => {
             if (m !== itemsBox) m.classList.add("select-hide");
           });
@@ -1834,10 +1834,8 @@
       document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
     });
 
-    // Reposition open dropdowns on scroll/resize
     window.addEventListener("scroll", () => {
       document.querySelectorAll(".select-items:not(.select-hide)").forEach(box => {
-        // Find associated selected box by matching open state is harder; just close on scroll for simplicity
         box.classList.add("select-hide");
       });
       document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
