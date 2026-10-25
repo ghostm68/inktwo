@@ -72,8 +72,9 @@
       font-size: 12px;
       position: relative;
     }
-    .menu-item { padding: 3px 8px; cursor: pointer; border-radius: 2px; }
+    .menu-item { padding: 3px 8px; cursor: pointer; border-radius: 2px; outline: none; }
     .menu-item:hover { background: var(--shell-active); }
+    .menu-item:focus { outline: none; background: var(--shell-active); }
 
     .dropdown {
       position: absolute;
@@ -185,6 +186,59 @@
       outline: none;
     }
     select.tool-select:focus { border-color: var(--shell-border-dark); box-shadow: 0 0 0 1px var(--shell-border-dark); }
+
+    /* Custom selects (replace native blue highlight) */
+    .custom-select-container {
+      position: relative;
+      display: inline-block;
+      min-width: 90px;
+      vertical-align: middle;
+    }
+    .select-selected {
+      background: var(--shell-elevated);
+      border: 1px solid var(--shell-border);
+      padding: 2px 6px;
+      font-size: 11px;
+      height: 22px;
+      line-height: 16px;
+      cursor: pointer;
+      color: var(--shell-text);
+      user-select: none;
+      position: relative;
+    }
+    .select-selected:after {
+      content: "▾";
+      position: absolute;
+      right: 6px;
+      top: 1px;
+      font-size: 9px;
+      color: var(--shell-muted);
+    }
+    .select-selected.select-arrow-active:after { content: "▴"; }
+    .select-items {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--shell-elevated);
+      border: 1px solid var(--shell-border-dark);
+      z-index: 1000;
+      max-height: 180px;
+      overflow-y: auto;
+      box-shadow: 2px 4px 8px rgba(0,0,0,0.2);
+    }
+    .select-items div {
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--shell-text);
+    }
+    .select-items div:hover,
+    .select-items div.same-as-selected {
+      background: var(--typewriter-red);
+      color: #ffffff;
+    }
+    .select-hide { display: none; }
 
     /* WORKSPACE */
     .workspace { display: flex; flex: 1; position: relative; overflow: hidden; }
@@ -527,13 +581,13 @@
   <!-- Menu Bar -->
   <div class="menubar">
     <div class="menu-item" onclick="toggleDropdown('file-menu')">File</div>
-    <div class="menu-item" onclick="execCmd('undo')">Edit</div>
+    <div class="menu-item" onclick="toggleDropdown('edit-menu')">Edit</div>
     <div class="menu-item" onclick="toggleDeck()">View</div>
     <div class="menu-item" onclick="openImageModal()">Insert Image...</div>
     <div class="menu-item" onclick="triggerImport()">Import Text...</div>
     <div class="menu-item" onclick="toggleSplitView()">Split-Screen</div>
 
-    <!-- File Dropdown: Image-Safe Exports & Imports -->
+    <!-- File Dropdown -->
     <div id="file-menu" class="dropdown">
       <div class="dropdown-row" onclick="newDoc()">New Document</div>
       <div class="dropdown-row" onclick="triggerImport()"><b>Open / Import Document...</b> <span>📂</span></div>
@@ -543,6 +597,19 @@
       <div class="dropdown-row" onclick="exportFile('docx')">Save as MS Word (.docx)</div>
       <div class="dropdown-sep"></div>
       <div class="dropdown-row" onclick="window.print()">Print Page...</div>
+    </div>
+
+    <!-- Edit Dropdown -->
+    <div id="edit-menu" class="dropdown">
+      <div class="dropdown-row" onclick="execCmd('undo')">Undo <span>↩</span></div>
+      <div class="dropdown-row" onclick="execCmd('redo')">Redo <span>↪</span></div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-row" onclick="execCmd('cut')">Cut</div>
+      <div class="dropdown-row" onclick="execCmd('copy')">Copy</div>
+      <div class="dropdown-row" onclick="execCmd('paste')">Paste</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-row" onclick="execCmd('selectAll')">Select All</div>
+      <div class="dropdown-row" onclick="deleteSelectedFigure()">Delete Selected Figure</div>
     </div>
   </div>
 
@@ -1691,6 +1758,71 @@
         table[i] = c;
       }
       return table;
+    }
+    // ==========================================================================
+    // CUSTOM SELECTS (no native blue highlight)
+    // ==========================================================================
+    function buildCustomDropdowns() {
+      document.querySelectorAll("select.tool-select").forEach(select => {
+        if (select.closest(".custom-select-container")) return;
+
+        const container = document.createElement("div");
+        container.className = "custom-select-container";
+        select.parentNode.insertBefore(container, select);
+        container.appendChild(select);
+        select.style.display = "none";
+
+        const selectedBox = document.createElement("div");
+        selectedBox.className = "select-selected";
+        const initial = select.options[select.selectedIndex] || select.options[0];
+        selectedBox.textContent = initial ? initial.textContent : "Select";
+        container.appendChild(selectedBox);
+
+        const itemsBox = document.createElement("div");
+        itemsBox.className = "select-items select-hide";
+
+        Array.from(select.options).forEach((opt, index) => {
+          const item = document.createElement("div");
+          item.textContent = opt.textContent;
+          if (index === select.selectedIndex) item.classList.add("same-as-selected");
+
+          item.addEventListener("click", (e) => {
+            e.stopPropagation();
+            select.selectedIndex = index;
+            selectedBox.textContent = opt.textContent;
+            itemsBox.querySelectorAll(".same-as-selected").forEach(el => el.classList.remove("same-as-selected"));
+            item.classList.add("same-as-selected");
+            itemsBox.classList.add("select-hide");
+            selectedBox.classList.remove("select-arrow-active");
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          itemsBox.appendChild(item);
+        });
+        container.appendChild(itemsBox);
+
+        selectedBox.addEventListener("click", (e) => {
+          e.stopPropagation();
+          document.querySelectorAll(".select-items").forEach(m => {
+            if (m !== itemsBox) m.classList.add("select-hide");
+          });
+          document.querySelectorAll(".select-selected").forEach(h => {
+            if (h !== selectedBox) h.classList.remove("select-arrow-active");
+          });
+          itemsBox.classList.toggle("select-hide");
+          selectedBox.classList.toggle("select-arrow-active");
+        });
+      });
+    }
+
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".select-items").forEach(m => m.classList.add("select-hide"));
+      document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
+    });
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", buildCustomDropdowns);
+    } else {
+      buildCustomDropdowns();
     }
   </script>
 </body>
