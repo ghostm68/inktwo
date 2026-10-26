@@ -125,7 +125,7 @@ body {
       align-items: center;
     }
 
-    .theme-btn, .support-btn {
+    .theme-btn, .support-btn, .matrix-btn {
       background: transparent;
       border: 1px solid var(--border);
       color: var(--text-dim);
@@ -138,7 +138,8 @@ body {
       text-decoration: none;
       transition: all 0.2s;
     }
-    .theme-btn:hover, .support-btn:hover {
+    .theme-btn:hover, .support-btn:hover, .matrix-btn:hover,
+    .matrix-btn.active {
       border-color: var(--accent);
       color: var(--accent);
     }
@@ -406,6 +407,94 @@ body {
     }
     .modal-back-btn:hover { border-color: var(--text); color: var(--text); }
 
+    /* === Bottom Matrix Panel === */
+    .matrix-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 40;
+      background: var(--header-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 16px;
+    }
+    .matrix-panel.open {
+      max-height: 42vh;
+      padding: 10px 16px 12px;
+    }
+    .matrix-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+    .matrix-search {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 3px 8px;
+      width: 140px;
+      outline: none;
+    }
+    .matrix-search:focus { border-color: var(--accent); }
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+      gap: 4px;
+      max-height: 34vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    .matrix-link {
+      display: block;
+      text-align: center;
+      padding: 5px 4px;
+      font-size: 9px;
+      letter-spacing: 0.4px;
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid transparent;
+      background: rgba(0,0,0,0.35);
+      border-radius: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.15s;
+    }
+    .matrix-link:hover {
+      border-color: var(--accent);
+      background: rgba(0,0,0,0.65);
+      color: var(--accent);
+    }
+    .matrix-link.is-wp { color: var(--accent); border-color: rgba(255, 0, 51, 0.3); }
+    .matrix-link.is-1991 { color: #FF1991; border-color: rgba(255, 25, 145, 0.4); }
+    .matrix-link.is-tool { color: #FFE600; border-color: rgba(255, 230, 0, 0.4); }
+    .matrix-link.is-wp:hover,
+    .matrix-link.is-1991:hover,
+    .matrix-link.is-tool:hover {
+      color: #000;
+    }
+    .matrix-link.is-wp:hover { background: var(--accent); }
+    .matrix-link.is-1991:hover { background: #FF1991; }
+    .matrix-link.is-tool:hover { background: #FFE600; }
+
+    [data-theme="light"] .matrix-link {
+      background: rgba(255,255,255,0.65);
+    }
+    [data-theme="light"] .matrix-link:hover {
+      background: rgba(255,255,255,0.95);
+    }
+
     /* Light theme tweaks */
     [data-theme="light"] .bg-video {
       opacity: 0.18;
@@ -463,7 +552,7 @@ body {
       }
       .header-logo-container { width: 120px; }
       .splash-logo { max-height: 34px; }
-      .theme-btn, .support-btn {
+      .theme-btn, .support-btn, .matrix-btn {
         font-size: 10px;
         padding: 4px 8px;
       }
@@ -509,6 +598,18 @@ body {
       }
       .footer-links { gap: 8px; }
     }
+
+    @media (max-width: 640px) {
+      .matrix-panel.open {
+        max-height: 48vh;
+      }
+      .matrix-grid {
+        grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+        max-height: 40vh;
+      }
+      .matrix-link { font-size: 8px; padding: 4px 3px; }
+      .matrix-search { width: 100px; }
+    }
   </style>
 </head>
 <body>
@@ -541,6 +642,7 @@ body {
       </a>
     </div>
     <div class="header-controls">
+      <button type="button" class="matrix-btn" id="matrixToggle">MATRIX</button>
       <button type="button" class="theme-btn" id="themeToggle">LIGHT</button>
       <button type="button" class="support-btn" id="supportBtn">SUPPORT</button>
     </div>
@@ -564,6 +666,15 @@ body {
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Bottom Matrix Panel -->
+  <div class="matrix-panel" id="matrixPanel">
+    <div class="matrix-header">
+      <span>// TOOL MATRIX</span>
+      <input type="text" class="matrix-search" id="matrixSearch" placeholder="FILTER..." />
+    </div>
+    <div class="matrix-grid" id="matrixGrid"></div>
   </div>
 
   <footer class="bottom-bar">
@@ -693,6 +804,40 @@ body {
 
       node.appendChild(link);
       orbit.appendChild(node);
+    });
+
+    /* Matrix Panel */
+    const matrixToggle = document.getElementById('matrixToggle');
+    const matrixPanel = document.getElementById('matrixPanel');
+    const matrixGrid = document.getElementById('matrixGrid');
+    const matrixSearch = document.getElementById('matrixSearch');
+
+    function renderMatrix(filter = '') {
+      matrixGrid.innerHTML = '';
+      const q = filter.toLowerCase();
+      pages.forEach(page => {
+        if (q && !page.name.toLowerCase().includes(q) && !(page.desc || '').toLowerCase().includes(q)) return;
+        const a = document.createElement('a');
+        a.className = 'matrix-link';
+        a.href = page.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = page.name;
+        a.title = page.desc || page.name;
+        if (page.desc === 'wp') a.classList.add('is-wp');
+        if (page.name.includes('91')) a.classList.add('is-1991');
+        if (page.desc === '🔧') a.classList.add('is-tool');
+        matrixGrid.appendChild(a);
+      });
+    }
+
+    renderMatrix();
+    matrixSearch.addEventListener('input', () => renderMatrix(matrixSearch.value));
+
+    matrixToggle.addEventListener('click', () => {
+      const open = matrixPanel.classList.toggle('open');
+      matrixToggle.classList.toggle('active', open);
+      if (open) matrixSearch.focus();
     });
 
     /* Theme */
