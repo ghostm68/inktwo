@@ -121,6 +121,7 @@
     align-items: center;
     gap: 8px;
     font-size: 11px;
+    flex-shrink: 0;
   }
   .dial-label { color: var(--text-dim); font-size: 10px; font-weight: 600; text-transform: uppercase; }
   .rotary-knob {
@@ -154,6 +155,7 @@
     align-items: center;
     gap: 6px;
     margin-left: auto;
+    flex-shrink: 0;
   }
   .hw-btn {
     background: #1d242c;
@@ -174,10 +176,17 @@
     border-color: var(--phosphor-red);
   }
 
-  /* WORKSPACE: ROOMY DUAL-BAY (heterogeneous Cockpit style) */
+  /* Desktop default: mobile toggle stays hidden */
+  .mobile-toggle-btn {
+    display: none;
+    border-color: var(--phosphor-red);
+    color: var(--phosphor-red);
+  }
+
+  /* WORKSPACE: DUAL-BAY (heterogeneous Cockpit style) */
   .workspace-bay {
     flex: 1;
-    min-height: 0; /* Crucial for internal flex scrolling */
+    min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     background: var(--bezel-dark);
@@ -279,6 +288,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    padding: 10px;
   }
   #ink-canvas {
     background-color: #05070a;
@@ -288,8 +298,10 @@
     cursor: crosshair;
     touch-action: none;
     border-radius: 4px;
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    aspect-ratio: 560 / 380;
   }
 
   /* SCHEDULE TABLE */
@@ -347,7 +359,7 @@
     padding: 12px;
   }
 
-  /* DYNAMIC INTRINSIC BLUEPRINT PLATE */
+  /* INTRINSIC BLUEPRINT PLATE */
   #arch-sheet {
     width: 100%;
     max-width: 950px;
@@ -426,8 +438,9 @@
     column-count: 2;
     column-gap: 12px;
     column-rule: 1px dotted var(--sh-line-dim);
-    overflow-y: auto;
     text-align: justify;
+    flex: 1;
+    overflow-y: auto;
   }
   .prose-bay-content p { margin-bottom: 8px; text-indent: 10px; }
   .prose-bay-content p:first-of-type { text-indent: 0; }
@@ -516,8 +529,8 @@
   }
   .footer-bar span.val { color: var(--phosphor-red); }
 
-  /* MOBILE/RESPONSIVE STACKING */
-@media (max-width: 950px) {
+  /* MOBILE RESPONSIVE RULES */
+  @media (max-width: 950px) {
     .mobile-toggle-btn { display: inline-block !important; }
     .workspace-bay { grid-template-columns: 1fr; }
     .plate-bay { display: none; }
@@ -526,6 +539,7 @@
     .viewports-grid { grid-template-columns: 1fr; }
     #arch-sheet { aspect-ratio: auto; min-height: 620px; }
   }
+
   /* PRINT ENGINE */
   @page { size: landscape; margin: 0; }
   @media print {
@@ -569,7 +583,7 @@
     </div>
 
     <div class="deck-actions">
-     <button class="hw-btn mobile-toggle-btn" id="btn-toggle-view" onclick="toggleMobilePlateView()" style="display:none;">VIEW PLATE</button>
+      <button class="hw-btn mobile-toggle-btn" id="btn-toggle-view" onclick="toggleMobilePlateView()">VIEW PLATE</button>
       <button class="hw-btn active" id="btn-theme-red" onclick="setSheetTheme('blueprint')">REDPRINT</button>
       <button class="hw-btn" id="btn-theme-vel" onclick="setSheetTheme('vellum')">VELLUM</button>
       <button class="hw-btn" id="btn-theme-cad" onclick="setSheetTheme('modern')">WHITE</button>
@@ -1041,8 +1055,7 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
     });
   }
 
-  /* VECTOR SVG EXPORT */
- /* RESTORED & IMPROVED FULL VECTOR SVG EXPORT ENGINE */
+  /* FULL VECTOR SVG EXPORT ENGINE */
   function wrapTextToLines(text, maxChars) {
     const words = text.split(/\s+/);
     const lines = [];
@@ -1071,7 +1084,6 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
     const model = buildModel(data);
     const isDetail = currentSheetType === 'detail';
     
-    // Match the current theme colors for export
     const sheet = document.getElementById('arch-sheet');
     const isVellum = sheet.classList.contains('theme-vellum');
     const isModern = sheet.classList.contains('theme-modern');
@@ -1150,7 +1162,6 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
 <svg xmlns="http://www.w3.org/2000/svg" width="1020" height="680" viewBox="0 0 1020 680">
   <style>text { font-family: 'Courier Prime', 'Courier New', monospace; }</style>
   <rect width="100%" height="100%" fill="${bgColor}"/>
-  <!-- Outer & Inner Architectural Borders -->
   <rect x="14" y="14" width="992" height="652" fill="none" stroke="${lineColor}" stroke-width="2"/>
   <rect x="18" y="18" width="984" height="644" fill="none" stroke="${lineColor}" stroke-width="0.5" stroke-dasharray="4"/>
   <line x1="36" y1="560" x2="984" y2="560" stroke="${lineColor}" stroke-width="1.2"/>
@@ -1163,6 +1174,10 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
     link.href = URL.createObjectURL(blob);
     link.download = `${model.meta.sheet}${isDetail ? '_DETAIL' : ''}_CADENCE.svg`;
     link.click();
+  }
+
+  function escapeXml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   /* MEMOS PROJECT VAULT */
@@ -1221,23 +1236,26 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
       list.appendChild(slot);
     });
   }
-let showingMobilePlate = false;
-function toggleMobilePlateView() {
-  showingMobilePlate = !showingMobilePlate;
-  const terminal = document.getElementById('terminal-bay');
-  const plate = document.getElementById('plate-bay');
-  const btn = document.getElementById('btn-toggle-view');
 
-  if (showingMobilePlate) {
-    terminal.classList.add('mobile-hidden');
-    plate.classList.add('mobile-visible');
-    btn.textContent = "VIEW WRITER";
-  } else {
-    terminal.classList.remove('mobile-hidden');
-    plate.classList.remove('mobile-visible');
-    btn.textContent = "VIEW PLATE";
+  /* MOBILE TOGGLE FUNCTION */
+  let showingMobilePlate = false;
+  function toggleMobilePlateView() {
+    showingMobilePlate = !showingMobilePlate;
+    const terminal = document.getElementById('terminal-bay');
+    const plate = document.getElementById('plate-bay');
+    const btn = document.getElementById('btn-toggle-view');
+
+    if (showingMobilePlate) {
+      terminal.classList.add('mobile-hidden');
+      plate.classList.add('mobile-visible');
+      btn.textContent = "VIEW WRITER";
+    } else {
+      terminal.classList.remove('mobile-hidden');
+      plate.classList.remove('mobile-visible');
+      btn.textContent = "VIEW PLATE";
+    }
   }
-}
+
   /* BOOT */
   window.addEventListener('DOMContentLoaded', () => {
     initInk();
