@@ -1042,6 +1042,23 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
   }
 
   /* VECTOR SVG EXPORT */
+ /* RESTORED & IMPROVED FULL VECTOR SVG EXPORT ENGINE */
+  function wrapTextToLines(text, maxChars) {
+    const words = text.split(/\s+/);
+    const lines = [];
+    let current = "";
+    words.forEach(w => {
+      if ((current + " " + w).trim().length <= maxChars) {
+        current = (current + " " + w).trim();
+      } else {
+        if (current) lines.push(current);
+        current = w;
+      }
+    });
+    if (current) lines.push(current);
+    return lines;
+  }
+
   function downloadVectorSVG() {
     const data = {
       project: document.getElementById('meta-project').value,
@@ -1052,28 +1069,91 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
       notes: document.getElementById('notes-editor').value
     };
     const model = buildModel(data);
-    const lineColor = '#ff3333';
-    let y = 50;
+    const isDetail = currentSheetType === 'detail';
+    
+    // Match the current theme colors for export
+    const sheet = document.getElementById('arch-sheet');
+    const isVellum = sheet.classList.contains('theme-vellum');
+    const isModern = sheet.classList.contains('theme-modern');
+    
+    const bgColor = isVellum ? '#eae0cd' : (isModern ? '#ffffff' : '#140707');
+    const lineColor = isVellum ? '#2b2319' : (isModern ? '#cc0000' : '#ff3333');
+    const textColor = isVellum ? '#17130e' : (isModern ? '#1a0a0a' : '#ffffff');
+    const subColor = isVellum ? '#635241' : (isModern ? '#8b3a3a' : '#ffaaaa');
+
+    let y = 55;
     const lines = [];
 
-    lines.push(`<text x="34" y="${y}" fill="${lineColor}" font-size="14" font-weight="bold">${escapeXml(model.meta.project)}</text>`);
-    y += 24;
-    lines.push(`<text x="34" y="${y}" fill="#ffaaaa" font-size="10">${escapeXml(model.meta.drawing)} · SHEET ${escapeXml(model.meta.sheet)}</text>`);
-    y += 30;
+    // Header Meta
+    lines.push(`<text x="36" y="${y}" fill="${lineColor}" font-size="15" font-weight="bold">${escapeXml(model.meta.project)}</text>`);
+    y += 20;
+    lines.push(`<text x="36" y="${y}" fill="${subColor}" font-size="10.5">${isDetail ? 'KEYNOTE CALLOUT DETAIL' : escapeXml(model.meta.drawing)} · SHEET ${escapeXml(model.meta.sheet)}${isDetail ? '-D' : ''}</text>`);
+    y += 26;
 
-    model.callouts.forEach(c => {
-      lines.push(`<text x="34" y="${y}" fill="${lineColor}" font-size="10.5">[${escapeXml(c.tag)}] ${escapeXml(c.desc)}</text>`);
-      y += 18;
+    // View 1: Prose or Callouts
+    if (!isDetail) {
+      model.blocks.forEach(b => {
+        const cleanText = b.raw.replace(/\[.*?\]/g, '').trim();
+        const wrapped = wrapTextToLines(cleanText, 66);
+        wrapped.forEach(line => {
+          if (y < 430) {
+            lines.push(`<text x="36" y="${y}" fill="${textColor}" font-size="10.5">${escapeXml(line)}</text>`);
+            y += 15;
+          }
+        });
+        y += 8;
+      });
+    } else {
+      model.callouts.forEach(c => {
+        if (y < 430) {
+          lines.push(`<text x="36" y="${y}" fill="${lineColor}" font-size="11" font-weight="bold">[${escapeXml(c.tag)}]</text>`);
+          lines.push(`<text x="82" y="${y}" fill="${textColor}" font-size="11">${escapeXml(c.desc)}</text>`);
+          y += 18;
+        }
+      });
+    }
+
+    // Schedule 01: Callouts
+    y = Math.max(y + 14, 455);
+    lines.push(`<text x="36" y="${y}" fill="${lineColor}" font-size="10" font-weight="bold">SCHEDULE 01: CALLOUT LOG</text>`);
+    y += 16;
+    model.callouts.slice(0, 5).forEach((c, idx) => {
+      lines.push(`<text x="36" y="${y}" fill="${textColor}" font-size="9">${escapeXml(c.tag)} — ${escapeXml(c.desc)} (${c.zone} / 0${idx + 1})</text>`);
+      y += 13;
     });
 
+    // General Notes
+    y = 575;
+    lines.push(`<text x="36" y="${y}" fill="${lineColor}" font-size="9.5" font-weight="bold">GENERAL NOTES:</text>`);
+    y += 14;
+    model.notes.slice(0, 3).forEach(n => {
+      lines.push(`<text x="36" y="${y}" fill="${subColor}" font-size="8.5">${escapeXml(n)}</text>`);
+      y += 12;
+    });
+
+    // Title Block
+    lines.push(`<rect x="710" y="565" width="274" height="85" fill="none" stroke="${lineColor}" stroke-width="1.5"/>`);
+    lines.push(`<text x="720" y="585" fill="${subColor}" font-size="8.5">ARCH-PROSE // BIM RELATIONAL</text>`);
+    lines.push(`<text x="720" y="605" fill="${textColor}" font-size="13" font-weight="bold">${escapeXml(model.meta.project)}</text>`);
+    lines.push(`<text x="720" y="622" fill="${subColor}" font-size="9">BY: ${escapeXml(model.meta.author)} · SCALE: 1:1</text>`);
+    lines.push(`<text x="910" y="640" fill="${lineColor}" font-size="14" font-weight="bold">${escapeXml(model.meta.sheet)}${isDetail ? '-D' : ''}</text>`);
+
+    // Embedded Ink Sketch
+    let sketchEl = '';
     const sketchSrc = document.getElementById('sketch-projection')?.src || '';
-    let sketchEl = sketchSrc.startsWith('data:') ? `<image x="660" y="70" width="310" height="230" href="${sketchSrc}" />` : '';
+    if (sketchSrc && sketchSrc.startsWith('data:')) {
+      sketchEl = `<rect x="660" y="70" width="310" height="230" fill="none" stroke="${lineColor}" stroke-dasharray="3" stroke-width="0.75"/>
+      <image x="665" y="75" width="300" height="220" href="${sketchSrc}" preserveAspectRatio="xMidYMid meet" />`;
+    }
 
     const svgData = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1020" height="680" viewBox="0 0 1020 680">
-  <style>text { font-family: 'Courier New', monospace; }</style>
-  <rect width="100%" height="100%" fill="#140707"/>
-  <rect x="14" y="14" width="992" height="652" fill="none" stroke="${lineColor}" stroke-width="1.5"/>
+  <style>text { font-family: 'Courier Prime', 'Courier New', monospace; }</style>
+  <rect width="100%" height="100%" fill="${bgColor}"/>
+  <!-- Outer & Inner Architectural Borders -->
+  <rect x="14" y="14" width="992" height="652" fill="none" stroke="${lineColor}" stroke-width="2"/>
+  <rect x="18" y="18" width="984" height="644" fill="none" stroke="${lineColor}" stroke-width="0.5" stroke-dasharray="4"/>
+  <line x1="36" y1="560" x2="984" y2="560" stroke="${lineColor}" stroke-width="1.2"/>
   ${sketchEl}
   ${lines.join('\n  ')}
 </svg>`;
@@ -1081,12 +1161,8 @@ The drafting table lay at the room's geometric center, unvarnished pine pinned w
     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${model.meta.sheet}_CADENCE.svg`;
+    link.download = `${model.meta.sheet}${isDetail ? '_DETAIL' : ''}_CADENCE.svg`;
     link.click();
-  }
-
-  function escapeXml(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   /* MEMOS PROJECT VAULT */
