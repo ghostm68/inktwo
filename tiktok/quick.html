@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader - No Watermark (TikWM + RapidAPI)</title>
+    <title>TikTok Downloader - No Watermark (3 Engines)</title>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Download TikTok videos without watermark. Dual-engine: TikWM (keyless HD) + RapidAPI fallback.">
-    <meta name="keywords" content="tiktok downloader, download tiktok video, tiktok no watermark, tikwm">
+    <meta name="description" content="Download TikTok videos without watermark. Triple-engine: TikWM (keyless HD) + RapidAPI + Alt. Includes cover & audio.">
+    <meta name="keywords" content="tiktok downloader, download tiktok video, tiktok no watermark, tikwm, audio, cover">
     <meta name="author" content="InkRealm">
     <meta name="robots" content="index, follow">
     
@@ -371,7 +371,7 @@
             <div class="header-content">
                 <div>
                     <h2>TikTok Downloader</h2>
-                    <p style="color:#aaa; font-size:12px; margin-top:4px;">No Watermark • TikWM + RapidAPI</p>
+                    <p style="color:#aaa; font-size:12px; margin-top:4px;">No Watermark • 3 Engines • Audio + Cover</p>
                 </div>
                 <video class="header-video" width="240" height="150" controls>
                     <source src="https://raw.githubusercontent.com/ghostm68/pantheon/main/leniklum_TikTokQuick_01b3a.mp4" type="video/mp4">
@@ -386,8 +386,8 @@
                 <h3>How to use:</h3>
                 <ol>
                     <li>Paste a <b>TikTok</b> video link below (full or short URL)</li>
-                    <li>Choose engine: <b>TikWM</b> (recommended, keyless HD) or <b>RapidAPI</b></li>
-                    <li>Click <b>Download Video</b> to preview and grab MP4 or MP3</li>
+                    <li>Choose engine: <b>TikWM</b> (recommended), <b>RapidAPI</b>, or <b>Alt</b></li>
+                    <li>Click <b>Download Video</b> to preview and grab MP4, MP3, or Cover</li>
                     <li>Only TikTok is supported at the moment...model: tiktok.com/@leniklum</li>
                 </ol>
             </div>
@@ -396,7 +396,8 @@
             <div class="source-bar">
                 <span>ENGINE:</span>
                 <button class="source-pill active" data-engine="tikwm" title="Direct unwatermarked TikTok HD + Audio via Proxy">🎯 TikWM (Keyless HD)</button>
-                <button class="source-pill" data-engine="rapidapi" title="Original RapidAPI endpoint">⚙ RapidAPI (Original)</button>
+                <button class="source-pill" data-engine="rapidapi" title="Original RapidAPI endpoint">⚙ RapidAPI</button>
+                <button class="source-pill" data-engine="alt" title="Independent free worker endpoint">🔄 Alt Engine</button>
             </div>
             
             <div class="input-group">
@@ -436,6 +437,7 @@
                     <button class="quality-btn active" id="btn-hd">🎬 HD Video (No Watermark)</button>
                     <button class="quality-btn" id="btn-sd">📱 SD / Fast MP4</button>
                     <button class="quality-btn" id="btn-audio">🎵 Audio Only (MP3)</button>
+                    <button class="quality-btn" id="btn-cover">🖼️ Cover / Thumbnail</button>
                 </div>
             </div>
         </div>
@@ -457,9 +459,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnHd    = document.getElementById('btn-hd');
     const btnSd    = document.getElementById('btn-sd');
     const btnAudio = document.getElementById('btn-audio');
+    const btnCover = document.getElementById('btn-cover');
 
-    // Default to TikWM (no Auto option)
+    // Default to TikWM
     let selectedEngine = 'tikwm';
+
+    // Optional: your own Cloudflare Worker proxy (preferred)
+    const CUSTOM_PROXY = "https://lively-limitless.inkrealm.workers.dev/?url=";
 
     // Your original RapidAPI config
     const RAPID_CONFIG = {
@@ -521,13 +527,15 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.removeChild(a);
     }
 
-    // ---------- CORS proxy cascade ----------
+    // ---------- CORS proxy cascade (your worker first) ----------
     async function fetchJsonThroughCors(targetUrl) {
         const proxies = [
+            // Your custom worker (best)
+            u => CUSTOM_PROXY + encodeURIComponent(u),
             u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
             u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
             u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-            // Last resort: try direct (may work on some networks)
+            // Last resort: try direct
             u => u
         ];
 
@@ -537,7 +545,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 loadingText.innerText = `Connecting via Relay ${i + 1}...`;
                 const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 10000);
+                const timeout = setTimeout(() => controller.abort(), 12000);
 
                 const res = await fetch(proxies[i](targetUrl), {
                     signal: controller.signal,
@@ -571,7 +579,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Prefer true no-watermark play URL
         const hd  = d.hdplay || d.play || d.wmplay || null;
         const sd  = d.play   || d.wmplay || d.hdplay || null;
-        const audio = d.music || null;
+        const audio = d.music || d.music_info?.play || null;
+        const cover = d.cover || d.origin_cover || d.ai_dynamic_cover || d.dynamic_cover || null;
 
         if (!hd && !sd) {
             throw new Error('TikWM found the video but returned no playable URL');
@@ -582,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function () {
             hd:   hd,
             sd:   sd || hd,
             audio: audio,
+            cover: cover,
             title: d.title || 'tiktok_video'
         };
     }
@@ -601,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (response.status === 429) {
-            throw new Error('RapidAPI quota exceeded (HTTP 429). Switch to TikWM.');
+            throw new Error('RapidAPI quota exceeded (HTTP 429). Switch to TikWM or Alt.');
         }
         if (!response.ok) {
             throw new Error(`RapidAPI rejected the request (HTTP ${response.status})`);
@@ -610,17 +620,47 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = await response.json();
         const videoUrl = data.play || data.url || data.video_url ||
                          (data.data && (data.data.play || data.data.url));
+        const cover = data.cover || data.thumbnail || (data.data && data.data.cover) || null;
 
         if (!videoUrl) {
             throw new Error('RapidAPI did not return a video stream');
         }
 
         return {
-            source: 'RapidAPI (Original)',
+            source: 'RapidAPI',
             hd:    videoUrl,
             sd:    videoUrl,
             audio: null,
-            title: 'tiktok_video'
+            cover: cover,
+            title: data.title || 'tiktok_video'
+        };
+    }
+
+    // ---------- SOURCE 3: Alternative free endpoint (independent of TikWM) ----------
+    async function fetchAlt(url) {
+        const clean = sanitizeUrl(url);
+        // Free public worker endpoint (no key required)
+        const target = `https://tdownv4.sl-bjs.workers.dev/?down=${encodeURIComponent(clean)}`;
+
+        const json = await fetchJsonThroughCors(target);
+
+        // Response shape from this endpoint
+        const downloadUrl = json.download_url || json.video_url || json.url || null;
+        const audioUrl    = json.audio_url || json.music || null;
+        const coverUrl    = json.cover || json.thumbnail || json.author?.avatar || null;
+        const title       = json.title || 'tiktok_video';
+
+        if (!downloadUrl) {
+            throw new Error('Alt engine returned no download URL');
+        }
+
+        return {
+            source: 'Alt Engine (Independent)',
+            hd:   downloadUrl,
+            sd:   downloadUrl,
+            audio: audioUrl,
+            cover: coverUrl,
+            title: title
         };
     }
 
@@ -633,6 +673,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (selectedEngine === 'rapidapi') {
             return await fetchRapidAPI(url);
+        }
+        if (selectedEngine === 'alt') {
+            return await fetchAlt(url);
         }
 
         // Default / TikWM
@@ -661,12 +704,15 @@ document.addEventListener('DOMContentLoaded', function () {
             videoPreview.dataset.hd    = media.hd;
             videoPreview.dataset.sd    = media.sd || media.hd;
             videoPreview.dataset.audio = media.audio || '';
+            videoPreview.dataset.cover = media.cover || '';
+            videoPreview.dataset.title = (media.title || 'tiktok_video').replace(/[^a-z0-9]/gi, '_').substring(0, 60);
 
-            // Only show audio button when we actually have a separate track
+            // Only show audio / cover buttons when available
             btnAudio.style.display = media.audio ? 'flex' : 'none';
+            btnCover.style.display = media.cover ? 'flex' : 'none';
 
             loading.style.display = 'none';
-            successMessage.innerText = `✓ Resolved via ${media.source}`;
+            successMessage.innerText = `✓ Resolved via ${media.source}${media.title ? ' • ' + media.title.slice(0, 40) : ''}`;
             successMessage.style.display = 'block';
             result.style.display = 'block';
 
@@ -680,18 +726,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ---------- Quality buttons ----------
     btnHd.addEventListener('click', () => {
-        triggerDownload(videoPreview.dataset.hd, 'tiktok_HD.mp4');
+        triggerDownload(videoPreview.dataset.hd, (videoPreview.dataset.title || 'tiktok') + '_HD.mp4');
     });
 
     btnSd.addEventListener('click', () => {
-        triggerDownload(videoPreview.dataset.sd, 'tiktok_SD.mp4');
+        triggerDownload(videoPreview.dataset.sd, (videoPreview.dataset.title || 'tiktok') + '_SD.mp4');
     });
 
     btnAudio.addEventListener('click', () => {
         if (videoPreview.dataset.audio) {
-            triggerDownload(videoPreview.dataset.audio, 'tiktok_audio.mp3');
+            triggerDownload(videoPreview.dataset.audio, (videoPreview.dataset.title || 'tiktok') + '_audio.mp3');
         } else {
             alert('No separate audio track available for this video.');
+        }
+    });
+
+    btnCover.addEventListener('click', () => {
+        if (videoPreview.dataset.cover) {
+            triggerDownload(videoPreview.dataset.cover, (videoPreview.dataset.title || 'tiktok') + '_cover.jpg');
+        } else {
+            alert('No cover image available.');
         }
     });
 
