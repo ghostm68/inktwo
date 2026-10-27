@@ -566,7 +566,7 @@
   <!-- Window Header -->
   <div class="titlebar">
     <span>Document1.odt — Consort Studio</span>
-    <span style="font-size:10px; letter-spacing:1px; opacity:0.85;">CONSORT DESKTOP WORKSTATION</span>
+    <span style="font-size:10px; letter-spacing:1px; opacity:0.85;">CONSORT DESKTOP WORKSTATION · v2 (DOCX import/export improved)</span>
   </div>
 
   <!-- Menu Bar -->
@@ -575,7 +575,7 @@
     <div class="menu-item" onclick="toggleDropdown('edit-menu')">Edit</div>
     <div class="menu-item" onclick="toggleDeck()">View</div>
     <div class="menu-item" onclick="openImageModal()">Insert Image...</div>
-    <div class="menu-item" onclick="triggerImport()">Import Text...</div>
+    <div class="menu-item" onclick="triggerImport()">Import Document...</div>
     <div class="menu-item" onclick="toggleSplitView()">Split-Screen</div>
 
     <!-- File Dropdown -->
@@ -605,7 +605,7 @@
   </div>
 
   <!-- Hidden File Input for Text / Document Imports -->
-  <input type="file" id="import-file-input" accept=".txt,.html,.htm" style="display:none;" onchange="handleFileImport(event)" />
+  <input type="file" id="import-file-input" accept=".txt,.html,.htm,.docx" style="display:none;" onchange="handleFileImport(event)" />
 
   <!-- Tab Strip -->
   <div class="tabstrip">
@@ -623,7 +623,7 @@
   <!-- Top Ribbon Toolbar -->
   <div class="toolbar">
     <div class="btn-group">
-      <button class="tool-btn" onclick="triggerImport()" title="Open / Import Document (.txt, .html)">📂</button>
+      <button class="tool-btn" onclick="triggerImport()" title="Open / Import Document (.txt, .html, .docx)">📂</button>
       <button class="tool-btn" onclick="saveToLocalStorage(true)" title="Save to Memory">💾</button>
       <button class="tool-btn" onclick="window.print()" title="Print Page">🖨️</button>
       <button class="tool-btn" onclick="exportFile('pdf')" title="Quick PDF Export"><span class="pdf-badge">PDF</span></button>
@@ -681,7 +681,7 @@
           <div class="scroll-pane" id="scroll-pane" onclick="editor.focus()">
             <div id="editor" class="paper-sheet" contenteditable="true" spellcheck="true">
               <h2>Psychology research paper...</h2>
-              <p>Consort Studio initialized. Full two-way document workflow active: you can now open or drag-and-drop any Plain Text (.txt) or HTML document directly onto this sheet.</p>
+              <p>Consort Studio initialized. Full two-way document workflow active: you can now open or drag-and-drop Plain Text (.txt), HTML, or Microsoft Word (.docx) documents directly onto this sheet.</p>
               
               <!-- Sample Inserted Figure -->
               <figure class="consort-figure align-center filter-silver" style="max-width: 65%;" onclick="selectFigure(this, event)">
@@ -930,7 +930,7 @@
     }
 
     // ==========================================================================
-    // TEXT & DOCUMENT IMPORT ENGINE (.txt, .html, plus Drag & Drop)
+    // TEXT & DOCUMENT IMPORT ENGINE (.txt, .html, .docx, plus Drag & Drop)
     // ==========================================================================
     function triggerImport() {
       document.getElementById('import-file-input').click();
@@ -945,6 +945,10 @@
 
     function processImportFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'docx') {
+        processDocxImport(file);
+        return;
+      }
       const reader = new FileReader();
 
       reader.onload = (event) => {
@@ -978,6 +982,55 @@
       reader.readAsText(file);
     }
 
+    // ==========================================================================
+    // DOCX IMPORT via mammoth.js (loaded on demand from CDN)
+    // ==========================================================================
+    let mammothPromise = null;
+    function loadMammoth() {
+      if (window.mammoth) return Promise.resolve(window.mammoth);
+      if (mammothPromise) return mammothPromise;
+      mammothPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.13.0/mammoth.browser.min.js';
+        script.onload = () => resolve(window.mammoth);
+        script.onerror = () => reject(new Error('Failed to load mammoth.js from CDN'));
+        document.head.appendChild(script);
+      });
+      return mammothPromise;
+    }
+
+    async function processDocxImport(file) {
+      try {
+        saveStatus.innerText = "○ Loading DOCX engine…";
+        saveStatus.style.color = "#a17828";
+        const mammoth = await loadMammoth();
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+        const formattedHtml = result.value || '<p>(empty document)</p>';
+
+        if (confirm("Replace the current document with imported content?\n\n(Click Cancel to append to the end of your current draft)")) {
+          pushHistory();
+          editor.innerHTML = formattedHtml;
+        } else {
+          pushHistory();
+          editor.innerHTML += '<hr style="border:none; border-top:1px dashed #444; margin:20px 0;">' + formattedHtml;
+        }
+
+        if (result.messages && result.messages.length) {
+          console.warn('DOCX import messages:', result.messages);
+        }
+        saveToLocalStorage();
+        updateMetrics();
+        saveStatus.innerText = "● Saved";
+        saveStatus.style.color = "#2b7336";
+      } catch (err) {
+        console.error(err);
+        alert("Failed to import .docx file.\n\n" + (err.message || String(err)) + "\n\nNote: the converter library is loaded from the internet on first use.");
+        saveStatus.innerText = "⚠️ Import failed";
+        saveStatus.style.color = "var(--typewriter-red)";
+      }
+    }
+
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
@@ -997,10 +1050,10 @@
         if (file.type.startsWith('image/')) {
           handleFileSelect({ target: { files: [file] } });
           openImageModal();
-        } else if (['txt', 'html', 'htm'].includes(ext)) {
+        } else if (['txt', 'html', 'htm', 'docx'].includes(ext)) {
           processImportFile(file);
         } else {
-          alert("Supported file formats for import: .txt, .html");
+          alert("Supported file formats for import: .txt, .html, .docx");
         }
       }
     });
@@ -1522,7 +1575,7 @@
         .replace(/"/g, '&quot;');
     }
 
-    function buildDocumentXml(bodyParts) {
+function buildDocumentXml(bodyParts) {
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
@@ -1535,10 +1588,24 @@
 </w:document>`;
     }
 
-    function makeParagraph(text, style) {
-      const runs = escapeXml(text).split('\n').map(t => `<w:r><w:t xml:space="preserve">${t}</w:t></w:r>`).join('<w:br/>');
+    function makeRun(text, props = {}) {
+      if (!text) return '';
+      const escaped = escapeXml(text);
+      let rPr = '';
+      const parts = [];
+      if (props.bold) parts.push('<w:b/>');
+      if (props.italic) parts.push('<w:i/>');
+      if (props.underline) parts.push('<w:u w:val="single"/>');
+      if (props.strike) parts.push('<w:strike/>');
+      if (props.color) parts.push(`<w:color w:val="${props.color}"/>`);
+      if (props.size) parts.push(`<w:sz w:val="${props.size}"/>`);
+      if (parts.length) rPr = `<w:rPr>${parts.join('')}</w:rPr>`;
+      return `<w:r>${rPr}<w:t xml:space="preserve">${escaped}</w:t></w:r>`;
+    }
+
+    function makeParagraphFromRuns(runs, style) {
       const pStyle = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : '';
-      return `<w:p>${pStyle}${runs}</w:p>`;
+      return `<w:p>${pStyle}${runs.join('')}</w:p>`;
     }
 
     function makeImageParagraph(rId, cx, cy) {
@@ -1549,12 +1616,12 @@
     <w:drawing>
       <wp:inline distT="0" distB="0" distL="0" distR="0">
         <wp:extent cx="${width}" cy="${height}"/>
-        <wp:docPr id="1" name="Picture"/>
+        <wp:docPr id="${Math.floor(Math.random()*10000)}" name="Picture"/>
         <a:graphic>
           <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
             <pic:pic>
               <pic:nvPicPr>
-                <pic:cNvPr id="0" name="image"/>
+                <pic:cNvPr id="${Math.floor(Math.random()*10000)}" name="image"/>
                 <pic:cNvPicPr/>
               </pic:nvPicPr>
               <pic:blipFill>
@@ -1577,59 +1644,172 @@
 </w:p>`;
     }
 
+    function collectRuns(node, props = {}) {
+      const runs = [];
+      if (node.nodeType === Node.TEXT_NODE) {
+        const t = node.textContent;
+        if (t && t.trim()) runs.push(makeRun(t, props));
+        else if (t && t.includes(' ')) runs.push(makeRun(t, props));
+        return runs;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return runs;
+
+      const tag = node.tagName;
+      const newProps = { ...props };
+      if (tag === 'B' || tag === 'STRONG') newProps.bold = true;
+      if (tag === 'I' || tag === 'EM') newProps.italic = true;
+      if (tag === 'U') newProps.underline = true;
+      if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') newProps.strike = true;
+      if (tag === 'SPAN' || tag === 'FONT') {
+        const style = node.getAttribute('style') || '';
+        const colorMatch = style.match(/color:\s*#?([0-9a-fA-F]{6})/);
+        if (colorMatch) newProps.color = colorMatch[1].toUpperCase();
+        const sizeMatch = style.match(/font-size:\s*(\d+)px/);
+        if (sizeMatch) newProps.size = Math.round(parseInt(sizeMatch[1]) * 2); // half-points
+      }
+      if (tag === 'BR') {
+        runs.push('<w:br/>');
+        return runs;
+      }
+
+      for (const child of Array.from(node.childNodes)) {
+        runs.push(...collectRuns(child, newProps));
+      }
+      return runs;
+    }
+
+    function processBlock(node, bodyParts, media, rels, imageCounterRef) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const t = node.textContent.trim();
+        if (t) bodyParts.push(makeParagraphFromRuns([makeRun(t)]));
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const tag = node.tagName;
+
+      if (tag === 'FIGURE' || node.classList?.contains('consort-figure')) {
+        const img = node.querySelector('img');
+        const cap = node.querySelector('figcaption');
+        if (img && img.src && img.src.startsWith('data:')) {
+          const bytes = dataUrlToUint8Array(img.src);
+          if (bytes) {
+            const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
+            const mediaName = `image${imageCounterRef.val}.${ext}`;
+            media.push({ name: mediaName, data: bytes });
+            const rId = `rId${imageCounterRef.val + 1}`;
+            rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
+            // Estimate size from image if possible
+            let cx = 4114800, cy = 2743200;
+            if (img.naturalWidth && img.naturalHeight) {
+              const maxW = 5000000; // ~5.5 inches
+              const scale = Math.min(1, maxW / (img.naturalWidth * 9525));
+              cx = Math.round(img.naturalWidth * 9525 * scale);
+              cy = Math.round(img.naturalHeight * 9525 * scale);
+            }
+            bodyParts.push(makeImageParagraph(rId, cx, cy));
+            imageCounterRef.val++;
+          }
+        }
+        if (cap && cap.textContent.trim()) {
+          bodyParts.push(makeParagraphFromRuns([makeRun(cap.textContent.trim(), { italic: true })]));
+        }
+        return;
+      }
+
+      if (tag === 'UL' || tag === 'OL') {
+        const items = node.querySelectorAll(':scope > li');
+        items.forEach((li, idx) => {
+          const runs = collectRuns(li);
+          const bullet = tag === 'UL' ? '• ' : `${idx + 1}. `;
+          runs.unshift(makeRun(bullet));
+          bodyParts.push(makeParagraphFromRuns(runs));
+        });
+        return;
+      }
+
+      if (tag === 'H1') {
+        bodyParts.push(makeParagraphFromRuns(collectRuns(node), 'Heading1'));
+        return;
+      }
+      if (tag === 'H2') {
+        bodyParts.push(makeParagraphFromRuns(collectRuns(node), 'Heading2'));
+        return;
+      }
+      if (tag === 'H3') {
+        bodyParts.push(makeParagraphFromRuns(collectRuns(node), 'Heading3'));
+        return;
+      }
+
+      if (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE') {
+        const runs = collectRuns(node);
+        if (runs.length) bodyParts.push(makeParagraphFromRuns(runs));
+        else bodyParts.push('<w:p/>');
+        return;
+      }
+
+      if (tag === 'HR') {
+        bodyParts.push('<w:p><w:r><w:br/></w:r></w:p>');
+        return;
+      }
+
+      // Fallback: treat as paragraph
+      const runs = collectRuns(node);
+      if (runs.length) bodyParts.push(makeParagraphFromRuns(runs));
+    }
+
     async function exportDocx() {
       const media = [];
       const rels = [];
       const bodyParts = [];
-      let imageCounter = 1;
+      const imageCounterRef = { val: 1 };
 
       const children = Array.from(editor.childNodes);
       for (const node of children) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const t = node.textContent.trim();
-          if (t) bodyParts.push(makeParagraph(t));
-          continue;
-        }
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-
-        const tag = node.tagName;
-        if (tag === 'FIGURE' || node.classList?.contains('consort-figure')) {
-          const img = node.querySelector('img');
-          const cap = node.querySelector('figcaption');
-          if (img && img.src && img.src.startsWith('data:')) {
-            const bytes = dataUrlToUint8Array(img.src);
-            if (bytes) {
-              const ext = img.src.includes('image/png') ? 'png' : 'jpeg';
-              const mediaName = `image${imageCounter}.${ext}`;
-              media.push({ name: mediaName, data: bytes, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' });
-              const rId = `rId${imageCounter + 1}`;
-              rels.push({ id: rId, target: `media/${mediaName}`, type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image' });
-              bodyParts.push(makeImageParagraph(rId));
-              imageCounter++;
-            }
-          }
-          if (cap && cap.textContent.trim()) {
-            bodyParts.push(makeParagraph(cap.textContent.trim()));
-          }
-        } else if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
-          bodyParts.push(makeParagraph(node.innerText, 'Heading1'));
-        } else if (tag === 'P' || tag === 'DIV') {
-          const text = node.innerText.trim();
-          if (text) bodyParts.push(makeParagraph(text));
-        } else if (tag === 'BR' || tag === 'HR') {
-          bodyParts.push('<w:p/>');
-        } else {
-          const text = node.innerText.trim();
-          if (text) bodyParts.push(makeParagraph(text));
-        }
+        processBlock(node, bodyParts, media, rels, imageCounterRef);
       }
 
       if (bodyParts.length === 0) bodyParts.push('<w:p/>');
 
       const documentXml = buildDocumentXml(bodyParts);
 
+      const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="Normal" w:default="1">
+    <w:name w:val="Normal"/>
+    <w:rPr>
+      <w:sz w:val="24"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="Heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="36"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="Heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="28"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading3">
+    <w:name w:val="Heading 3"/>
+    <w:basedOn w:val="Normal"/>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="26"/>
+    </w:rPr>
+  </w:style>
+</w:styles>`;
+
       const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
   ${rels.map(r => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"/>`).join('\n  ')}
 </Relationships>`;
 
@@ -1640,6 +1820,7 @@
   <Default Extension="jpeg" ContentType="image/jpeg"/>
   <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`;
 
       const relsRoot = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1651,6 +1832,7 @@
         { name: '[Content_Types].xml', data: new TextEncoder().encode(contentTypes) },
         { name: '_rels/.rels', data: new TextEncoder().encode(relsRoot) },
         { name: 'word/document.xml', data: new TextEncoder().encode(documentXml) },
+        { name: 'word/styles.xml', data: new TextEncoder().encode(stylesXml) },
         { name: 'word/_rels/document.xml.rels', data: new TextEncoder().encode(docRels) },
         ...media.map(m => ({ name: `word/media/${m.name}`, data: m.data }))
       ];
@@ -1658,6 +1840,8 @@
       const zipBytes = createZip(files);
       downloadBlob(zipBytes, 'Document1.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     }
+
+
 
     function createZip(files) {
       const encoder = new TextEncoder();
