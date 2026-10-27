@@ -618,7 +618,7 @@
   <!-- Window Header -->
   <div class="titlebar">
     <span>Document1.odt — Consort Studio</span>
-    <span style="font-size:10px; letter-spacing:1px; opacity:0.85;">CONSORT DESKTOP WORKSTATION · v3.1 (IndexedDB · Race-safe · Pool cleanup · OOXML+Tables)</span>
+    <span style="font-size:10px; letter-spacing:1px; opacity:0.85;">CONSORT DESKTOP WORKSTATION · v3.2 (IndexedDB · Safe Pruning · Keyboard Refined)</span>
   </div>
 
   <!-- Menu Bar -->
@@ -736,7 +736,7 @@
               <p>Consort Studio initialized. Full two-way document workflow active: you can now open or drag-and-drop Plain Text (.txt), HTML, or Microsoft Word (.docx) documents directly onto this sheet.</p>
               
               <!-- Sample Inserted Figure -->
-              <figure class="consort-figure align-center filter-silver" style="max-width: 65%;" onclick="selectFigure(this, event)">
+              <figure class="consort-figure align-center filter-silver" style="max-width: 60%;" onclick="selectFigure(this, event)">
                 <img data-img-id="fig_sample_1" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='260' viewBox='0 0 600 260'><rect width='600' height='260' fill='%23191a1d'/><circle cx='300' cy='120' r='60' fill='none' stroke='%23f8f9fa' stroke-width='2'/><path d='M200 130 Q 300 40 400 130' fill='none' stroke='%23c92a2a' stroke-width='2'/><text x='300' y='210' fill='%238c93a0' font-family='monospace' font-size='12' text-anchor='middle'>NEURAL CIRCUIT ARCHITECTURE [FIG. 1]</text></svg>" alt="Sample Diagram" />
                 <figcaption>Figure 1: Synaptic potential mapping under cognitive load.</figcaption>
               </figure>
@@ -759,7 +759,7 @@
           <button class="tool-btn" onclick="browserGoForward()">▶</button>
           <button class="tool-btn" onclick="browserReload()">⟳</button>
           
-          <input type="text" id="browser-url" class="browser-url-input" value="https://en.m.wikipedia.org/wiki/IBM_Lotus_Symphony" />
+          <input type="text" id="browser-url" class="browser-url-input" value="https://en.m.wikipedia.org/wiki/IBM_Lotus_Symphony" onkeydown="if(event.key==='Enter') loadBrowserUrl()" />
           <button class="tool-btn" onclick="loadBrowserUrl()" style="padding:0 8px;">Go</button>
           <button class="tool-btn" onclick="openExternalUrl()" title="Open currently entered URL in an external tab to bypass CSP blockers">↗ Open External</button>
           
@@ -922,10 +922,10 @@
         <input type="file" id="img-file-input" accept="image/*" style="display:none;" onchange="handleFileSelect(event)" />
 
         <div style="text-align:center; color:var(--shell-muted); font-size:10px;">— OR PASTE IMAGE URL —</div>
-        <input type="text" id="img-url-input" class="modal-input" placeholder="https://example.com/figure1.jpg" />
+        <input type="text" id="img-url-input" class="modal-input" placeholder="https://example.com/figure1.jpg" onkeydown="if(event.key==='Enter') confirmInsertImage()" />
 
         <label>Figure Caption</label>
-        <input type="text" id="img-caption-input" class="modal-input" placeholder="Figure 1: Observation diagram..." />
+        <input type="text" id="img-caption-input" class="modal-input" placeholder="Figure 1: Observation diagram..." onkeydown="if(event.key==='Enter') confirmInsertImage()" />
 
         <div style="display:flex; gap:10px;">
           <div style="flex:1;">
@@ -958,6 +958,7 @@
     const editor = document.getElementById('editor');
     const saveStatus = document.getElementById('save-status');
     const scratchpad = document.getElementById('scratchpad-text');
+    const browserUrlInput = document.getElementById('browser-url');
 
     // Prevent toolbar and menu clicks from stealing selection focus
     document.querySelectorAll('.toolbar, .menubar').forEach(el => {
@@ -1053,7 +1054,7 @@
     }
 
     function serializeForHistory() {
-      // Replaces big base64 src payload with a 0-cost empty src in history snapshots
+      // Replaces big base64 src payload with empty string in snapshots
       return editor.innerHTML.replace(/(<img\b[^>]*?\bsrc=)"data:[^"]+"/gi, '$1""');
     }
 
@@ -1092,10 +1093,18 @@
 
     function pruneImagePool() {
       const referenced = new Set();
+      // Scan active DOM
       editor.querySelectorAll('img[data-img-id]').forEach(img => {
         const id = img.getAttribute('data-img-id');
         if (id) referenced.add(id);
       });
+      // Also scan undo/redo snapshots so deleted figures can be resurrected cleanly
+      for (const snap of historyStack) {
+        const matches = snap.matchAll(/data-img-id="([^"]+)"/g);
+        for (const m of matches) {
+          referenced.add(m[1]);
+        }
+      }
       for (const id of Array.from(imagePool.keys())) {
         if (!referenced.has(id)) imagePool.delete(id);
       }
@@ -1381,7 +1390,7 @@
       pushHistory();
       const fig = document.createElement('figure');
       fig.className = `consort-figure ${align} ${filter}`;
-      fig.style.maxWidth = align === 'align-center' ? '65%' : '45%';
+      fig.style.maxWidth = align === 'align-center' ? '60%' : '45%';
       fig.onclick = function(e) { selectFigure(fig, e); };
 
       const imgId = 'fig_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -1444,10 +1453,13 @@
 
     window.addEventListener('keydown', (e) => {
       if ((e.key === 'Backspace' || e.key === 'Delete') && selectedFigure) {
-        if (document.activeElement.tagName !== 'FIGCAPTION') {
-          e.preventDefault();
-          deleteSelectedFigure();
+        const active = document.activeElement;
+        // Don't intercept backspace if user is typing in inputs or captions
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'FIGCAPTION')) {
+          return;
         }
+        e.preventDefault();
+        deleteSelectedFigure();
       }
     });
 
@@ -1584,7 +1596,6 @@
     }
 
     const browserFrame = document.getElementById('browser-frame');
-    const browserUrlInput = document.getElementById('browser-url');
     const browserHistory = [];
     let browserHistIndex = -1;
 
@@ -1688,7 +1699,7 @@
       if (!e.target.closest('.menu-item') && !e.target.closest('.dropdown')) {
         document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('show'));
       }
-      if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section')) {
+      if (!e.target.closest('.consort-figure') && !e.target.closest('#image-props-section') && !e.target.closest('.modal-box')) {
         document.querySelectorAll('.consort-figure').forEach(f => f.classList.remove('selected'));
         selectedFigure = null;
       }
@@ -2219,6 +2230,11 @@
       document.querySelectorAll(".select-items:not(.select-hide)").forEach(box => box.classList.add("select-hide"));
       document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
     }, true);
+
+    window.addEventListener("resize", () => {
+      document.querySelectorAll(".select-items:not(.select-hide)").forEach(box => box.classList.add("select-hide"));
+      document.querySelectorAll(".select-selected").forEach(h => h.classList.remove("select-arrow-active"));
+    });
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", buildCustomDropdowns);
