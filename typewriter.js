@@ -647,7 +647,7 @@ async function runLexicon(q) {
   }
 
   try {
-    const r2 = await fetch(`https://api.datamuse.com/words?rel_rhy=${encodeURIComponent(q)}&max=18`);
+    const r2 = await fetch(`https://api.datamuse.com/words?rel_rhy=${encodeURIComponent(q)}&max=18&k=dm_oScUNlcwITwgp0MloYtxbDFyHUQusdLe`);
     if (r2.ok) {
       const rh = await r2.json();
       rhymesEl.innerHTML = rh.map(x => `<span class="word-tag" data-w="${x.word}">${x.word}</span>`).join('') || '<span style="color:var(--text-dim)">—</span>';
