@@ -189,7 +189,7 @@ body.zen .editor-wrap { height: 78vh; max-width: 960px; }
   opacity: var(--video-opacity); filter: var(--video-filter);
   transition: opacity 0.3s, filter 0.3s;
 }
-#video-layer iframe { width: 100%; height: 100%; border: 0; }
+#video-layer iframe, #video-layer video { width: 100%; height: 100%; border: 0; object-fit: cover; }
 .editor-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--editor-overlay); }
 
 #editor {
@@ -313,6 +313,10 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
 .dock-status .ready-badge.idle {
   color: var(--grey); border-color: var(--grey-dark); background: transparent;
 }
+.dock-status .ready-badge.error {
+  color: #fff; background: var(--red); border-color: #ff6666; animation: blink 1s infinite alternate;
+}
+@keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.4; } }
 
 /* Help overlay */
 .help-overlay {
@@ -368,9 +372,12 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
 .sheet-menu .sheet-actions { display: flex; gap: 4px; padding: 8px; }
 .sheet-menu .sheet-actions button { flex: 1; border: 1px solid var(--grey-dark); text-align: center; }
 
-@media (max-width: 900px) {
+/* Pointer & Viewport responsiveness */
+@media (pointer: coarse), (max-width: 900px) {
   body.custom-cursor, body.custom-cursor * { cursor: auto !important; }
   #cursor-wrap { display: none !important; }
+}
+@media (max-width: 900px) {
   header { padding: 12px 14px; gap: 10px; }
   .header-row.rack-shelf { flex-direction: column; align-items: flex-start; gap: 12px; }
   .rack-dials { width: 100%; justify-content: space-around; }
@@ -391,7 +398,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="title">TYPEWRITER</div>
         <span class="label">// HYBRID INSTRUMENT S/370</span>
-        <a href="https://wordstar.nexus/ebcdic" target="_blank" rel="noopener">edcdic&#8599;</a>
+        <a href="https://wordstar.nexus/ebcdic" target="_blank" rel="noopener">ebcdic&#8599;</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <select id="font-select" title="Font">
@@ -497,7 +504,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
   </header>
 
   <div class="main">
-    <div class="editor-wrap">
+    <div class="editor-wrap" id="editor-wrap">
       <div id="video-layer"></div>
       <div class="editor-overlay"></div>
       <div id="editor" contenteditable="true" spellcheck="false" data-placeholder="Initialize instrument..." role="textbox" aria-multiline="true"></div>
@@ -595,7 +602,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
       <li>Images are automatically downscaled to preserve local storage.</li>
       <li>Marquee pauses while you hover it.</li>
       <li>Sheets are saved locally in your browser.</li>
-      <li>PDF respects current font, size, line pitch, and image ratios.</li>
+      <li>PDF respects current font, size, line pitch, and image shapes (including circular clipping).</li>
       <li>Custom YouTube IDs and off-states are remembered.</li>
     </ul>
 
@@ -606,6 +613,7 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
 <script>
 const { jsPDF } = window.jspdf;
 const editor = document.getElementById('editor');
+const editorWrap = document.getElementById('editor-wrap');
 const marquee = document.getElementById('marquee');
 const marqueeWrap = document.getElementById('marquee-wrap');
 const videoSelect = document.getElementById('video-select');
@@ -849,29 +857,33 @@ function isDirectVideo(src) {
 
 function setVideo(idOrUrl) {
   localStorage.setItem('typewriter_last_video', idOrUrl || 'none');
-  if (!idOrUrl || idOrUrl === 'none') {
-    videoLayer.innerHTML = '';
-    return;
-  }
+  videoLayer.innerHTML = '';
+  if (!idOrUrl || idOrUrl === 'none') return;
 
   if (isDirectVideo(idOrUrl)) {
-    // Direct MP4 / Archive.org video
-    videoLayer.innerHTML = `<video src="${idOrUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>`;
+    const vid = document.createElement('video');
+    vid.src = idOrUrl;
+    vid.autoplay = true;
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    vid.onwaiting = () => { readyEl.textContent = 'BUFFERING'; };
+    vid.onplaying = () => { updateStatus(); };
+    vid.onerror = () => { readyEl.textContent = 'VID OFFLINE'; };
+    videoLayer.appendChild(vid);
     return;
   }
 
-  // Treat as YouTube ID
   const id = extractId(idOrUrl) || idOrUrl;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
-    videoLayer.innerHTML = '';
-    return;
-  }
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) return;
   const isLive = LIVE_IDS.has(id);
   const params = isLive
     ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
     : `autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&modestbranding=1&showinfo=0`;
   videoLayer.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?${params}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
 }
+
 videoSelect.addEventListener('change', () => {
   const v = videoSelect.value;
   customVideo.style.display = v === 'custom' ? 'inline-block' : 'none';
@@ -971,7 +983,7 @@ imgInput.onchange = (e) => {
   e.target.value = '';
 };
 
-// ---------- Floating Image HUD ----------
+// ---------- Floating Image HUD with Viewport Clipping ----------
 const imageHud = document.getElementById('image-hud');
 const hudSizeVal = document.getElementById('hud-size-val');
 let selectedImg = null;
@@ -979,8 +991,16 @@ let selectedImg = null;
 function positionHud(img) {
   if (!img) return;
   const rect = img.getBoundingClientRect();
+  const eRect = editorWrap.getBoundingClientRect();
+
+  // If the image has scrolled off viewport, conceal HUD
+  if (rect.bottom < eRect.top + 8 || rect.top > eRect.bottom - 8) {
+    imageHud.style.display = 'none';
+    return;
+  }
+  imageHud.style.display = 'flex';
   imageHud.style.left = (rect.left + rect.width / 2) + 'px';
-  imageHud.style.top = Math.max(48, rect.top) + 'px';
+  imageHud.style.top = Math.max(eRect.top + 28, rect.top) + 'px';
 }
 
 function selectImage(img) {
@@ -988,6 +1008,7 @@ function selectImage(img) {
   selectedImg = img;
   if (!img) {
     imageHud.classList.remove('active');
+    imageHud.style.display = 'none';
     return;
   }
   img.classList.add('selected');
@@ -997,8 +1018,8 @@ function selectImage(img) {
   document.querySelectorAll('#hud-align-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === align));
   document.querySelectorAll('#hud-shape-group .hud-btn').forEach(b => b.classList.toggle('active', b.dataset.val === shape));
   hudSizeVal.textContent = w + 'PX';
-  positionHud(img);
   imageHud.classList.add('active');
+  positionHud(img);
 }
 
 editor.addEventListener('click', (e) => {
@@ -1128,11 +1149,13 @@ function updateStatus() {
   wordsEl.textContent = `WORDS ${w}`;
   charsEl.textContent = `CHARS ${t.length}`;
   linesEl.textContent = `LN ${t.split('\n').length}`;
-  readyEl.textContent = t.length ? 'WRITING' : 'READY';
-  readyEl.classList.remove('idle');
+  if (!readyEl.classList.contains('error')) {
+    readyEl.textContent = t.length ? 'WRITING' : 'READY';
+    readyEl.classList.remove('idle');
+  }
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
-    if (editor.innerText.trim()) {
+    if (editor.innerText.trim() && !readyEl.classList.contains('error')) {
       readyEl.textContent = 'IDLE';
       readyEl.classList.add('idle');
     }
@@ -1148,7 +1171,6 @@ function serializeEditor() {
     );
     img.parentNode.replaceChild(marker, img);
   });
-  // Mount offscreen temporarily to reliably normalize layout line breaks across browsers
   clone.style.position = 'fixed';
   clone.style.left = '-9999px';
   clone.style.top = '0';
@@ -1202,6 +1224,17 @@ function deserializeToEditor(raw) {
   });
 }
 
+// Move caret cleanly to editor end after undo/redo
+function restoreCaretToEnd() {
+  editor.focus();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 // ---------- Undo / Redo ----------
 let undoTimer = null;
 function pushUndo(force = false) {
@@ -1216,7 +1249,7 @@ function pushUndo(force = false) {
   undoTimer = setTimeout(() => {
     if (undoStack[undoStack.length - 1] !== v) undoStack.push(v);
     if (undoStack.length > 60) undoStack.shift();
-  }, 400);
+  }, 350);
 }
 
 function handleUndo() {
@@ -1225,6 +1258,7 @@ function handleUndo() {
     redoStack.push(current);
     const prev = undoStack[undoStack.length - 1] || '';
     deserializeToEditor(prev);
+    restoreCaretToEnd();
     updateStatus();
     scheduleMarquee();
     saveCurrentSheet();
@@ -1236,6 +1270,7 @@ function handleRedo() {
     const next = redoStack.pop();
     undoStack.push(next);
     deserializeToEditor(next);
+    restoreCaretToEnd();
     updateStatus();
     scheduleMarquee();
     saveCurrentSheet();
@@ -1261,8 +1296,14 @@ function loadSheets() {
 function saveSheets() {
   try {
     localStorage.setItem('typewriter_sheets', JSON.stringify(sheets));
+    if (readyEl.classList.contains('error')) {
+      readyEl.classList.remove('error');
+      readyEl.textContent = 'READY';
+    }
   } catch (err) {
     console.warn('LocalStorage limit reached', err);
+    readyEl.textContent = 'MEM OVERFLOW';
+    readyEl.classList.add('error');
   }
 }
 
@@ -1379,8 +1420,20 @@ document.getElementById('btn-pdf').onclick = () => {
 
       try {
         const isPng = data.startsWith('data:image/png');
-        doc.addImage(data, isPng ? 'PNG' : 'JPEG', x, y, width, h);
-        y += h + 12;
+        if (shape === 'circle') {
+          // Native circular clipping in jsPDF
+          const r = width / 2;
+          doc.saveGraphicsState();
+          doc.circle(x + r, y + r, r, null);
+          doc.clip();
+          doc.discardPath();
+          doc.addImage(data, isPng ? 'PNG' : 'JPEG', x, y, width, width);
+          doc.restoreGraphicsState();
+          y += width + 12;
+        } else {
+          doc.addImage(data, isPng ? 'PNG' : 'JPEG', x, y, width, h);
+          y += h + 12;
+        }
       } catch {
         doc.text('[image]', x, y);
         y += lineH;
@@ -1464,7 +1517,7 @@ document.getElementById('file-input').onchange = (e) => {
   e.target.value = '';
 };
 
-// Clean paste listener
+// Safe paste handler
 editor.addEventListener('paste', (e) => {
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text/plain');
@@ -1513,7 +1566,19 @@ editor.addEventListener('drop', (e) => {
   if (f && (f.type.startsWith('text') || f.name.endsWith('.txt') || f.name.endsWith('.md'))) {
     const r = new FileReader();
     r.onload = () => {
-      editor.innerText = r.result;
+      // Non-destructive insertion at caret or append
+      const text = r.result;
+      const sel = window.getSelection();
+      if (sel.rangeCount && editor.contains(sel.anchorNode)) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const node = document.createTextNode(text);
+        range.insertNode(node);
+        range.setStartAfter(node);
+        range.collapse(true);
+      } else {
+        editor.appendChild(document.createTextNode(text));
+      }
       updateStatus();
       scheduleMarquee();
       saveCurrentSheet();
@@ -1530,36 +1595,43 @@ document.getElementById('btn-help').onclick = openHelp;
 document.getElementById('close-help').onclick = closeHelp;
 helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) closeHelp(); });
 
-// Global keyboard shortcuts
+// Global keyboard shortcuts (fully handling Undo/Redo inside contenteditable)
 document.addEventListener('keydown', (e) => {
   const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement !== editor && !isInput) {
     openHelp();
     e.preventDefault();
+    return;
   }
   if ((e.ctrlKey || e.metaKey) && e.key === '/') {
     openHelp();
     e.preventDefault();
+    return;
   }
   if (e.key === 'Escape') {
     closeHelp();
     if (document.body.classList.contains('zen')) toggleZen();
+    return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && document.activeElement !== editor) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && !isInput) {
     handleUndo();
     e.preventDefault();
+    return;
   }
-  if ((((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) || ((e.ctrlKey || e.metaKey) && e.key === 'y')) && document.activeElement !== editor) {
+  if ((((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) || ((e.ctrlKey || e.metaKey) && e.key === 'y')) && !isInput) {
     handleRedo();
     e.preventDefault();
+    return;
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     saveCurrentSheet();
     e.preventDefault();
+    return;
   }
   if (e.altKey && (e.key === 'z' || e.key === 'Z')) {
     toggleZen();
     e.preventDefault();
+    return;
   }
 });
 
