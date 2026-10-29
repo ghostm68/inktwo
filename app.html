@@ -608,9 +608,13 @@
             }
 
             // 2. Periodic Autosave (every 5 seconds) — IndexedDB first, localStorage fallback
+            // Only write when content has actually changed
+            let lastSavedHtml = editor.innerHTML;
             setInterval(async () => {
                 if (!editor) return;
                 const html = editor.innerHTML;
+                if (html === lastSavedHtml) return;
+                lastSavedHtml = html;
                 try {
                     await saveDraftIDB(html);
                     setDocStatus('SAVED', 'saved');
@@ -663,6 +667,20 @@
                     }
                 }
             });
+
+            // 5. Paste handler — intercept image pastes (screenshots) and run through compression
+            editor.addEventListener('paste', async (e) => {
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                for (const item of items) {
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) await insertImageFile(file, editor);
+                        break; // handle first image only
+                    }
+                }
+            });
         });
 
         // 5. Export Handler (TXT, MD, DOCX)
@@ -701,8 +719,19 @@
                             }
 
                             // Preserve aspect ratio (max width 500px)
-                            let w = node.naturalWidth || 500;
-                            let h = node.naturalHeight || 300;
+                            // Prefer natural dimensions when the image has finished loading
+                            let w = 500;
+                            let h = 300;
+                            if (node.complete && node.naturalWidth > 0 && node.naturalHeight > 0) {
+                                w = node.naturalWidth;
+                                h = node.naturalHeight;
+                            } else if (node.width > 0 && node.height > 0) {
+                                w = node.width;
+                                h = node.height;
+                            }
+                            // Fallback to square-ish if still invalid
+                            if (h <= 0) h = w;
+
                             const maxW = 500;
                             if (w > maxW) {
                                 h = Math.round((h * maxW) / w);
