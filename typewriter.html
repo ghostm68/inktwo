@@ -410,14 +410,28 @@ body.zen .dock-chassis { opacity: 0; pointer-events: none; transform: translateY
           <option value="'Inter', sans-serif">Inter</option>
         </select>
         <select id="video-select" title="Video">
-          <option value="Kz5HI-z8Nnc">Runway Stream</option>
-          <option value="DB7oO82OeD4">Live Deck A</option>
-          <option value="8TDmgVs6HZE">Live Deck B</option>
-          <option value="7Ux4GeY5MXQ">Live Deck C</option>
           <option value="none">Video Off</option>
-          <option value="custom">Custom ID…</option>
+          <optgroup label="Æon Flux (Archive.org)">
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%201.mp4">EP 1 (Pilot shorts)</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%202.mp4">EP 2</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%203.mp4">EP 3</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%204.mp4">EP 4</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%205.mp4">EP 5</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/EP%206.mp4">EP 6</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%201.mp4">S1 EP 1 – Utopia or Deuteranopia?</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%202.mp4">S1 EP 2 – Isthmus Crypticus</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%203.mp4">S1 EP 3 – Thanatophobia</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%204.mp4">S1 EP 4 – A Last Time for Everything</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%205.mp4">S1 EP 5 – The Demiurge</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%206.mp4">S1 EP 6 – Reraizure</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%207.mp4">S1 EP 7 – Chronophasia</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%208.mp4">S1 EP 8 – Ether Drift Theory</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%209.mp4">S1 EP 9 – The Purge</option>
+            <option value="https://archive.org/download/aeonfluxfullseries/S%201%20EP%2010.mp4">S1 EP 10 – End Sinister</option>
+          </optgroup>
+          <option value="custom">Custom YouTube ID / URL…</option>
         </select>
-        <input id="custom-video" placeholder="YouTube ID / URL" style="display:none">
+        <input id="custom-video" placeholder="YouTube ID / URL or direct MP4" style="display:none">
         <button id="btn-help" title="Help & shortcuts">?</button>
       </div>
     </div>
@@ -828,9 +842,30 @@ function extractId(val) {
   const cleaned = val.trim();
   return /^[a-zA-Z0-9_-]{11}$/.test(cleaned) ? cleaned : '';
 }
-function setVideo(id) {
-  localStorage.setItem('typewriter_last_video', id || 'none');
-  if (!id || id === 'none') { videoLayer.innerHTML = ''; return; }
+
+function isDirectVideo(src) {
+  return /\.(mp4|webm|ogg)(\?|$)/i.test(src) || src.includes('archive.org/download');
+}
+
+function setVideo(idOrUrl) {
+  localStorage.setItem('typewriter_last_video', idOrUrl || 'none');
+  if (!idOrUrl || idOrUrl === 'none') {
+    videoLayer.innerHTML = '';
+    return;
+  }
+
+  if (isDirectVideo(idOrUrl)) {
+    // Direct MP4 / Archive.org video
+    videoLayer.innerHTML = `<video src="${idOrUrl}" autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>`;
+    return;
+  }
+
+  // Treat as YouTube ID
+  const id = extractId(idOrUrl) || idOrUrl;
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+    videoLayer.innerHTML = '';
+    return;
+  }
   const isLive = LIVE_IDS.has(id);
   const params = isLive
     ? 'autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&showinfo=0'
@@ -843,16 +878,27 @@ videoSelect.addEventListener('change', () => {
   if (v !== 'custom') setVideo(v);
 });
 customVideo.addEventListener('change', () => {
-  const id = extractId(customVideo.value);
-  if (id) {
-    setVideo(id);
-    localStorage.setItem('typewriter_custom_id', id);
+  const raw = customVideo.value.trim();
+  if (isDirectVideo(raw)) {
+    setVideo(raw);
+    localStorage.setItem('typewriter_custom_id', raw);
+  } else {
+    const id = extractId(raw);
+    if (id) {
+      setVideo(id);
+      localStorage.setItem('typewriter_custom_id', id);
+    }
   }
 });
 customVideo.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
-    const id = extractId(customVideo.value);
-    if (id) setVideo(id);
+    const raw = customVideo.value.trim();
+    if (isDirectVideo(raw)) {
+      setVideo(raw);
+    } else {
+      const id = extractId(raw);
+      if (id) setVideo(id);
+    }
   }
 });
 
