@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WORDSTAR // CIPHER PLATEN</title>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="https://wordstar.nexus/svg/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="https://wordstar.nexus/svg/favicon.svg" />
+  <link rel="shortcut icon" href="https://wordstar.nexus/svg/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="https://wordstar.nexus/svg/apple-touch-icon.png" />
+
+  <!-- Google Fonts: original + Google Sans Flex, Redaction, Hibur Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Almendra+Display&family=Google+Sans+Flex:opsz,wght@8..144,100..1000&family=Hibur+Mono&family=League+Spartan:wght@100..900&family=Nova+Flat&family=Redaction+50&family=Xmind:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+  <!-- SGP4 Propagator for OOTK KeepTrack API Bridge -->
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
+
+  <style>
+    /* === 1. DEFINE VARIABLES FIRST === */
+    :root {
+      --red: #ff0033;
+      --black: #0a0a0a;
+      --bg: #07080a;
+      --chassis: #0b0d11;
+      --paper: #0e1117;
+      --paper-border: rgba(255, 255, 255, 0.16);
+      --white: #ededed;
+      --dim: rgba(237, 237, 237, 0.45);
+      --faint: rgba(255, 255, 255, 0.08);
+      --amber: #ffaa00;
+      --emerald: #00ff66;
+      --font-mono: "Courier New", Courier, monospace;
+      --editor-font: "Courier New", Courier, monospace;
+      --header-bg: rgba(8, 9, 12, 0.98);
+      --sub-header-bg: #090b0f;
+      --status-bg: #08090c;
+      --scanline: rgba(255,255,255,0.012);
+      --scrollbar: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Light / cream-tan theme */
+    [data-theme="light"] {
+      --bg: #f4efe6;
+      --chassis: #ebe4d4;
+      --paper: #faf6ee;
+      --paper-border: rgba(90, 70, 40, 0.18);
+      --white: #2c2418;
+      --dim: rgba(44, 36, 24, 0.55);
+      --faint: rgba(44, 36, 24, 0.08);
+      --black: #1a1610;
+      --header-bg: rgba(244, 239, 230, 0.97);
+      --sub-header-bg: #efe8d9;
+      --status-bg: #ebe4d4;
+      --scanline: rgba(80, 60, 30, 0.04);
+      --scrollbar: rgba(90, 70, 40, 0.25);
+      --amber: #c47a00;
+      --emerald: #0a8f3c;
+    }
+
+    /* === 2. TEXT SELECTION === */
+    ::selection {
+      background: var(--red);
+      color: var(--black);
+      text-shadow: none;
+    }
+    ::-moz-selection {
+      background: var(--red);
+      color: var(--black);
+      text-shadow: none;
+    }
+
+    /* === 3. STEALTH SCROLLBAR === */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar) transparent;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      background-color: var(--bg);
+      color: var(--white);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      background: repeating-linear-gradient(0deg, var(--scanline) 0 1px, transparent 1px 2px);
+    }
+
+    /* === PRIMARY CARRIAGE HEADER === */
+    header {
+      padding: 6px 14px;
+      border-bottom: 1px solid var(--paper-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--header-bg);
+      z-index: 40;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    .brand {
+      font-size: 11px;
+      letter-spacing: 2px;
+      font-weight: bold;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .brand span { color: var(--red); }
+
+    /* === SECONDARY CARRIAGE RIBBON (FONTS + WORLD CALENDARS) === */
+    .sub-header {
+      background: var(--sub-header-bg);
+      border-bottom: 1px solid var(--paper-border);
+      padding: 4px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      z-index: 39;
+      flex-shrink: 0;
+      font-size: 8px;
+    }
+    .sub-header-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* CUSTOM SELECT FOR CIPHERS & TOOLS */
+    .custom-select-container {
+      position: relative;
+      font-size: 8px;
+      letter-spacing: 1px;
+      user-select: none;
+    }
+    .custom-select-container select { display: none; }
+
+    .select-selected {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--paper-border);
+      color: var(--white);
+      padding: 3px 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .select-selected:after { content: "▼"; font-size: 6px; color: var(--red); }
+    .select-selected.select-arrow-active:after { content: "▲"; }
+
+    .select-items {
+      position: absolute;
+      background-color: var(--chassis);
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 99;
+      border: 1px solid var(--red);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+      margin-top: 2px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .select-hide { display: none; }
+
+    .select-items div {
+      color: var(--white);
+      padding: 5px 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 8px;
+    }
+    .select-items div:hover, .same-as-selected {
+      background-color: var(--red) !important;
+      color: var(--black) !important;
+      font-weight: bold;
+    }
+
+    .carriage-tools {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--paper-border);
+      color: var(--white);
+      font-family: inherit;
+      font-size: 8px;
+      padding: 4px 7px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+    }
+    .hud-btn:hover { background: var(--red); color: var(--black); border-color: var(--red); }
+
+    /* MOBILE TAB SWITCHER */
+    .mobile-tab-bar {
+      display: none;
+      background: var(--status-bg);
+      border-bottom: 1px solid var(--paper-border);
+      padding: 4px 8px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--paper-border);
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 8px;
+      padding: 4px;
+      cursor: pointer;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .tab-btn.active {
+      background: var(--red);
+      color: var(--black);
+      font-weight: bold;
+      border-color: var(--red);
+    }
+
+    /* === MAIN SPLIT WORKSPACE === */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      padding: 10px 14px;
+      gap: 12px;
+      max-width: 1280px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* LEFT SIDEBAR: THE BOXES ON ONE SIDE (LIKE 16) */
+    .tactical-rail {
+      width: 270px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+    }
+
+    .tactical-card {
+      background: var(--chassis);
+      border: 1px solid var(--paper-border);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .card-header {
+      font-size: 7px;
+      color: var(--red);
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--faint);
+      padding-bottom: 3px;
+      margin-bottom: 2px;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+    .card-row { display: flex; justify-content: space-between; color: var(--dim); }
+    .card-val { color: var(--white); font-weight: bold; }
+
+    .anagram-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+      max-height: 90px;
+      overflow-y: auto;
+    }
+    .ana-tag {
+      background: var(--faint);
+      border: 1px solid var(--paper-border);
+      padding: 2px 6px;
+      color: var(--white);
+      cursor: pointer;
+      text-transform: uppercase;
+      font-size: 7.5px;
+    }
+    .ana-tag:hover {
+      background: var(--red);
+      color: var(--black);
+      border-color: var(--red);
+    }
+
+    /* RIGHT SIDE: THE FOCUSED TYPEWRITER PLATEN */
+    .editor-rail {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--paper);
+      border: 1px solid var(--paper-border);
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      min-width: 0;
+    }
+
+    .ruler-bar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--paper-border);
+      padding: 3px 12px;
+      font-size: 8px;
+      color: var(--dim);
+      letter-spacing: 0.12em;
+      user-select: none;
+      white-space: nowrap;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* TRUE TEXTAREA: RESIZES SAFELY, CANNOT OVERFLOW */
+    #editor {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      color: var(--white);
+      font-family: var(--editor-font);
+      font-size: 13.5px;
+      line-height: 1.55;
+      padding: 16px 20px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-y: auto;
+      transition: font-family 0.15s ease;
+    }
+
+    .editor-status {
+      border-top: 1px solid var(--paper-border);
+      background: var(--status-bg);
+      padding: 4px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5px;
+      color: var(--dim);
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-tab-bar { display: flex; }
+      .sub-header { flex-direction: column; align-items: stretch; gap: 4px; }
+      .workspace { padding: 6px; }
+      .tactical-rail { display: none; width: 100%; }
+      .tactical-rail.mobile-active { display: flex; }
+      .editor-rail.mobile-hidden { display: none; }
+      #editor { font-size: 12.5px; padding: 12px; }
+    }
+
+    footer {
+      padding: 4px 14px;
+      border-top: 1px solid var(--paper-border);
+      background: var(--status-bg);
+      font-size: 7.5px;
+      color: var(--dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+      flex-shrink: 0;
+    }
+    footer a {
+      color: var(--red);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="scanlines"></div>
+
+  <!-- PRIMARY TOP CARRIAGE BAR -->
+  <header>
+    <div class="brand">
+      <span>●</span> WORDSTAR // CIPHER DECK
+    </div>
+
+    <div class="carriage-tools">
+      <!-- CIPHER DROPDOWN -->
+      <div class="custom-select-container" style="width:190px;">
+        <select id="novaModelSelect">
+          <option value="raw">PLAINTEXT // ADLER</option>
+          <option value="custom">CUSTOM SYMBOLS (!@#$)</option>
+          <option value="enigma">ENIGMA (ROTOR STEPPING)</option>
+          <option value="shift">ALPHA-SHIFT (KEYED +3)</option>
+          <option value="anagram">INSTANT ANAGRAM DRAWER</option>
+        </select>
+      </div>
+
+      <button class="hud-btn" id="btn-direction" title="Toggle between Encrypt and Decrypt">[MODE: ENCRYPT]</button>
+      <button class="hud-btn" id="btn-import" title="Load an encrypted or raw .txt transmission">[IMPORT]</button>
+      <button class="hud-btn" id="btn-export" title="Save branded transmission to disk">[EXPORT]</button>
+      <input type="file" id="file-importer" accept=".txt" style="display:none;" />
+
+      <button class="hud-btn" id="btn-sound">[SOUND: ON]</button>
+      <button class="hud-btn" id="btn-theme" title="Toggle dark / cream-tan theme">[THEME: DARK]</button>
+      <button class="hud-btn" id="btn-revert" title="Revert to initial manuscript">[RESTORE]</button>
+    </div>
+  </header>
+
+  <!-- SECONDARY CARRIAGE RIBBON (FONTS + WORLD CALENDARS) -->
+  <div class="sub-header">
+    <div class="sub-header-group">
+      <span style="color:var(--red); font-weight:bold;">// TYPOGRAPHY:</span>
+      <!-- FONT SELECTION -->
+      <div class="custom-select-container" style="width:180px;">
+        <select id="fontSelect">
+          <option value="'Courier New', Courier, monospace">COURIER (RETRO MONO)</option>
+          <option value="'Nova Flat', sans-serif">NOVA FLAT</option>
+          <option value="'League Spartan', sans-serif">LEAGUE SPARTAN</option>
+          <option value="'Almendra Display', serif">ALMENDRA DISPLAY</option>
+          <option value="'Xmind', sans-serif">XMIND</option>
+          <option value="'Google Sans Flex', sans-serif">GOOGLE SANS FLEX</option>
+          <option value="'Redaction 50', serif">REDACTION 50</option>
+          <option value="'Hibur Mono', monospace">HIBUR MONO</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sub-header-group">
+      <span style="color:var(--amber); font-weight:bold;">// CHRONO:</span>
+      <!-- WORLD CALENDAR INSERTION -->
+      <div class="custom-select-container" style="width:220px;">
+        <select id="calendarSelect">
+          <option value="">+ INSERT WORLD DATE</option>
+          <option value="iso">ISO-8601 (YYYY-MM-DD)</option>
+          <option value="military">MILITARY ZULU (DD-MMM-YYYY)</option>
+          <option value="hebrew">HEBREW // KABBALAH</option>
+          <option value="islamic">HIJRI // UMM AL-QURA</option>
+          <option value="persian">SOLAR HIJRI // PERSIAN</option>
+          <option value="buddhist">BUDDHIST ERA (BE)</option>
+          <option value="japanese">IMPERIAL JAPANESE</option>
+          <option value="chinese">CHINESE LUNAR</option>
+          <option value="indian">INDIAN NATIONAL</option>
+          <option value="coptic">COPTIC</option>
+          <option value="ethiopic">ETHIOPIC</option>
+          <option value="roc">ROC // MINGUO</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE TAB BAR -->
+  <div class="mobile-tab-bar">
+    <button class="tab-btn active" id="tab-editor-btn">1. PLATEN EDITOR</button>
+    <button class="tab-btn" id="tab-radar-btn">2. RADAR & CLOCKS</button>
+  </div>
+
+  <!-- MAIN SPLIT WORKSPACE -->
+  <div class="workspace">
+    
+    <!-- LEFT SIDEBAR: THE BOXES ON ONE SIDE -->
+    <aside class="tactical-rail" id="tacticalRail">
+      
+      <!-- BOX 1: STATION & DUAL CLOCKS -->
+      <div class="tactical-card">
+        <div class="card-header">
+          <span>// STATION TELEMETRY</span>
+          <span style="color:var(--emerald);">LOCKED</span>
+        </div>
+        <div class="card-row"><span>STATION:</span> <span class="card-val">TANGIER // INTZ</span></div>
+        <div class="card-row"><span>GRID:</span> <span class="card-val" id="ground-coords">35.7595°N 005.8340°W</span></div>
+        <div class="card-row"><span>UTC ZULU:</span> <span class="card-val" id="vclock-zulu">00:00:00.0</span></div>
+        <div class="card-row"><span>TNG LOCAL:</span> <span class="card-val" id="vclock-tng">00:00:00</span></div>
+      </div>
+
+      <!-- BOX 2: ORBITAL RADAR (ISS & KEEPTRACK) -->
+      <div class="tactical-card">
+        <div class="card-header">
+          <span>// ORBITAL RADAR</span>
+          <button id="btn-radar-scan" class="hud-btn" style="padding:1px 4px; font-size:6.5px;">[SCAN SKY]</button>
+        </div>
+        <div class="card-row"><span>SAT TARGET:</span> <span class="card-val" id="sat-name">ISS 25544</span></div>
+        <div class="card-row"><span>ALT / STATUS:</span> <span class="card-val"><span id="sat-alt">420 KM</span> · <span id="sat-status" style="color:var(--emerald);">OK</span></span></div>
+        <div class="card-row"><span>OVERHEAD:</span> <span class="card-val" id="kt-count">ACQUIRING...</span></div>
+        <div class="card-row"><span>PEAK CRAFT:</span> <span class="card-val" id="kt-peak-name" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">---</span></div>
+        <div class="card-row"><span>LOOK AZ / EL:</span> <span class="card-val" id="kt-azel">--° / --°</span></div>
+      </div>
+
+      <!-- BOX 3: ENIGMA ODOMETER & ENGINE STATUS -->
+      <div class="tactical-card">
+        <div class="card-header">
+          <span>// CIPHER APPARATUS</span>
+          <span id="card-cipher-status" style="color:var(--amber);">PLAINTEXT</span>
+        </div>
+        <div class="card-row"><span>ACTIVE MODE:</span> <span class="card-val" id="card-engine-mode">ENCRYPT</span></div>
+        <div class="card-row"><span>ENIGMA ROTOR:</span> <span class="card-val" id="enigma-step" style="color:var(--red);">R1:A R2:A</span></div>
+        <div class="card-row"><span>ODOMETER:</span> <span class="card-val" id="rotor-cycles">CYCLE 000</span></div>
+      </div>
+
+      <!-- BOX 4: ANAGRAM RECEPTOR -->
+      <div class="tactical-card" id="card-anagram-box">
+        <div class="card-header">
+          <span>// ANAGRAM RECEPTOR</span>
+          <span style="color:var(--dim);">DICT + PERM · <a href="https://wordstar.nexus/tmura" target="_blank" style="color:var(--red);">TMURA</a></span>
+        </div>
+        <div class="card-row"><span>TARGET:</span> <span class="card-val" id="ana-target-word">CURSOR WORD</span></div>
+        <div class="anagram-tags" id="anagram-tags">
+          <span class="ana-tag" onclick="injectAnagramTag(this.textContent)">ORBITAL</span>
+          <span class="ana-tag" onclick="injectAnagramTag(this.textContent)">TELEMETRY</span>
+          <span class="ana-tag" onclick="injectAnagramTag(this.textContent)">CIPHER</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT MAIN EDITOR -->
+    <main class="editor-rail" id="editorRail">
+      <div class="ruler-bar">
+        ....+....10....+....20....+....30....+....40....+....50....+....60....+....70....+....80
+      </div>
+
+      <textarea id="editor" spellcheck="false" placeholder="Type transmission here. Drop any .txt transmission file directly onto this platen to decrypt...">ORBITAL TELEMETRY // CIPHER MEMO
+STATION: TANGIER INTERZONE // VAL VERDE RELAY
+SECURITY CLEARANCE: LEVEL 4 [EYES ONLY]
+
+OPERATIONAL PROTOCOL:
+1. DRAFT cable in PLAINTEXT or drop incoming .txt dispatch onto platen.
+2. Select desired font and inject calendar date stamps via the sub-header above.
+3. ENGAGE cipher apparatus via the carriage dropdown above.
+4. Toggle [MODE: ENCRYPT] to scramble or [DECRYPT] to translate.
+5. Execute [EXPORT] to save branded transmission file to disc.
+
+NOTICE: Rotors step mechanically on key-depression. Rotors reset to origin at the beginning of each transmission file.</textarea>
+
+      <div class="editor-status">
+        <div>SYS: WORDSTAR // CIPHER PLATEN</div>
+        <div id="footer-font-lbl">FONT: COURIER</div>
+        <div id="footer-stats">LN: 1 | WORDS: 0 | CHARS: 0</div>
+        <div>STATUS: <span style="color:var(--emerald);">READY</span></div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- GLOBAL FOOTER -->
+  <footer>
+    <div>TANGIER INTERZONE // VAL VERDE RELAY</div>
+    <div>ACTIVE FREQUENCY: <span id="footer-engine-lbl" style="color:var(--red);">PLAINTEXT [ENCRYPT]</span></div>
+    <div><a href="https://wordstar.nexus/tmura" target="_blank" rel="noopener">TMURA LEXICON</a> · WORDSTAR.NEXUS</div>
+  </footer>
+
+  <script>
+    /* ======================================================
+       0. OOTK BROWSER COMPATIBILITY BRIDGE (KEEPTRACK.SPACE)
+    ====================================================== */
+    window.ootk = window.ootk || {
+      GroundStation: function(cfg) {
+        this.lat = cfg.lat;
+        this.lon = cfg.lon;
+        this.alt = cfg.alt || 0.1;
+      },
+      Satellite: function(cfg) {
+        this.name = cfg.name;
+        this.satrec = (cfg.tle1 && cfg.tle2 && window.satellite) 
+          ? window.satellite.twoline2satrec(cfg.tle1, cfg.tle2) 
+          : null;
+        
+        this.rae = function(observer, now) {
+          if (!this.satrec || !window.satellite) return null;
+          try {
+            const pv = window.satellite.propagate(this.satrec, now);
+            if (!pv || !pv.position) return null;
+            const gmst = window.satellite.gstime(now);
+            const ecf = window.satellite.eciToEcf(pv.position, gmst);
+            const obsGd = {
+              latitude: observer.lat * (Math.PI / 180),
+              longitude: observer.lon * (Math.PI / 180),
+              height: observer.alt || 0.1
+            };
+            const look = window.satellite.ecfToLookAngles(obsGd, ecf);
+            return {
+              az: look.azimuth * (180 / Math.PI),
+              el: look.elevation * (180 / Math.PI),
+              rng: look.rangeSat
+            };
+          } catch(e) {
+            return null;
+          }
+        };
+      }
+    };
+
+    /* ======================================================
+       1. TANGIER & ZULU CLOCKS
+    ====================================================== */
+    const vclockZulu = document.getElementById('vclock-zulu');
+    const vclockTng = document.getElementById('vclock-tng');
+
+    function updateClocks() {
+      const now = new Date();
+      const uh = String(now.getUTCHours()).padStart(2, '0');
+      const um = String(now.getUTCMinutes()).padStart(2, '0');
+      const us = String(now.getUTCSeconds()).padStart(2, '0');
+      const ut = Math.floor(now.getUTCMilliseconds() / 100);
+      const th = String((now.getUTCHours() + 1) % 24).padStart(2, '0');
+
+      if (vclockZulu) vclockZulu.textContent = `${uh}:${um}:${us}.${ut}`;
+      if (vclockTng) vclockTng.textContent = `${th}:${um}:${us}`;
+    }
+    setInterval(updateClocks, 80);
+
+    /* ======================================================
+       2. GROUND COORDINATES
+    ====================================================== */
+    const groundCoordsEl = document.getElementById('ground-coords');
+    window.addEventListener('mousemove', (e) => {
+      const offsetX = ((e.clientX / window.innerWidth) - 0.5) * 0.085;
+      const offsetY = ((e.clientY / window.innerHeight) - 0.5) * 0.085;
+      const lat = (35.7595 + offsetY).toFixed(4);
+      const lon = (5.8340 + offsetX).toFixed(4);
+      if (groundCoordsEl) groundCoordsEl.textContent = `${lat}°N 00${lon}°W`;
+    }, { passive: true });
+
+    /* ======================================================
+       3. MULTI-DROPDOWN UI ENGINE (UPGRADED)
+    ====================================================== */
+    function initCustomSelect() {
+      const containers = document.querySelectorAll(".custom-select-container");
+      containers.forEach(container => {
+        const originalSelect = container.querySelector("select");
+        if (!originalSelect || container.querySelector(".select-selected")) return;
+
+        const selectedDisplay = document.createElement("div");
+        selectedDisplay.setAttribute("class", "select-selected");
+        selectedDisplay.innerHTML = originalSelect.options[originalSelect.selectedIndex].innerHTML;
+        container.appendChild(selectedDisplay);
+
+        const selectItems = document.createElement("div");
+        selectItems.setAttribute("class", "select-items select-hide");
+
+        for (let i = 0; i < originalSelect.options.length; i++) {
+          const option = originalSelect.options[i];
+          const item = document.createElement("div");
+          item.innerHTML = option.innerHTML;
+          if (option.className) item.className = option.className;
+
+          item.addEventListener("click", function(e) {
+            for (let j = 0; j < originalSelect.options.length; j++) {
+              if (originalSelect.options[j].innerHTML === this.innerHTML) {
+                originalSelect.selectedIndex = j;
+                selectedDisplay.innerHTML = this.innerHTML;
+                
+                const event = new Event('change');
+                originalSelect.dispatchEvent(event);
+
+                const sameAsSelected = this.parentNode.getElementsByClassName("same-as-selected");
+                for (let k = 0; k < sameAsSelected.length; k++) {
+                  sameAsSelected[k].removeAttribute("class");
+                }
+                this.setAttribute("class", "same-as-selected");
+                break;
+              }
+            }
+            selectedDisplay.click();
+          });
+          selectItems.appendChild(item);
+        }
+        container.appendChild(selectItems);
+
+        selectedDisplay.addEventListener("click", function(e) {
+          e.stopPropagation();
+          closeAllSelect(this);
+          this.nextSibling.classList.toggle("select-hide");
+          this.classList.toggle("select-arrow-active");
+        });
+      });
+    }
+
+    function closeAllSelect(elmnt) {
+      const arrNo = [];
+      const selectItems = document.getElementsByClassName("select-items");
+      const selected = document.getElementsByClassName("select-selected");
+      for (let i = 0; i < selected.length; i++) {
+        if (elmnt === selected[i]) arrNo.push(i);
+        else selected[i].classList.remove("select-arrow-active");
+      }
+      for (let i = 0; i < selectItems.length; i++) {
+        if (arrNo.indexOf(i)) selectItems[i].classList.add("select-hide");
+      }
+    }
+    document.addEventListener("click", closeAllSelect);
+    initCustomSelect();
+
+    /* ======================================================
+       4. TYPOGRAPHY ENGINE (FONT SELECTION)
+    ====================================================== */
+    const editor = document.getElementById('editor');
+    const fontSelect = document.getElementById('fontSelect');
+    const footerFontLbl = document.getElementById('footer-font-lbl');
+
+    fontSelect.addEventListener('change', (e) => {
+      const font = e.target.value;
+      editor.style.fontFamily = font;
+      const cleanName = font.split(',')[0].replace(/['"]/g, '').toUpperCase();
+      if (footerFontLbl) footerFontLbl.textContent = `FONT: ${cleanName}`;
+    });
+
+    /* ======================================================
+       5. WORLD CALENDAR DATE INJECTION ENGINE
+    ====================================================== */
+    const calendarSelect = document.getElementById('calendarSelect');
+
+    function getWorldDateString(calendarKey) {
+      const now = new Date();
+      try {
+        switch (calendarKey) {
+          case 'iso':
+            return now.toISOString().split('T')[0];
+          case 'military': {
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            return `${String(now.getUTCDate()).padStart(2, '0')}-${months[now.getUTCMonth()]}-${now.getUTCFullYear()}`;
+          }
+          case 'hebrew':
+            return new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'islamic':
+            return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'persian':
+            return new Intl.DateTimeFormat('en-u-ca-persian', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'buddhist':
+            return new Intl.DateTimeFormat('en-u-ca-buddhist', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'japanese':
+            return new Intl.DateTimeFormat('en-u-ca-japanese', { era: 'short', year: 'numeric', month: 'numeric', day: 'numeric' }).format(now);
+          case 'chinese':
+            return new Intl.DateTimeFormat('en-u-ca-chinese', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'indian':
+            return new Intl.DateTimeFormat('en-u-ca-indian', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'coptic':
+            return new Intl.DateTimeFormat('en-u-ca-coptic', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'ethiopic':
+            return new Intl.DateTimeFormat('en-u-ca-ethiopic', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          case 'roc':
+            return new Intl.DateTimeFormat('en-u-ca-roc', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
+          default:
+            return now.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        return now.toISOString().split('T')[0];
+      }
+    }
+
+    function injectDateIntoEditor(dateStr) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      editor.focus();
+      const payload = `[DATE: ${dateStr}]`;
+      editor.setRangeText(payload, start, end, 'end');
+      playTypeSound(false);
+      updateStats();
+    }
+
+    calendarSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (!val) return;
+      const dateText = getWorldDateString(val);
+      injectDateIntoEditor(dateText);
+
+      // Reset dropdown display label
+      setTimeout(() => {
+        calendarSelect.selectedIndex = 0;
+        const displayEl = calendarSelect.parentNode.querySelector('.select-selected');
+        if (displayEl) displayEl.innerHTML = '+ INSERT WORLD DATE';
+      }, 150);
+    });
+
+    /* ======================================================
+       6. CIPHER TRANSFORM ENGINES (BIDIRECTIONAL)
+    ====================================================== */
+    const modeSelect = document.getElementById('novaModelSelect');
+    const footerEngine = document.getElementById('footer-engine-lbl');
+    const cardCipherStatus = document.getElementById('card-cipher-status');
+    const cardEngineMode = document.getElementById('card-engine-mode');
+    const rotorCyclesEl = document.getElementById('rotor-cycles');
+
+    let cipherDirection = 'ENCRYPT';
+    let rawSource = editor.value;
+
+    // Bijective custom symbol map (A-Z 0-9 → unique symbols)
+    const customCode = {
+      'A':'!','B':'@','C':'#','D':'$','E':'%','F':'^','G':'&','H':'*','I':'(','J':')',
+      'K':'_','L':'+','M':'-','N':'=','O':'`','P':'~','Q':'[','R':']','S':'{','T':'}',
+      'U':'|','V':';','W':':','X':'\'','Y':'"','Z':'<',
+      '0':'>','1':'.','2':',','3':'/','4':'?','5':'\\','6':'§','7':'°','8':'±','9':'µ'
+    };
+    const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    const reverseCustomCode = {};
+    for (const [char, symbol] of Object.entries(customCode)) {
+      reverseCustomCode[symbol] = char;
+    }
+
+    const rotor1 = {'A':'D','B':'K','C':'V','D':'Q','E':'L','F':'G','G':'Z','H':'B','I':'P','J':'S','K':'O','L':'M','M':'R','N':'W','O':'C','P':'I','Q':'U','R':'Y','S':'A','T':'N','U':'F','V':'X','W':'J','X':'H','Y':'T','Z':'E'};
+    const rotor2 = {'A':'H','B':'Q','C':'Z','D':'G','E':'P','F':'J','G':'T','H':'M','I':'O','J':'B','K':'L','L':'N','M':'C','N':'V','O':'F','P':'D','Q':'U','R':'S','S':'R','T':'A','U':'X','V':'Y','W':'I','X':'K','Y':'E','Z':'W'};
+    
+    const revRotor1 = {};
+    const revRotor2 = {};
+    for (const [k, v] of Object.entries(rotor1)) revRotor1[v] = k;
+    for (const [k, v] of Object.entries(rotor2)) revRotor2[v] = k;
+    
+    let p1Idx = 0, p2Idx = 0;
+    let odometerCounter = 0;
+
+    function encodeCustomSymbols(text) {
+      return text.split('').map(char => {
+        const u = char.toUpperCase();
+        return customCode[u] !== undefined ? customCode[u] : char;
+      }).join('');
+    }
+
+    function decodeCustomSymbols(text) {
+      return text.split('').map(char => reverseCustomCode[char] || char).join('');
+    }
+
+    function encodeEnigma(text) {
+      p1Idx = 0; p2Idx = 0; odometerCounter = 0;
+      return text.split('').map(char => {
+        const u = char.toUpperCase();
+        if (!alpha.includes(u)) return char;
+
+        p1Idx = (p1Idx + 1) % 26;
+        if (p1Idx === 0) p2Idx = (p2Idx + 1) % 26;
+        odometerCounter++;
+
+        let idx = (alpha.indexOf(u) + p1Idx) % 26;
+        let sub = rotor1[alpha[idx]];
+        idx = (alpha.indexOf(sub) - p1Idx + 26) % 26;
+
+        idx = (idx + p2Idx) % 26;
+        sub = rotor2[alpha[idx]];
+        idx = (alpha.indexOf(sub) - p2Idx + 26) % 26;
+
+        return alpha[idx];
+      }).join('');
+    }
+
+    function decodeEnigma(text) {
+      p1Idx = 0; p2Idx = 0; odometerCounter = 0;
+      return text.split('').map(char => {
+        const u = char.toUpperCase();
+        if (!alpha.includes(u)) return char;
+
+        p1Idx = (p1Idx + 1) % 26;
+        if (p1Idx === 0) p2Idx = (p2Idx + 1) % 26;
+        odometerCounter++;
+
+        let idx = (alpha.indexOf(u) + p2Idx) % 26;
+        let sub = revRotor2[alpha[idx]];
+        idx = (alpha.indexOf(sub) - p2Idx + 26) % 26;
+
+        idx = (idx + p1Idx) % 26;
+        sub = revRotor1[alpha[idx]];
+        idx = (alpha.indexOf(sub) - p1Idx + 26) % 26;
+
+        return alpha[idx];
+      }).join('');
+    }
+
+    function encodeAlphaShift(text, shift = 3) {
+      return text.split('').map(char => {
+        const u = char.toUpperCase();
+        const idx = alpha.indexOf(u);
+        if (idx === -1) return char;
+        const shifted = alpha[(idx + shift) % 26];
+        return char === char.toLowerCase() ? shifted.toLowerCase() : shifted;
+      }).join('');
+    }
+
+    function decodeAlphaShift(text, shift = 3) {
+      return encodeAlphaShift(text, (26 - (shift % 26)) % 26);
+    }
+
+    function applyActiveMode(mode) {
+      const modeUpper = mode.toUpperCase();
+      footerEngine.textContent = `${modeUpper} [${cipherDirection}]`;
+      if (cardCipherStatus) cardCipherStatus.textContent = modeUpper;
+      if (cardEngineMode) cardEngineMode.textContent = cipherDirection;
+
+      const currentText = (mode === 'raw' && cipherDirection === 'ENCRYPT') ? rawSource : editor.value;
+
+      if (mode === 'raw') {
+        editor.value = rawSource;
+      } else if (mode === 'custom') {
+        editor.value = (cipherDirection === 'ENCRYPT') 
+          ? encodeCustomSymbols(rawSource) 
+          : decodeCustomSymbols(currentText);
+      } else if (mode === 'enigma') {
+        editor.value = (cipherDirection === 'ENCRYPT') 
+          ? encodeEnigma(rawSource) 
+          : decodeEnigma(currentText);
+        document.getElementById('enigma-step').textContent = `R1:${alpha[p1Idx]} R2:${alpha[p2Idx]}`;
+        if (rotorCyclesEl) rotorCyclesEl.textContent = `CYCLE ${String(odometerCounter).padStart(3, '0')}`;
+      } else if (mode === 'shift') {
+        editor.value = (cipherDirection === 'ENCRYPT') 
+          ? encodeAlphaShift(rawSource, 3) 
+          : decodeAlphaShift(currentText, 3);
+      } else if (mode === 'anagram') {
+        editor.value = rawSource;
+        inspectAnagramUnderCursor();
+      }
+      updateStats();
+    }
+
+    modeSelect.addEventListener('change', (e) => {
+      applyActiveMode(e.target.value);
+    });
+
+    const btnDirection = document.getElementById('btn-direction');
+    btnDirection.addEventListener('click', () => {
+      cipherDirection = (cipherDirection === 'ENCRYPT') ? 'DECRYPT' : 'ENCRYPT';
+      btnDirection.textContent = `[MODE: ${cipherDirection}]`;
+      btnDirection.style.borderColor = (cipherDirection === 'DECRYPT') ? 'var(--red)' : '';
+      btnDirection.style.color = (cipherDirection === 'DECRYPT') ? '#fff' : '';
+      applyActiveMode(modeSelect.value);
+    });
+
+    document.getElementById('btn-revert').addEventListener('click', () => {
+      modeSelect.value = 'raw';
+      cipherDirection = 'ENCRYPT';
+      btnDirection.textContent = '[MODE: ENCRYPT]';
+      btnDirection.style.borderColor = '';
+      btnDirection.style.color = '';
+      applyActiveMode('raw');
+      const displayEl = modeSelect.parentNode.querySelector('.select-selected');
+      if (displayEl) displayEl.innerHTML = 'PLAINTEXT // ADLER';
+    });
+
+    /* ======================================================
+       7. INSTANT ANAGRAM GENERATOR (dictionary-aware)
+    ====================================================== */
+    let wordSet = null;          // Set of uppercase words
+    let wordListLoading = false;
+    const WORDLIST_URL = 'https://cdn.jsdelivr.net/gh/dwyl/english-words@master/words_alpha.txt';
+
+    async function ensureWordList() {
+      if (wordSet) return wordSet;
+      if (wordListLoading) return null;
+      wordListLoading = true;
+      try {
+        // Try localStorage cache first (truncated)
+        const cached = localStorage.getItem('wordstar-wordlist-v1');
+        if (cached) {
+          wordSet = new Set(JSON.parse(cached));
+          wordListLoading = false;
+          return wordSet;
+        }
+        const res = await fetch(WORDLIST_URL);
+        if (!res.ok) throw new Error('fetch failed');
+        const text = await res.text();
+        const words = text.split(/\r?\n/).filter(w => w.length >= 3 && w.length <= 12).map(w => w.toUpperCase());
+        // Keep a manageable subset for speed / storage (~25k)
+        const subset = words.filter((_, i) => i % 3 === 0).slice(0, 28000);
+        wordSet = new Set(subset);
+        try {
+          localStorage.setItem('wordstar-wordlist-v1', JSON.stringify(subset));
+        } catch (e) { /* quota */ }
+      } catch (e) {
+        console.warn('Word list unavailable, falling back to permutations', e);
+        wordSet = new Set(); // empty → pure random mode
+      }
+      wordListLoading = false;
+      return wordSet;
+    }
+
+    function letterSignature(str) {
+      return str.toUpperCase().replace(/[^A-Z]/g, '').split('').sort().join('');
+    }
+
+    function generatePermutations(word, max = 8) {
+      const chars = word.toUpperCase().replace(/[^A-Z]/g, '').split('');
+      if (chars.length < 3) return [chars.join('')];
+      const results = new Set();
+      for (let i = 0; i < 50; i++) {
+        const copy = [...chars];
+        for (let j = copy.length - 1; j > 0; j--) {
+          const k = Math.floor(Math.random() * (j + 1));
+          [copy[j], copy[k]] = [copy[k], copy[j]];
+        }
+        results.add(copy.join(''));
+        if (results.size >= max) break;
+      }
+      return Array.from(results);
+    }
+
+    async function findDictionaryAnagrams(word, max = 12) {
+      const set = await ensureWordList();
+      const sig = letterSignature(word);
+      if (!sig || sig.length < 3) return [];
+      if (!set || set.size === 0) return generatePermutations(word, max);
+
+      const results = [];
+      // Fast path: scan the set (small enough)
+      for (const w of set) {
+        if (w.length === sig.length && letterSignature(w) === sig && w !== word.toUpperCase()) {
+          results.push(w);
+          if (results.length >= max) break;
+        }
+      }
+      // If few real words, pad with random permutations
+      if (results.length < 4) {
+        const pads = generatePermutations(word, max - results.length);
+        pads.forEach(p => { if (!results.includes(p)) results.push(p); });
+      }
+      return results.slice(0, max);
+    }
+
+    function inspectAnagramUnderCursor() {
+      const text = editor.value;
+      const pos = editor.selectionStart || text.length;
+      
+      const left = text.slice(0, pos).match(/[A-Za-z]+$/);
+      const right = text.slice(pos).match(/^[A-Za-z]+/);
+      const target = (left ? left[0] : '') + (right ? right[0] : '');
+
+      const anaTargetWord = document.getElementById('ana-target-word');
+      const anagramTags = document.getElementById('anagram-tags');
+      const clean = target.trim().replace(/[^A-Za-z]/g, '');
+
+      if (clean.length < 3) return;
+
+      if (anaTargetWord) anaTargetWord.textContent = clean.toUpperCase();
+      if (anagramTags) {
+        anagramTags.innerHTML = '<span class="ana-tag" style="opacity:0.5">…</span>';
+        findDictionaryAnagrams(clean).then(list => {
+          anagramTags.innerHTML = '';
+          if (list.length === 0) {
+            anagramTags.innerHTML = '<span class="ana-tag" style="opacity:0.6">NONE</span>';
+            return;
+          }
+          list.forEach(ana => {
+            const span = document.createElement('span');
+            span.className = 'ana-tag';
+            span.textContent = ana;
+            span.onclick = () => injectAnagramTag(ana);
+            anagramTags.appendChild(span);
+          });
+        });
+      }
+    }
+
+    // Preload word list quietly after a short delay
+    setTimeout(() => { ensureWordList(); }, 2500);
+
+    window.injectAnagramTag = function(anaText) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      editor.focus();
+
+      if (start !== end) {
+        editor.setRangeText(anaText, start, end, 'end');
+      } else {
+        editor.setRangeText(' ' + anaText + ' ', start, end, 'end');
+      }
+      updateStats();
+    };
+
+    /* ======================================================
+       8. KEYSTROKES, STATS & MECHANICAL AUDIO
+    ====================================================== */
+    let audioEnabled = true;
+    let audioCtx = null;
+
+    function playTypeSound(isSpace = false) {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = isSpace ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(isSpace ? 320 : 980, t);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.04);
+      } catch (e) {}
+    }
+
+    function updateStats() {
+      const text = editor.value || "";
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const lines = text ? text.split("\n").length : 0;
+      document.getElementById('footer-stats').textContent = `LN: ${lines} | WORDS: ${words} | CHARS: ${text.length}`;
+    }
+
+    editor.addEventListener('input', () => {
+      if (modeSelect.value === 'raw' && cipherDirection === 'ENCRYPT') {
+        rawSource = editor.value;
+      }
+      updateStats();
+      inspectAnagramUnderCursor();
+    });
+
+    editor.addEventListener('click', inspectAnagramUnderCursor);
+    editor.addEventListener('keyup', inspectAnagramUnderCursor);
+
+    editor.addEventListener('keydown', (e) => {
+      playTypeSound(e.key === ' ');
+    });
+
+    /* ======================================================
+       9. FILE IMPORT & PLATEN DRAG-AND-DROP ENGINE
+    ====================================================== */
+    const fileImporter = document.getElementById('file-importer');
+    const btnImport = document.getElementById('btn-import');
+    const editorRail = document.getElementById('editorRail');
+
+    btnImport.addEventListener('click', () => fileImporter.click());
+
+    fileImporter.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) loadFileToPlaten(file);
+    });
+
+    editorRail.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      editorRail.style.borderColor = 'var(--red)';
+    });
+
+    editorRail.addEventListener('dragleave', () => {
+      editorRail.style.borderColor = 'var(--paper-border)';
+    });
+
+    editorRail.addEventListener('drop', (e) => {
+      e.preventDefault();
+      editorRail.style.borderColor = 'var(--paper-border)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        loadFileToPlaten(e.dataTransfer.files[0]);
+      }
+    });
+
+    function loadFileToPlaten(file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        let imported = event.target.result;
+        let detectedMode = null;
+        let detectedDirection = null;
+
+        // Prefer structured metadata if present
+        const metaEngine = imported.match(/CIPHER_ENGINE:\s*([A-Z0-9_+-]+)/i);
+        const metaDirection = imported.match(/CIPHER_DIRECTION:\s*(ENCRYPT|DECRYPT)/i);
+        if (metaEngine) detectedMode = metaEngine[1].toLowerCase().replace(/[^a-z]/g, '');
+        if (metaDirection) detectedDirection = metaDirection[1].toUpperCase();
+
+        // Also support older "CIPHER ENGINE: XXX // MODE: YYY" line
+        if (!detectedMode) {
+          const legacy = imported.match(/CIPHER ENGINE:\s*([A-Z0-9_+-]+)\s*\/\/\s*MODE:\s*(ENCRYPT|DECRYPT)/i);
+          if (legacy) {
+            detectedMode = legacy[1].toLowerCase().replace(/[^a-z]/g, '');
+            detectedDirection = legacy[2].toUpperCase();
+          }
+        }
+
+        const matchPayload = imported.match(/--- START PAYLOAD ---\r?\n([\s\S]*?)\r?\n--- END PAYLOAD ---/);
+        if (matchPayload && matchPayload[1]) {
+          imported = matchPayload[1].trim();
+        }
+
+        editor.value = imported;
+        rawSource = imported;
+        playTypeSound(false);
+
+        // Map common names
+        const modeMap = { plaintext: 'raw', adler: 'raw', custom: 'custom', symbols: 'custom', enigma: 'enigma', shift: 'shift', alphashift: 'shift', anagram: 'anagram' };
+        if (detectedMode && modeMap[detectedMode]) detectedMode = modeMap[detectedMode];
+
+        if (detectedMode && ['raw','custom','enigma','shift','anagram'].includes(detectedMode)) {
+          modeSelect.value = detectedMode;
+          const displayEl = modeSelect.parentNode.querySelector('.select-selected');
+          if (displayEl) displayEl.innerHTML = modeSelect.options[modeSelect.selectedIndex].innerHTML;
+
+          if (detectedDirection === 'DECRYPT' || detectedDirection === 'ENCRYPT') {
+            cipherDirection = detectedDirection;
+            btnDirection.textContent = `[MODE: ${cipherDirection}]`;
+            btnDirection.style.borderColor = (cipherDirection === 'DECRYPT') ? 'var(--red)' : '';
+            btnDirection.style.color = (cipherDirection === 'DECRYPT') ? '#fff' : '';
+          }
+          applyActiveMode(detectedMode);
+        } else if (/[!@#$%^&*~`{}[\]+§°±µ]/.test(imported) && !/[a-zA-Z]{5,}/.test(imported)) {
+          // Fallback heuristic for old custom-symbol files
+          cipherDirection = 'DECRYPT';
+          btnDirection.textContent = '[MODE: DECRYPT]';
+          btnDirection.style.borderColor = 'var(--red)';
+          btnDirection.style.color = '#fff';
+          modeSelect.value = 'custom';
+          applyActiveMode('custom');
+          const selectDisplay = modeSelect.parentNode.querySelector('.select-selected');
+          if (selectDisplay) selectDisplay.innerHTML = 'CUSTOM SYMBOLS (!@#$)';
+        } else {
+          updateStats();
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    /* ======================================================
+       10. BRANDED CLASSIFIED TXT EXPORT
+    ====================================================== */
+    document.getElementById('btn-export').addEventListener('click', () => {
+      const mode = modeSelect.value;
+      const modeUpper = mode.toUpperCase();
+      const timestamp = new Date().toISOString();
+      const content = editor.value;
+
+      const brandedDoc = `================================================================================
+WORDSTAR // CIPHER TRANSMISSION [CLASSIFIED LEVEL 4]
+STATION: TANGIER INTERZONE // VAL VERDE RELAY
+TIMESTAMP: ${timestamp}
+CIPHER_ENGINE: ${modeUpper}
+CIPHER_DIRECTION: ${cipherDirection}
+CIPHER_VERSION: 1
+--------------------------------------------------------------------------------
+DECRYPTION INSTRUCTIONS:
+1. Import or drag/drop this file onto the platen at: https://wordstar.nexus
+2. The apparatus will auto-detect engine + direction from the header above.
+3. Or manually select ${modeUpper} and toggle [MODE: DECRYPT] if needed.
+================================================================================
+--- START PAYLOAD ---
+${content}
+--- END PAYLOAD ---
+================================================================================
+.PA (END OF TRANSMISSION // VAL VERDE ARCHIVE)
+================================================================================`;
+
+      const blob = new Blob([brandedDoc], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `CIPHER_TRANSMISSION_${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    /* ======================================================
+       11. LIVE ISS DOWNLINK (api.wheretheiss.at)
+    ====================================================== */
+    async function updateOrbit() {
+      try {
+        const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+        if (!res.ok) return;
+        const d = await res.json();
+        const alt = document.getElementById('sat-alt');
+        const st = document.getElementById('sat-status');
+        if (alt) alt.textContent = `${Math.round(d.altitude)} KM`;
+        if (st) st.textContent = 'OK';
+      } catch (e) {
+        const st = document.getElementById('sat-status');
+        if (st) st.textContent = 'OFFLINE';
+      }
+    }
+    updateOrbit();
+    setInterval(updateOrbit, 3500);
+
+    /* ======================================================
+       12. KEEPTRACK.SPACE OVERHEAD RADAR
+    ====================================================== */
+    const KT_API_KEY = 'kt_6529818087e19a2ba595faaaa7a2dfe4';
+    const ktCountEl = document.getElementById('kt-count');
+    const ktPeakNameEl = document.getElementById('kt-peak-name');
+    const ktAzelEl = document.getElementById('kt-azel');
+    const btnRadarScan = document.getElementById('btn-radar-scan');
+    let cachedCatalog = null;
+
+    async function initKeepTrackRadar() {
+      const Satellite = window.ootk.Satellite;
+      const GroundStation = window.ootk.GroundStation;
+      const observer = new GroundStation({ lat: 35.7595, lon: -5.8340, alt: 0.05 });
+
+      if (ktCountEl) ktCountEl.textContent = 'SCANNING...';
+
+      try {
+        if (!cachedCatalog) {
+          const res = await fetch('https://api.keeptrack.space/v4/sats/brief', {
+            headers: { 'X-API-Key': KT_API_KEY }
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          cachedCatalog = await res.json();
+        }
+
+        const now = new Date();
+        const overhead = [];
+        const payloads = cachedCatalog.filter(e => e.type === 1);
+        
+        for (const entry of payloads) {
+          try {
+            const sat = new Satellite({ name: entry.name, tle1: entry.tle1, tle2: entry.tle2 });
+            const rae = sat.rae(observer, now);
+            if (rae && rae.el > 10) {
+              overhead.push({
+                name: entry.name || 'UNKNOWN',
+                country: entry.country || '?',
+                elevationDeg: Number(rae.el.toFixed(1)),
+                azimuthDeg: Number(rae.az.toFixed(1)),
+                rangeKm: Math.round(rae.rng)
+              });
+            }
+          } catch (e) {}
+        }
+
+        overhead.sort((a, b) => b.elevationDeg - a.elevationDeg);
+        if (ktCountEl) ktCountEl.textContent = `${overhead.length} CRAFT OVERHEAD`;
+
+        if (overhead.length > 0) {
+          const peak = overhead[0];
+          if (ktPeakNameEl) ktPeakNameEl.textContent = peak.name;
+          if (ktAzelEl) ktAzelEl.textContent = `${peak.azimuthDeg}° / ${peak.elevationDeg}°`;
+        }
+
+        console.group(`KEEPTRACK // ${overhead.length} PAYLOADS OVERHEAD (TANGIER)`);
+        console.table(overhead.slice(0, 25));
+        console.groupEnd();
+      } catch (err) {
+        if (ktCountEl) ktCountEl.textContent = 'LINK TIMEOUT';
+      }
+    }
+
+    if (btnRadarScan) btnRadarScan.addEventListener('click', initKeepTrackRadar);
+    setTimeout(initKeepTrackRadar, 1500);
+
+    /* ======================================================
+       13. MOBILE TAB SWITCHER LOGIC
+    ====================================================== */
+    const tabEditorBtn = document.getElementById('tab-editor-btn');
+    const tabRadarBtn = document.getElementById('tab-radar-btn');
+    const tacticalRail = document.getElementById('tacticalRail');
+
+    tabEditorBtn.addEventListener('click', () => {
+      tabEditorBtn.classList.add('active');
+      tabRadarBtn.classList.remove('active');
+      tacticalRail.classList.remove('mobile-active');
+      editorRail.classList.remove('mobile-hidden');
+    });
+
+    tabRadarBtn.addEventListener('click', () => {
+      tabRadarBtn.classList.add('active');
+      tabEditorBtn.classList.remove('active');
+      tacticalRail.classList.add('mobile-active');
+      editorRail.classList.add('mobile-hidden');
+    });
+
+    document.getElementById('btn-sound').addEventListener('click', (e) => {
+      audioEnabled = !audioEnabled;
+      e.target.textContent = `[SOUND: ${audioEnabled ? 'ON' : 'OFF'}]`;
+    });
+
+    /* ======================================================
+       THEME TOGGLE (DARK / CREAM-TAN)
+    ====================================================== */
+    const btnTheme = document.getElementById('btn-theme');
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        if (btnTheme) btnTheme.textContent = '[THEME: LIGHT]';
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (btnTheme) btnTheme.textContent = '[THEME: DARK]';
+      }
+      try { localStorage.setItem('wordstar-theme', theme); } catch(e) {}
+    }
+    if (btnTheme) {
+      btnTheme.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        applyTheme(current === 'light' ? 'dark' : 'light');
+      });
+    }
+    // Restore saved theme
+    try {
+      const saved = localStorage.getItem('wordstar-theme');
+      if (saved === 'light') applyTheme('light');
+    } catch(e) {}
+
+    updateStats();
+  </script>
+</body>
+</html>
