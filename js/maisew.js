@@ -390,8 +390,9 @@ class InkRealmTerminal {
         if (role === "ai" && !text) {
             const id = "msg-" + Math.random().toString(36).slice(2);
             div.innerHTML = `
-                <div class="message-header">\( {meta} <span class="notepad-btn" data-import=" \){id}">→ PAD</span></div>
+                <div class="message-header">${meta} <span class="notepad-btn" data-import="${id}">→ PAD</span></div>
                 <div class="message-content" id="${id}"></div>`;
+        }
         } else {
             div.innerHTML = `
                 <div class="message-header">${meta}</div>
