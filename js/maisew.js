@@ -108,8 +108,7 @@ class InkRealmTerminal {
                     this.addLog(`tjs Loading: ${p}% - ${progress?.status || progress?.file || ""}`, "info");
                 };
 
-                this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback);
-
+                this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback, this.getTjsModelId(this.modelId));
             // ---------- WebLLM path ----------
             } else {
                 this.backend = "webllm";
