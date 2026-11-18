@@ -1,4 +1,4 @@
-import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.87";
 
 class InkRealmTerminal {
     constructor() {
@@ -92,6 +92,11 @@ class InkRealmTerminal {
                     throw new Error("transformers.js not ready yet. Refresh and try again.");
                 }
 
+                if (this.engine) {
+                    try { await this.engine.unload(); } catch (_) {}
+                    this.engine = null;
+                }
+
                 const progressCallback = (progress) => {
                     const p = progress?.progress != null
                         ? Math.round(progress.progress * 100)
@@ -104,7 +109,6 @@ class InkRealmTerminal {
                 };
 
                 this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback);
-                this.engine = null;
 
             // ---------- WebLLM path ----------
             } else {
@@ -302,13 +306,16 @@ class InkRealmTerminal {
 
         safeListen("connect-btn", "click", () => this.connectEngine());
 
-        safeListen("model-select", "change", e => {
+        safeListen("model-select", "change", async e => {
             this.modelId = e.target.value;
             this.isOnline = false;
             this.backend = this.isTjsModel(this.modelId) ? "tjs" : "webllm";
 
-            // Clear previous engines
-            this.engine = null;
+            // Unload previous WebLLM engine to free GPU VRAM cleanly
+            if (this.engine) {
+                try { await this.engine.unload(); } catch (_) {}
+                this.engine = null;
+            }
             this.tjsGenerator = null;
 
             const btn = document.getElementById("connect-btn");
@@ -392,7 +399,6 @@ class InkRealmTerminal {
             div.innerHTML = `
                 <div class="message-header">${meta} <span class="notepad-btn" data-import="${id}">→ PAD</span></div>
                 <div class="message-content" id="${id}"></div>`;
-        }
         } else {
             div.innerHTML = `
                 <div class="message-header">${meta}</div>
@@ -440,4 +446,4 @@ if (document.readyState === "loading") {
     });
 } else {
     window.app = new InkRealmTerminal();
-}
+    }
