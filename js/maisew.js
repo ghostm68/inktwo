@@ -1,4 +1,4 @@
-import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.87";
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 class InkRealmTerminal {
     constructor() {
@@ -92,11 +92,6 @@ class InkRealmTerminal {
                     throw new Error("transformers.js not ready yet. Refresh and try again.");
                 }
 
-                if (this.engine) {
-                    try { await this.engine.unload(); } catch (_) {}
-                    this.engine = null;
-                }
-
                 const progressCallback = (progress) => {
                     const p = progress?.progress != null
                         ? Math.round(progress.progress * 100)
@@ -108,7 +103,9 @@ class InkRealmTerminal {
                     this.addLog(`tjs Loading: ${p}% - ${progress?.status || progress?.file || ""}`, "info");
                 };
 
-                this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback, this.getTjsModelId(this.modelId));
+                this.tjsGenerator = await window.INK_TJS.createGenerator(progressCallback);
+                this.engine = null;
+
             // ---------- WebLLM path ----------
             } else {
                 this.backend = "webllm";
@@ -305,16 +302,13 @@ class InkRealmTerminal {
 
         safeListen("connect-btn", "click", () => this.connectEngine());
 
-        safeListen("model-select", "change", async e => {
+        safeListen("model-select", "change", e => {
             this.modelId = e.target.value;
             this.isOnline = false;
             this.backend = this.isTjsModel(this.modelId) ? "tjs" : "webllm";
 
-            // Unload previous WebLLM engine to free GPU VRAM cleanly
-            if (this.engine) {
-                try { await this.engine.unload(); } catch (_) {}
-                this.engine = null;
-            }
+            // Clear previous engines
+            this.engine = null;
             this.tjsGenerator = null;
 
             const btn = document.getElementById("connect-btn");
@@ -396,7 +390,7 @@ class InkRealmTerminal {
         if (role === "ai" && !text) {
             const id = "msg-" + Math.random().toString(36).slice(2);
             div.innerHTML = `
-                <div class="message-header">${meta} <span class="notepad-btn" data-import="${id}">→ PAD</span></div>
+                <div class="message-header">\( {meta} <span class="notepad-btn" data-import=" \){id}">→ PAD</span></div>
                 <div class="message-content" id="${id}"></div>`;
         } else {
             div.innerHTML = `
@@ -445,4 +439,4 @@ if (document.readyState === "loading") {
     });
 } else {
     window.app = new InkRealmTerminal();
-    }
+}
