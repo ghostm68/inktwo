@@ -1266,9 +1266,9 @@ select {
 </footer>
 
 <script type="module">
-import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.87";
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; 
-let engine = null;
+let engine;
 
 const btn = document.getElementById('loadCoreBtn');
 const status = document.getElementById('download-status');
@@ -1286,106 +1286,92 @@ if (btn) {
 
             btn.disabled = true;
             btn.textContent = "SYNCING CORE...";
-            if (status) status.style.display = 'block';
-            if (output) output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
+            status.style.display = 'block';
+            output.textContent = "⟁ INITIALIZING LOCAL INTERCEPT... PLEASE STAND BY.";
 
             engine = await webllm.CreateMLCEngine(modelId, {
                 initProgressCallback: (report) => {
-                    const p = Math.round((report.progress || 0) * 100);
-                    if (bar) bar.style.width = p + '%';
-                    if (percent) percent.textContent = p;
-                    if (p < 100 && output) {
-                        output.textContent = "⟁ SYNCING: " + (report.text || "");
+                    const p = Math.round(report.progress * 100);
+                    bar.style.width = p + '%';
+                    percent.textContent = p;
+                    
+                    if (p < 100) {
+                        output.textContent = "⟁ SYNCING: " + report.text;
+                    } else {
+                        btn.style.display = 'none';
+                        output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
+                        generateBtn.style.background = "var(--red)";
+                        generateBtn.style.color = "var(--black)";
+                        generateBtn.style.borderColor = "var(--red)";
+                        document.getElementById('node-status').textContent = "ACTIVE";
+                        document.getElementById('node-status').style.color = "var(--red)";
                     }
                 }
             });
 
-            // Guaranteed 100% completion state once CreateMLCEngine resolves
-            if (bar) bar.style.width = '100%';
-            if (percent) percent.textContent = '100';
-            btn.style.display = 'none';
-            if (output) output.textContent = "⟁ LOCAL CORE STABLE. THE SOFT MACHINE IS ONLINE.";
-            if (generateBtn) {
-                generateBtn.style.background = "var(--red)";
-                generateBtn.style.color = "var(--black)";
-                generateBtn.style.borderColor = "var(--red)";
-            }
-            const nodeStatus = document.getElementById('node-status');
-            if (nodeStatus) {
-                nodeStatus.textContent = "ACTIVE";
-                nodeStatus.style.color = "var(--red)";
-            }
+            generateBtn.onclick = async () => {
+                const promptInput = document.getElementById('prompt');
+                const prompt = promptInput.value.trim();
+                if (!prompt) return;
+                
+                generateBtn.disabled = true;
+                generateBtn.textContent = "PROCESSING...";
+                output.textContent = ""; 
+                
+                try {
+                    const messages = [
+                        { 
+                            role: "system", 
+                            content: "You are the INK REALM Fashion Interface. Write with haute couture precision. AVOID generic filler like 'sophistication' or 'beauty.' Focus on technical materiality: the grain of the fabric, the tension of the seams, and the sharp geometry of the silhouette. Be terse, luxurious, and incisive." 
+                        },
+                        { role: "user", content: prompt }
+                    ];
 
-            if (generateBtn) {
-                generateBtn.onclick = async () => {
-                    const promptInput = document.getElementById('prompt');
-                    const prompt = promptInput ? promptInput.value.trim() : "";
-                    if (!prompt) return;
-                    
-                    generateBtn.disabled = true;
-                    generateBtn.textContent = "PROCESSING...";
-                    if (output) output.textContent = ""; 
-                    
-                    try {
-                        const messages = [
-                            { 
-                                role: "system", 
-                                content: "You are the INK REALM Fashion Interface. Write with haute couture precision. AVOID generic filler like 'sophistication' or 'beauty.' Focus on technical materiality: the grain of the fabric, the tension of the seams, and the sharp geometry of the silhouette. Be terse, luxurious, and incisive." 
-                            },
-                            { role: "user", content: prompt }
-                        ];
+                    const chunks = await engine.chat.completions.create({ 
+                        messages, 
+                        stream: true,
+                        temperature: 0.6, 
+                        top_p: 0.9,
+                        max_tokens: 512   
+                    });
 
-                        const chunks = await engine.chat.completions.create({ 
-                            messages, 
-                            stream: true,
-                            temperature: 0.6, 
-                            top_p: 0.9,
-                            max_tokens: 512   
-                        });
+                    let fullText = "";
+                    output.textContent = "";
 
-                        let fullText = "";
-                        if (output) output.textContent = "";
-
-                        for await (const chunk of chunks) {
-                            fullText += chunk.choices[0]?.delta?.content || "";
-                            if (output) {
-                                output.textContent = fullText;
-                                output.scrollTop = output.scrollHeight;
-                            }
-                        }
-
-                        const insBtn = document.getElementById('insert-btn');
-                        if (insBtn) {
-                            insBtn.style.display = 'block';
-                            insBtn.onclick = () => {
-                                const editor = document.getElementById('main-editor');
-                                if (!editor) return;
-                                const s = editor.selectionStart;
-                                editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(s);
-                                insBtn.style.display = 'none';
-                                editor.focus();
-                            };
-                        }
-
-                    } catch (genErr) {
-                        if (output) output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
-                    } finally {
-                        generateBtn.disabled = false;
-                        generateBtn.textContent = "Transmit";
+                    for await (const chunk of chunks) {
+                        fullText += chunk.choices[0]?.delta?.content || "";
+                        output.textContent = fullText;
+                        output.scrollTop = output.scrollHeight;
                     }
-                };
-            }
+
+                    const insBtn = document.getElementById('insert-btn');
+                    insBtn.style.display = 'block';
+                    
+                    insBtn.onclick = () => {
+                        const editor = document.getElementById('main-editor');
+                        const s = editor.selectionStart;
+                        editor.value = editor.value.slice(0, s) + fullText + editor.value.slice(s);
+                        insBtn.style.display = 'none';
+                        editor.focus();
+                    };
+
+                } catch (genErr) {
+                    output.textContent = "[LOCAL ENGINE ERROR]: " + genErr.message;
+                } finally {
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = "Transmit";
+                }
+            };
 
         } catch (err) {
-            if (status) status.style.display = 'none';
-            btn.disabled = false;
-            btn.textContent = "CORE UNAVAILABLE — RETRY";
-            if (output) output.textContent = `[SIGNAL INTERRUPTED]: ${err.message}`;
+            status.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = "CORE UNAVAILABLE";
+            output.textContent = `[SIGNAL INTERRUPTED]: ${err.message}`;
         }
     };
 }
 </script>
-            
 
 <script>
 // ==================== GLOBAL VARIABLES ====================
