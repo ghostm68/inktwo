@@ -496,9 +496,9 @@
         <p><a href="https://inkrealm.info" style="color: white;">BACK TO MAIN</a></p>
     </footer>
 
-                            <!-- NOUS / HERMES WebLLM ENGINE (ES MODULE — fully scoped, no globals) -->
+    <!-- NOUS / HERMES WebLLM ENGINE (ES MODULE — fully scoped, no globals) -->
     <script type="module">
-    import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.87";
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
     const HERMES_MODEL_ID = "Hermes-3-Llama-3.2-3B-q4f16_1-MLC";
     let hermesEngine = null;
@@ -520,19 +520,11 @@
             nousPanel.style.display = nousPanel.style.display === "block" ? "none" : "block";
         };
 
-        nousPrompt.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (!transmitBtn.disabled) transmitBtn.click();
-            }
-        });
-
         loadCoreBtn.onclick = async () => {
             try {
                 if (!navigator.gpu) throw new Error("WebGPU not available.");
 
                 loadCoreBtn.disabled = true;
-                loadCoreBtn.style.color = "";
                 loadCoreBtn.textContent = "ESTABLISHING LINK...";
                 if (dlTrack) dlTrack.style.display = "block";
                 if (dlText) dlText.style.display = "block";
@@ -543,31 +535,38 @@
                         const p = (report.progress || 0) * 100;
                         if (dlBar) dlBar.style.width = p + "%";
                         if (dlText) dlText.textContent = `DOWNLOADING: ${Math.round(p)}%`;
+
+                        if (p >= 99.5) {
+                            nousOutput.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
+                            loadCoreBtn.style.display = "none";
+                            if (dlTrack) dlTrack.style.display = "none";
+                            if (dlText) dlText.style.display = "none";
+                            if (nousStatus) {
+                                nousStatus.textContent = "ONLINE";
+                                nousStatus.style.color = "#ff0033";
+                            }
+                            transmitBtn.style.color = "#ccc";
+                            transmitBtn.style.borderColor = "#ccc";
+                        }
                     }
                 });
-
-                if (dlText) dlText.textContent = "WARMING UP TENSORS...";
 
                 await hermesEngine.chat.completions.create({
                     messages: [{ role: "user", content: "hi" }],
                     max_tokens: 1
                 });
 
-                nousOutput.textContent = "⟁ NOUS FIELD CONNECTED.\n⟁ AWAITING INPUT.";
-                loadCoreBtn.style.display = "none";
-                if (dlTrack) dlTrack.style.display = "none";
-                if (dlText) dlText.style.display = "none";
-                if (nousStatus) {
-                    nousStatus.textContent = "ONLINE";
-                    nousStatus.style.color = "#ff0033";
-                }
-                transmitBtn.style.color = "#ccc";
-                transmitBtn.style.borderColor = "#ccc";
+                nousPrompt.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        transmitBtn.click();
+                    }
+                });
 
             } catch (err) {
                 console.error("[NOUS]", err);
                 loadCoreBtn.disabled = false;
-                loadCoreBtn.textContent = "FAILURE — RETRY";
+                loadCoreBtn.textContent = "FAILURE";
                 loadCoreBtn.style.color = "#ff0033";
                 nousOutput.textContent = "FATAL: " + (err && err.message ? err.message : String(err));
             }
@@ -640,6 +639,7 @@
         }
     }
     </script>
+
     <!-- CORE APPLICATION SCRIPT -->
     <script src="js/minraud.js"></script>
 </body>
