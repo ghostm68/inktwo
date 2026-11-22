@@ -623,7 +623,6 @@
     </div>
   </div>
 </footer>
-
 <script>
 /* ================================================================
    STATIC DOSSIER LISTS — GROUNDED IN BRIM.TXT, BOOK I & BOOK II
@@ -677,7 +676,12 @@ document.querySelectorAll(".faq-item").forEach(item => {
 });
 
 function escapeHtml(s){
-  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return String(s || "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
 }
 
 /* ================================================================
@@ -719,46 +723,70 @@ const indexBtn = document.getElementById("indexBtn");
 const dateNav = document.getElementById("dateNav");
 const contentDiv = document.getElementById("content");
 
-function parseSearchQuery(query){
-  const terms = { and: [], or: [], not: [], exact: [] };
-  const exactMatches = query.match(/"([^"]+)"/g);
-  if (exactMatches){
-    exactMatches.forEach(match => {
-      terms.exact.push(match.replace(/"/g, "").toLowerCase());
-      query = query.replace(match, "");
-    });
+function parseSearchQuery(raw){
+  const q = raw.trim();
+  const tokens = [];
+  const re = /(-?"[^"]+"|-?\S+)/g;
+  let m;
+  while ((m = re.exec(q)) !== null) tokens.push(m[1]);
+
+  const not = [];
+  const orGroups = [[]];
+
+  for (const tok of tokens){
+    const upper = tok.toUpperCase();
+    if (upper === "OR"){
+      if (orGroups[orGroups.length - 1].length > 0) orGroups.push([]);
+      continue;
+    }
+    if (upper === "AND") continue;
+
+    if (tok.startsWith("-") && tok.length > 1){
+      let val = tok.slice(1);
+      if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) val = val.slice(1, -1);
+      if (val) not.push(val.toLowerCase());
+      continue;
+    }
+
+    let val = tok;
+    if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) val = val.slice(1, -1);
+    if (val) orGroups[orGroups.length - 1].push(val.toLowerCase());
   }
-  const words = query.toLowerCase().split(/\s+/).filter(w => w);
-  let currentOp = "and";
-  words.forEach(word => {
-    if (word === "and") currentOp = "and";
-    else if (word === "or") currentOp = "or";
-    else if (word.startsWith("-")) terms.not.push(word.substring(1));
-    else if (word) terms[currentOp].push(word);
-  });
-  return terms;
+
+  return {
+    orGroups: orGroups.filter(g => g.length > 0),
+    not
+  };
 }
 
 function matchesSearch(entry, terms){
-  const searchText = (entry.content + " " + entry.title).toLowerCase();
+  const searchText = (entry.content + "\n" + entry.title).toLowerCase();
   if (terms.not.some(t => t && searchText.includes(t))) return false;
-  if (terms.exact.some(t => t && !searchText.includes(t))) return false;
-  if (terms.and.some(t => t && !searchText.includes(t))) return false;
-  if (terms.or.length > 0 && !terms.or.some(t => t && searchText.includes(t))) return false;
-  return true;
+  if (terms.orGroups.length === 0) return true;
+  return terms.orGroups.some(andGroup => andGroup.every(t => searchText.includes(t)));
 }
 
-function highlightText(text, query){
-  if (!query.trim()) return text;
+function highlightText(rawText, query){
+  if (!query.trim()) return escapeHtml(rawText);
   const terms = parseSearchQuery(query);
-  const allTerms = [...terms.exact, ...terms.and, ...terms.or].filter((t, i, s) => t && s.indexOf(t) === i);
-  let result = text;
-  allTerms.sort((a, b) => b.length - a.length).forEach(term => {
-    const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(${safeTerm})`, "gi");
-    result = result.replace(regex, `<span class="highlight">$1</span>`);
-  });
-  return result;
+  const allTerms = Array.from(new Set(terms.orGroups.flat())).filter(Boolean);
+  if (!allTerms.length) return escapeHtml(rawText);
+
+  allTerms.sort((a, b) => b.length - a.length);
+  const pattern = allTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(`(${pattern})`, "gi");
+
+  let out = "";
+  let lastIdx = 0;
+  let match;
+  while ((match = regex.exec(rawText)) !== null){
+    if (match[0].length === 0){ regex.lastIndex++; continue; }
+    out += escapeHtml(rawText.slice(lastIdx, match.index));
+    out += `<span class="highlight">${escapeHtml(match[0])}</span>`;
+    lastIdx = regex.lastIndex;
+  }
+  out += escapeHtml(rawText.slice(lastIdx));
+  return out;
 }
 
 function debounce(func, delay){
@@ -800,18 +828,16 @@ async function loadText(){
 function parseEntries(text){
   window.readerEntries = [];
   const lines = text.split("\n");
-  let currentEntry = { id: 0, title: "Intro", content: "", tags: [] };
   let entryId = 0;
-  let isFirst = true;
+  let currentEntry = { id: ++entryId, title: "Intro / Prologue", content: "", tags: [] };
 
   lines.forEach(line => {
     const match = line.match(brimPattern);
     if (match){
-      if (currentEntry.content.trim() && !isFirst){
+      if (currentEntry.content.trim()){
         detectTags(currentEntry);
         window.readerEntries.push(currentEntry);
       }
-      isFirst = false;
       currentEntry = { id: ++entryId, title: match[0].trim(), content: "", tags: [] };
     } else {
       currentEntry.content += line + "\n";
@@ -835,6 +861,19 @@ function getFilteredEntries(){
   return window.readerEntries.filter(e => e.tags.includes(currentFilter));
 }
 
+function renderEmptyReaderState(title, message){
+  contentDiv.innerHTML = `<p>${escapeHtml(message)}</p>`;
+  document.getElementById("activeEntryNum").textContent = "ARCHIVE // 0 RESULTS";
+  document.getElementById("activeEntryTitle").textContent = title;
+  document.getElementById("entryInfoBadge").textContent = "0 ENTRIES";
+  document.getElementById("activeWordCount").textContent = "0 WORDS";
+  document.getElementById("activeEntryTags").innerHTML = "";
+  prevBtn.disabled = true;
+  nextBtn.disabled = true;
+  prevBtnBottom.disabled = true;
+  nextBtnBottom.disabled = true;
+}
+
 function performSearch(query){
   searchQuery = query;
   if (!query.trim()){
@@ -845,6 +884,8 @@ function performSearch(query){
     if (pool.length > 0){
       const currentStillInPool = pool.some(e => e.id === window.readerCurrentIndex);
       showEntry(currentStillInPool ? window.readerCurrentIndex : pool[0].id);
+    } else {
+      renderEmptyReaderState("0 Entries", `No entries tagged [${currentFilter}] in brim.txt.`);
     }
     return;
   }
@@ -858,9 +899,7 @@ function performSearch(query){
   if (searchResults.length > 0){
     showEntry(searchResults[0].id);
   } else {
-    contentDiv.innerHTML = `<p>No matches found in brim.txt for "${escapeHtml(query)}".</p>`;
-    document.getElementById("activeEntryTitle").textContent = "0 Matches";
-    document.getElementById("activeWordCount").textContent = "0 WORDS";
+    renderEmptyReaderState("0 Matches", `No matches found in brim.txt for "${query}".`);
   }
 }
 
@@ -896,14 +935,22 @@ function showEntry(entryId){
   tagsEl.innerHTML = entry.tags.map(t => `<span class="tag-pill">${escapeHtml(t)}</span>`).join("");
 
   const rawLines = entry.content.split("\n").map(l => l.trim()).filter(Boolean);
-  contentDiv.innerHTML = rawLines.map(line => {
-    const safeLine = escapeHtml(line);
-    const finalHtml = (isSearching && searchQuery.trim()) ? highlightText(safeLine, searchQuery) : safeLine;
-    return `<p data-raw="${safeLine}">${finalHtml}</p>`;
-  }).join("");
+  const frag = document.createDocumentFragment();
+  rawLines.forEach(line => {
+    const p = document.createElement("p");
+    p.dataset.plain = line;
+    p.innerHTML = (isSearching && searchQuery.trim()) ? highlightText(line, searchQuery) : escapeHtml(line);
+    frag.appendChild(p);
+  });
+  contentDiv.innerHTML = "";
+  contentDiv.appendChild(frag);
 
-  prevBtn.disabled = itemIndex <= 0;
-  nextBtn.disabled = itemIndex >= viewableItems.length - 1;
+  const atStart = itemIndex <= 0;
+  const atEnd = itemIndex >= viewableItems.length - 1;
+  prevBtn.disabled = atStart;
+  prevBtnBottom.disabled = atStart;
+  nextBtn.disabled = atEnd;
+  nextBtnBottom.disabled = atEnd;
 
   buildIndex();
 }
@@ -977,16 +1024,35 @@ document.getElementById("filterBtns").addEventListener("click", e => {
     document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
     e.target.classList.add("active");
     currentFilter = e.target.dataset.filter;
-    searchBox.value = "";
-    isSearching = false;
-    updateUIState();
-    const filtered = getFilteredEntries();
-    if (filtered.length > 0) showEntry(filtered[0].id);
+
+    if (searchBox.value.trim()){
+      performSearch(searchBox.value);
+    } else {
+      isSearching = false;
+      searchResults = [];
+      updateUIState();
+      const filtered = getFilteredEntries();
+      if (filtered.length > 0){
+        showEntry(filtered[0].id);
+      } else {
+        renderEmptyReaderState("0 Entries", `No entries tagged [${currentFilter}] in brim.txt.`);
+      }
+    }
   }
 });
 
 document.addEventListener("keydown", e => {
-  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)){
+    if (e.key === "Escape") document.activeElement.blur();
+    return;
+  }
+  if (e.key === "/"){
+    e.preventDefault();
+    searchBox.focus();
+    searchBox.select();
+    return;
+  }
+  if (e.key === "Escape") dateNav.classList.remove("open");
   if (e.key === "ArrowLeft") navigateEntries("prev");
   if (e.key === "ArrowRight") navigateEntries("next");
   if (e.key.toLowerCase() === "r") showRandomEntry();
@@ -1192,18 +1258,17 @@ function makeSwirl(el){
 function strayDigitTicker(container){
   setInterval(() => {
     if (isSearching && searchQuery.trim()) return;
-    const paras = container.querySelectorAll("p");
+    const paras = container.querySelectorAll("p[data-plain]");
     if (!paras.length) return;
     const p = paras[Math.floor(Math.random() * paras.length)];
-    const raw = p.dataset.raw || p.textContent;
-    if (raw.length < 18) return;
-    const pos = 6 + Math.floor(Math.random() * (raw.length - 12));
+    const plain = p.dataset.plain;
+    if (!plain || plain.length < 18) return;
+    const pos = 6 + Math.floor(Math.random() * (plain.length - 12));
     const digit = Math.floor(Math.random() * 10);
-    const before = raw.slice(0, pos), after = raw.slice(pos);
-    p.innerHTML = before + `<span class="stray">${digit}</span>` + after;
+    p.innerHTML = escapeHtml(plain.slice(0, pos)) + `<span class="stray">${digit}</span>` + escapeHtml(plain.slice(pos));
     setTimeout(() => {
       if (!isSearching && p.isConnected){
-        p.innerHTML = raw;
+        p.textContent = plain;
       }
     }, 850);
   }, 900);
@@ -1473,5 +1538,6 @@ const io = new IntersectionObserver(entries => {
 }, { threshold: 0.4 });
 document.querySelectorAll("[data-scramble]").forEach(el => io.observe(el));
 </script>
+
 </body>
 </html>
