@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (v2)</title>
+    <title>FOUNT // CITADELLE RESERVE // HANDWRITING &amp; TYPE ENGINE</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
@@ -126,7 +127,7 @@
             overflow: hidden;
         }
         .tool-seg button {
-            padding: 4px 10px;
+            padding: 4px 9px;
             font-size: 10px;
             background: transparent;
             color: rgba(255,255,255,0.75);
@@ -141,6 +142,34 @@
         .tool-seg button.seg-erase-active {
             background: #ef4444;
             color: #ffffff;
+        }
+        .tool-seg button.seg-split-active {
+            background: #f59e0b;
+            color: #111111;
+        }
+
+        .preset-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.28);
+        }
+        .preset-bar button {
+            padding: 7px 6px;
+            font-size: 10px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+        }
+        .preset-bar button.preset-active {
+            background: #ffffff;
+            color: #c8102e;
+        }
+        body.classic-mode .preset-bar button.preset-active {
+            background: #ff2a2a;
+            color: #0a0a0a;
         }
 
         /* Modal Overlay */
@@ -221,10 +250,10 @@
         <header class="flex flex-wrap justify-between items-end gap-4 border-b border-white/25 pb-4">
             <div>
                 <h1 class="text-3xl md:text-4xl font-bold tracking-tight" style="font-family: var(--font-display);">
-                    Fount // Typewriter Engine
+                    Fount // Script &amp; Type Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Marching-Squares Bézier Compiler · Adaptive Thresholding · Live Draw &amp; Erase
+                    Handwriting-to-TTF Compiler · Auto-Split &amp; Adaptive Ink · Live Draw, Erase &amp; Split
                 </p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
@@ -250,8 +279,17 @@
         <div class="grid grid-cols-12 gap-5">
             <!-- SIDEBAR -->
             <aside class="col-span-12 lg:col-span-3 space-y-5">
-                <!-- Source Panel -->
+                <!-- Source & Mode Panel -->
                 <div class="panel p-5 space-y-4">
+                    <!-- Engine Preset Toggle -->
+                    <div>
+                        <div class="text-[10px] font-bold tracking-widest uppercase text-white/65 mb-1.5">Engine Preset</div>
+                        <div class="preset-bar">
+                            <button id="presetHandBtn" onclick="applyEnginePreset('handwriting')" class="preset-active">Handwriting</button>
+                            <button id="presetTypeBtn" onclick="applyEnginePreset('typewriter')">Typewriter</button>
+                        </div>
+                    </div>
+
                     <input type="file" id="imageInput" class="hidden" accept="image/*">
                     <button onclick="document.getElementById('imageInput').click()"
                         class="w-full py-3.5 border border-white/40 text-xs font-bold rounded hover:bg-white hover:text-[#c8102e] transition-all">
@@ -265,20 +303,33 @@
 
                     <!-- Preprocessing Controls -->
                     <div class="space-y-3 pt-1 border-t border-white/10">
-                        <label class="flex items-center justify-between text-xs cursor-pointer">
-                            <span class="text-white/80">Invert Polarity (Negative)</span>
-                            <input type="checkbox" id="invertToggle" onchange="onPreprocessChange()" class="w-4 h-4 accent-white">
+                        <label class="flex items-center justify-between text-xs cursor-pointer" title="Uses local neighborhood brightness to handle phone-camera shadows and uneven paper">
+                            <span class="text-white/80">Adaptive Threshold (Shadows)</span>
+                            <input type="checkbox" id="adaptiveToggle" checked onchange="onAdaptiveModeToggle()" class="w-4 h-4 accent-white">
                         </label>
 
-                        <label class="flex items-center justify-between text-xs cursor-pointer" title="Uses local neighborhood mean to handle page shadows and uneven scans">
-                            <span class="text-white/80">Adaptive Threshold (Shadows)</span>
-                            <input type="checkbox" id="adaptiveToggle" onchange="onAdaptiveModeToggle()" class="w-4 h-4 accent-white">
+                        <label class="flex items-center justify-between text-xs cursor-pointer" title="Slices joined/cursive handwriting along thin connecting pen bridges">
+                            <span class="text-white/80">Auto-Split Touching Letters</span>
+                            <input type="checkbox" id="autoSplitToggle" checked onchange="analyze()" class="w-4 h-4 accent-white">
                         </label>
 
                         <label class="flex items-center justify-between text-xs cursor-pointer" title="Preview the exact black & white ink mask seen by the tracer">
                             <span class="text-white/80">Show B/W Mask</span>
                             <input type="checkbox" id="maskToggle" onchange="updateMainCanvasDisplay()" class="w-4 h-4 accent-white">
                         </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer">
+                            <span class="text-white/80">Invert Polarity (Negative)</span>
+                            <input type="checkbox" id="invertToggle" onchange="onPreprocessChange()" class="w-4 h-4 accent-white">
+                        </label>
+
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-white/80" title="Thickens faint pen/pencil lines before tracing so thin strokes stay intact">Ink Weight (Thicken)</span>
+                                <span id="inkWeightVal" class="font-mono text-cyan-300">+1px</span>
+                            </div>
+                            <input type="range" id="inkWeight" min="0" max="2" step="1" value="1" class="w-full" oninput="updateInkWeight(this.value)">
+                        </div>
 
                         <div>
                             <div class="flex justify-between items-center text-xs mb-1">
@@ -293,7 +344,7 @@
                         <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">Reset Crop</button>
                         <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">Re-Trace</button>
                     </div>
-                    <p class="text-[10px] text-white/60 text-center">Drag on canvas to crop (works while scrolled) or paste an image (Ctrl+V) anytime.</p>
+                    <p class="text-[10px] text-white/60 text-center">Drag on canvas to crop a clean line or region, or paste (Ctrl+V) anytime.</p>
                 </div>
 
                 <!-- Global Metrics Panel -->
@@ -304,20 +355,25 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-[10px] text-white/60 uppercase mb-1">Font Name</label>
-                            <input type="text" id="fontNameInput" value="Citadelle" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
+                            <input type="text" id="fontNameInput" value="CitadelleHand" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
                         </div>
                         <div>
                             <label class="block text-[10px] text-white/60 uppercase mb-1">Style</label>
-                            <input type="text" id="fontStyleInput" value="Typewriter" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
+                            <input type="text" id="fontStyleInput" value="Script" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
                         </div>
                     </div>
 
-                    <label class="flex items-center justify-between text-xs cursor-pointer pt-1 border-t border-white/10">
-                        <span>Monospace Pitch (Centered)</span>
-                        <input type="checkbox" id="monoToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
+                    <label class="flex items-center justify-between text-xs cursor-pointer pt-1 border-t border-white/10" title="Off for natural proportional handwriting; On for fixed-width typewriter cells">
+                        <span>Monospace Pitch (Fixed Width)</span>
+                        <input type="checkbox" id="monoToggle" onchange="generateFont()" class="w-4 h-4 accent-white">
                     </label>
 
-                    <label class="flex items-center justify-between text-xs cursor-pointer" title="Fits native TrueType quadratic Bézier curves while keeping sharp corners crisp">
+                    <label class="flex items-center justify-between text-xs cursor-pointer" title="If only uppercase or only lowercase is mapped, synthesizes the missing case scaled from your handwriting">
+                        <span>Auto-Fill Missing Case (A↔a)</span>
+                        <input type="checkbox" id="autoCaseToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
+                    </label>
+
+                    <label class="flex items-center justify-between text-xs cursor-pointer" title="Fits native TrueType quadratic Bézier curves while preserving sharp corners">
                         <span>Smooth Bézier Curves</span>
                         <input type="checkbox" id="bezierToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
                     </label>
@@ -325,36 +381,36 @@
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span class="text-white/70">Letter Spacing (Tracking)</span>
-                            <span id="trackVal" class="font-mono">80</span>
+                            <span id="trackVal" class="font-mono">0</span>
                         </div>
-                        <input type="range" id="globalTracking" min="-50" max="250" value="80" class="w-full" oninput="updateTracking(this.value)">
+                        <input type="range" id="globalTracking" min="-80" max="220" value="0" class="w-full" oninput="updateTracking(this.value)">
                     </div>
 
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
-                            <span id="threshLabel" class="text-white/70">Contrast Threshold</span>
+                            <span id="threshLabel" class="text-white/70">Local Sensitivity</span>
                             <div class="flex items-center gap-2">
-                                <button id="otsuBtn" onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
-                                <span id="threshVal" class="font-mono">140</span>
+                                <button id="otsuBtn" onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="hidden btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
+                                <span id="threshVal" class="font-mono">16</span>
                             </div>
                         </div>
-                        <input type="range" id="threshold" min="30" max="230" value="140" class="w-full" oninput="updateThreshold(this.value)">
+                        <input type="range" id="threshold" min="-10" max="55" value="16" class="w-full" oninput="updateThreshold(this.value)">
                     </div>
 
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span class="text-white/70">Min Speckle Size</span>
-                            <span id="speckleVal" class="font-mono">8px</span>
+                            <span id="speckleVal" class="font-mono">12px</span>
                         </div>
-                        <input type="range" id="speckleMin" min="2" max="80" value="8" class="w-full" oninput="updateSpeckle(this.value)">
+                        <input type="range" id="speckleMin" min="2" max="100" value="12" class="w-full" oninput="updateSpeckle(this.value)">
                     </div>
 
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span class="text-white/70">Contour Simplify</span>
-                            <span id="smoothVal" class="font-mono">1.2px</span>
+                            <span id="smoothVal" class="font-mono">1.4px</span>
                         </div>
-                        <input type="range" id="smoothTol" min="0.4" max="4.0" step="0.2" value="1.2" class="w-full" oninput="updateSmooth(this.value)">
+                        <input type="range" id="smoothTol" min="0.4" max="4.0" step="0.2" value="1.4" class="w-full" oninput="updateSmooth(this.value)">
                     </div>
                 </div>
 
@@ -362,13 +418,16 @@
                 <div class="panel p-5">
                     <div class="flex justify-between items-center mb-2">
                         <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Target Character Order</h2>
-                        <div class="flex gap-2">
-                            <button onclick="remapCharsetToBlobs()" class="text-[10px] underline text-cyan-300 opacity-85 hover:opacity-100" title="Re-apply sequence without erasing drawings or nudges">Re-apply</button>
-                            <button onclick="resetCharsetToAlphabet()" class="text-[10px] underline opacity-70 hover:opacity-100">Reset</button>
-                        </div>
+                        <button onclick="remapCharsetToBlobs()" class="text-[10px] underline text-cyan-300 opacity-85 hover:opacity-100" title="Re-apply sequence without erasing drawings or nudges">Re-apply</button>
                     </div>
-                    <textarea id="charset" oninput="remapCharsetToBlobs()" class="w-full p-2 text-xs font-mono h-20 outline-none resize-none">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#</textarea>
-                    <p class="text-[9px] text-white/55 mt-1.5">Editing remaps live without wiping your custom nudges or drawings.</p>
+                    <div class="flex gap-1.5 mb-2">
+                        <button onclick="setCharsetPreset('lower')" class="btn-ghost text-[9px] px-2 py-0.5 rounded flex-1">a–z</button>
+                        <button onclick="setCharsetPreset('upper')" class="btn-ghost text-[9px] px-2 py-0.5 rounded flex-1">A–Z</button>
+                        <button onclick="setCharsetPreset('both')" class="btn-ghost text-[9px] px-2 py-0.5 rounded flex-1">A–z</button>
+                        <button onclick="setCharsetPreset('full')" class="btn-ghost text-[9px] px-2 py-0.5 rounded flex-1">Full</button>
+                    </div>
+                    <textarea id="charset" oninput="remapCharsetToBlobs()" class="w-full p-2 text-xs font-mono h-20 outline-none resize-none">abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#</textarea>
+                    <p class="text-[9px] text-white/55 mt-1.5">Tip: Spaces &amp; line breaks are ignored—you can type the exact handwritten sentence from your image here to extract its letters.</p>
                 </div>
             </aside>
 
@@ -377,8 +436,8 @@
                 <!-- CANVAS & CROP WORKSPACE -->
                 <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
                     <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20 pointer-events-none">
-                        Waiting for manuscript input…<br>
-                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, plate image, paste (Ctrl+V), or click "+ Draw New"</span>
+                        Waiting for handwriting or manuscript input…<br>
+                        <span class="text-[11px] opacity-70">Drop a photo of handwriting, paste (Ctrl+V), or click "+ Draw New"</span>
                     </div>
                     <div class="relative cursor-crosshair">
                         <canvas id="mainCanvas" class="hidden"></canvas>
@@ -398,7 +457,7 @@
                         </div>
                         <div class="flex gap-2 items-center">
                             <button onclick="addBlankGlyph()" class="btn-ghost text-[9px] px-2.5 py-1 rounded">+ Draw New</button>
-                            <span class="text-[10px] text-cyan-300 hidden sm:inline">Click any card to fine-tune, brush, or erase live</span>
+                            <span class="text-[10px] text-cyan-300 hidden sm:inline">Click any card to Brush, Erase, Split stuck letters, or Merge</span>
                         </div>
                     </div>
                     <div id="glyphTray" class="flex gap-2 overflow-x-auto pb-2 text-xs font-mono">
@@ -409,12 +468,17 @@
                 <!-- SPECIMEN OUTPUT -->
                 <div class="panel p-6 md:p-8 relative">
                     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-                        <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
-                            Live Specimen Preview (Editable)
-                        </h2>
-                        <div class="flex gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
+                                Live Specimen Preview (Editable)
+                            </h2>
+                            <span id="specimenStatus" class="text-[10px] text-cyan-300/85 font-mono"></span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 text-xs">
+                            <button onclick="setSampleMapped()" class="btn-primary px-2 py-1 rounded text-[10px]" title="Show only the letters actually extracted from your image">Mapped</button>
                             <button onclick="setSample('The quick brown fox jumped over the lazy dog.')" class="btn-ghost px-2 py-1 rounded text-[10px]">Fox</button>
                             <button onclick="setSample('A B C D E F G H I J K L M\nN O P Q R S T U V W X Y Z')" class="btn-ghost px-2 py-1 rounded text-[10px]">Caps</button>
+                            <button onclick="setSample('a b c d e f g h i j k l m\nn o p q r s t u v w x y z')" class="btn-ghost px-2 py-1 rounded text-[10px]">Lower</button>
                             <button onclick="setSample('0 1 2 3 4 5 6 7 8 9 ! ? #')" class="btn-ghost px-2 py-1 rounded text-[10px]">0-9</button>
                         </div>
                     </div>
@@ -437,7 +501,7 @@
         </div>
 
         <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
-            Inkrealm · Citadelle Type Engine · Live Reactive Bézier Mode
+            Inkrealm · Citadelle Script &amp; Type Engine · Approximate Handwriting Mode
         </footer>
     </div>
 
@@ -446,42 +510,43 @@
         <div class="panel p-6 max-w-lg w-full bg-[#18181b] border border-white/30 rounded-lg shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-white/20 pb-3">
                 <div class="flex items-center gap-2">
-                    <button onclick="stepInspector(-1)" id="prevGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Previous Glyph (Left)">◀</button>
+                    <button onclick="stepInspector(-1)" id="prevGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Previous Glyph">◀</button>
                     <h3 class="text-sm font-bold tracking-wider uppercase flex items-center gap-2">
                         <span>Glyph</span>
                         <span id="inspectIndexBadge" class="text-[10px] text-white/50 font-mono">#1</span>
-                        <span id="inspectCharTitle" class="text-cyan-400 text-lg font-mono">A</span>
+                        <span id="inspectCharTitle" class="text-cyan-400 text-lg font-mono">a</span>
                     </h3>
-                    <button onclick="stepInspector(1)" id="nextGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Next Glyph (Right)">▶</button>
+                    <button onclick="stepInspector(1)" id="nextGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Next Glyph">▶</button>
                 </div>
                 <button onclick="closeInspector()" class="text-white/60 hover:text-white text-xl leading-none px-1" title="Close (Esc)">&times;</button>
             </div>
 
             <!-- Mini Preview Canvas with Baseline/Bearing Guides + Live Letter -->
             <div class="flex justify-center bg-black/60 p-3 rounded border border-white/10 relative">
-                <canvas id="inspectCanvas" width="320" height="220" class="border border-white/5 rounded"></canvas>
+                <canvas id="inspectCanvas" width="340" height="220" class="border border-white/5 rounded"></canvas>
             </div>
 
-            <!-- Drawing & Erasing Controls -->
+            <!-- Drawing, Erasing & Splitting Controls -->
             <div class="flex flex-wrap gap-2 items-center justify-between text-xs bg-black/35 p-2.5 rounded border border-white/10">
                 <div class="tool-seg">
                     <button id="toolViewBtn" onclick="setDrawTool('view')" class="seg-active">View</button>
                     <button id="toolBrushBtn" onclick="setDrawTool('brush')">Brush</button>
                     <button id="toolEraseBtn" onclick="setDrawTool('erase')">Erase</button>
+                    <button id="toolSplitBtn" onclick="setDrawTool('split')" title="Click anywhere across the letter to slice two touching letters apart">Split</button>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <span class="text-[10px] text-white/70">Size</span>
-                    <input type="range" id="brushSize" min="2" max="24" value="7" class="w-16">
+                    <input type="range" id="brushSize" min="2" max="24" value="7" class="w-14">
                 </div>
                 <div class="flex gap-1.5">
                     <button onclick="undoInspector()" id="undoDrawBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Undo (Ctrl+Z)">Undo</button>
-                    <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Ink</button>
+                    <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear</button>
                     <button onclick="clearGlyphPixels()" class="btn-ghost text-[10px] px-2 py-1 rounded">Wipe</button>
                     <button onclick="commitDrawing()" id="commitDrawBtn" disabled class="btn-primary text-[10px] px-2.5 py-1 rounded">Commit</button>
                 </div>
             </div>
-            <p class="text-[9px] text-center text-white/55">
-                Pick <b>Brush</b> to paint or <b>Erase</b> to clean scanner specks, then click <b>Commit</b>. Shortcuts: <span class="font-mono">Ctrl+Z</span> undo · <span class="font-mono">Arrows</span> nudge · <span class="font-mono">Esc</span> close.
+            <p id="toolHelpText" class="text-[9px] text-center text-white/55">
+                Use <b>Brush</b>/<b>Erase</b> then <b>Commit</b>, or pick <b>Split</b> to slice joined handwritten letters apart. Shortcuts: <span class="font-mono">Ctrl+Z</span> undo · <span class="font-mono">Arrows</span> nudge · <span class="font-mono">Esc</span> close.
             </p>
 
             <!-- Manipulation Sliders -->
@@ -516,10 +581,15 @@
                 </div>
             </div>
 
-            <div class="flex justify-between items-center pt-3 border-t border-white/20">
-                <button onclick="deleteCurrentGlyph()" class="btn-danger text-xs px-3 py-2 rounded">
-                    Delete Glyph
-                </button>
+            <div class="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-white/20">
+                <div class="flex gap-2">
+                    <button onclick="deleteCurrentGlyph()" class="btn-danger text-[10px] px-3 py-2 rounded">
+                        Delete
+                    </button>
+                    <button onclick="mergeWithNextGlyph()" id="mergeNextBtn" class="btn-ghost text-[10px] px-3 py-2 rounded" title="Combine this glyph with the next glyph in the tray (useful for broken multi-stroke letters)">
+                        Merge Next
+                    </button>
+                </div>
                 <button onclick="closeInspector()" class="btn-primary text-xs px-5 py-2 rounded">
                     Done
                 </button>
@@ -533,7 +603,6 @@
            ========================================================= */
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
-        // Offscreen canvas always stores the clean rotated source image
         const sourceCanvas = document.createElement('canvas');
         const sourceCtx = sourceCanvas.getContext('2d');
 
@@ -554,34 +623,40 @@
         let fontBuildCount = 0;
         let lastFontUrl = null;
         let currentLiveFamily = null;
+        let compiledCharSet = new Set();
+        let autoCasedCount = 0;
 
         let cropRect = null;
         let isDragging = false;
         let dragStart = { canvasX: 0, canvasY: 0 };
 
         let activeBlob = null;
-        let drawTool = 'view'; // 'view' | 'brush' | 'erase'
+        let drawTool = 'view'; // 'view' | 'brush' | 'erase' | 'split'
         let drawingStrokes = [];
         let currentStroke = null;
         let isPainting = false;
+        let splitHoverX = null;
         let glyphUndoStack = [];
         let lockedInspectScale = 2.5;
 
-        // Separate remembered slider values for Global vs Adaptive threshold
         let savedGlobalThreshold = 140;
-        let savedAdaptiveBias = 15;
+        let savedAdaptiveBias = 16;
 
         let analyzeTimer = null;
         let fontTimer = null;
         let autosaveTimer = null;
 
-        const AUTOSAVE_KEY = 'fount_citadelle_autosave_v2';
-        const DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#";
+        const AUTOSAVE_KEY = 'fount_citadelle_autosave_v3';
+        const CHARSET_PRESETS = {
+            lower: "abcdefghijklmnopqrstuvwxyz",
+            upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            both:  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            full:  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#"
+        };
         const DESCENDERS = new Set(['g', 'j', 'p', 'q', 'y', ',', ';', 'Q']);
 
         specimen.addEventListener('input', updateMissing);
 
-        // Keep detection boxes & crop box aligned on window/container resize
         if (typeof ResizeObserver !== 'undefined') {
             new ResizeObserver(() => {
                 updateOverlay();
@@ -592,6 +667,43 @@
                 updateOverlay();
                 syncCropOverlayBox();
             });
+        }
+
+        /* =========================================================
+           ENGINE PRESETS (HANDWRITING VS TYPEWRITER)
+           ========================================================= */
+        function applyEnginePreset(mode) {
+            const isHand = (mode === 'handwriting');
+            document.getElementById('presetHandBtn').className = isHand ? 'preset-active' : '';
+            document.getElementById('presetTypeBtn').className = isHand ? '' : 'preset-active';
+
+            document.getElementById('monoToggle').checked = !isHand;
+            document.getElementById('autoSplitToggle').checked = isHand;
+            document.getElementById('autoCaseToggle').checked = isHand;
+            document.getElementById('bezierToggle').checked = true;
+
+            const track = isHand ? 0 : 80;
+            document.getElementById('globalTracking').value = track;
+            document.getElementById('trackVal').innerText = track;
+
+            const weight = isHand ? 1 : 0;
+            document.getElementById('inkWeight').value = weight;
+            document.getElementById('inkWeightVal').innerText = weight > 0 ? `+${weight}px` : 'Raw';
+
+            const adaptiveEl = document.getElementById('adaptiveToggle');
+            const adaptiveChanged = (adaptiveEl.checked !== isHand);
+            adaptiveEl.checked = isHand;
+
+            if (adaptiveChanged) {
+                onAdaptiveModeToggle();
+            } else {
+                if (sourceCanvas.width) {
+                    updateMainCanvasDisplay();
+                    analyze();
+                } else {
+                    generateFont();
+                }
+            }
         }
 
         /* =========================================================
@@ -629,9 +741,6 @@
         });
 
         window.addEventListener('paste', e => {
-            if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT' || document.activeElement.isContentEditable)) {
-                // Still allow pasting images even if focused, ignore text paste
-            }
             const items = (e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData))?.items;
             if (!items) return;
             for (const item of items) {
@@ -669,7 +778,7 @@
             const otsuBtn = document.getElementById('otsuBtn');
 
             if (isAdaptive) {
-                savedGlobalThreshold = parseInt(slider.value, 10);
+                if (parseInt(slider.max, 10) > 100) savedGlobalThreshold = parseInt(slider.value, 10);
                 slider.min = -10;
                 slider.max = 55;
                 slider.value = savedAdaptiveBias;
@@ -677,7 +786,7 @@
                 valEl.textContent = savedAdaptiveBias;
                 otsuBtn.classList.add('hidden');
             } else {
-                savedAdaptiveBias = parseInt(slider.value, 10);
+                if (parseInt(slider.max, 10) <= 100) savedAdaptiveBias = parseInt(slider.value, 10);
                 slider.min = 30;
                 slider.max = 230;
                 slider.value = savedGlobalThreshold;
@@ -686,7 +795,7 @@
                 otsuBtn.classList.remove('hidden');
             }
             updateMainCanvasDisplay();
-            analyze();
+            if (sourceCanvas.width) analyze();
         }
 
         function updateThreshold(val) {
@@ -696,6 +805,15 @@
             } else {
                 savedGlobalThreshold = parseInt(val, 10);
             }
+            if (document.getElementById('maskToggle').checked) {
+                updateMainCanvasDisplay();
+            }
+            scheduleAnalyze(140);
+        }
+
+        function updateInkWeight(val) {
+            const n = parseInt(val, 10) || 0;
+            document.getElementById('inkWeightVal').innerText = n > 0 ? `+${n}px` : 'Raw';
             if (document.getElementById('maskToggle').checked) {
                 updateMainCanvasDisplay();
             }
@@ -724,8 +842,13 @@
             scheduleAnalyze(160);
         }
 
+        function getCleanCharsetChars() {
+            // Strip spaces & line breaks so users can transcribe real handwritten sentences directly
+            return document.getElementById('charset').value.replace(/\s+/g, '').split('');
+        }
+
         function remapCharsetToBlobs() {
-            const chars = document.getElementById('charset').value.split('');
+            const chars = getCleanCharsetChars();
             blobs.forEach((b, i) => {
                 b.char = chars[i] || '';
             });
@@ -734,8 +857,8 @@
             scheduleGenerateFont(40);
         }
 
-        function resetCharsetToAlphabet() {
-            document.getElementById('charset').value = DEFAULT_CHARSET;
+        function setCharsetPreset(key) {
+            document.getElementById('charset').value = CHARSET_PRESETS[key] || CHARSET_PRESETS.full;
             remapCharsetToBlobs();
         }
 
@@ -744,8 +867,29 @@
             updateMissing();
         }
 
+        function setSampleMapped() {
+            const unique = [];
+            const seen = new Set();
+            blobs.forEach(b => {
+                if (b.char && b.char.trim() && !seen.has(b.char)) {
+                    seen.add(b.char);
+                    unique.push(b.char);
+                }
+            });
+            if (!unique.length) {
+                setSample('Load a handwriting image or click "+ Draw New" to begin.');
+                return;
+            }
+            // Show all mapped characters cleanly grouped in lines of 14
+            const lines = [];
+            for (let i = 0; i < unique.length; i += 14) {
+                lines.push(unique.slice(i, i + 14).join(' '));
+            }
+            setSample(lines.join('\n'));
+        }
+
         /* =========================================================
-           IMAGE LOADING & CANVAS DISPLAY (SOURCE VS B/W MASK)
+           IMAGE LOADING, ADAPTIVE THRESHOLD & INK WEIGHT DILATION
            ========================================================= */
         function handleImage(file) {
             if (!file) return;
@@ -806,21 +950,44 @@
             updateMainCanvasDisplay();
         }
 
-        /**
-         * Computes a 0/1 binary ink mask from sourceCanvas using either
-         * global threshold or fast 2D integral-image adaptive thresholding.
-         */
+        function dilateBinaryMask(mask, w, h, weight, minX, minY, maxX, maxY) {
+            if (weight <= 0) return mask;
+            let curr = mask;
+            for (let pass = 0; pass < weight; pass++) {
+                const next = new Uint8Array(curr);
+                const useDiag = (pass > 0);
+                for (let y = minY; y < maxY; y++) {
+                    const row = y * w;
+                    for (let x = minX; x < maxX; x++) {
+                        if (!curr[row + x]) continue;
+                        if (x > minX) next[row + x - 1] = 1;
+                        if (x + 1 < maxX) next[row + x + 1] = 1;
+                        if (y > minY) next[row - w + x] = 1;
+                        if (y + 1 < maxY) next[row + w + x] = 1;
+                        if (useDiag) {
+                            if (y > minY && x > minX) next[row - w + x - 1] = 1;
+                            if (y > minY && x + 1 < maxX) next[row - w + x + 1] = 1;
+                            if (y + 1 < maxY && x > minX) next[row + w + x - 1] = 1;
+                            if (y + 1 < maxY && x + 1 < maxX) next[row + w + x + 1] = 1;
+                        }
+                    }
+                }
+                curr = next;
+            }
+            return curr;
+        }
+
         function computeBinaryMask(minX = 0, minY = 0, maxX = sourceCanvas.width, maxY = sourceCanvas.height) {
             const w = sourceCanvas.width;
             const h = sourceCanvas.height;
             const mask = new Uint8Array(w * h);
             if (!w || !h) return mask;
 
-            const imgData = sourceCtx.getImageData(0, 0, w, h);
-            const data = imgData.data;
+            const data = sourceCtx.getImageData(0, 0, w, h).data;
             const invert = document.getElementById('invertToggle').checked;
             const isAdaptive = document.getElementById('adaptiveToggle').checked;
             const sliderVal = parseInt(document.getElementById('threshold').value, 10);
+            const inkWeight = parseInt(document.getElementById('inkWeight').value, 10) || 0;
 
             if (!isAdaptive) {
                 for (let y = minY; y < maxY; y++) {
@@ -834,7 +1001,7 @@
                         }
                     }
                 }
-                return mask;
+                return dilateBinaryMask(mask, w, h, inkWeight, minX, minY, maxX, maxY);
             }
 
             // Fast O(W*H) Integral Image Adaptive Thresholding
@@ -885,13 +1052,12 @@
                 }
             }
 
-            return mask;
+            return dilateBinaryMask(mask, w, h, inkWeight, minX, minY, maxX, maxY);
         }
 
         function updateMainCanvasDisplay() {
             if (!sourceCanvas.width || !sourceCanvas.height) return;
-            const showMask = document.getElementById('maskToggle').checked;
-            if (!showMask) {
+            if (!document.getElementById('maskToggle').checked) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(sourceCanvas, 0, 0);
                 return;
@@ -914,9 +1080,6 @@
             ctx.putImageData(out, 0, 0);
         }
 
-        /* =========================================================
-           OTSU'S AUTOMATIC THRESHOLDING
-           ========================================================= */
         function autoThreshold() {
             if (!sourceCanvas.width || !sourceCanvas.height) return;
             if (document.getElementById('adaptiveToggle').checked) {
@@ -1066,8 +1229,123 @@
         }
 
         /* =========================================================
-           BLOB EXTRACTION & LINE SORTING
+           BLOB EXTRACTION, CURSIVE AUTO-SPLIT & LOCAL BASELINE
            ========================================================= */
+        function makeBlobFromPoints(pts, template = null) {
+            let bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity;
+            for (let i = 0; i < pts.length; i++) {
+                const px = pts[i][0], py = pts[i][1];
+                if (px < bx0) bx0 = px;
+                if (px > bx1) bx1 = px;
+                if (py < by0) by0 = py;
+                if (py > by1) by1 = py;
+            }
+            return {
+                x: bx0,
+                y: by0,
+                w: bx1 - bx0 + 1,
+                h: by1 - by0 + 1,
+                points: pts,
+                yOffset: template ? (template.yOffset || 0) : 0,
+                xOffset: 0,
+                wOffset: 0,
+                baseline: template ? template.baseline : by1,
+                lineH: template ? template.lineH : (by1 - by0 + 1),
+                char: ''
+            };
+        }
+
+        /**
+         * Splits wide touching handwritten/cursive blobs along thin horizontal bridges.
+         * Checks vertical ink span at each valley so hollow loops (o, a, e, m) stay intact.
+         */
+        function autoSplitTouchingBlobs(rawBlobs, medianH, speckleMin) {
+            const out = [];
+            const minPieceW = Math.max(6, Math.round(medianH * 0.42));
+
+            for (const b of rawBlobs) {
+                if (b.w <= medianH * 1.15 || b.w < minPieceW * 2 + 2) {
+                    out.push(b);
+                    continue;
+                }
+
+                const colCount = new Uint16Array(b.w);
+                const colMinY = new Int32Array(b.w).fill(1e9);
+                const colMaxY = new Int32Array(b.w).fill(-1e9);
+
+                for (let i = 0; i < b.points.length; i++) {
+                    const lx = b.points[i][0] - b.x;
+                    const ly = b.points[i][1] - b.y;
+                    colCount[lx]++;
+                    if (ly < colMinY[lx]) colMinY[lx] = ly;
+                    if (ly > colMaxY[lx]) colMaxY[lx] = ly;
+                }
+
+                // 3-tap smoothed vertical projection
+                const smooth = new Float32Array(b.w);
+                let maxCol = 1;
+                for (let x = 0; x < b.w; x++) {
+                    const l = x > 0 ? colCount[x - 1] : colCount[x];
+                    const r = x + 1 < b.w ? colCount[x + 1] : colCount[x];
+                    smooth[x] = (l + 2 * colCount[x] + r) * 0.25;
+                    if (smooth[x] > maxCol) maxCol = smooth[x];
+                }
+
+                // Collect valley candidates where ink is a single thin connecting stroke
+                const candidates = [];
+                const thinLimit = Math.max(3, maxCol * 0.28);
+                const maxBridgeSpan = Math.max(5, b.h * 0.36);
+
+                for (let x = minPieceW; x <= b.w - minPieceW; x++) {
+                    if (smooth[x] <= smooth[x - 1] && smooth[x] <= smooth[x + 1]) {
+                        const span = colCount[x] > 0 ? (colMaxY[x] - colMinY[x] + 1) : 0;
+                        if (colCount[x] <= thinLimit && span <= maxBridgeSpan) {
+                            candidates.push({ x, score: colCount[x] + span * 0.4 });
+                        }
+                    }
+                }
+
+                if (!candidates.length) {
+                    out.push(b);
+                    continue;
+                }
+
+                // Greedily choose deepest valleys spaced at least minPieceW apart
+                candidates.sort((a, c) => a.score - c.score);
+                const cuts = [];
+                for (const cand of candidates) {
+                    if (cuts.every(cx => Math.abs(cx - cand.x) >= minPieceW)) {
+                        cuts.push(cand.x);
+                    }
+                }
+                if (!cuts.length) {
+                    out.push(b);
+                    continue;
+                }
+                cuts.sort((a, c) => a - c);
+
+                // Partition points by cut columns
+                const buckets = Array.from({ length: cuts.length + 1 }, () => []);
+                for (let i = 0; i < b.points.length; i++) {
+                    const lx = b.points[i][0] - b.x;
+                    let bucketIdx = 0;
+                    while (bucketIdx < cuts.length && lx >= cuts[bucketIdx]) bucketIdx++;
+                    buckets[bucketIdx].push(b.points[i]);
+                }
+
+                let added = 0;
+                for (const pts of buckets) {
+                    if (pts.length >= speckleMin) {
+                        out.push(makeBlobFromPoints(pts, b));
+                        added++;
+                    }
+                }
+                if (!added) out.push(b);
+            }
+
+            return out;
+        }
+
         function analyze() {
             if (!sourceCanvas.width || !sourceCanvas.height) return;
             const w = sourceCanvas.width;
@@ -1078,7 +1356,8 @@
             const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
             const maxY = cropRect ? Math.min(h, Math.ceil(cropRect.y + cropRect.h)) : h;
 
-            const speckleMin = parseInt(document.getElementById('speckleMin').value, 10) || 8;
+            const speckleMin = parseInt(document.getElementById('speckleMin').value, 10) || 12;
+            const autoSplit = document.getElementById('autoSplitToggle').checked;
             const mask = computeBinaryMask(minX, minY, maxX, maxY);
             const visited = new Uint8Array(w * h);
             let rawBlobs = [];
@@ -1100,15 +1379,18 @@
             }
 
             const heights = rawBlobs.map(b => b.h).sort((a, b) => a - b);
-            const medianH = heights[Math.floor(heights.length / 2)] || 24;
+            const medianH = heights[Math.floor(heights.length * 0.5)] || 28;
+
+            if (autoSplit) {
+                rawBlobs = autoSplitTouchingBlobs(rawBlobs, medianH, speckleMin);
+            }
 
             rawBlobs = mergeMultipartBlobs(rawBlobs, medianH);
             blobs = sortBlobsIntoLines(rawBlobs, medianH);
 
-            const chars = document.getElementById('charset').value.split('');
+            const chars = getCleanCharsetChars();
             blobs.forEach((b, i) => {
                 b.char = chars[i] || '';
-                // Only nudge descenders if they are NOT already extending below the detected line baseline
                 if (DESCENDERS.has(b.char) && b.yOffset === 0) {
                     const bottomDrop = (b.y + b.h) - b.baseline;
                     if (bottomDrop < b.lineH * 0.1) {
@@ -1162,15 +1444,30 @@
             return { x: bx0, y: by0, w: bx1 - bx0 + 1, h: by1 - by0 + 1, points };
         }
 
+        /**
+         * Slant-safe multipart merging: merges vertically stacked fragments
+         * (i/j dots, !, ?, :, =, accents) without fusing side-by-side slanted letters.
+         */
         function mergeMultipartBlobs(raw, medianH) {
             for (let i = raw.length - 1; i >= 0; i--) {
                 for (let j = i - 1; j >= 0; j--) {
                     const b1 = raw[i], b2 = raw[j];
-                    const xOverlap = Math.min(b1.x + b1.w, b2.x + b2.w) - Math.max(b1.x, b2.x);
-                    const minW = Math.min(b1.w, b2.w);
+                    // Positive yDist means vertically separated; strongly negative means side-by-side
                     const yDist = Math.max(b1.y, b2.y) - Math.min(b1.y + b1.h, b2.y + b2.h);
+                    const minH = Math.min(b1.h, b2.h);
+                    if (yDist < -minH * 0.2 || yDist > medianH * 0.62) continue;
 
-                    if (xOverlap > minW * 0.4 && yDist < medianH * 0.55 && (b1.h + b2.h + yDist) < medianH * 1.65) {
+                    // At least one part must be a small accent/dot/bar
+                    if (minH > medianH * 0.55) continue;
+
+                    const small = (b1.h <= b2.h) ? b1 : b2;
+                    const large = (b1.h <= b2.h) ? b2 : b1;
+                    const smallCenterX = small.x + small.w * 0.5;
+                    const margin = Math.max(4, large.w * 0.3);
+                    const alignedX = (smallCenterX >= large.x - margin) && (smallCenterX <= large.x + large.w + margin);
+
+                    const combinedH = Math.max(b1.y + b1.h, b2.y + b2.h) - Math.min(b1.y, b2.y);
+                    if (alignedX && combinedH < medianH * 1.7) {
                         b2.points.push(...b1.points);
                         const nx = Math.min(b1.x, b2.x);
                         const ny = Math.min(b1.y, b2.y);
@@ -1196,7 +1493,7 @@
                 const bCenter = b.y + b.h / 2;
                 for (const line of lines) {
                     const lineCenter = line.ySum / line.blobs.length;
-                    if (Math.abs(lineCenter - bCenter) < medianH * 0.55) {
+                    if (Math.abs(lineCenter - bCenter) < medianH * 0.65) {
                         line.blobs.push(b);
                         line.ySum += bCenter;
                         placed = true;
@@ -1211,13 +1508,21 @@
             const result = [];
             for (const line of lines) {
                 line.blobs.sort((a, b) => a.x - b.x);
-                const lineH = Math.max(...line.blobs.map(b => b.h));
-                const bottoms = line.blobs.map(b => b.y + b.h).sort((a, b) => a - b);
-                const robustBottom = bottoms[Math.floor(bottoms.length * 0.65)] || bottoms[bottoms.length - 1];
-                const baseline = robustBottom - Math.max(1, Math.round(lineH * 0.04));
+                const hs = line.blobs.map(b => b.h).sort((a, b) => a - b);
+                const lineH = hs[Math.floor((hs.length - 1) * 0.85)] || medianH;
 
-                for (const b of line.blobs) {
-                    b.baseline = baseline;
+                // Local moving baseline follows gentle slope/wave in unruled handwriting
+                for (let i = 0; i < line.blobs.length; i++) {
+                    const b = line.blobs[i];
+                    const wStart = Math.max(0, i - 3);
+                    const wEnd = Math.min(line.blobs.length - 1, i + 3);
+                    const localBottoms = [];
+                    for (let k = wStart; k <= wEnd; k++) {
+                        localBottoms.push(line.blobs[k].y + line.blobs[k].h);
+                    }
+                    localBottoms.sort((a, c) => a - c);
+                    const robustBottom = localBottoms[Math.floor(localBottoms.length * 0.65)] || localBottoms[localBottoms.length - 1];
+                    b.baseline = robustBottom - Math.max(1, Math.round(lineH * 0.04));
                     b.lineH = lineH;
                     result.push(b);
                 }
@@ -1242,7 +1547,6 @@
                 if (py > maxY) maxY = py;
             }
 
-            // 1-pixel zero border around bounding box
             const gw = (maxX - minX + 1) + 2;
             const gh = (maxY - minY + 1) + 2;
             const grid = new Uint8Array(gw * gh);
@@ -1253,8 +1557,6 @@
                 grid[gy * gw + gx] = 1;
             }
 
-            // Directed boundary edges stored as 4-bit direction masks per grid corner vertex
-            // Dirs: 0=Right (+1,0), 1=Down (0,+1), 2=Left (-1,0), 3=Up (0,-1)
             const vw = gw + 1;
             const vh = gh + 1;
             const outEdges = new Uint8Array(vw * vh);
@@ -1264,13 +1566,9 @@
                 const vRow = gy * vw;
                 for (let gx = 1; gx < gw - 1; gx++) {
                     if (!grid[row + gx]) continue;
-                    // Top edge: (gx, gy) -> (gx+1, gy)
                     if (!grid[row - gw + gx]) outEdges[vRow + gx] |= 1;
-                    // Right edge: (gx+1, gy) -> (gx+1, gy+1)
                     if (!grid[row + gx + 1]) outEdges[vRow + gx + 1] |= 2;
-                    // Bottom edge: (gx+1, gy+1) -> (gx, gy+1)
                     if (!grid[row + gw + gx]) outEdges[vRow + vw + gx + 1] |= 4;
-                    // Left edge: (gx, gy+1) -> (gx, gy)
                     if (!grid[row + gx - 1]) outEdges[vRow + vw + gx] |= 8;
                 }
             }
@@ -1300,29 +1598,26 @@
                         vx += dx[dir];
                         vy += dy[dir];
 
-                        // Prefer Right-turn -> Straight -> Left-turn to resolve saddle vertices cleanly
                         const pref0 = (dir + 1) & 3;
                         const pref1 = dir;
                         const pref2 = (dir + 3) & 3;
                         const maskAtV = outEdges[vy * vw + vx];
                         const isStart = (vx === startVx && vy === startVy);
 
-                        let nextDir = -1;
                         if (isStart && pref0 === startDir) break;
                         if (maskAtV & (1 << pref0)) {
-                            nextDir = pref0;
+                            dir = pref0;
                         } else if (isStart && pref1 === startDir) {
                             break;
                         } else if (maskAtV & (1 << pref1)) {
-                            nextDir = pref1;
+                            dir = pref1;
                         } else if (isStart && pref2 === startDir) {
                             break;
                         } else if (maskAtV & (1 << pref2)) {
-                            nextDir = pref2;
+                            dir = pref2;
                         } else {
                             break;
                         }
-                        dir = nextDir;
                     }
 
                     const cleaned = removeCollinear(loop);
@@ -1331,7 +1626,6 @@
                         if (area > 0) {
                             outers.push(cleaned);
                         } else if (Math.abs(area) >= 2) {
-                            // Ignore 1px pinholes, preserve all true counters
                             holes.push(cleaned);
                         }
                     }
@@ -1359,7 +1653,6 @@
             const n = pts.length;
             if (n <= 4 || tol <= 0) return pts;
 
-            // Find approximate diameter endpoints so RDP has no seam spike
             let i1 = 0, maxD = -1;
             for (let i = 1; i < n; i++) {
                 const d = (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2;
@@ -1432,22 +1725,14 @@
             return (wantClockwise !== isClockwise) ? [...pts].reverse() : pts;
         }
 
-        /**
-         * Emits a closed loop into an opentype.Path using integer coordinates.
-         * When useBezier is true, smooth bends become C1 quadratic Béziers while
-         * sharp corners (>= ~70° turn, like serifs and terminals) stay crisp.
-         */
         function appendContourToPath(path, fontPts, useBezier) {
             const n = fontPts.length;
             if (n < 3) return;
-
             const r = v => Math.round(v);
 
             if (!useBezier || n < 4) {
                 path.moveTo(r(fontPts[0][0]), r(fontPts[0][1]));
-                for (let i = 1; i < n; i++) {
-                    path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
-                }
+                for (let i = 1; i < n; i++) path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
                 path.close();
                 return;
             }
@@ -1461,10 +1746,8 @@
                 const bx = next[0] - curr[0], by = next[1] - curr[1];
                 const la = Math.hypot(ax, ay);
                 const lb = Math.hypot(bx, by);
-                if (la > 0 && lb > 0) {
-                    const dot = (ax * bx + ay * by) / (la * lb);
-                    // Turning angle < ~70 degrees -> smooth quadratic curve
-                    if (dot > 0.34) isSmooth[i] = 1;
+                if (la > 0 && lb > 0 && (ax * bx + ay * by) / (la * lb) > 0.34) {
+                    isSmooth[i] = 1;
                 }
             }
 
@@ -1498,13 +1781,13 @@
         }
 
         /* =========================================================
-           TRUETYPE FONT COMPILATION
+           TRUETYPE FONT COMPILATION (PROPORTIONAL + AUTO-CASE)
            ========================================================= */
         function getFontMeta() {
             const rawName = (document.getElementById('fontNameInput')?.value || '').trim();
             const rawStyle = (document.getElementById('fontStyleInput')?.value || '').trim();
-            const familyName = rawName || 'Citadelle';
-            const styleName = rawStyle || 'Typewriter';
+            const familyName = rawName || 'CitadelleHand';
+            const styleName = rawStyle || 'Script';
             const safeSlug = `${familyName}_${styleName}`.replace(/[^a-zA-Z0-9_-]+/g, '_');
             return { familyName, styleName, filename: `${safeSlug}.ttf` };
         }
@@ -1515,16 +1798,20 @@
             if (saveBtn) saveBtn.disabled = blobs.length === 0;
 
             if (!mappedBlobs.length) {
+                compiledCharSet = new Set();
+                autoCasedCount = 0;
                 document.getElementById('dlBtn').disabled = true;
                 document.getElementById('copyCssBtn').disabled = true;
+                updateSpecimenStatus();
                 updateMissing();
                 return;
             }
 
-            const tol = parseFloat(document.getElementById('smoothTol').value) || 1.2;
-            const globalTracking = parseInt(document.getElementById('globalTracking').value, 10) || 80;
+            const tol = parseFloat(document.getElementById('smoothTol').value) || 1.4;
+            const globalTracking = parseInt(document.getElementById('globalTracking').value, 10) || 0;
             const isMonospace = document.getElementById('monoToggle').checked;
             const useBezier = document.getElementById('bezierToggle').checked;
+            const autoCase = document.getElementById('autoCaseToggle').checked;
             const meta = getFontMeta();
 
             // Deduplicate by character, prioritizing the currently active blob
@@ -1533,75 +1820,113 @@
                 charBlobMap.set(activeBlob.char, activeBlob);
             }
             mappedBlobs.forEach(b => {
-                if (!charBlobMap.has(b.char)) {
-                    charBlobMap.set(b.char, b);
-                }
+                if (!charBlobMap.has(b.char)) charBlobMap.set(b.char, b);
             });
 
-            const uniqueBlobs = Array.from(charBlobMap.values());
-            uniqueBlobs.sort((a, b) => a.char.charCodeAt(0) - b.char.charCodeAt(0));
+            // Build glyph compile entries (explicit + optional auto-cased counterparts)
+            const entries = [];
+            charBlobMap.forEach((b, ch) => {
+                entries.push({ ch, b, extraScale: 1.0, synthetic: false });
+            });
 
-            const heights = uniqueBlobs.filter(b => b.points && b.points.length > 0).map(b => b.h);
-            const refCapHeight = heights.length ? Math.max(...heights) : 60;
-            const globalScale = 680 / Math.max(refCapHeight, 20);
+            autoCasedCount = 0;
+            if (autoCase) {
+                const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+                for (const lower of alphabet) {
+                    const upper = lower.toUpperCase();
+                    const hasL = charBlobMap.has(lower);
+                    const hasU = charBlobMap.has(upper);
+                    if (hasL && !hasU) {
+                        entries.push({ ch: upper, b: charBlobMap.get(lower), extraScale: 1.24, synthetic: true });
+                        autoCasedCount++;
+                    } else if (hasU && !hasL) {
+                        entries.push({ ch: lower, b: charBlobMap.get(upper), extraScale: 0.78, synthetic: true });
+                        autoCasedCount++;
+                    }
+                }
+            }
+
+            entries.sort((a, c) => a.ch.charCodeAt(0) - c.ch.charCodeAt(0));
+
+            // Robust 90th-percentile height prevents a single tall flourish from shrinking the entire alphabet
+            const heights = Array.from(charBlobMap.values())
+                .filter(b => b.points && b.points.length > 0)
+                .map(b => b.h)
+                .sort((a, c) => a - c);
+            const refCapHeight = heights.length
+                ? heights[Math.floor((heights.length - 1) * 0.9)]
+                : 60;
+            const globalScale = 640 / Math.max(refCapHeight, 18);
             const monoWidth = Math.round(520 + globalTracking * 1.5);
 
             const notdefPath = new opentype.Path();
-            notdefPath.moveTo(50, 0); notdefPath.lineTo(450, 0); notdefPath.lineTo(450, 700); notdefPath.lineTo(50, 700); notdefPath.close();
+            notdefPath.moveTo(50, 0); notdefPath.lineTo(420, 0); notdefPath.lineTo(420, 680); notdefPath.lineTo(50, 680); notdefPath.close();
 
-            const spaceWidth = isMonospace ? monoWidth : Math.round(340 + globalTracking);
+            const spaceWidth = isMonospace ? monoWidth : Math.max(160, Math.round(260 + globalTracking * 0.8));
             const glyphs = [
-                new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: notdefPath }),
+                new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 480, path: notdefPath }),
                 new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: spaceWidth, path: new opentype.Path() })
             ];
 
-            uniqueBlobs.forEach((b, idx) => {
-                try {
-                    const path = new opentype.Path();
-                    const { outers, holes } = extractContoursWithHoles(b);
+            // Cache contours per blob so auto-cased pairs don't trace twice
+            const contourCache = new Map();
+            compiledCharSet = new Set();
 
-                    const glyphScaledW = (b.w || 0) * globalScale;
-                    const xNudge = (b.xOffset || 0) * globalScale;
-                    const yNudge = (b.yOffset || 0) * globalScale;
+            entries.forEach((entry, idx) => {
+                const { ch, b, extraScale } = entry;
+                try {
+                    let cached = contourCache.get(b);
+                    if (!cached) {
+                        const raw = extractContoursWithHoles(b);
+                        cached = {
+                            outers: raw.outers.map(loop => simplifyClosed(loop, tol)),
+                            holes: raw.holes.map(loop => simplifyClosed(loop, tol))
+                        };
+                        contourCache.set(b, cached);
+                    }
+
+                    const path = new opentype.Path();
+                    const effScale = globalScale * extraScale;
+                    const glyphScaledW = (b.w || 0) * effScale;
+                    const xNudge = (b.xOffset || 0) * effScale;
+                    const yNudge = (b.yOffset || 0) * effScale;
 
                     let advWidth;
                     let leftBearing;
 
                     if (isMonospace) {
                         advWidth = Math.max(120, Math.round(monoWidth + (b.wOffset || 0)));
-                        // Center narrow glyphs horizontally inside the monospace cell
                         leftBearing = (advWidth - glyphScaledW) * 0.5 + xNudge;
                     } else {
-                        advWidth = Math.max(80, Math.round(glyphScaledW + 100 + globalTracking + (b.wOffset || 0)));
-                        leftBearing = 40 + xNudge;
+                        // Tight proportional bearings suited for natural handwriting & script
+                        advWidth = Math.max(45, Math.round(glyphScaledW + 34 + globalTracking + (b.wOffset || 0)));
+                        leftBearing = 17 + xNudge;
                     }
 
                     const toFontCoord = (p) => [
-                        (p[0] - b.x) * globalScale + leftBearing,
-                        (b.baseline - p[1]) * globalScale + yNudge
+                        (p[0] - b.x) * effScale + leftBearing,
+                        (b.baseline - p[1]) * effScale + yNudge
                     ];
 
-                    // Simplify in pixel-space before scaling so tolerance slider stays resolution-consistent
-                    outers.forEach(outerLoop => {
-                        const simpPix = simplifyClosed(outerLoop, tol);
+                    cached.outers.forEach(simpPix => {
                         const fontPts = forceWinding(simpPix.map(toFontCoord), true);
                         appendContourToPath(path, fontPts, useBezier);
                     });
 
-                    holes.forEach(holeLoop => {
-                        const simpPix = simplifyClosed(holeLoop, tol);
+                    cached.holes.forEach(simpPix => {
                         const fontPts = forceWinding(simpPix.map(toFontCoord), false);
                         appendContourToPath(path, fontPts, useBezier);
                     });
 
                     glyphs.push(new opentype.Glyph({
-                        name: 'glyph_' + (b.char.charCodeAt(0) || 63) + '_' + idx,
-                        unicode: b.char.charCodeAt(0) || 63,
+                        name: 'glyph_' + (ch.charCodeAt(0) || 63) + '_' + idx,
+                        unicode: ch.charCodeAt(0) || 63,
                         advanceWidth: advWidth,
                         path
                     }));
+                    compiledCharSet.add(ch);
                 } catch (glyphErr) {
-                    console.warn('Skipped bad glyph', b.char, glyphErr);
+                    console.warn('Skipped bad glyph', ch, glyphErr);
                 }
             });
 
@@ -1650,6 +1975,7 @@
 
                     document.getElementById('dlBtn').disabled = false;
                     document.getElementById('copyCssBtn').disabled = false;
+                    updateSpecimenStatus();
                     updateMissing();
                     scheduleAutosave();
                 }).catch(err => {
@@ -1662,10 +1988,22 @@
             }
         }
 
+        function updateSpecimenStatus() {
+            const el = document.getElementById('specimenStatus');
+            if (!el) return;
+            if (!compiledCharSet.size) {
+                el.textContent = '';
+                return;
+            }
+            const direct = compiledCharSet.size - autoCasedCount;
+            el.textContent = autoCasedCount > 0
+                ? `(${direct} traced + ${autoCasedCount} auto-cased)`
+                : `(${direct} glyphs active)`;
+        }
+
         function downloadFont() {
             if (!font) return;
-            const meta = getFontMeta();
-            font.download(meta.filename);
+            font.download(getFontMeta().filename);
         }
 
         function copyFontCSS() {
@@ -1712,14 +2050,13 @@
             for (const ch of text) {
                 if (ch.trim() && ch !== '\n' && ch !== '\r') needed.add(ch);
             }
-            const have = new Set(blobs.filter(b => b.char && b.char.trim()).map(b => b.char));
-            const missing = [...needed].filter(ch => !have.has(ch)).sort();
+            const missing = [...needed].filter(ch => !compiledCharSet.has(ch)).sort();
 
             if (missing.length === 0) {
                 if (needed.size) {
                     const ok = document.createElement('span');
                     ok.className = 'text-emerald-300/85';
-                    ok.textContent = 'All characters in specimen are mapped.';
+                    ok.textContent = 'All characters in preview are rendered from your font.';
                     el.appendChild(ok);
                 }
                 return;
@@ -1727,7 +2064,7 @@
 
             const label = document.createElement('span');
             label.className = 'text-amber-200/90 mr-1';
-            label.textContent = 'Missing (click to draw):';
+            label.textContent = 'Unmapped fallback chars (click to draw):';
             el.appendChild(label);
 
             missing.forEach(ch => {
@@ -1742,7 +2079,7 @@
         }
 
         function addBlankGlyph(explicitChar = null) {
-            const chars = document.getElementById('charset').value.split('');
+            const chars = getCleanCharsetChars();
             let nextChar = explicitChar;
             if (!nextChar) {
                 const used = new Set(blobs.map(b => b.char).filter(Boolean));
@@ -1778,12 +2115,9 @@
             const mappedCount = blobs.filter(b => b.char && b.char.trim()).length;
             glyphCount.innerText = mappedCount + (blobs.length !== mappedCount ? ` / ${blobs.length}` : '');
 
-            // Detect duplicate character assignments
             const counts = new Map();
             blobs.forEach(b => {
-                if (b.char && b.char.trim()) {
-                    counts.set(b.char, (counts.get(b.char) || 0) + 1);
-                }
+                if (b.char && b.char.trim()) counts.set(b.char, (counts.get(b.char) || 0) + 1);
             });
             const dups = [...counts.entries()].filter(([, c]) => c > 1).map(([ch]) => ch);
             const dupEl = document.getElementById('dupWarning');
@@ -1826,7 +2160,7 @@
         }
 
         /* =========================================================
-           GLYPH INSPECTOR, DYNAMIC SCALING, BRUSH / ERASE / UNDO
+           GLYPH INSPECTOR: BRUSH, ERASE, SPLIT, MERGE NEXT & UNDO
            ========================================================= */
         function computeFitScale(b) {
             const w = inspectCanvas.width;
@@ -1835,7 +2169,7 @@
             const bh = Math.max(b.h || 56, 20);
             const maxScaleX = (w - 64) / bw;
             const maxScaleY = (h - 56) / bh;
-            return Math.max(0.6, Math.min(2.6, maxScaleX, maxScaleY));
+            return Math.max(0.5, Math.min(2.6, maxScaleX, maxScaleY));
         }
 
         function getInspectorTransform(b) {
@@ -1869,21 +2203,32 @@
             const idx = blobs.indexOf(activeBlob);
             const prevBtn = document.getElementById('prevGlyphBtn');
             const nextBtn = document.getElementById('nextGlyphBtn');
+            const mergeBtn = document.getElementById('mergeNextBtn');
             if (prevBtn) prevBtn.disabled = idx <= 0;
             if (nextBtn) nextBtn.disabled = idx === -1 || idx >= blobs.length - 1;
+            if (mergeBtn) mergeBtn.disabled = idx === -1 || idx >= blobs.length - 1;
         }
 
         function setDrawTool(tool) {
             drawTool = tool;
-            const viewBtn = document.getElementById('toolViewBtn');
-            const brushBtn = document.getElementById('toolBrushBtn');
-            const eraseBtn = document.getElementById('toolEraseBtn');
+            splitHoverX = null;
 
-            viewBtn.className = tool === 'view' ? 'seg-active' : '';
-            brushBtn.className = tool === 'brush' ? 'seg-active' : '';
-            eraseBtn.className = tool === 'erase' ? 'seg-erase-active' : '';
+            document.getElementById('toolViewBtn').className = tool === 'view' ? 'seg-active' : '';
+            document.getElementById('toolBrushBtn').className = tool === 'brush' ? 'seg-active' : '';
+            document.getElementById('toolEraseBtn').className = tool === 'erase' ? 'seg-erase-active' : '';
+            document.getElementById('toolSplitBtn').className = tool === 'split' ? 'seg-split-active' : '';
 
-            inspectCanvas.style.cursor = tool === 'view' ? 'default' : 'crosshair';
+            inspectCanvas.style.cursor = tool === 'view' ? 'default' : (tool === 'split' ? 'col-resize' : 'crosshair');
+
+            const help = document.getElementById('toolHelpText');
+            if (help) {
+                if (tool === 'split') {
+                    help.innerHTML = '<span class="text-amber-300"><b>Split Mode:</b> Move over the letter and click where you want to slice two touching letters apart.</span>';
+                } else {
+                    help.innerHTML = 'Use <b>Brush</b>/<b>Erase</b> then <b>Commit</b>, or pick <b>Split</b> to slice joined handwritten letters apart. Shortcuts: <span class="font-mono">Ctrl+Z</span> undo · <span class="font-mono">Arrows</span> nudge · <span class="font-mono">Esc</span> close.';
+                }
+            }
+            if (activeBlob) drawInspectorPreview(activeBlob);
         }
 
         function openInspector(target) {
@@ -1951,9 +2296,7 @@
             if (!activeBlob) return;
             const idx = blobs.indexOf(activeBlob);
             const nextIdx = idx + delta;
-            if (nextIdx >= 0 && nextIdx < blobs.length) {
-                openInspector(blobs[nextIdx]);
-            }
+            if (nextIdx >= 0 && nextIdx < blobs.length) openInspector(blobs[nextIdx]);
         }
 
         function drawInspectorPreview(b) {
@@ -2006,7 +2349,7 @@
                 inspectCtx.stroke();
             }
 
-            // Overlay uncommitted Brush & Erase strokes in chronological order
+            // Overlay uncommitted Brush & Erase strokes
             if (drawingStrokes.length) {
                 inspectCtx.lineCap = 'round';
                 inspectCtx.lineJoin = 'round';
@@ -2037,11 +2380,83 @@
                 }
             }
 
+            // Live Split guide line
+            if (drawTool === 'split' && splitHoverX !== null) {
+                inspectCtx.strokeStyle = '#f59e0b';
+                inspectCtx.lineWidth = 2;
+                inspectCtx.setLineDash([5, 4]);
+                inspectCtx.beginPath();
+                inspectCtx.moveTo(splitHoverX, 0);
+                inspectCtx.lineTo(splitHoverX, h);
+                inspectCtx.stroke();
+                inspectCtx.setLineDash([]);
+            }
+
             inspectCtx.font = '9px monospace';
             inspectCtx.fillStyle = '#ef4444';
             inspectCtx.fillText('BASELINE', 8, Math.max(12, Math.min(h - 6, baselineY - 4)));
             inspectCtx.fillStyle = 'rgba(255,255,255,0.35)';
             inspectCtx.fillText(scale.toFixed(1) + 'x', w - 30, 14);
+        }
+
+        function splitActiveBlobAtCanvasX(canvasX) {
+            if (!activeBlob || !activeBlob.points || activeBlob.points.length < 6) return;
+            const { scale, originX } = getInspectorTransform(activeBlob);
+            const cutGx = Math.round((canvasX - originX) / scale);
+
+            const leftPts = [];
+            const rightPts = [];
+            for (let i = 0; i < activeBlob.points.length; i++) {
+                const pt = activeBlob.points[i];
+                if (pt[0] < cutGx) leftPts.push(pt);
+                else rightPts.push(pt);
+            }
+
+            if (leftPts.length < 3 || rightPts.length < 3) return;
+
+            const idx = blobs.indexOf(activeBlob);
+            if (idx === -1) return;
+
+            const leftBlob = makeBlobFromPoints(leftPts, activeBlob);
+            const rightBlob = makeBlobFromPoints(rightPts, activeBlob);
+            leftBlob.char = activeBlob.char;
+
+            // Pick next unused character from Target Character Order for the newly split half
+            const used = new Set(blobs.map(b => b.char).filter(Boolean));
+            const chars = getCleanCharsetChars();
+            rightBlob.char = chars.find(c => !used.has(c)) || '';
+
+            blobs.splice(idx, 1, leftBlob, rightBlob);
+            openInspector(leftBlob);
+            generateFont();
+            updateOverlay();
+        }
+
+        function mergeWithNextGlyph() {
+            if (!activeBlob) return;
+            const idx = blobs.indexOf(activeBlob);
+            if (idx === -1 || idx + 1 >= blobs.length) return;
+
+            const nextBlob = blobs[idx + 1];
+            pushGlyphUndoSnapshot(activeBlob);
+
+            const mergedPts = activeBlob.points.concat(nextBlob.points);
+            if (mergedPts.length > 0) {
+                const rebuilt = makeBlobFromPoints(mergedPts, activeBlob);
+                activeBlob.x = rebuilt.x;
+                activeBlob.y = rebuilt.y;
+                activeBlob.w = rebuilt.w;
+                activeBlob.h = rebuilt.h;
+                activeBlob.points = rebuilt.points;
+            }
+
+            blobs.splice(idx + 1, 1);
+            lockedInspectScale = computeFitScale(activeBlob);
+            updateInspectorButtons();
+            drawInspectorPreview(activeBlob);
+            renderGlyphTray();
+            updateOverlay();
+            generateFont();
         }
 
         function undoInspector() {
@@ -2100,7 +2515,6 @@
             tctx.fillStyle = '#000';
             tctx.fillRect(0, 0, temp.width, temp.height);
 
-            // Rasterize existing glyph pixels exactly onto the cell grid
             if (b.points && b.points.length > 0) {
                 tctx.fillStyle = '#fff';
                 for (let i = 0; i < b.points.length; i++) {
@@ -2114,7 +2528,6 @@
                 }
             }
 
-            // Replay Brush & Erase strokes in exact chronological order
             tctx.lineCap = 'round';
             tctx.lineJoin = 'round';
             for (const stroke of drawingStrokes) {
@@ -2138,7 +2551,6 @@
                 }
             }
 
-            // Sample at exact glyph-grid cell centers (prevents fractional-scale drift or thickening)
             const data = tctx.getImageData(0, 0, temp.width, temp.height).data;
             const gxMin = Math.floor((0 - originX) / scale);
             const gxMax = Math.ceil((temp.width - originX) / scale);
@@ -2189,9 +2601,7 @@
         function deleteCurrentGlyph() {
             if (!activeBlob) return;
             const realIdx = blobs.indexOf(activeBlob);
-            if (realIdx !== -1) {
-                blobs.splice(realIdx, 1);
-            }
+            if (realIdx !== -1) blobs.splice(realIdx, 1);
             closeInspector();
             renderGlyphTray();
             generateFont();
@@ -2203,6 +2613,7 @@
             activeBlob = null;
             drawingStrokes = [];
             glyphUndoStack = [];
+            splitHoverX = null;
             setDrawTool('view');
             renderGlyphTray();
         }
@@ -2221,8 +2632,14 @@
         inspectCanvas.addEventListener('pointerdown', e => {
             if (drawTool === 'view' || !activeBlob) return;
             e.preventDefault();
-            isPainting = true;
             const pos = getInspectCanvasPos(e);
+
+            if (drawTool === 'split') {
+                splitActiveBlobAtCanvasX(pos.x);
+                return;
+            }
+
+            isPainting = true;
             const size = parseInt(document.getElementById('brushSize').value, 10) || 7;
             currentStroke = { mode: drawTool, points: [[pos.x, pos.y]], size };
             drawingStrokes.push(currentStroke);
@@ -2232,11 +2649,26 @@
         });
 
         inspectCanvas.addEventListener('pointermove', e => {
-            if (!isPainting || !currentStroke || !activeBlob) return;
-            e.preventDefault();
+            if (!activeBlob) return;
             const pos = getInspectCanvasPos(e);
+
+            if (drawTool === 'split') {
+                splitHoverX = pos.x;
+                drawInspectorPreview(activeBlob);
+                return;
+            }
+
+            if (!isPainting || !currentStroke) return;
+            e.preventDefault();
             currentStroke.points.push([pos.x, pos.y]);
             drawInspectorPreview(activeBlob);
+        });
+
+        inspectCanvas.addEventListener('pointerleave', () => {
+            if (drawTool === 'split') {
+                splitHoverX = null;
+                if (activeBlob) drawInspectorPreview(activeBlob);
+            }
         });
 
         inspectCanvas.addEventListener('pointerup', e => {
@@ -2289,16 +2721,19 @@
         function serializeProject() {
             const meta = getFontMeta();
             return {
-                version: 2,
+                version: 3,
                 savedAt: new Date().toISOString(),
                 meta: { fontName: meta.familyName, fontStyle: meta.styleName },
                 settings: {
                     charset: document.getElementById('charset').value,
                     mono: document.getElementById('monoToggle').checked,
+                    autoCase: document.getElementById('autoCaseToggle').checked,
+                    autoSplit: document.getElementById('autoSplitToggle').checked,
                     bezier: document.getElementById('bezierToggle').checked,
                     tracking: parseInt(document.getElementById('globalTracking').value, 10),
                     smoothTol: parseFloat(document.getElementById('smoothTol').value),
-                    speckleMin: parseInt(document.getElementById('speckleMin').value, 10)
+                    speckleMin: parseInt(document.getElementById('speckleMin').value, 10),
+                    inkWeight: parseInt(document.getElementById('inkWeight').value, 10)
                 },
                 blobs: blobs.map(b => {
                     const flat = new Array(b.points.length * 2);
@@ -2325,19 +2760,15 @@
                 return;
             }
             if (data.meta) {
-                document.getElementById('fontNameInput').value = data.meta.fontName || 'Citadelle';
-                document.getElementById('fontStyleInput').value = data.meta.fontStyle || 'Typewriter';
+                document.getElementById('fontNameInput').value = data.meta.fontName || 'CitadelleHand';
+                document.getElementById('fontStyleInput').value = data.meta.fontStyle || 'Script';
             }
             if (data.settings) {
-                if (typeof data.settings.charset === 'string') {
-                    document.getElementById('charset').value = data.settings.charset;
-                }
-                if (typeof data.settings.mono === 'boolean') {
-                    document.getElementById('monoToggle').checked = data.settings.mono;
-                }
-                if (typeof data.settings.bezier === 'boolean') {
-                    document.getElementById('bezierToggle').checked = data.settings.bezier;
-                }
+                if (typeof data.settings.charset === 'string') document.getElementById('charset').value = data.settings.charset;
+                if (typeof data.settings.mono === 'boolean') document.getElementById('monoToggle').checked = data.settings.mono;
+                if (typeof data.settings.autoCase === 'boolean') document.getElementById('autoCaseToggle').checked = data.settings.autoCase;
+                if (typeof data.settings.autoSplit === 'boolean') document.getElementById('autoSplitToggle').checked = data.settings.autoSplit;
+                if (typeof data.settings.bezier === 'boolean') document.getElementById('bezierToggle').checked = data.settings.bezier;
                 if (typeof data.settings.tracking === 'number') {
                     document.getElementById('globalTracking').value = data.settings.tracking;
                     document.getElementById('trackVal').innerText = data.settings.tracking;
@@ -2350,14 +2781,16 @@
                     document.getElementById('speckleMin').value = data.settings.speckleMin;
                     document.getElementById('speckleVal').innerText = data.settings.speckleMin + 'px';
                 }
+                if (typeof data.settings.inkWeight === 'number') {
+                    document.getElementById('inkWeight').value = data.settings.inkWeight;
+                    document.getElementById('inkWeightVal').innerText = data.settings.inkWeight > 0 ? `+${data.settings.inkWeight}px` : 'Raw';
+                }
             }
 
             blobs = data.blobs.map(item => {
                 const flat = item.pts || [];
                 const points = [];
-                for (let i = 0; i < flat.length; i += 2) {
-                    points.push([flat[i], flat[i + 1]]);
-                }
+                for (let i = 0; i < flat.length; i += 2) points.push([flat[i], flat[i + 1]]);
                 return {
                     x: item.x, y: item.y, w: item.w, h: item.h,
                     baseline: item.baseline, lineH: item.lineH || item.h,
@@ -2393,8 +2826,7 @@
             const reader = new FileReader();
             reader.onload = e => {
                 try {
-                    const data = JSON.parse(e.target.result);
-                    hydrateProject(data);
+                    hydrateProject(JSON.parse(e.target.result));
                 } catch (err) {
                     alert('Could not parse project JSON: ' + err.message);
                 }
@@ -2408,12 +2840,8 @@
                 if (!blobs.length) return;
                 try {
                     const json = JSON.stringify(serializeProject());
-                    if (json.length < 3_500_000) {
-                        localStorage.setItem(AUTOSAVE_KEY, json);
-                    }
-                } catch (_) {
-                    // Ignore storage quota errors silently
-                }
+                    if (json.length < 3_500_000) localStorage.setItem(AUTOSAVE_KEY, json);
+                } catch (_) {}
             }, 800);
         }
 
@@ -2498,7 +2926,6 @@
             if (!list) return;
             list.innerHTML = '';
 
-            // Custom compiled font switcher pill
             const hasCustom = Boolean(currentLiveFamily);
             const customActive = hasCustom && activeVaultFamily === null;
             const customPill = document.createElement('button');
