@@ -253,7 +253,7 @@
                     Fount // Script &amp; Type Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Handwriting-to-TTF Compiler · Auto-Split &amp; Adaptive Ink · Live Draw, Erase &amp; Split
+                    Handwriting-to-Font Compiler · Auto-Split &amp; Adaptive Ink · Live Draw, Erase &amp; Split
                 </p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
@@ -281,7 +281,6 @@
             <aside class="col-span-12 lg:col-span-3 space-y-5">
                 <!-- Source & Mode Panel -->
                 <div class="panel p-5 space-y-4">
-                    <!-- Engine Preset Toggle -->
                     <div>
                         <div class="text-[10px] font-bold tracking-widest uppercase text-white/65 mb-1.5">Engine Preset</div>
                         <div class="preset-bar">
@@ -373,7 +372,7 @@
                         <input type="checkbox" id="autoCaseToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
                     </label>
 
-                    <label class="flex items-center justify-between text-xs cursor-pointer" title="Fits native TrueType quadratic Bézier curves while preserving sharp corners">
+                    <label class="flex items-center justify-between text-xs cursor-pointer" title="Fits smooth integer cubic Bézier curves while keeping sharp corners crisp">
                         <span>Smooth Bézier Curves</span>
                         <input type="checkbox" id="bezierToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
                     </label>
@@ -468,7 +467,7 @@
                 <!-- SPECIMEN OUTPUT -->
                 <div class="panel p-6 md:p-8 relative">
                     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
                                 Live Specimen Preview (Editable)
                             </h2>
@@ -621,7 +620,6 @@
         let blobs = [];
         let font = null;
         let fontBuildCount = 0;
-        let lastFontUrl = null;
         let currentLiveFamily = null;
         let compiledCharSet = new Set();
         let autoCasedCount = 0;
@@ -843,7 +841,6 @@
         }
 
         function getCleanCharsetChars() {
-            // Strip spaces & line breaks so users can transcribe real handwritten sentences directly
             return document.getElementById('charset').value.replace(/\s+/g, '').split('');
         }
 
@@ -880,7 +877,6 @@
                 setSample('Load a handwriting image or click "+ Draw New" to begin.');
                 return;
             }
-            // Show all mapped characters cleanly grouped in lines of 14
             const lines = [];
             for (let i = 0; i < unique.length; i += 14) {
                 lines.push(unique.slice(i, i + 14).join(' '));
@@ -1004,7 +1000,6 @@
                 return dilateBinaryMask(mask, w, h, inkWeight, minX, minY, maxX, maxY);
             }
 
-            // Fast O(W*H) Integral Image Adaptive Thresholding
             const rw = maxX - minX;
             const rh = maxY - minY;
             if (rw <= 0 || rh <= 0) return mask;
@@ -1249,16 +1244,12 @@
                 yOffset: template ? (template.yOffset || 0) : 0,
                 xOffset: 0,
                 wOffset: 0,
-                baseline: template ? template.baseline : by1,
-                lineH: template ? template.lineH : (by1 - by0 + 1),
+                baseline: template && Number.isFinite(template.baseline) ? template.baseline : by1,
+                lineH: template && Number.isFinite(template.lineH) ? template.lineH : (by1 - by0 + 1),
                 char: ''
             };
         }
 
-        /**
-         * Splits wide touching handwritten/cursive blobs along thin horizontal bridges.
-         * Checks vertical ink span at each valley so hollow loops (o, a, e, m) stay intact.
-         */
         function autoSplitTouchingBlobs(rawBlobs, medianH, speckleMin) {
             const out = [];
             const minPieceW = Math.max(6, Math.round(medianH * 0.42));
@@ -1281,7 +1272,6 @@
                     if (ly > colMaxY[lx]) colMaxY[lx] = ly;
                 }
 
-                // 3-tap smoothed vertical projection
                 const smooth = new Float32Array(b.w);
                 let maxCol = 1;
                 for (let x = 0; x < b.w; x++) {
@@ -1291,7 +1281,6 @@
                     if (smooth[x] > maxCol) maxCol = smooth[x];
                 }
 
-                // Collect valley candidates where ink is a single thin connecting stroke
                 const candidates = [];
                 const thinLimit = Math.max(3, maxCol * 0.28);
                 const maxBridgeSpan = Math.max(5, b.h * 0.36);
@@ -1310,7 +1299,6 @@
                     continue;
                 }
 
-                // Greedily choose deepest valleys spaced at least minPieceW apart
                 candidates.sort((a, c) => a.score - c.score);
                 const cuts = [];
                 for (const cand of candidates) {
@@ -1324,7 +1312,6 @@
                 }
                 cuts.sort((a, c) => a - c);
 
-                // Partition points by cut columns
                 const buckets = Array.from({ length: cuts.length + 1 }, () => []);
                 for (let i = 0; i < b.points.length; i++) {
                     const lx = b.points[i][0] - b.x;
@@ -1444,20 +1431,13 @@
             return { x: bx0, y: by0, w: bx1 - bx0 + 1, h: by1 - by0 + 1, points };
         }
 
-        /**
-         * Slant-safe multipart merging: merges vertically stacked fragments
-         * (i/j dots, !, ?, :, =, accents) without fusing side-by-side slanted letters.
-         */
         function mergeMultipartBlobs(raw, medianH) {
             for (let i = raw.length - 1; i >= 0; i--) {
                 for (let j = i - 1; j >= 0; j--) {
                     const b1 = raw[i], b2 = raw[j];
-                    // Positive yDist means vertically separated; strongly negative means side-by-side
                     const yDist = Math.max(b1.y, b2.y) - Math.min(b1.y + b1.h, b2.y + b2.h);
                     const minH = Math.min(b1.h, b2.h);
                     if (yDist < -minH * 0.2 || yDist > medianH * 0.62) continue;
-
-                    // At least one part must be a small accent/dot/bar
                     if (minH > medianH * 0.55) continue;
 
                     const small = (b1.h <= b2.h) ? b1 : b2;
@@ -1511,7 +1491,6 @@
                 const hs = line.blobs.map(b => b.h).sort((a, b) => a - b);
                 const lineH = hs[Math.floor((hs.length - 1) * 0.85)] || medianH;
 
-                // Local moving baseline follows gentle slope/wave in unruled handwriting
                 for (let i = 0; i < line.blobs.length; i++) {
                     const b = line.blobs[i];
                     const wStart = Math.max(0, i - 3);
@@ -1531,7 +1510,7 @@
         }
 
         /* =========================================================
-           EXACT PIXEL-EDGE MARCHING SQUARES + CIRCULAR RDP + BÉZIER
+           EXACT PIXEL-EDGE MARCHING SQUARES + CIRCULAR RDP + CUBIC BÉZIER
            ========================================================= */
         function extractContoursWithHoles(b) {
             if (!b.points || b.points.length === 0) {
@@ -1725,14 +1704,34 @@
             return (wantClockwise !== isClockwise) ? [...pts].reverse() : pts;
         }
 
+        /**
+         * Emits integer-safe CFF outlines (moveTo, lineTo, and exact integer cubic curveTo).
+         * Avoids opentype.js 1.3.4's unrounded Q->C float conversion bug in CFF charstrings.
+         */
         function appendContourToPath(path, fontPts, useBezier) {
             const n = fontPts.length;
             if (n < 3) return;
-            const r = v => Math.round(v);
+            if (Math.abs(computeSignedArea(fontPts)) < 1) return;
+
+            const r = v => {
+                const iv = Math.round(v);
+                if (!Number.isFinite(iv)) return 0;
+                return Math.max(-4000, Math.min(4000, iv)) || 0;
+            };
 
             if (!useBezier || n < 4) {
-                path.moveTo(r(fontPts[0][0]), r(fontPts[0][1]));
-                for (let i = 1; i < n; i++) path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
+                let curX = r(fontPts[0][0]);
+                let curY = r(fontPts[0][1]);
+                path.moveTo(curX, curY);
+                for (let i = 1; i < n; i++) {
+                    const nx = r(fontPts[i][0]);
+                    const ny = r(fontPts[i][1]);
+                    if (nx !== curX || ny !== curY) {
+                        path.lineTo(nx, ny);
+                        curX = nx;
+                        curY = ny;
+                    }
+                }
                 path.close();
                 return;
             }
@@ -1762,26 +1761,49 @@
                 ? mid(lastIdx)
                 : [r(fontPts[lastIdx][0]), r(fontPts[lastIdx][1])];
 
-            path.moveTo(startPt[0], startPt[1]);
+            let curX = startPt[0];
+            let curY = startPt[1];
+            path.moveTo(curX, curY);
 
             for (let i = 0; i < n; i++) {
                 if (!isSmooth[i]) {
-                    path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
+                    const nx = r(fontPts[i][0]);
+                    const ny = r(fontPts[i][1]);
+                    if (nx !== curX || ny !== curY) {
+                        path.lineTo(nx, ny);
+                        curX = nx;
+                        curY = ny;
+                    }
                 } else {
                     const prevIdx = (i - 1 + n) % n;
                     if (!isSmooth[prevIdx]) {
-                        const mPrev = mid(prevIdx);
-                        path.lineTo(mPrev[0], mPrev[1]);
+                        const [mx, my] = mid(prevIdx);
+                        if (mx !== curX || my !== curY) {
+                            path.lineTo(mx, my);
+                            curX = mx;
+                            curY = my;
+                        }
                     }
-                    const mNext = mid(i);
-                    path.quadraticCurveTo(r(fontPts[i][0]), r(fontPts[i][1]), mNext[0], mNext[1]);
+                    const qx = r(fontPts[i][0]);
+                    const qy = r(fontPts[i][1]);
+                    const [ex, ey] = mid(i);
+                    if (ex !== curX || ey !== curY) {
+                        // Exact integer quadratic -> cubic elevation for clean CFF charstrings
+                        const c1x = r((curX + 2 * qx) / 3);
+                        const c1y = r((curY + 2 * qy) / 3);
+                        const c2x = r((ex + 2 * qx) / 3);
+                        const c2y = r((ey + 2 * qy) / 3);
+                        path.curveTo(c1x, c1y, c2x, c2y, ex, ey);
+                        curX = ex;
+                        curY = ey;
+                    }
                 }
             }
             path.close();
         }
 
         /* =========================================================
-           TRUETYPE FONT COMPILATION (PROPORTIONAL + AUTO-CASE)
+           OPENTYPE FONT COMPILATION (INTEGER CFF + SAFE FALLBACK)
            ========================================================= */
         function getFontMeta() {
             const rawName = (document.getElementById('fontNameInput')?.value || '').trim();
@@ -1792,29 +1814,17 @@
             return { familyName, styleName, filename: `${safeSlug}.ttf` };
         }
 
-        function generateFont() {
+        function buildOpenTypeFont(useBezierOverride = null) {
             const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
-            const saveBtn = document.getElementById('saveProjBtn');
-            if (saveBtn) saveBtn.disabled = blobs.length === 0;
-
-            if (!mappedBlobs.length) {
-                compiledCharSet = new Set();
-                autoCasedCount = 0;
-                document.getElementById('dlBtn').disabled = true;
-                document.getElementById('copyCssBtn').disabled = true;
-                updateSpecimenStatus();
-                updateMissing();
-                return;
-            }
+            if (!mappedBlobs.length) return null;
 
             const tol = parseFloat(document.getElementById('smoothTol').value) || 1.4;
             const globalTracking = parseInt(document.getElementById('globalTracking').value, 10) || 0;
             const isMonospace = document.getElementById('monoToggle').checked;
-            const useBezier = document.getElementById('bezierToggle').checked;
+            const useBezier = (useBezierOverride !== null) ? useBezierOverride : document.getElementById('bezierToggle').checked;
             const autoCase = document.getElementById('autoCaseToggle').checked;
             const meta = getFontMeta();
 
-            // Deduplicate by character, prioritizing the currently active blob
             const charBlobMap = new Map();
             if (activeBlob && activeBlob.char && activeBlob.char.trim()) {
                 charBlobMap.set(activeBlob.char, activeBlob);
@@ -1823,13 +1833,12 @@
                 if (!charBlobMap.has(b.char)) charBlobMap.set(b.char, b);
             });
 
-            // Build glyph compile entries (explicit + optional auto-cased counterparts)
             const entries = [];
             charBlobMap.forEach((b, ch) => {
                 entries.push({ ch, b, extraScale: 1.0, synthetic: false });
             });
 
-            autoCasedCount = 0;
+            let synthCount = 0;
             if (autoCase) {
                 const alphabet = 'abcdefghijklmnopqrstuvwxyz';
                 for (const lower of alphabet) {
@@ -1838,17 +1847,16 @@
                     const hasU = charBlobMap.has(upper);
                     if (hasL && !hasU) {
                         entries.push({ ch: upper, b: charBlobMap.get(lower), extraScale: 1.24, synthetic: true });
-                        autoCasedCount++;
+                        synthCount++;
                     } else if (hasU && !hasL) {
                         entries.push({ ch: lower, b: charBlobMap.get(upper), extraScale: 0.78, synthetic: true });
-                        autoCasedCount++;
+                        synthCount++;
                     }
                 }
             }
 
             entries.sort((a, c) => a.ch.charCodeAt(0) - c.ch.charCodeAt(0));
 
-            // Robust 90th-percentile height prevents a single tall flourish from shrinking the entire alphabet
             const heights = Array.from(charBlobMap.values())
                 .filter(b => b.points && b.points.length > 0)
                 .map(b => b.h)
@@ -1857,7 +1865,7 @@
                 ? heights[Math.floor((heights.length - 1) * 0.9)]
                 : 60;
             const globalScale = 640 / Math.max(refCapHeight, 18);
-            const monoWidth = Math.round(520 + globalTracking * 1.5);
+            const monoWidth = Math.max(120, Math.round(520 + globalTracking * 1.5));
 
             const notdefPath = new opentype.Path();
             notdefPath.moveTo(50, 0); notdefPath.lineTo(420, 0); notdefPath.lineTo(420, 680); notdefPath.lineTo(50, 680); notdefPath.close();
@@ -1868,12 +1876,14 @@
                 new opentype.Glyph({ name: 'space', unicode: 32, advanceWidth: spaceWidth, path: new opentype.Path() })
             ];
 
-            // Cache contours per blob so auto-cased pairs don't trace twice
             const contourCache = new Map();
-            compiledCharSet = new Set();
+            const builtChars = new Set();
 
             entries.forEach((entry, idx) => {
                 const { ch, b, extraScale } = entry;
+                const code = ch.charCodeAt(0);
+                if (!code || code <= 32 || code > 65535) return;
+
                 try {
                     let cached = contourCache.get(b);
                     if (!cached) {
@@ -1890,22 +1900,22 @@
                     const glyphScaledW = (b.w || 0) * effScale;
                     const xNudge = (b.xOffset || 0) * effScale;
                     const yNudge = (b.yOffset || 0) * effScale;
+                    const base = Number.isFinite(b.baseline) ? b.baseline : (b.y + b.h);
 
                     let advWidth;
                     let leftBearing;
 
                     if (isMonospace) {
-                        advWidth = Math.max(120, Math.round(monoWidth + (b.wOffset || 0)));
+                        advWidth = Math.max(120, Math.min(4000, Math.round(monoWidth + (b.wOffset || 0))));
                         leftBearing = (advWidth - glyphScaledW) * 0.5 + xNudge;
                     } else {
-                        // Tight proportional bearings suited for natural handwriting & script
-                        advWidth = Math.max(45, Math.round(glyphScaledW + 34 + globalTracking + (b.wOffset || 0)));
+                        advWidth = Math.max(45, Math.min(4000, Math.round(glyphScaledW + 34 + globalTracking + (b.wOffset || 0))));
                         leftBearing = 17 + xNudge;
                     }
 
                     const toFontCoord = (p) => [
                         (p[0] - b.x) * effScale + leftBearing,
-                        (b.baseline - p[1]) * effScale + yNudge
+                        (base - p[1]) * effScale + yNudge
                     ];
 
                     cached.outers.forEach(simpPix => {
@@ -1919,18 +1929,18 @@
                     });
 
                     glyphs.push(new opentype.Glyph({
-                        name: 'glyph_' + (ch.charCodeAt(0) || 63) + '_' + idx,
-                        unicode: ch.charCodeAt(0) || 63,
+                        name: 'glyph_' + code + '_' + idx,
+                        unicode: code,
                         advanceWidth: advWidth,
                         path
                     }));
-                    compiledCharSet.add(ch);
+                    builtChars.add(ch);
                 } catch (glyphErr) {
                     console.warn('Skipped bad glyph', ch, glyphErr);
                 }
             });
 
-            font = new opentype.Font({
+            const compiledFont = new opentype.Font({
                 familyName: meta.familyName,
                 styleName: meta.styleName,
                 unitsPerEm: 1000,
@@ -1939,28 +1949,62 @@
                 glyphs
             });
 
-            try {
-                if (lastFontUrl) {
-                    URL.revokeObjectURL(lastFontUrl);
-                    lastFontUrl = null;
-                }
+            return { compiledFont, builtChars, synthCount, usedBezier: useBezier };
+        }
 
-                const buffer = font.toArrayBuffer();
-                const blob = new Blob([buffer], { type: 'font/ttf' });
-                const fontUrl = URL.createObjectURL(blob);
-                lastFontUrl = fontUrl;
+        function generateFont() {
+            const saveBtn = document.getElementById('saveProjBtn');
+            if (saveBtn) saveBtn.disabled = blobs.length === 0;
 
-                const liveFamily = 'CitadelleLive_' + (++fontBuildCount);
-                const fontFace = new FontFace(liveFamily, `url(${fontUrl})`);
+            const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
+            if (!mappedBlobs.length) {
+                compiledCharSet = new Set();
+                autoCasedCount = 0;
+                document.getElementById('dlBtn').disabled = true;
+                document.getElementById('copyCssBtn').disabled = true;
+                setSpecimenStatus('', 'neutral');
+                updateMissing();
+                return;
+            }
 
-                fontFace.load().then(f => {
+            const buildId = ++fontBuildCount;
+            setSpecimenStatus('Compiling…', 'neutral');
+
+            const tryLoad = (useBezierOverride) => {
+                const res = buildOpenTypeFont(useBezierOverride);
+                if (!res) return Promise.reject(new Error('No mapped glyphs'));
+
+                const buffer = res.compiledFont.toArrayBuffer();
+                const liveFamily = 'CitadelleLive_' + buildId + (res.usedBezier ? '_c' : '_p');
+                const fontFace = new FontFace(liveFamily, buffer);
+
+                return fontFace.load().then(loadedFace => ({ loadedFace, liveFamily, res }));
+            };
+
+            const wantBezier = document.getElementById('bezierToggle').checked;
+
+            tryLoad(wantBezier)
+                .catch(err => {
+                    if (wantBezier) {
+                        console.warn('Bezier CFF load failed, retrying with crisp polygons:', err);
+                        return tryLoad(false);
+                    }
+                    throw err;
+                })
+                .then(({ loadedFace, liveFamily, res }) => {
+                    if (buildId !== fontBuildCount) return;
+
+                    font = res.compiledFont;
+                    compiledCharSet = res.builtChars;
+                    autoCasedCount = res.synthCount;
+
                     document.fonts.forEach(existingFace => {
                         if (existingFace.family && existingFace.family.startsWith('CitadelleLive_')) {
                             document.fonts.delete(existingFace);
                         }
                     });
 
-                    document.fonts.add(f);
+                    document.fonts.add(loadedFace);
                     currentLiveFamily = liveFamily;
 
                     if (typeof activeVaultFamily !== 'undefined') {
@@ -1969,36 +2013,35 @@
                     }
 
                     specimen.style.fontFamily = `"${liveFamily}", 'Courier Prime', monospace`;
-                    specimen.style.display = 'none';
-                    void specimen.offsetHeight;
-                    specimen.style.display = '';
 
                     document.getElementById('dlBtn').disabled = false;
                     document.getElementById('copyCssBtn').disabled = false;
-                    updateSpecimenStatus();
+
+                    const direct = compiledCharSet.size - autoCasedCount;
+                    const modeNote = res.usedBezier ? '' : ' · poly fallback';
+                    const summary = autoCasedCount > 0
+                        ? `✓ Live Font Active (${direct} traced + ${autoCasedCount} auto-cased${modeNote})`
+                        : `✓ Live Font Active (${direct} glyphs${modeNote})`;
+                    setSpecimenStatus(summary, 'ok');
                     updateMissing();
                     scheduleAutosave();
-                }).catch(err => {
-                    console.error("FontFace load failed:", err);
-                    specimen.style.fontFamily = 'Courier Prime, monospace';
+                })
+                .catch(err => {
+                    if (buildId !== fontBuildCount) return;
+                    console.error('Font compile/load error:', err);
+                    specimen.style.fontFamily = "'Courier Prime', monospace";
+                    setSpecimenStatus('⚠ Font load failed: ' + (err?.message || err), 'err');
+                    updateMissing();
                 });
-            } catch (err) {
-                console.error("Font compilation error:", err);
-                specimen.style.fontFamily = 'Courier Prime, monospace';
-            }
         }
 
-        function updateSpecimenStatus() {
+        function setSpecimenStatus(msg, kind = 'neutral') {
             const el = document.getElementById('specimenStatus');
             if (!el) return;
-            if (!compiledCharSet.size) {
-                el.textContent = '';
-                return;
-            }
-            const direct = compiledCharSet.size - autoCasedCount;
-            el.textContent = autoCasedCount > 0
-                ? `(${direct} traced + ${autoCasedCount} auto-cased)`
-                : `(${direct} glyphs active)`;
+            el.textContent = msg;
+            if (kind === 'ok') el.className = 'text-[10px] text-emerald-300 font-mono';
+            else if (kind === 'err') el.className = 'text-[10px] text-amber-300 font-mono';
+            else el.className = 'text-[10px] text-cyan-300/85 font-mono';
         }
 
         function downloadFont() {
@@ -2309,7 +2352,6 @@
 
             const { scale, cx, originX, originY, baselineY } = getInspectorTransform(b);
 
-            // Baseline (Red)
             inspectCtx.strokeStyle = '#ef4444';
             inspectCtx.lineWidth = 1.5;
             inspectCtx.beginPath();
@@ -2317,7 +2359,6 @@
             inspectCtx.lineTo(w, baselineY);
             inspectCtx.stroke();
 
-            // Bearing Guides (Cyan)
             inspectCtx.strokeStyle = '#06b6d4';
             inspectCtx.lineWidth = 1;
             inspectCtx.setLineDash([4, 4]);
@@ -2327,7 +2368,6 @@
             inspectCtx.stroke();
             inspectCtx.setLineDash([]);
 
-            // Render live glyph contours
             const { outers, holes } = extractContoursWithHoles(b);
             if (outers.length > 0) {
                 inspectCtx.beginPath();
@@ -2349,7 +2389,6 @@
                 inspectCtx.stroke();
             }
 
-            // Overlay uncommitted Brush & Erase strokes
             if (drawingStrokes.length) {
                 inspectCtx.lineCap = 'round';
                 inspectCtx.lineJoin = 'round';
@@ -2380,7 +2419,6 @@
                 }
             }
 
-            // Live Split guide line
             if (drawTool === 'split' && splitHoverX !== null) {
                 inspectCtx.strokeStyle = '#f59e0b';
                 inspectCtx.lineWidth = 2;
@@ -2421,7 +2459,6 @@
             const rightBlob = makeBlobFromPoints(rightPts, activeBlob);
             leftBlob.char = activeBlob.char;
 
-            // Pick next unused character from Target Character Order for the newly split half
             const used = new Set(blobs.map(b => b.char).filter(Boolean));
             const chars = getCleanCharsetChars();
             rightBlob.char = chars.find(c => !used.has(c)) || '';
@@ -2618,7 +2655,6 @@
             renderGlyphTray();
         }
 
-        /* Inspector Pointer Events */
         function getInspectCanvasPos(e) {
             const rect = inspectCanvas.getBoundingClientRect();
             return {
@@ -2682,7 +2718,6 @@
             currentStroke = null;
         });
 
-        /* Inspector Keyboard Shortcuts */
         window.addEventListener('keydown', e => {
             if (inspectModal.style.display !== 'flex' || !activeBlob) return;
             const tag = document.activeElement?.tagName;
