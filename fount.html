@@ -343,7 +343,24 @@
                         <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">Reset Crop</button>
                         <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">Re-Trace</button>
                     </div>
+                    <p id="scaleStatus" class="text-[10px] text-cyan-300/85 font-mono text-center mt-1">Scale-invariant detection ready</p>
                     <p class="text-[10px] text-white/60 text-center">Drag on canvas to crop a clean line or region, or paste (Ctrl+V) anytime.</p>
+
+                    <details class="mt-2 text-[10px] text-white/65 border border-white/15 rounded p-2">
+                        <summary class="cursor-pointer font-semibold text-white/80 tracking-wide uppercase text-[9px]">How-to · Photo size &amp; detection</summary>
+                        <div class="mt-2 space-y-1.5 leading-relaxed">
+                            <p><b>Detection is now scale-aware.</b> The engine measures typical letter height and converts noise/split thresholds relative to it, so close-up and farther photos behave more consistently.</p>
+                            <p><b>Best results:</b></p>
+                            <ul class="list-disc pl-4 space-y-0.5">
+                                <li>Crop tightly around one clean line (or a short paragraph).</li>
+                                <li>Aim for letters roughly 30–80 px tall after load (status line shows the estimate).</li>
+                                <li>Prefer Adaptive Threshold + Auto-Split for handwriting.</li>
+                                <li>If letters stay stuck, open a glyph and use the <b>Split</b> tool.</li>
+                                <li>Raise Speckle Sensitivity if you see dust/noise; lower it if thin strokes disappear.</li>
+                            </ul>
+                            <p class="text-white/50 pt-1">Very tiny letters (&lt;22 px) or extremely large ones may still need a tighter crop or a closer photo for best auto-split accuracy.</p>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Global Metrics Panel -->
@@ -398,10 +415,10 @@
 
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
-                            <span class="text-white/70">Min Speckle Size</span>
-                            <span id="speckleVal" class="font-mono">12px</span>
+                            <span class="text-white/70" title="Relative noise floor. 12 ≈ default (0.18× letter height). Higher rejects more small marks.">Speckle Sensitivity</span>
+                            <span id="speckleVal" class="font-mono">12</span>
                         </div>
-                        <input type="range" id="speckleMin" min="2" max="100" value="12" class="w-full" oninput="updateSpeckle(this.value)">
+                        <input type="range" id="speckleMin" min="2" max="40" value="12" class="w-full" oninput="updateSpeckle(this.value)">
                     </div>
 
                     <div class="pt-1">
@@ -639,6 +656,7 @@
 
         let savedGlobalThreshold = 140;
         let savedAdaptiveBias = 16;
+        let estimatedLetterH = 40; // robust letter height for scale-invariant thresholds
 
         let analyzeTimer = null;
         let fontTimer = null;
@@ -819,7 +837,7 @@
         }
 
         function updateSpeckle(val) {
-            document.getElementById('speckleVal').innerText = val + 'px';
+            document.getElementById('speckleVal').innerText = val;
             scheduleAnalyze(140);
         }
 
@@ -948,8 +966,11 @@
 
         function dilateBinaryMask(mask, w, h, weight, minX, minY, maxX, maxY) {
             if (weight <= 0) return mask;
+            // Mild scale awareness: larger letters get a slightly stronger thicken
+            const scaleBoost = estimatedLetterH > 55 ? Math.min(1, Math.round((estimatedLetterH - 55) / 40)) : 0;
+            const passes = Math.min(4, weight + scaleBoost);
             let curr = mask;
-            for (let pass = 0; pass < weight; pass++) {
+            for (let pass = 0; pass < passes; pass++) {
                 const next = new Uint8Array(curr);
                 const useDiag = (pass > 0);
                 for (let y = minY; y < maxY; y++) {
@@ -1023,7 +1044,9 @@
                 }
             }
 
-            const radius = Math.max(12, Math.min(34, Math.round(Math.min(rw, rh) * 0.03)));
+            // Scale-invariant adaptive radius: prefer estimated letter height when available
+            const estH = estimatedLetterH > 8 ? estimatedLetterH : Math.min(rw, rh) * 0.08;
+            const radius = Math.max(8, Math.min(48, Math.round(estH * 0.55)));
             const bias = sliderVal;
 
             for (let y = 0; y < rh; y++) {
@@ -1343,8 +1366,12 @@
             const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
             const maxY = cropRect ? Math.min(h, Math.ceil(cropRect.y + cropRect.h)) : h;
 
-            const speckleMin = parseInt(document.getElementById('speckleMin').value, 10) || 12;
+            const cropH = Math.max(1, maxY - minY);
+            const userSpeckleSlider = parseInt(document.getElementById('speckleMin').value, 10) || 12;
             const autoSplit = document.getElementById('autoSplitToggle').checked;
+
+            // Pass 1: generous extraction to estimate letter height
+            const provisionalMin = 6;
             const mask = computeBinaryMask(minX, minY, maxX, maxY);
             const visited = new Uint8Array(w * h);
             let rawBlobs = [];
@@ -1355,7 +1382,7 @@
                     const idx = rowOff + x;
                     if (mask[idx] && !visited[idx]) {
                         const blob = floodFillMask(x, y, mask, visited, w, minX, maxX, minY, maxY);
-                        if (blob.w >= 2 && blob.h >= 2 && blob.points.length >= speckleMin) {
+                        if (blob.w >= 2 && blob.h >= 2 && blob.points.length >= provisionalMin) {
                             blob.yOffset = 0;
                             blob.xOffset = 0;
                             blob.wOffset = 0;
@@ -1365,11 +1392,34 @@
                 }
             }
 
+            // Robust letter height (~65th percentile of plausible blobs)
+            const candidateHeights = rawBlobs
+                .map(b => b.h)
+                .filter(hh => hh >= 8 && hh <= cropH * 0.85)
+                .sort((a, b) => a - b);
+
+            let robustH;
+            if (candidateHeights.length >= 3) {
+                robustH = candidateHeights[Math.floor(candidateHeights.length * 0.65)] || candidateHeights[Math.floor(candidateHeights.length * 0.5)];
+            } else if (candidateHeights.length > 0) {
+                robustH = candidateHeights[Math.floor(candidateHeights.length * 0.5)];
+            } else {
+                robustH = Math.max(18, Math.round(cropH * 0.14));
+            }
+            estimatedLetterH = Math.max(12, Math.min(160, robustH));
+
+            // Convert slider into relative threshold (12 ≈ 0.18 × letter height)
+            const relativeFactor = userSpeckleSlider / 12;
+            const effectiveSpeckleMin = Math.max(4, Math.round(estimatedLetterH * 0.18 * relativeFactor));
+
+            // Re-filter with scale-aware threshold
+            rawBlobs = rawBlobs.filter(b => b.points.length >= effectiveSpeckleMin && b.h >= Math.max(4, estimatedLetterH * 0.18));
+
             const heights = rawBlobs.map(b => b.h).sort((a, b) => a - b);
-            const medianH = heights[Math.floor(heights.length * 0.5)] || 28;
+            const medianH = heights[Math.floor(heights.length * 0.5)] || estimatedLetterH;
 
             if (autoSplit) {
-                rawBlobs = autoSplitTouchingBlobs(rawBlobs, medianH, speckleMin);
+                rawBlobs = autoSplitTouchingBlobs(rawBlobs, medianH, effectiveSpeckleMin);
             }
 
             rawBlobs = mergeMultipartBlobs(rawBlobs, medianH);
@@ -1386,6 +1436,8 @@
                 }
             });
 
+            updateScaleStatus(estimatedLetterH, effectiveSpeckleMin);
+
             if (document.getElementById('maskToggle').checked) {
                 updateMainCanvasDisplay();
             }
@@ -1393,6 +1445,17 @@
             updateOverlay();
             renderGlyphTray();
             generateFont();
+        }
+
+        function updateScaleStatus(letterH, specklePx) {
+            const el = document.getElementById('scaleStatus');
+            if (!el) return;
+            const note = letterH < 28 ? ' (small – try closer crop)' :
+                         letterH > 90 ? ' (large – still OK)' : '';
+            el.textContent = `Est. letter ≈ ${Math.round(letterH)} px · speckle ≥ ${specklePx} px${note}`;
+            el.className = letterH < 22 || letterH > 110
+                ? 'text-[10px] text-amber-300/90 font-mono text-center'
+                : 'text-[10px] text-cyan-300/85 font-mono text-center';
         }
 
         function floodFillMask(startX, startY, mask, visited, w, minX, maxX, minY, maxY) {
@@ -2814,7 +2877,7 @@
                 }
                 if (typeof data.settings.speckleMin === 'number') {
                     document.getElementById('speckleMin').value = data.settings.speckleMin;
-                    document.getElementById('speckleVal').innerText = data.settings.speckleMin + 'px';
+                    document.getElementById('speckleVal').innerText = data.settings.speckleMin;
                 }
                 if (typeof data.settings.inkWeight === 'number') {
                     document.getElementById('inkWeight').value = data.settings.inkWeight;
