@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,6 +53,10 @@
 
     .leaflet-control-attribution { display: none !important; }
     .leaflet-container { background: #000 !important; }
+
+    /* TACTICAL TILE OPTICS PRESETS */
+    .optics-nvg .leaflet-tile-pane { filter: sepia(100%) hue-rotate(85deg) saturate(260%) brightness(0.85) contrast(1.25); }
+    .optics-flir .leaflet-tile-pane { filter: invert(100%) contrast(155%) brightness(0.9) hue-rotate(180deg); }
 
     /* CRT SCANLINE OVERLAY */
     .crt-overlay {
@@ -180,7 +185,6 @@
     }
 
     /* ================= 4. OPTICAL FEED BOX ================= */
-    /* ================= 4. OPTICAL FEED BOX ================= */
     #optical-feed-box {
       position: absolute;
       top: 340px; /* Clears 10 toolbar buttons */
@@ -300,6 +304,35 @@
       font-size: 10px; padding: 6px 9px; letter-spacing: 1px; text-align: left; width: 100%;
     }
     .hud-btn:hover, .hud-btn.active { border-color: var(--crimson); color: var(--crimson-glow); background: #24080b; }
+
+    /* FACTBOOK + GDELT DOSSIER WIDGET INSIDE SECTORS */
+    #fb-dossier-shell {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--crimson);
+    }
+    .fb-row { display: flex; gap: 4px; margin-bottom: 6px; }
+    #fb-country-input {
+      flex: 1; min-width: 0;
+      background: #070304; border: 1px solid var(--line2); color: var(--txt);
+      font-family: var(--mono); font-size: 10px; padding: 5px 7px; outline: none;
+    }
+    #fb-country-input:focus { border-color: var(--crimson); }
+    .fb-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+    .fb-chip {
+      background: #0d0507; border: 1px solid var(--line2); color: var(--mut);
+      font-size: 8px; padding: 2px 5px; letter-spacing: 0.5px;
+    }
+    .fb-chip:hover { border-color: var(--crimson); color: var(--crimson-glow); }
+    #fb-preview {
+      background: #060304; border: 1px solid var(--line2);
+      padding: 7px; font-size: 9px; line-height: 1.45; color: #d8cccd;
+      max-height: 220px; overflow-y: auto; margin-bottom: 6px;
+    }
+    #fb-preview b { color: var(--crimson-glow); }
+    #fb-preview .fb-hl { color: var(--yel); display: block; margin-top: 3px; }
+    .fb-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+    .fb-actions .hud-btn { flex: 1; text-align: center; padding: 5px 4px; font-size: 9px; }
 
     /* ================= 6. MONA WORD PROCESSOR DRAWER ================= */
     #notepadPanel {
@@ -635,7 +668,6 @@
     </nav>
 
     <!-- OPTICAL FEED BOX -->
-<!-- OPTICAL FEED BOX -->
     <div id="optical-feed-box">
       <div class="ofb-head">
         <span>OPTICAL // <b>SURVEILLANCE FEED</b></span>
@@ -719,7 +751,7 @@
     <div>DIRECT BROWSER RUNTIME | ZERO PROXY</div>
   </footer>
 
-  <script>
+<script>
     // ================= 1. SYSTEM CLOCK & SOLENOID AUDIO =================
     function tickClock() {
       const d = new Date();
@@ -1010,6 +1042,9 @@
             fillOpacity: 0.85
           });
 
+          // Tag metadata for in-memory sector SITREP correlation
+          marker._isisMeta = { callsign, type, alt, squawk };
+
           marker.on('click', async () => {
             playSolenoid(220, 0.04);
             marker.bindPopup(`
@@ -1263,9 +1298,9 @@
         <div class="side-group">
           <div class="side-group-title">// SENSORS & CRT FX</div>
           <button class="side-item ${sonarActive ? 'active' : ''}" onclick="toggleSonar(this)">${sonarActive ? '[x]' : '[ ]'} SONAR SWEEP</button>
-          <button class="side-item ${!document.getElementById('crt').classList.contains('crt-off')?'active':''}" id="opt-crt" onclick="toggleCRT(this)">[ ] CRT SCANLINES</button>
+          <button class="side-item ${!document.getElementById('crt').classList.contains('crt-off')?'active':''}" id="opt-crt" onclick="toggleCRT(this)">${!document.getElementById('crt').classList.contains('crt-off')?'[x]':'[ ]'} CRT SCANLINES</button>
           <button class="side-item ${audioOn?'active':''}" id="opt-audio" onclick="toggleAudio(this)">${audioOn?'[x]':'[ ]'} SOLENOID CLICKS</button>
-          <button class="side-item ${!document.getElementById('tactical-cross').classList.contains('grid-off')?'active':''}" id="opt-grid" onclick="toggleGrid(this)">[x] TACTICAL CROSS</button>
+          <button class="side-item ${!document.getElementById('tactical-cross').classList.contains('grid-off')?'active':''}" id="opt-grid" onclick="toggleGrid(this)">${!document.getElementById('tactical-cross').classList.contains('grid-off')?'[x]':'[ ]'} TACTICAL CROSS</button>
         </div>
         <div class="side-group">
           <div class="side-group-title">// RECON NODES</div>
@@ -1330,16 +1365,20 @@
       ${commonPanelFooter()}
     `;
 
-    tools.sectors = () => `
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <button class="hud-btn" onclick="map.flyTo([24.4, 119.8], 7)">» 01: TAIWAN STRAIT</button>
-        <button class="hud-btn" onclick="map.flyTo([26.56, 56.25], 7)">» 02: STRAIT OF HORMUZ</button>
-        <button class="hud-btn" onclick="map.flyTo([12.58, 43.33], 7)">» 03: BAB-EL-MANDEB</button>
-        <button class="hud-btn" onclick="map.flyTo([43.5, 34.0], 6)">» 04: BLACK SEA / CRIMEA</button>
-        <button class="hud-btn" onclick="map.flyTo([22.0, 10.0], 2.5)">» 00: GLOBAL OVERVIEW</button>
-      </div>
-      ${commonPanelFooter()}
-    `;
+    tools.sectors = () => {
+      setTimeout(bindFactbookPanel, 20);
+      return `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <button class="hud-btn" onclick="map.flyTo([24.4, 119.8], 7)">» 01: TAIWAN STRAIT</button>
+          <button class="hud-btn" onclick="map.flyTo([26.56, 56.25], 7)">» 02: STRAIT OF HORMUZ</button>
+          <button class="hud-btn" onclick="map.flyTo([12.58, 43.33], 7)">» 03: BAB-EL-MANDEB</button>
+          <button class="hud-btn" onclick="map.flyTo([43.5, 34.0], 6)">» 04: BLACK SEA / CRIMEA</button>
+          <button class="hud-btn" onclick="map.flyTo([22.0, 10.0], 2.5)">» 00: GLOBAL OVERVIEW</button>
+        </div>
+        ${buildFactbookShellHTML()}
+        ${commonPanelFooter()}
+      `;
+    };
 
     tools.space = () => `
       <div style="font-size:11px; line-height:1.7;">
@@ -1551,7 +1590,6 @@
     async function initMonaBuffer() {
       const restoredFromHash = await restoreFromUrlHash();
       if (!restoredFromHash) {
-        // Prefer original key, fall back to upgrade key
         np.value = localStorage.getItem('ISIS_MONA_BUFFER') || localStorage.getItem('ISIS_MONA_DOC') || '';
         updateMonaMeta();
       }
@@ -1566,7 +1604,7 @@
     np.addEventListener('keydown', () => playSolenoid(130, 0.02));
     np.addEventListener('input', () => {
       localStorage.setItem('ISIS_MONA_BUFFER', np.value);
-      localStorage.setItem('ISIS_MONA_DOC', np.value); // dual-write for compatibility
+      localStorage.setItem('ISIS_MONA_DOC', np.value);
       document.getElementById('npSaveStatus').innerText = "SAVED";
       updateMonaMeta();
     });
@@ -1593,7 +1631,6 @@
         document.getElementById('npSaveStatus').innerText = "URL LINK COPIED";
         setTimeout(() => document.getElementById('npSaveStatus').innerText = "SYNCED", 2000);
       } catch(e) {
-        // Fallback for older browsers
         try {
           const hash = btoa(encodeURIComponent(text)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
           window.location.hash = hash;
@@ -1625,7 +1662,6 @@
           }
         } catch(e) {
           try {
-            // Try simple btoa path (upgrade style)
             let base64 = hash.replace(/-/g, '+').replace(/_/g, '/');
             while (base64.length % 4) base64 += '=';
             np.value = decodeURIComponent(atob(base64));
@@ -1766,7 +1802,7 @@
       document.getElementById('npSaveStatus').innerText = "VOICE INPUT";
     }
 
-    // ================= 13. NEWS WIRE TICKER ENGINE (rotating queue) =================
+    // ================= 13. NEWS WIRE TICKER ENGINE =================
     const alerts = [
       "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
       "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
@@ -1884,7 +1920,7 @@
     syncThreatWire();
     setInterval(syncThreatWire, 300000);
 
-    // ================= 16. NEKOS.BEST INTERCEPT FEED (multi-category) =================
+    // ================= 16. NEKOS.BEST INTERCEPT FEED =================
     const ANIME_CATEGORIES = ['neko', 'waifu', 'kitsune', 'hug', 'pat', 'smile', 'dance', 'poke'];
     let animeInterval = null;
 
@@ -1914,6 +1950,312 @@
     }
     fetchAnimeStream();
     animeInterval = setInterval(fetchAnimeStream, 8000);
+
+    // ================= 17. WORLD FACTBOOK + GDELT + SECTOR SITREP -> MONA =================
+    const FB_HOTSPOTS = [
+      { label: 'IRAQ', slug: 'iraq', name: 'Iraq' },
+      { label: 'IRAN', slug: 'iran', name: 'Iran' },
+      { label: 'SYRIA', slug: 'syria', name: 'Syria' },
+      { label: 'UKRAINE', slug: 'ukraine', name: 'Ukraine' },
+      { label: 'TAIWAN', slug: 'taiwan', name: 'Taiwan' },
+      { label: 'YEMEN', slug: 'yemen', name: 'Yemen' },
+      { label: 'ISRAEL', slug: 'israel', name: 'Israel' },
+      { label: 'CHINA', slug: 'china', name: 'China' }
+    ];
+
+    let fbCountryIndex = [];
+    let fbLastDossier = null;
+    let gdeltLastCall = 0;
+    const gdeltCache = new Map();
+
+    function fbCleanText(val) {
+      if (!val) return '';
+      if (typeof val === 'string') return val.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (Array.isArray(val)) return val.map(fbCleanText).filter(Boolean).join('; ');
+      if (typeof val === 'object') {
+        if (val.text) return fbCleanText(val.text);
+        return Object.entries(val)
+          .slice(0, 4)
+          .map(([k, v]) => {
+            const txt = fbCleanText(v);
+            return txt ? `${k.replace(/_/g, ' ')}: ${txt}` : '';
+          })
+          .filter(Boolean)
+          .join(' | ');
+      }
+      return String(val);
+    }
+
+    function fbPickField(section, keys, maxLen = 220) {
+      if (!section) return 'N/A';
+      if (typeof section === 'string') return fbCleanText(section).slice(0, maxLen);
+      for (const k of keys) {
+        if (section[k]) {
+          const s = fbCleanText(section[k]);
+          if (s) return s.length > maxLen ? s.slice(0, maxLen) + '...' : s;
+        }
+      }
+      const fallback = fbCleanText(section);
+      return fallback ? (fallback.length > maxLen ? fallback.slice(0, maxLen) + '...' : fallback) : 'N/A';
+    }
+
+    function fbSlugify(name) {
+      return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    async function ensureFactbookIndex() {
+      if (fbCountryIndex.length) return fbCountryIndex;
+      try {
+        const r = await fetch('https://worldfactbook.io/api/v1/countries/');
+        if (r.ok) {
+          const list = await r.json();
+          if (Array.isArray(list)) fbCountryIndex = list;
+        }
+      } catch (_) {}
+      return fbCountryIndex;
+    }
+
+    function scanInMemoryTelemetry(centerLat, centerLon, padDeg = 4.5) {
+      const inBox = ll =>
+        ll &&
+        Math.abs(ll.lat - centerLat) <= padDeg &&
+        Math.abs(ll.lng - centerLon) <= padDeg;
+
+      const milHits = [];
+      layers.milAir.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (inBox(ll)) milHits.push(l._isisMeta?.callsign || 'MIL-AC');
+      });
+
+      let civCount = 0;
+      layers.radar.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) civCount++; });
+
+      let quakeCount = 0;
+      layers.quakes.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) quakeCount++; });
+
+      let fireCount = 0;
+      layers.fires.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) fireCount++; });
+
+      return { milHits, civCount, quakeCount, fireCount };
+    }
+
+    async function fetchGdeltHeadlines(countryName) {
+      const key = countryName.toLowerCase();
+      if (gdeltCache.has(key)) return gdeltCache.get(key);
+
+      const now = Date.now();
+      if (now - gdeltLastCall < 5000) {
+        return [{ title: 'GDELT cooldown (5s limit) — retry shortly', domain: 'system' }];
+      }
+      gdeltLastCall = now;
+
+      try {
+        const q = `"${countryName}" (military OR security OR conflict OR diplomatic)`;
+        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=5&timespan=7d&format=json`;
+        const r = await fetch(url);
+        if (!r.ok) return [];
+        const data = await r.json();
+        const articles = (data.articles || []).slice(0, 5).map(a => ({
+          title: a.title || 'Untitled dispatch',
+          domain: a.domain || 'wire'
+        }));
+        gdeltCache.set(key, articles);
+        return articles;
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function loadCountryDossier(queryName, explicitSlug) {
+      const preview = document.getElementById('fb-preview');
+      if (!preview) return;
+      playSolenoid(190, 0.03);
+
+      const raw = (queryName || document.getElementById('fb-country-input')?.value || '').trim();
+      if (!raw) {
+        preview.innerHTML = '<span style="color:var(--yel);">ENTER OR SELECT A COUNTRY FIRST.</span>';
+        return;
+      }
+
+      preview.innerHTML = `<span style="color:var(--yel);">QUERYING FACTBOOK + RESTCOUNTRIES + GDELT FOR "${raw.toUpperCase()}"...</span>`;
+
+      await ensureFactbookIndex();
+      const match = fbCountryIndex.find(c =>
+        c.slug === explicitSlug ||
+        c.name.toLowerCase() === raw.toLowerCase() ||
+        c.slug === fbSlugify(raw)
+      ) || fbCountryIndex.find(c => c.name.toLowerCase().includes(raw.toLowerCase()));
+
+      const slug = explicitSlug || match?.slug || fbSlugify(raw);
+      const displayName = match?.name || raw;
+
+      const [fbRes, rcRes, gdelt] = await Promise.all([
+        fetch(`https://worldfactbook.io/api/v1/countries/${slug}/`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(displayName)}?fields=name,capital,region,subregion,latlng,borders,area,population,cca2`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetchGdeltHeadlines(displayName)
+      ]);
+
+      const rc = Array.isArray(rcRes) ? rcRes[0] : null;
+      const latlng = rc?.latlng && rc.latlng.length === 2 ? rc.latlng : null;
+
+      if (latlng) map.flyTo(latlng, 5, { duration: 1.1 });
+
+      const sector = latlng
+        ? scanInMemoryTelemetry(latlng[0], latlng[1])
+        : { milHits: [], civCount: 0, quakeCount: 0, fireCount: 0 };
+
+      const govSummary = fbPickField(fbRes?.government, ['government_type', 'type', 'executive_branch', 'capital']);
+      const milSummary = fbPickField(fbRes?.military, ['military_and_security_forces', 'military_branches', 'branches', 'military_expenditures', 'note']);
+      const geoSummary = fbPickField(fbRes?.geography, ['location', 'geographic_coordinates', 'land_boundaries', 'natural_resources']);
+      const introSummary = fbRes?.aiSummary
+        ? fbCleanText(fbRes.aiSummary).slice(0, 260)
+        : fbPickField(fbRes?.introduction, ['background'], 240);
+
+      const pop = fbRes?.population || rc?.population;
+      const popStr = pop ? Number(pop).toLocaleString() : 'N/A';
+      const capital = fbRes?.capital || rc?.capital?.[0] || 'N/A';
+      const borders = rc?.borders?.length ? rc.borders.join(', ') : 'ISLAND / N/A';
+
+      fbLastDossier = {
+        name: fbRes?.name || rc?.name?.common || displayName,
+        code: (rc?.cca2 || slug).toUpperCase(),
+        region: fbRes?.region || rc?.subregion || rc?.region || 'GLOBAL',
+        capital,
+        popStr,
+        gdp: fbRes?.gdp ? `$${fbRes.gdp}B` : 'N/A',
+        borders,
+        govSummary,
+        milSummary,
+        geoSummary,
+        introSummary,
+        sector,
+        gdelt
+      };
+
+      preview.innerHTML = `
+        <div><b>[ ${fbLastDossier.name.toUpperCase()} // ${fbLastDossier.code} ]</b> (${fbLastDossier.region})</div>
+        <div><b>CAP:</b> ${fbLastDossier.capital} | <b>POP:</b> ${fbLastDossier.popStr} | <b>GDP:</b> ${fbLastDossier.gdp}</div>
+        <div><b>BORDERS:</b> ${fbLastDossier.borders}</div>
+        <div style="margin-top:4px;"><b>GOV:</b> ${fbLastDossier.govSummary}</div>
+        <div style="margin-top:4px;"><b>MIL:</b> ${fbLastDossier.milSummary}</div>
+        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
+        <div style="margin-top:4px;"><b>GDELT WIRE (7D):</b>
+          ${gdelt.length
+            ? gdelt.map(a => `<span class="fb-hl">• ${a.title} <i style="color:var(--mut);">[${a.domain}]</i></span>`).join('')
+            : '<span class="fb-hl" style="color:var(--mut);">• No recent GDELT dispatches returned.</span>'}
+        </div>
+      `;
+
+      pushTicker(`FACTBOOK SITREP: ${fbLastDossier.name.toUpperCase()} // MIL:${sector.milHits.length} WIRE:${gdelt.length}`);
+    }
+
+    function exportDossierToMona() {
+      if (!fbLastDossier) {
+        loadCountryDossier();
+        return;
+      }
+      const d = fbLastDossier;
+      const zulu = document.getElementById('zulu-clock')?.innerText || '--:--:--';
+      const milList = d.sector.milHits.length ? ` (${d.sector.milHits.slice(0, 6).join(', ')})` : '';
+      const gdeltBlock = d.gdelt.length
+        ? d.gdelt.map(a => `• ${a.title} [${a.domain}]`).join('\n')
+        : '• No recent dispatches';
+
+      const sitrep = [
+        `=== SITREP // ${d.name.toUpperCase()} [${d.code}] @ ${zulu}Z ===`,
+        `REGION: ${d.region} | CAPITAL: ${d.capital} | POP: ${d.popStr} | GDP: ${d.gdp}`,
+        `BORDERS: ${d.borders}`,
+        `BRIEF: ${d.introSummary}`,
+        `GOV: ${d.govSummary}`,
+        `MIL: ${d.milSummary}`,
+        `GEO: ${d.geoSummary}`,
+        `LIVE SECTOR TELEMETRY: MIL ADS-B=${d.sector.milHits.length}${milList} | CIV=${d.sector.civCount} | QUAKES=${d.sector.quakeCount} | FIRES=${d.sector.fireCount}`,
+        `GDELT WIRE (7D):`,
+        gdeltBlock,
+        `==================================================`
+      ].join('\n');
+
+      if (!npPanel.classList.contains('open')) npBtn.click();
+      np.value = (np.value ? np.value.trimEnd() + '\n\n' : '') + sitrep + '\n';
+      np.scrollTop = np.scrollHeight;
+      np.dispatchEvent(new Event('input', { bubbles: true }));
+      playSolenoid(260, 0.05);
+    }
+
+    function speakDossierBrief() {
+      if (!fbLastDossier || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const d = fbLastDossier;
+      const topNews = d.gdelt[0]?.title ? ` Top wire: ${d.gdelt[0].title}.` : '';
+      const text = `Situation report for ${d.name}. Capital ${d.capital}. ${d.sector.milHits.length} military aircraft tracked in sector.${topNews}`;
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.02;
+      u.pitch = 0.92;
+      window.speechSynthesis.speak(u);
+    }
+
+    function setOpticsMode(mode) {
+      const mapEl = document.getElementById('map');
+      if (!mapEl) return;
+      mapEl.classList.remove('optics-nvg', 'optics-flir');
+      if (mode === 'nvg') mapEl.classList.add('optics-nvg');
+      if (mode === 'flir') mapEl.classList.add('optics-flir');
+      playSolenoid(120, 0.03);
+    }
+
+    function buildFactbookShellHTML() {
+      return `
+        <div id="fb-dossier-shell">
+          <div class="side-group-title">// WORLD FACTBOOK + GDELT -> MONA</div>
+          <div class="fb-chips">
+            ${FB_HOTSPOTS.map(h => `<button class="fb-chip" data-fb-slug="${h.slug}" data-fb-name="${h.name}">${h.label}</button>`).join('')}
+          </div>
+          <div class="fb-row">
+            <input id="fb-country-input" list="fb-country-list" placeholder="COUNTRY (e.g. Germany, Iraq)..." />
+            <datalist id="fb-country-list"></datalist>
+            <button class="hud-btn" id="fb-fetch-btn" style="width:auto; padding:5px 8px;">FETCH</button>
+          </div>
+          <div id="fb-preview">Select a hotspot chip or type a country to pull Factbook + GDELT + live sector sensors.</div>
+          <div class="fb-actions">
+            <button class="hud-btn" id="fb-mona-btn">+ MONA SITREP</button>
+            <button class="hud-btn" id="fb-speak-btn" style="flex:0.6;">SPEAK</button>
+          </div>
+          <div class="side-group-title" style="margin-top:8px;">// TILE OPTICS</div>
+          <div class="fb-actions">
+            <button class="hud-btn" data-optics="std">STD</button>
+            <button class="hud-btn" data-optics="nvg">NVG</button>
+            <button class="hud-btn" data-optics="flir">FLIR</button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function bindFactbookPanel() {
+      const dl = document.getElementById('fb-country-list');
+      if (dl && !dl.options.length) {
+        const list = await ensureFactbookIndex();
+        dl.innerHTML = list.map(c => `<option value="${c.name}">`).join('');
+      }
+
+      document.getElementById('fb-fetch-btn')?.addEventListener('click', () => loadCountryDossier());
+      document.getElementById('fb-country-input')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') loadCountryDossier();
+      });
+      document.getElementById('fb-mona-btn')?.addEventListener('click', exportDossierToMona);
+      document.getElementById('fb-speak-btn')?.addEventListener('click', speakDossierBrief);
+
+      document.querySelectorAll('#fb-dossier-shell .fb-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const inp = document.getElementById('fb-country-input');
+          if (inp) inp.value = btn.dataset.fbName;
+          loadCountryDossier(btn.dataset.fbName, btn.dataset.fbSlug);
+        });
+      });
+
+      document.querySelectorAll('#fb-dossier-shell [data-optics]').forEach(btn => {
+        btn.addEventListener('click', () => setOpticsMode(btn.dataset.optics));
+      });
+    }
   </script>
 </body>
 </html>
