@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (Draw Mode)</title>
+    <title>FOUNT // CITADELLE RESERVE // TYPEWRITER ENGINE (v2)</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
@@ -49,12 +49,12 @@
 
         .detection-box {
             position: absolute;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.38);
             pointer-events: none;
         }
         .detection-box.mapped {
             border-color: #38bdf8;
-            background: rgba(56, 189, 248, 0.1);
+            background: rgba(56, 189, 248, 0.08);
         }
 
         #cropOverlay {
@@ -74,9 +74,10 @@
             flex-direction: column;
             align-items: center;
             padding: 6px;
-            min-width: 54px;
+            min-width: 56px;
             cursor: pointer;
             transition: all 0.15s ease;
+            position: relative;
         }
         .glyph-chip:hover {
             border-color: #38bdf8;
@@ -86,6 +87,13 @@
         .glyph-chip.active {
             border-color: #ffffff;
             background: rgba(255, 255, 255, 0.25);
+        }
+        .glyph-chip.duplicate {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.18);
+        }
+        .glyph-chip.unmapped {
+            opacity: 0.55;
         }
 
         input[type="range"] { accent-color: #ffffff; height: 4px; }
@@ -109,18 +117,63 @@
         body.classic-mode .btn-primary { background: #ff2a2a; color: #0a0a0a; }
         .btn-ghost { background: transparent; border: 1px solid var(--border); color: #fff; }
         .btn-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; }
-        .btn-danger:hover { background: rgba(239, 68, 68, 0.5); color: #fff; }
+        .btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.5); color: #fff; }
+
+        .tool-seg {
+            display: inline-flex;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .tool-seg button {
+            padding: 4px 10px;
+            font-size: 10px;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+            border: none;
+            border-right: 1px solid var(--border);
+        }
+        .tool-seg button:last-child { border-right: none; }
+        .tool-seg button.seg-active {
+            background: #ffffff;
+            color: #111111;
+        }
+        .tool-seg button.seg-erase-active {
+            background: #ef4444;
+            color: #ffffff;
+        }
 
         /* Modal Overlay */
         #inspectorModal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.72);
             backdrop-filter: blur(4px);
             z-index: 50;
             align-items: center;
             justify-content: center;
+            padding: 16px;
+        }
+
+        .missing-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.55);
+            color: #fde68a;
+            font-size: 11px;
+            font-family: monospace;
+            cursor: pointer;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .missing-chip:hover {
+            background: rgba(245, 158, 11, 0.45);
+            color: #ffffff;
         }
 
         /* --- INKREALM & EG REPOSITORY ARCHIVE FONTS --- */
@@ -171,12 +224,22 @@
                     Fount // Typewriter Engine
                 </h1>
                 <p class="text-[11px] text-white/70 tracking-wide uppercase mt-1">
-                    Adaptive Contrast & TrueType Metric Compiler · Detection + Live Draw Mode
+                    Marching-Squares Bézier Compiler · Adaptive Thresholding · Live Draw &amp; Erase
                 </p>
             </div>
-            <div class="flex gap-3 items-center">
+            <div class="flex flex-wrap gap-2 items-center">
+                <input type="file" id="projectInput" class="hidden" accept=".json,application/json">
+                <button onclick="saveProjectJSON()" id="saveProjBtn" disabled class="btn-ghost text-[10px] px-3 py-2 rounded" title="Export editable project JSON">
+                    Save JSON
+                </button>
+                <button onclick="document.getElementById('projectInput').click()" class="btn-ghost text-[10px] px-3 py-2 rounded" title="Import saved project JSON">
+                    Load JSON
+                </button>
                 <button onclick="document.body.classList.toggle('classic-mode')" class="btn-ghost text-[10px] px-3 py-2 rounded">
                     Toggle Classic
+                </button>
+                <button onclick="copyFontCSS()" id="copyCssBtn" disabled class="btn-ghost text-[10px] px-3 py-2 rounded">
+                    Copy CSS
                 </button>
                 <button onclick="downloadFont()" id="dlBtn" disabled class="btn-primary px-5 py-2.5 rounded shadow-md text-xs">
                     Export .TTF
@@ -195,11 +258,26 @@
                         Load Manuscript Image
                     </button>
 
+                    <button id="restoreSessionBtn" onclick="restoreAutosave()"
+                        class="hidden w-full py-2 border border-cyan-300/50 bg-cyan-400/15 text-cyan-200 text-[10px] font-bold rounded hover:bg-cyan-400/30 transition-all">
+                        Restore Previous Session
+                    </button>
+
                     <!-- Preprocessing Controls -->
                     <div class="space-y-3 pt-1 border-t border-white/10">
                         <label class="flex items-center justify-between text-xs cursor-pointer">
                             <span class="text-white/80">Invert Polarity (Negative)</span>
-                            <input type="checkbox" id="invertToggle" onchange="analyze()" class="w-4 h-4 accent-white">
+                            <input type="checkbox" id="invertToggle" onchange="onPreprocessChange()" class="w-4 h-4 accent-white">
+                        </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer" title="Uses local neighborhood mean to handle page shadows and uneven scans">
+                            <span class="text-white/80">Adaptive Threshold (Shadows)</span>
+                            <input type="checkbox" id="adaptiveToggle" onchange="onAdaptiveModeToggle()" class="w-4 h-4 accent-white">
+                        </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer" title="Preview the exact black & white ink mask seen by the tracer">
+                            <span class="text-white/80">Show B/W Mask</span>
+                            <input type="checkbox" id="maskToggle" onchange="updateMainCanvasDisplay()" class="w-4 h-4 accent-white">
                         </label>
 
                         <div>
@@ -215,19 +293,36 @@
                         <button onclick="clearCrop()" class="btn-ghost text-[10px] py-1.5 px-3 rounded flex-1">Reset Crop</button>
                         <button onclick="analyze()" class="btn-primary text-[10px] py-1.5 px-3 rounded flex-1">Re-Trace</button>
                     </div>
-                    <p class="text-[10px] text-white/60 text-center">💡 Drag crop box on canvas (works while scrolled) or paste (Ctrl+V) anytime.</p>
+                    <p class="text-[10px] text-white/60 text-center">Drag on canvas to crop (works while scrolled) or paste an image (Ctrl+V) anytime.</p>
                 </div>
 
                 <!-- Global Metrics Panel -->
                 <div class="panel p-5 space-y-4">
-                    <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Font Metrics (Global)</h2>
-                    
-                    <label class="flex items-center justify-between text-xs cursor-pointer">
-                        <span>Monospace Pitch (Uniform Width)</span>
+                    <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Font Metrics &amp; Metadata</h2>
+
+                    <!-- Font Name & Style -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-white/60 uppercase mb-1">Font Name</label>
+                            <input type="text" id="fontNameInput" value="Citadelle" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-white/60 uppercase mb-1">Style</label>
+                            <input type="text" id="fontStyleInput" value="Typewriter" class="w-full px-2 py-1 text-xs outline-none" oninput="scheduleGenerateFont(120)">
+                        </div>
+                    </div>
+
+                    <label class="flex items-center justify-between text-xs cursor-pointer pt-1 border-t border-white/10">
+                        <span>Monospace Pitch (Centered)</span>
                         <input type="checkbox" id="monoToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
                     </label>
 
-                    <div class="pt-2">
+                    <label class="flex items-center justify-between text-xs cursor-pointer" title="Fits native TrueType quadratic Bézier curves while keeping sharp corners crisp">
+                        <span>Smooth Bézier Curves</span>
+                        <input type="checkbox" id="bezierToggle" checked onchange="generateFont()" class="w-4 h-4 accent-white">
+                    </label>
+
+                    <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span class="text-white/70">Letter Spacing (Tracking)</span>
                             <span id="trackVal" class="font-mono">80</span>
@@ -235,23 +330,31 @@
                         <input type="range" id="globalTracking" min="-50" max="250" value="80" class="w-full" oninput="updateTracking(this.value)">
                     </div>
 
-                    <div class="pt-2">
+                    <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
-                            <span class="text-white/70">Contrast Threshold</span>
+                            <span id="threshLabel" class="text-white/70">Contrast Threshold</span>
                             <div class="flex items-center gap-2">
-                                <button onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
+                                <button id="otsuBtn" onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
                                 <span id="threshVal" class="font-mono">140</span>
                             </div>
                         </div>
                         <input type="range" id="threshold" min="30" max="230" value="140" class="w-full" oninput="updateThreshold(this.value)">
                     </div>
 
-                    <div class="pt-2">
+                    <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
-                            <span class="text-white/70">Curve Smoothing</span>
-                            <span id="smoothVal" class="font-mono">1.5px</span>
+                            <span class="text-white/70">Min Speckle Size</span>
+                            <span id="speckleVal" class="font-mono">8px</span>
                         </div>
-                        <input type="range" id="smoothTol" min="0.5" max="4.0" step="0.5" value="1.5" class="w-full" oninput="updateSmooth(this.value)">
+                        <input type="range" id="speckleMin" min="2" max="80" value="8" class="w-full" oninput="updateSpeckle(this.value)">
+                    </div>
+
+                    <div class="pt-1">
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-white/70">Contour Simplify</span>
+                            <span id="smoothVal" class="font-mono">1.2px</span>
+                        </div>
+                        <input type="range" id="smoothTol" min="0.4" max="4.0" step="0.2" value="1.2" class="w-full" oninput="updateSmooth(this.value)">
                     </div>
                 </div>
 
@@ -259,9 +362,13 @@
                 <div class="panel p-5">
                     <div class="flex justify-between items-center mb-2">
                         <h2 class="text-[11px] font-bold tracking-widest uppercase text-white/70">Target Character Order</h2>
-                        <button onclick="resetCharsetToAlphabet()" class="text-[10px] underline opacity-70 hover:opacity-100">Reset</button>
+                        <div class="flex gap-2">
+                            <button onclick="remapCharsetToBlobs()" class="text-[10px] underline text-cyan-300 opacity-85 hover:opacity-100" title="Re-apply sequence without erasing drawings or nudges">Re-apply</button>
+                            <button onclick="resetCharsetToAlphabet()" class="text-[10px] underline opacity-70 hover:opacity-100">Reset</button>
+                        </div>
                     </div>
-                    <textarea id="charset" class="w-full p-2 text-xs font-mono h-20 outline-none resize-none">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#</textarea>
+                    <textarea id="charset" oninput="remapCharsetToBlobs()" class="w-full p-2 text-xs font-mono h-20 outline-none resize-none">ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#</textarea>
+                    <p class="text-[9px] text-white/55 mt-1.5">Editing remaps live without wiping your custom nudges or drawings.</p>
                 </div>
             </aside>
 
@@ -271,7 +378,7 @@
                 <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
                     <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20 pointer-events-none">
                         Waiting for manuscript input…<br>
-                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, plate image, or paste directly</span>
+                        <span class="text-[11px] opacity-70">Drop your typewriter sheet, scan, plate image, paste (Ctrl+V), or click "+ Draw New"</span>
                     </div>
                     <div class="relative cursor-crosshair">
                         <canvas id="mainCanvas" class="hidden"></canvas>
@@ -282,13 +389,16 @@
 
                 <!-- DETECTED GLYPH TRAY -->
                 <div class="panel p-4">
-                    <div class="flex justify-between items-center mb-3">
-                        <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
-                            Extracted Glyphs (<span id="glyphCount">0</span> mapped)
-                        </h2>
-                        <div class="flex gap-2">
-                            <button onclick="addBlankGlyph()" class="btn-ghost text-[9px] px-2 py-1 rounded">+ Draw New</button>
-                            <span class="text-[10px] text-cyan-300">Click any card below to fine-tune baseline & width — letter draws live</span>
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
+                                Extracted Glyphs (<span id="glyphCount">0</span> mapped)
+                            </h2>
+                            <span id="dupWarning" class="hidden text-[10px] px-2 py-0.5 rounded bg-amber-500/25 border border-amber-400/50 text-amber-200 font-mono"></span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <button onclick="addBlankGlyph()" class="btn-ghost text-[9px] px-2.5 py-1 rounded">+ Draw New</button>
+                            <span class="text-[10px] text-cyan-300 hidden sm:inline">Click any card to fine-tune, brush, or erase live</span>
                         </div>
                     </div>
                     <div id="glyphTray" class="flex gap-2 overflow-x-auto pb-2 text-xs font-mono">
@@ -298,7 +408,7 @@
 
                 <!-- SPECIMEN OUTPUT -->
                 <div class="panel p-6 md:p-8 relative">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
                         <h2 class="text-[10px] font-bold tracking-widest uppercase text-white/70">
                             Live Specimen Preview (Editable)
                         </h2>
@@ -311,7 +421,7 @@
                     <div id="specimen" contenteditable="true"
                         class="outline-none text-4xl md:text-5xl leading-relaxed min-h-[140px] relative z-10 whitespace-pre-wrap break-words"
                         style="font-family: var(--font-display);">The quick brown fox jumped over the lazy dog.</div>
-                    <div id="missingChars" class="mt-3 text-[11px] text-cyan-300/80 font-mono min-h-[1.2em]"></div>
+                    <div id="missingChars" class="mt-3 text-[11px] font-mono min-h-[1.5em] flex flex-wrap items-center gap-1.5"></div>
                 </div>
             </main>
         </div>
@@ -319,7 +429,7 @@
         <!-- HORIZONTAL FONT RACK -->
         <div class="panel p-3 mt-4">
             <div class="flex items-center justify-between mb-2 px-1">
-                <span class="text-[10px] font-bold tracking-widest uppercase text-white/70">Archival Type Library (7)</span>
+                <span class="text-[10px] font-bold tracking-widest uppercase text-white/70">Typeface Preview Rack (Custom + 7 Archival)</span>
                 <span class="text-[9px] text-cyan-300 font-mono">TAP TO TEST · ⬇ TO SAVE</span>
             </div>
 
@@ -327,42 +437,52 @@
         </div>
 
         <footer class="text-center text-[10px] text-white/50 pt-2 pb-4 tracking-wide uppercase">
-            Inkrealm · Citadelle Type Engine · Live Reactive Mode
+            Inkrealm · Citadelle Type Engine · Live Reactive Bézier Mode
         </footer>
     </div>
 
     <!-- GLYPH INSPECTOR MODAL -->
-    <div id="inspectorModal" class="flex">
+    <div id="inspectorModal" onclick="if (event.target === this) closeInspector()">
         <div class="panel p-6 max-w-lg w-full bg-[#18181b] border border-white/30 rounded-lg shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b border-white/20 pb-3">
-                <h3 class="text-sm font-bold tracking-wider uppercase flex items-center gap-2">
-                    <span>Glyph Inspector:</span>
-                    <span id="inspectCharTitle" class="text-cyan-400 text-lg font-mono">A</span>
-                </h3>
-                <button onclick="closeInspector()" class="text-white/60 hover:text-white text-lg">&times;</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="stepInspector(-1)" id="prevGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Previous Glyph (Left)">◀</button>
+                    <h3 class="text-sm font-bold tracking-wider uppercase flex items-center gap-2">
+                        <span>Glyph</span>
+                        <span id="inspectIndexBadge" class="text-[10px] text-white/50 font-mono">#1</span>
+                        <span id="inspectCharTitle" class="text-cyan-400 text-lg font-mono">A</span>
+                    </h3>
+                    <button onclick="stepInspector(1)" id="nextGlyphBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Next Glyph (Right)">▶</button>
+                </div>
+                <button onclick="closeInspector()" class="text-white/60 hover:text-white text-xl leading-none px-1" title="Close (Esc)">&times;</button>
             </div>
 
             <!-- Mini Preview Canvas with Baseline/Bearing Guides + Live Letter -->
-            <div class="flex justify-center bg-black/60 p-4 rounded border border-white/10 relative">
-                <canvas id="inspectCanvas" width="280" height="200" class="border border-white/5"></canvas>
+            <div class="flex justify-center bg-black/60 p-3 rounded border border-white/10 relative">
+                <canvas id="inspectCanvas" width="320" height="220" class="border border-white/5 rounded"></canvas>
             </div>
-            <p class="text-[10px] text-center text-cyan-300/80">Letter redraws live as you adjust baseline / bearings</p>
 
-            <!-- Drawing Controls -->
-            <div class="flex flex-wrap gap-2 items-center text-xs bg-black/30 p-2 rounded">
-                <label class="flex items-center gap-1 cursor-pointer">
-                    <input type="checkbox" id="drawModeToggle" class="w-4 h-4 accent-white" onchange="toggleDrawMode()">
-                    <span>Draw Mode</span>
-                </label>
-                <div class="flex items-center gap-1">
-                    <span>Brush</span>
-                    <input type="range" id="brushSize" min="1" max="20" value="6" class="w-16">
+            <!-- Drawing & Erasing Controls -->
+            <div class="flex flex-wrap gap-2 items-center justify-between text-xs bg-black/35 p-2.5 rounded border border-white/10">
+                <div class="tool-seg">
+                    <button id="toolViewBtn" onclick="setDrawTool('view')" class="seg-active">View</button>
+                    <button id="toolBrushBtn" onclick="setDrawTool('brush')">Brush</button>
+                    <button id="toolEraseBtn" onclick="setDrawTool('erase')">Erase</button>
                 </div>
-                <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Drawing</button>
-                <button onclick="clearGlyphPixels()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Letter</button>
-                <button onclick="commitDrawing()" class="btn-primary text-[10px] px-2 py-1 rounded">Commit Drawing</button>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-white/70">Size</span>
+                    <input type="range" id="brushSize" min="2" max="24" value="7" class="w-16">
+                </div>
+                <div class="flex gap-1.5">
+                    <button onclick="undoInspector()" id="undoDrawBtn" class="btn-ghost text-[10px] px-2 py-1 rounded" title="Undo (Ctrl+Z)">Undo</button>
+                    <button onclick="clearDrawing()" class="btn-ghost text-[10px] px-2 py-1 rounded">Clear Ink</button>
+                    <button onclick="clearGlyphPixels()" class="btn-ghost text-[10px] px-2 py-1 rounded">Wipe</button>
+                    <button onclick="commitDrawing()" id="commitDrawBtn" disabled class="btn-primary text-[10px] px-2.5 py-1 rounded">Commit</button>
+                </div>
             </div>
-            <p class="text-[9px] text-center text-white/50">Draw to add strokes to the letter, or click "Clear Letter" to paint fresh. "Commit Drawing" immediately updates the live specimen preview.</p>
+            <p class="text-[9px] text-center text-white/55">
+                Pick <b>Brush</b> to paint or <b>Erase</b> to clean scanner specks, then click <b>Commit</b>. Shortcuts: <span class="font-mono">Ctrl+Z</span> undo · <span class="font-mono">Arrows</span> nudge · <span class="font-mono">Esc</span> close.
+            </p>
 
             <!-- Manipulation Sliders -->
             <div class="space-y-3 text-xs">
@@ -390,9 +510,9 @@
                 <div>
                     <div class="flex justify-between">
                         <label>Custom Advance Width:</label>
-                        <span id="inspectWVal" class="font-mono">Auto</span>
+                        <span id="inspectWVal" class="font-mono">0px</span>
                     </div>
-                    <input type="range" id="inspectW" min="-100" max="200" value="0" class="w-full">
+                    <input type="range" id="inspectW" min="-150" max="250" value="0" class="w-full">
                 </div>
             </div>
 
@@ -408,43 +528,85 @@
     </div>
 
     <script>
+        /* =========================================================
+           CORE DOM & STATE
+           ========================================================= */
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
+        // Offscreen canvas always stores the clean rotated source image
+        const sourceCanvas = document.createElement('canvas');
+        const sourceCtx = sourceCanvas.getContext('2d');
+
         const overlay = document.getElementById('overlay');
         const cropOverlay = document.getElementById('cropOverlay');
         const specimen = document.getElementById('specimen');
         const glyphTray = document.getElementById('glyphTray');
         const glyphCount = document.getElementById('glyphCount');
 
-        specimen.addEventListener('input', updateMissing);
-
         const inspectModal = document.getElementById('inspectorModal');
         const inspectCanvas = document.getElementById('inspectCanvas');
         const inspectCtx = inspectCanvas.getContext('2d');
-        
+
         let originalSourceImage = null;
         let currentRotation = 0;
         let blobs = [];
         let font = null;
         let fontBuildCount = 0;
         let lastFontUrl = null;
+        let currentLiveFamily = null;
+
         let cropRect = null;
         let isDragging = false;
-        let dragStart = { x: 0, y: 0 };
-        let activeBlobIndex = null;
-        let activeBlob = null;
+        let dragStart = { canvasX: 0, canvasY: 0 };
 
-        // Drawing mode state
-        let drawMode = false;
+        let activeBlob = null;
+        let drawTool = 'view'; // 'view' | 'brush' | 'erase'
         let drawingStrokes = [];
         let currentStroke = null;
         let isPainting = false;
+        let glyphUndoStack = [];
+        let lockedInspectScale = 2.5;
 
+        // Separate remembered slider values for Global vs Adaptive threshold
+        let savedGlobalThreshold = 140;
+        let savedAdaptiveBias = 15;
+
+        let analyzeTimer = null;
+        let fontTimer = null;
+        let autosaveTimer = null;
+
+        const AUTOSAVE_KEY = 'fount_citadelle_autosave_v2';
+        const DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#";
         const DESCENDERS = new Set(['g', 'j', 'p', 'q', 'y', ',', ';', 'Q']);
 
+        specimen.addEventListener('input', updateMissing);
+
+        // Keep detection boxes & crop box aligned on window/container resize
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => {
+                updateOverlay();
+                syncCropOverlayBox();
+            }).observe(canvas);
+        } else {
+            window.addEventListener('resize', () => {
+                updateOverlay();
+                syncCropOverlayBox();
+            });
+        }
+
+        /* =========================================================
+           INPUT HANDLERS (FILE, DROP, PASTE, JSON)
+           ========================================================= */
         document.getElementById('imageInput').onchange = e => {
             if (e.target.files && e.target.files[0]) {
                 handleImage(e.target.files[0]);
+                e.target.value = '';
+            }
+        };
+
+        document.getElementById('projectInput').onchange = e => {
+            if (e.target.files && e.target.files[0]) {
+                loadProjectFile(e.target.files[0]);
                 e.target.value = '';
             }
         };
@@ -457,143 +619,327 @@
         canvasWrapper.addEventListener('drop', e => {
             e.preventDefault();
             e.stopPropagation();
-            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-                handleImage(e.dataTransfer.files[0]);
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!file) return;
+            if (file.name.toLowerCase().endsWith('.json')) {
+                loadProjectFile(file);
+            } else {
+                handleImage(file);
             }
         });
 
         window.addEventListener('paste', e => {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (let item of items) {
+            if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT' || document.activeElement.isContentEditable)) {
+                // Still allow pasting images even if focused, ignore text paste
+            }
+            const items = (e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData))?.items;
+            if (!items) return;
+            for (const item of items) {
                 if (item.type.indexOf('image') === 0) {
                     const file = item.getAsFile();
-                    handleImage(file);
+                    if (file) handleImage(file);
                     break;
                 }
             }
         });
 
+        /* =========================================================
+           DEBOUNCED CONTROLS & PREPROCESSING
+           ========================================================= */
+        function scheduleAnalyze(delay = 140) {
+            clearTimeout(analyzeTimer);
+            analyzeTimer = setTimeout(() => analyze(), delay);
+        }
+
+        function scheduleGenerateFont(delay = 50) {
+            clearTimeout(fontTimer);
+            fontTimer = setTimeout(() => generateFont(), delay);
+        }
+
+        function onPreprocessChange() {
+            updateMainCanvasDisplay();
+            analyze();
+        }
+
+        function onAdaptiveModeToggle() {
+            const isAdaptive = document.getElementById('adaptiveToggle').checked;
+            const slider = document.getElementById('threshold');
+            const label = document.getElementById('threshLabel');
+            const valEl = document.getElementById('threshVal');
+            const otsuBtn = document.getElementById('otsuBtn');
+
+            if (isAdaptive) {
+                savedGlobalThreshold = parseInt(slider.value, 10);
+                slider.min = -10;
+                slider.max = 55;
+                slider.value = savedAdaptiveBias;
+                label.textContent = 'Local Sensitivity';
+                valEl.textContent = savedAdaptiveBias;
+                otsuBtn.classList.add('hidden');
+            } else {
+                savedAdaptiveBias = parseInt(slider.value, 10);
+                slider.min = 30;
+                slider.max = 230;
+                slider.value = savedGlobalThreshold;
+                label.textContent = 'Contrast Threshold';
+                valEl.textContent = savedGlobalThreshold;
+                otsuBtn.classList.remove('hidden');
+            }
+            updateMainCanvasDisplay();
+            analyze();
+        }
+
         function updateThreshold(val) {
             document.getElementById('threshVal').innerText = val;
-            analyze();
+            if (document.getElementById('adaptiveToggle').checked) {
+                savedAdaptiveBias = parseInt(val, 10);
+            } else {
+                savedGlobalThreshold = parseInt(val, 10);
+            }
+            if (document.getElementById('maskToggle').checked) {
+                updateMainCanvasDisplay();
+            }
+            scheduleAnalyze(140);
         }
+
+        function updateSpeckle(val) {
+            document.getElementById('speckleVal').innerText = val + 'px';
+            scheduleAnalyze(140);
+        }
+
         function updateSmooth(val) {
-            document.getElementById('smoothVal').innerText = val + 'px';
-            generateFont();
+            document.getElementById('smoothVal').innerText = parseFloat(val).toFixed(1) + 'px';
+            scheduleGenerateFont(60);
         }
+
         function updateTracking(val) {
             document.getElementById('trackVal').innerText = val;
-            generateFont();
+            scheduleGenerateFont(60);
         }
+
+        function updateRotation(deg) {
+            currentRotation = parseFloat(deg);
+            document.getElementById('rotVal').innerText = (currentRotation > 0 ? '+' : '') + currentRotation.toFixed(1) + '°';
+            renderSourceCanvas();
+            scheduleAnalyze(160);
+        }
+
+        function remapCharsetToBlobs() {
+            const chars = document.getElementById('charset').value.split('');
+            blobs.forEach((b, i) => {
+                b.char = chars[i] || '';
+            });
+            updateOverlay();
+            renderGlyphTray();
+            scheduleGenerateFont(40);
+        }
+
         function resetCharsetToAlphabet() {
-            document.getElementById('charset').value = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!?#";
-            analyze();
+            document.getElementById('charset').value = DEFAULT_CHARSET;
+            remapCharsetToBlobs();
         }
-        function setSample(text) { 
-            specimen.innerText = text; 
+
+        function setSample(text) {
+            specimen.innerText = text;
             updateMissing();
         }
 
-        function updateMissing() {
-            const el = document.getElementById('missingChars');
-            if (!el) return;
-            const text = specimen.innerText || '';
-            const needed = new Set();
-            for (const ch of text) {
-                if (ch.trim() && ch !== '\n' && ch !== '\r') needed.add(ch);
-            }
-            const have = new Set(blobs.filter(b => b.char && b.char.trim()).map(b => b.char));
-            const missing = [...needed].filter(ch => !have.has(ch)).sort();
-            if (missing.length === 0) {
-                el.textContent = needed.size ? 'All characters in specimen are mapped.' : '';
-                el.className = 'mt-3 text-[11px] text-emerald-300/80 font-mono min-h-[1.2em]';
-            } else {
-                el.textContent = 'Missing: ' + missing.join(' ');
-                el.className = 'mt-3 text-[11px] text-amber-300/90 font-mono min-h-[1.2em]';
-            }
-        }
-
+        /* =========================================================
+           IMAGE LOADING & CANVAS DISPLAY (SOURCE VS B/W MASK)
+           ========================================================= */
         function handleImage(file) {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = event => {
                 const img = new Image();
                 img.onload = () => {
-                    // Downsample large images to keep flood-fill responsive
                     const MAX_DIM = 1600;
-                    let src = img;
                     if (img.width > MAX_DIM || img.height > MAX_DIM) {
                         const scale = MAX_DIM / Math.max(img.width, img.height);
                         const tmp = document.createElement('canvas');
                         tmp.width = Math.round(img.width * scale);
                         tmp.height = Math.round(img.height * scale);
-                        const tctx = tmp.getContext('2d');
-                        tctx.drawImage(img, 0, 0, tmp.width, tmp.height);
-                        src = new Image();
-                        src.src = tmp.toDataURL('image/png');
-                        // Wait for the downsampled image
-                        src.onload = () => finishImageLoad(src);
-                        return;
+                        tmp.getContext('2d').drawImage(img, 0, 0, tmp.width, tmp.height);
+                        finishImageLoad(tmp);
+                    } else {
+                        finishImageLoad(img);
                     }
-                    finishImageLoad(src);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        function finishImageLoad(img) {
-            originalSourceImage = img;
+        function finishImageLoad(srcDrawable) {
+            originalSourceImage = srcDrawable;
             currentRotation = 0;
             document.getElementById('skewSlider').value = 0;
             document.getElementById('rotVal').innerText = '0.0°';
             renderSourceCanvas();
             canvas.classList.remove('hidden');
             document.getElementById('dropZone').classList.add('hidden');
-            clearCrop();
-            autoThreshold();
-        }
-
-        /* --- ROTATION / DESKEW RENDERING --- */
-        function updateRotation(deg) {
-            currentRotation = parseFloat(deg);
-            document.getElementById('rotVal').innerText = (currentRotation > 0 ? '+' : '') + currentRotation.toFixed(1) + '°';
-            renderSourceCanvas();
-            analyze();
+            cropRect = null;
+            cropOverlay.style.display = 'none';
+            if (document.getElementById('adaptiveToggle').checked) {
+                analyze();
+            } else {
+                autoThreshold();
+            }
         }
 
         function renderSourceCanvas() {
             if (!originalSourceImage) return;
-            canvas.width = originalSourceImage.width;
-            canvas.height = originalSourceImage.height;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const w = originalSourceImage.width;
+            const h = originalSourceImage.height;
+            sourceCanvas.width = w;
+            sourceCanvas.height = h;
+            canvas.width = w;
+            canvas.height = h;
 
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.rotate((currentRotation * Math.PI) / 180);
-            ctx.drawImage(originalSourceImage, -originalSourceImage.width / 2, -originalSourceImage.height / 2);
-            ctx.restore();
+            sourceCtx.clearRect(0, 0, w, h);
+            sourceCtx.save();
+            sourceCtx.translate(w / 2, h / 2);
+            sourceCtx.rotate((currentRotation * Math.PI) / 180);
+            sourceCtx.drawImage(originalSourceImage, -w / 2, -h / 2);
+            sourceCtx.restore();
+
+            updateMainCanvasDisplay();
         }
 
-        /* --- OTSU'S AUTOMATIC THRESHOLDING --- */
-        function autoThreshold() {
-            if (!canvas.width || !canvas.height) return;
-            const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
-            const maxX = cropRect ? Math.min(canvas.width, Math.ceil(cropRect.x + cropRect.w)) : canvas.width;
-            const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
-            const maxY = cropRect ? Math.min(canvas.height, Math.ceil(cropRect.y + cropRect.h)) : canvas.height;
+        /**
+         * Computes a 0/1 binary ink mask from sourceCanvas using either
+         * global threshold or fast 2D integral-image adaptive thresholding.
+         */
+        function computeBinaryMask(minX = 0, minY = 0, maxX = sourceCanvas.width, maxY = sourceCanvas.height) {
+            const w = sourceCanvas.width;
+            const h = sourceCanvas.height;
+            const mask = new Uint8Array(w * h);
+            if (!w || !h) return mask;
 
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const imgData = sourceCtx.getImageData(0, 0, w, h);
             const data = imgData.data;
-            const w = canvas.width;
+            const invert = document.getElementById('invertToggle').checked;
+            const isAdaptive = document.getElementById('adaptiveToggle').checked;
+            const sliderVal = parseInt(document.getElementById('threshold').value, 10);
 
+            if (!isAdaptive) {
+                for (let y = minY; y < maxY; y++) {
+                    const rowOff = y * w;
+                    for (let x = minX; x < maxX; x++) {
+                        const pIdx = rowOff + x;
+                        const dIdx = pIdx * 4;
+                        const lum = (data[dIdx] * 77 + data[dIdx + 1] * 150 + data[dIdx + 2] * 29) >> 8;
+                        if (invert ? (lum > sliderVal) : (lum < sliderVal)) {
+                            mask[pIdx] = 1;
+                        }
+                    }
+                }
+                return mask;
+            }
+
+            // Fast O(W*H) Integral Image Adaptive Thresholding
+            const rw = maxX - minX;
+            const rh = maxY - minY;
+            if (rw <= 0 || rh <= 0) return mask;
+
+            const iw = rw + 1;
+            const gray = new Uint8Array(rw * rh);
+            const integral = new Uint32Array(iw * (rh + 1));
+
+            for (let y = 0; y < rh; y++) {
+                let rowSum = 0;
+                const srcRow = (minY + y) * w + minX;
+                const gRow = y * rw;
+                const iRowPrev = y * iw;
+                const iRowCurr = (y + 1) * iw;
+                for (let x = 0; x < rw; x++) {
+                    const dIdx = (srcRow + x) * 4;
+                    const lum = (data[dIdx] * 77 + data[dIdx + 1] * 150 + data[dIdx + 2] * 29) >> 8;
+                    gray[gRow + x] = lum;
+                    rowSum += lum;
+                    integral[iRowCurr + x + 1] = integral[iRowPrev + x + 1] + rowSum;
+                }
+            }
+
+            const radius = Math.max(12, Math.min(34, Math.round(Math.min(rw, rh) * 0.03)));
+            const bias = sliderVal;
+
+            for (let y = 0; y < rh; y++) {
+                const y0 = y - radius < 0 ? 0 : y - radius;
+                const y1 = y + radius + 1 > rh ? rh : y + radius + 1;
+                const y0Off = y0 * iw;
+                const y1Off = y1 * iw;
+                const gRow = y * rw;
+                const dstRow = (minY + y) * w + minX;
+
+                for (let x = 0; x < rw; x++) {
+                    const x0 = x - radius < 0 ? 0 : x - radius;
+                    const x1 = x + radius + 1 > rw ? rw : x + radius + 1;
+                    const area = (x1 - x0) * (y1 - y0);
+                    const sum = integral[y1Off + x1] - integral[y0Off + x1] - integral[y1Off + x0] + integral[y0Off + x0];
+                    const localMean = sum / area;
+                    const lum = gray[gRow + x];
+                    if (invert ? (lum > localMean + bias) : (lum < localMean - bias)) {
+                        mask[dstRow + x] = 1;
+                    }
+                }
+            }
+
+            return mask;
+        }
+
+        function updateMainCanvasDisplay() {
+            if (!sourceCanvas.width || !sourceCanvas.height) return;
+            const showMask = document.getElementById('maskToggle').checked;
+            if (!showMask) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(sourceCanvas, 0, 0);
+                return;
+            }
+
+            const w = sourceCanvas.width;
+            const h = sourceCanvas.height;
+            const mask = computeBinaryMask(0, 0, w, h);
+            const out = ctx.createImageData(w, h);
+            const outData = out.data;
+
+            for (let i = 0; i < mask.length; i++) {
+                const v = mask[i] ? 255 : 18;
+                const d = i * 4;
+                outData[d] = v;
+                outData[d + 1] = v;
+                outData[d + 2] = v;
+                outData[d + 3] = 255;
+            }
+            ctx.putImageData(out, 0, 0);
+        }
+
+        /* =========================================================
+           OTSU'S AUTOMATIC THRESHOLDING
+           ========================================================= */
+        function autoThreshold() {
+            if (!sourceCanvas.width || !sourceCanvas.height) return;
+            if (document.getElementById('adaptiveToggle').checked) {
+                analyze();
+                return;
+            }
+
+            const w = sourceCanvas.width;
+            const h = sourceCanvas.height;
+            const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
+            const maxX = cropRect ? Math.min(w, Math.ceil(cropRect.x + cropRect.w)) : w;
+            const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
+            const maxY = cropRect ? Math.min(h, Math.ceil(cropRect.y + cropRect.h)) : h;
+
+            const data = sourceCtx.getImageData(0, 0, w, h).data;
             const hist = new Int32Array(256);
             let total = 0;
+
             for (let y = minY; y < maxY; y += 2) {
                 for (let x = minX; x < maxX; x += 2) {
                     const idx = (y * w + x) * 4;
-                    const br = Math.round((data[idx] + data[idx + 1] + data[idx + 2]) / 3);
-                    hist[br]++;
+                    const lum = (data[idx] * 77 + data[idx + 1] * 150 + data[idx + 2] * 29) >> 8;
+                    hist[lum]++;
                     total++;
                 }
             }
@@ -622,16 +968,33 @@
                 }
             }
 
+            optimalThresh = Math.max(30, Math.min(230, optimalThresh));
+            savedGlobalThreshold = optimalThresh;
             document.getElementById('threshold').value = optimalThresh;
             document.getElementById('threshVal').innerText = optimalThresh;
+            updateMainCanvasDisplay();
             analyze();
         }
 
-        /* --- DRAG TO CROP --- */
+        /* =========================================================
+           DEDICATED DRAG-TO-CROP (ZERO CLICK OVERLAP)
+           ========================================================= */
         function getDisplayPosFromCanvas(cx, cy) {
+            if (!canvas.width || !canvas.height) return { left: 0, top: 0 };
             const scaleX = canvas.clientWidth / canvas.width;
             const scaleY = canvas.clientHeight / canvas.height;
             return { left: cx * scaleX, top: cy * scaleY };
+        }
+
+        function syncCropOverlayBox() {
+            if (!cropRect || canvas.classList.contains('hidden')) return;
+            const pos = getDisplayPosFromCanvas(cropRect.x, cropRect.y);
+            const size = getDisplayPosFromCanvas(cropRect.w, cropRect.h);
+            cropOverlay.style.display = 'block';
+            cropOverlay.style.left = pos.left + 'px';
+            cropOverlay.style.top = pos.top + 'px';
+            cropOverlay.style.width = size.left + 'px';
+            cropOverlay.style.height = size.top + 'px';
         }
 
         canvas.parentElement.addEventListener('mousedown', e => {
@@ -640,8 +1003,8 @@
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             dragStart = {
-                canvasX: (e.clientX - rect.left) * scaleX,
-                canvasY: (e.clientY - rect.top) * scaleY
+                canvasX: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX)),
+                canvasY: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY))
             };
             isDragging = true;
             cropOverlay.style.display = 'block';
@@ -687,8 +1050,9 @@
             const w = Math.abs(endCanvasX - dragStart.canvasX);
             const h = Math.abs(endCanvasY - dragStart.canvasY);
 
-            if (w > 20 && h > 20) {
+            if (w > 16 && h > 16) {
                 cropRect = { x, y, w, h };
+                syncCropOverlayBox();
                 analyze();
             } else {
                 clearCrop();
@@ -701,33 +1065,31 @@
             analyze();
         }
 
-        /* --- BLOB EXTRACTION --- */
+        /* =========================================================
+           BLOB EXTRACTION & LINE SORTING
+           ========================================================= */
         function analyze() {
-            if (!canvas.width || !canvas.height) return;
-            const threshold = parseInt(document.getElementById('threshold').value);
-            const invert = document.getElementById('invertToggle').checked;
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            const w = canvas.width, h = canvas.height;
-            const visited = new Uint8Array(w * h);
-
-            let rawBlobs = [];
-            const step = 1;
+            if (!sourceCanvas.width || !sourceCanvas.height) return;
+            const w = sourceCanvas.width;
+            const h = sourceCanvas.height;
 
             const minX = cropRect ? Math.max(0, Math.floor(cropRect.x)) : 0;
             const maxX = cropRect ? Math.min(w, Math.ceil(cropRect.x + cropRect.w)) : w;
             const minY = cropRect ? Math.max(0, Math.floor(cropRect.y)) : 0;
             const maxY = cropRect ? Math.min(h, Math.ceil(cropRect.y + cropRect.h)) : h;
 
-            for (let y = minY; y < maxY; y += step) {
-                for (let x = minX; x < maxX; x += step) {
-                    const idx = y * w + x;
-                    const brightness = (data[idx * 4] + data[idx * 4 + 1] + data[idx * 4 + 2]) / 3;
-                    const isInk = invert ? (brightness > threshold) : (brightness < threshold);
+            const speckleMin = parseInt(document.getElementById('speckleMin').value, 10) || 8;
+            const mask = computeBinaryMask(minX, minY, maxX, maxY);
+            const visited = new Uint8Array(w * h);
+            let rawBlobs = [];
 
-                    if (isInk && !visited[idx]) {
-                        const blob = floodFill(x, y, visited, data, w, h, threshold, invert, minX, maxX, minY, maxY);
-                        if (blob.w >= 2 && blob.h >= 3 && blob.points.length > 6) {
+            for (let y = minY; y < maxY; y++) {
+                const rowOff = y * w;
+                for (let x = minX; x < maxX; x++) {
+                    const idx = rowOff + x;
+                    if (mask[idx] && !visited[idx]) {
+                        const blob = floodFillMask(x, y, mask, visited, w, minX, maxX, minY, maxY);
+                        if (blob.w >= 2 && blob.h >= 2 && blob.points.length >= speckleMin) {
                             blob.yOffset = 0;
                             blob.xOffset = 0;
                             blob.wOffset = 0;
@@ -737,47 +1099,63 @@
                 }
             }
 
-            const heights = rawBlobs.map(b => b.h).sort((a,b) => a - b);
+            const heights = rawBlobs.map(b => b.h).sort((a, b) => a - b);
             const medianH = heights[Math.floor(heights.length / 2)] || 24;
 
             rawBlobs = mergeMultipartBlobs(rawBlobs, medianH);
             blobs = sortBlobsIntoLines(rawBlobs, medianH);
 
             const chars = document.getElementById('charset').value.split('');
-            blobs.forEach((b, i) => { 
-                b.char = chars[i] || ''; 
+            blobs.forEach((b, i) => {
+                b.char = chars[i] || '';
+                // Only nudge descenders if they are NOT already extending below the detected line baseline
                 if (DESCENDERS.has(b.char) && b.yOffset === 0) {
-                    b.yOffset = -Math.round(b.lineH * 0.18);
+                    const bottomDrop = (b.y + b.h) - b.baseline;
+                    if (bottomDrop < b.lineH * 0.1) {
+                        b.yOffset = -Math.round(b.lineH * 0.18);
+                    }
                 }
             });
+
+            if (document.getElementById('maskToggle').checked) {
+                updateMainCanvasDisplay();
+            }
 
             updateOverlay();
             renderGlyphTray();
             generateFont();
         }
 
-        function floodFill(startX, startY, visited, data, w, h, thresh, invert, minX, maxX, minY, maxY) {
+        function floodFillMask(startX, startY, mask, visited, w, minX, maxX, minY, maxY) {
             let bx0 = startX, bx1 = startX, by0 = startY, by1 = startY;
-            const stack = [[startX, startY]];
+            const stack = [startY * w + startX];
+            visited[stack[0]] = 1;
             const points = [];
-            const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+
             while (stack.length) {
-                const [cx, cy] = stack.pop();
-                const idx = cy * w + cx;
-                if (visited[idx]) continue;
-                visited[idx] = 1;
+                const idx = stack.pop();
+                const cy = (idx / w) | 0;
+                const cx = idx - cy * w;
                 points.push([cx, cy]);
 
-                if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx;
-                if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
+                if (cx < bx0) bx0 = cx;
+                if (cx > bx1) bx1 = cx;
+                if (cy < by0) by0 = cy;
+                if (cy > by1) by1 = cy;
 
-                for (let [dx, dy] of dirs) {
-                    const nx = cx + dx, ny = cy + dy;
-                    if (nx >= minX && nx < maxX && ny >= minY && ny < maxY) {
-                        const nIdx = ny * w + nx;
-                        const br = (data[nIdx*4] + data[nIdx*4+1] + data[nIdx*4+2]) / 3;
-                        const isInk = invert ? (br > thresh) : (br < thresh);
-                        if (isInk && !visited[nIdx]) stack.push([nx, ny]);
+                for (let dy = -1; dy <= 1; dy++) {
+                    const ny = cy + dy;
+                    if (ny < minY || ny >= maxY) continue;
+                    const nRow = ny * w;
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nx = cx + dx;
+                        if (nx < minX || nx >= maxX) continue;
+                        const nIdx = nRow + nx;
+                        if (mask[nIdx] && !visited[nIdx]) {
+                            visited[nIdx] = 1;
+                            stack.push(nIdx);
+                        }
                     }
                 }
             }
@@ -792,7 +1170,7 @@
                     const minW = Math.min(b1.w, b2.w);
                     const yDist = Math.max(b1.y, b2.y) - Math.min(b1.y + b1.h, b2.y + b2.h);
 
-                    if (xOverlap > minW * 0.4 && yDist < medianH * 0.55 && (b1.h + b2.h + yDist) < medianH * 1.6) {
+                    if (xOverlap > minW * 0.4 && yDist < medianH * 0.55 && (b1.h + b2.h + yDist) < medianH * 1.65) {
                         b2.points.push(...b1.points);
                         const nx = Math.min(b1.x, b2.x);
                         const ny = Math.min(b1.y, b2.y);
@@ -818,7 +1196,7 @@
                 const bCenter = b.y + b.h / 2;
                 for (const line of lines) {
                     const lineCenter = line.ySum / line.blobs.length;
-                    if (Math.abs(lineCenter - bCenter) < medianH * 0.5) {
+                    if (Math.abs(lineCenter - bCenter) < medianH * 0.55) {
                         line.blobs.push(b);
                         line.ySum += bCenter;
                         placed = true;
@@ -836,7 +1214,7 @@
                 const lineH = Math.max(...line.blobs.map(b => b.h));
                 const bottoms = line.blobs.map(b => b.y + b.h).sort((a, b) => a - b);
                 const robustBottom = bottoms[Math.floor(bottoms.length * 0.65)] || bottoms[bottoms.length - 1];
-                const baseline = robustBottom - Math.max(1, Math.round(lineH * 0.05));
+                const baseline = robustBottom - Math.max(1, Math.round(lineH * 0.04));
 
                 for (const b of line.blobs) {
                     b.baseline = baseline;
@@ -847,191 +1225,183 @@
             return result;
         }
 
-        /* --- MULTI-PART CONTOUR EXTRACTION & HOLES --- */
-        function groupPointsIntoComponents(points) {
-            if (!points || !points.length) return [];
-            const pointSet = new Map();
-            points.forEach(p => pointSet.set(`${p[0]},${p[1]}`, p));
-            
-            const visited = new Set();
-            const components = [];
-            const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-            
-            for (const p of points) {
-                const key = `${p[0]},${p[1]}`;
-                if (visited.has(key)) continue;
-                
-                const comp = [];
-                const queue = [p];
-                visited.add(key);
-                
-                let qHead = 0;
-                while (qHead < queue.length) {
-                    const [cx, cy] = queue[qHead++];
-                    comp.push([cx, cy]);
-                    
-                    for (const [dx, dy] of dirs) {
-                        const nx = cx + dx, ny = cy + dy;
-                        const nKey = `${nx},${ny}`;
-                        if (pointSet.has(nKey) && !visited.has(nKey)) {
-                            visited.add(nKey);
-                            queue.push([nx, ny]);
-                        }
-                    }
-                }
-                if (comp.length >= 3) {
-                    components.push(comp);
-                }
-            }
-            return components;
-        }
-
+        /* =========================================================
+           EXACT PIXEL-EDGE MARCHING SQUARES + CIRCULAR RDP + BÉZIER
+           ========================================================= */
         function extractContoursWithHoles(b) {
-            if (!b.points || b.points.length < 3) {
-                return { outer: [], outers: [], holes: [] };
+            if (!b.points || b.points.length === 0) {
+                return { outers: [], holes: [] };
             }
 
-            const components = groupPointsIntoComponents(b.points);
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (let i = 0; i < b.points.length; i++) {
+                const px = b.points[i][0], py = b.points[i][1];
+                if (px < minX) minX = px;
+                if (px > maxX) maxX = px;
+                if (py < minY) minY = py;
+                if (py > maxY) maxY = py;
+            }
+
+            // 1-pixel zero border around bounding box
+            const gw = (maxX - minX + 1) + 2;
+            const gh = (maxY - minY + 1) + 2;
+            const grid = new Uint8Array(gw * gh);
+
+            for (let i = 0; i < b.points.length; i++) {
+                const gx = b.points[i][0] - minX + 1;
+                const gy = b.points[i][1] - minY + 1;
+                grid[gy * gw + gx] = 1;
+            }
+
+            // Directed boundary edges stored as 4-bit direction masks per grid corner vertex
+            // Dirs: 0=Right (+1,0), 1=Down (0,+1), 2=Left (-1,0), 3=Up (0,-1)
+            const vw = gw + 1;
+            const vh = gh + 1;
+            const outEdges = new Uint8Array(vw * vh);
+
+            for (let gy = 1; gy < gh - 1; gy++) {
+                const row = gy * gw;
+                const vRow = gy * vw;
+                for (let gx = 1; gx < gw - 1; gx++) {
+                    if (!grid[row + gx]) continue;
+                    // Top edge: (gx, gy) -> (gx+1, gy)
+                    if (!grid[row - gw + gx]) outEdges[vRow + gx] |= 1;
+                    // Right edge: (gx+1, gy) -> (gx+1, gy+1)
+                    if (!grid[row + gx + 1]) outEdges[vRow + gx + 1] |= 2;
+                    // Bottom edge: (gx+1, gy+1) -> (gx, gy+1)
+                    if (!grid[row + gw + gx]) outEdges[vRow + vw + gx + 1] |= 4;
+                    // Left edge: (gx, gy+1) -> (gx, gy)
+                    if (!grid[row + gx - 1]) outEdges[vRow + vw + gx] |= 8;
+                }
+            }
+
+            const dx = [1, 0, -1, 0];
+            const dy = [0, 1, 0, -1];
             const outers = [];
-            const allHoles = [];
+            const holes = [];
 
-            for (const comp of components) {
-                if (comp.length < 3) continue;
-                const outer = getContour(comp);
-                if (outer.length >= 3) {
-                    outers.push(outer);
-                }
+            for (let v = 0; v < outEdges.length; v++) {
+                while (outEdges[v]) {
+                    let startDir = 0;
+                    while (!(outEdges[v] & (1 << startDir))) startDir++;
 
-                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                for (const [px, py] of comp) {
-                    if (px < minX) minX = px;
-                    if (px > maxX) maxX = px;
-                    if (py < minY) minY = py;
-                    if (py > maxY) maxY = py;
-                }
+                    const startVx = v % vw;
+                    const startVy = (v - startVx) / vw;
+                    let vx = startVx;
+                    let vy = startVy;
+                    let dir = startDir;
 
-                const pad = 3;
-                const gw = (maxX - minX + 1) + pad * 2;
-                const gh = (maxY - minY + 1) + pad * 2;
-                const grid = new Uint8Array(gw * gh);
+                    const loop = [];
+                    const maxSteps = (gw * gh) * 4 + 16;
 
-                for (const [px, py] of comp) {
-                    const lx = px - minX + pad;
-                    const ly = py - minY + pad;
-                    if (lx >= 0 && lx < gw && ly >= 0 && ly < gh) {
-                        grid[ly * gw + lx] = 1;
-                    }
-                }
+                    for (let step = 0; step < maxSteps; step++) {
+                        outEdges[vy * vw + vx] &= ~(1 << dir);
+                        loop.push([vx + minX - 1, vy + minY - 1]);
+                        vx += dx[dir];
+                        vy += dy[dir];
 
-                const queue = [0];
-                grid[0] = 2;
-                const dirs4 = [[1,0],[-1,0],[0,1],[0,-1]];
-                let head = 0;
-                while (head < queue.length) {
-                    const curr = queue[head++];
-                    const cx = curr % gw, cy = Math.floor(curr / gw);
-                    for (const [dx, dy] of dirs4) {
-                        const nx = cx + dx, ny = cy + dy;
-                        if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
-                            const nIdx = ny * gw + nx;
-                            if (grid[nIdx] === 0) {
-                                grid[nIdx] = 2;
-                                queue.push(nIdx);
-                            }
+                        // Prefer Right-turn -> Straight -> Left-turn to resolve saddle vertices cleanly
+                        const pref0 = (dir + 1) & 3;
+                        const pref1 = dir;
+                        const pref2 = (dir + 3) & 3;
+                        const maskAtV = outEdges[vy * vw + vx];
+                        const isStart = (vx === startVx && vy === startVy);
+
+                        let nextDir = -1;
+                        if (isStart && pref0 === startDir) break;
+                        if (maskAtV & (1 << pref0)) {
+                            nextDir = pref0;
+                        } else if (isStart && pref1 === startDir) {
+                            break;
+                        } else if (maskAtV & (1 << pref1)) {
+                            nextDir = pref1;
+                        } else if (isStart && pref2 === startDir) {
+                            break;
+                        } else if (maskAtV & (1 << pref2)) {
+                            nextDir = pref2;
+                        } else {
+                            break;
                         }
+                        dir = nextDir;
                     }
-                }
 
-                for (let ly = 1; ly < gh - 1; ly++) {
-                    for (let lx = 1; lx < gw - 1; lx++) {
-                        const idx = ly * gw + lx;
-                        if (grid[idx] === 0) {
-                            const hPts = [];
-                            const hq = [idx];
-                            grid[idx] = 3;
-                            let hHead = 0;
-                            while (hHead < hq.length) {
-                                const c = hq[hHead++];
-                                const hx = c % gw, hy = Math.floor(c / gw);
-                                hPts.push([minX + hx - pad, minY + hy - pad]);
-                                for (const [dx, dy] of dirs4) {
-                                    const nx = hx + dx, ny = hy + dy;
-                                    if (nx >= 0 && nx < gw && ny >= 0 && ny < gh) {
-                                        const nIdx = ny * gw + nx;
-                                        if (grid[nIdx] === 0) {
-                                            grid[nIdx] = 3;
-                                            hq.push(nIdx);
-                                        }
-                                    }
-                                }
-                            }
-                            if (hPts.length >= 6) {
-                                const holeContour = getContour(hPts);
-                                if (holeContour.length >= 3) {
-                                    allHoles.push(holeContour);
-                                }
-                            }
+                    const cleaned = removeCollinear(loop);
+                    if (cleaned.length >= 3) {
+                        const area = computeSignedArea(cleaned);
+                        if (area > 0) {
+                            outers.push(cleaned);
+                        } else if (Math.abs(area) >= 2) {
+                            // Ignore 1px pinholes, preserve all true counters
+                            holes.push(cleaned);
                         }
                     }
                 }
             }
 
-            return {
-                outer: outers[0] || [],
-                outers,
-                holes: allHoles
-            };
+            return { outers, holes };
         }
 
-        function getContour(bPoints) {
-            if (bPoints.length < 3) return [];
-            const pointSet = new Set(bPoints.map(p => `${p[0]},${p[1]}`));
-            let start = bPoints[0];
-            for (let p of bPoints) {
-                if (p[1] < start[1] || (p[1] === start[1] && p[0] < start[0])) start = p;
+        function removeCollinear(pts) {
+            const n = pts.length;
+            if (n <= 3) return pts;
+            const out = [];
+            for (let i = 0; i < n; i++) {
+                const prev = pts[(i - 1 + n) % n];
+                const curr = pts[i];
+                const next = pts[(i + 1) % n];
+                const cross = (curr[0] - prev[0]) * (next[1] - curr[1]) - (curr[1] - prev[1]) * (next[0] - curr[0]);
+                if (cross !== 0) out.push(curr);
             }
-            const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
-            let current = start, prevDir = 6;
-            const path = [];
-            const maxSteps = Math.max(120, bPoints.length * 4);
-
-            for (let iter = 0; iter < maxSteps; iter++) {
-                path.push(current);
-                let found = false, nextPixel = null, nextDir = -1;
-                for (let i = 0; i < 8; i++) {
-                    const testDir = (prevDir + i) % 8;
-                    const nx = current[0] + dirs[testDir][0];
-                    const ny = current[1] + dirs[testDir][1];
-                    if (pointSet.has(`${nx},${ny}`)) {
-                        nextPixel = [nx, ny];
-                        nextDir = testDir;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) break;
-                if (path.length > 2 && nextPixel[0] === start[0] && nextPixel[1] === start[1]) {
-                    break;
-                }
-                prevDir = (nextDir + 5) % 8;
-                current = nextPixel;
-            }
-            return path;
+            return out;
         }
 
-        function simplify(pts, tol) {
+        function simplifyClosed(pts, tol) {
+            const n = pts.length;
+            if (n <= 4 || tol <= 0) return pts;
+
+            // Find approximate diameter endpoints so RDP has no seam spike
+            let i1 = 0, maxD = -1;
+            for (let i = 1; i < n; i++) {
+                const d = (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2;
+                if (d > maxD) { maxD = d; i1 = i; }
+            }
+            let i2 = i1;
+            maxD = -1;
+            for (let i = 0; i < n; i++) {
+                const d = (pts[i][0] - pts[i1][0]) ** 2 + (pts[i][1] - pts[i1][1]) ** 2;
+                if (d > maxD) { maxD = d; i2 = i; }
+            }
+            if (i1 === i2) return pts;
+
+            const chain1 = [];
+            for (let idx = i1; ; idx = (idx + 1) % n) {
+                chain1.push(pts[idx]);
+                if (idx === i2) break;
+            }
+            const chain2 = [];
+            for (let idx = i2; ; idx = (idx + 1) % n) {
+                chain2.push(pts[idx]);
+                if (idx === i1) break;
+            }
+
+            const s1 = simplifyOpen(chain1, tol);
+            const s2 = simplifyOpen(chain2, tol);
+            const merged = s1.slice(0, -1).concat(s2.slice(0, -1));
+            return merged.length >= 3 ? merged : pts;
+        }
+
+        function simplifyOpen(pts, tol) {
             if (pts.length <= 2) return pts;
             const sqTol = tol * tol;
             function rdp(start, end) {
                 let maxDist = 0, index = -1;
                 const [x1, y1] = pts[start], [x2, y2] = pts[end];
                 for (let i = start + 1; i < end; i++) {
-                    const [px, py] = pts[i];
-                    let d = distToSegmentSq(px, py, x1, y1, x2, y2);
+                    const d = distToSegmentSq(pts[i][0], pts[i][1], x1, y1, x2, y2);
                     if (d > maxDist) { maxDist = d; index = i; }
                 }
-                if (maxDist > sqTol) {
-                    return [...rdp(start, index).slice(0, -1), ...rdp(index, end)];
+                if (maxDist > sqTol && index !== -1) {
+                    return rdp(start, index).slice(0, -1).concat(rdp(index, end));
                 }
                 return [pts[start], pts[end]];
             }
@@ -1059,26 +1429,108 @@
             if (pts.length < 3) return pts;
             const area = computeSignedArea(pts);
             const isClockwise = area < 0;
-            if (wantClockwise !== isClockwise) {
-                return [...pts].reverse();
-            }
-            return pts;
+            return (wantClockwise !== isClockwise) ? [...pts].reverse() : pts;
         }
 
-        /* --- FONT COMPILATION (Reactive with dynamic family versioning) --- */
+        /**
+         * Emits a closed loop into an opentype.Path using integer coordinates.
+         * When useBezier is true, smooth bends become C1 quadratic Béziers while
+         * sharp corners (>= ~70° turn, like serifs and terminals) stay crisp.
+         */
+        function appendContourToPath(path, fontPts, useBezier) {
+            const n = fontPts.length;
+            if (n < 3) return;
+
+            const r = v => Math.round(v);
+
+            if (!useBezier || n < 4) {
+                path.moveTo(r(fontPts[0][0]), r(fontPts[0][1]));
+                for (let i = 1; i < n; i++) {
+                    path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
+                }
+                path.close();
+                return;
+            }
+
+            const isSmooth = new Uint8Array(n);
+            for (let i = 0; i < n; i++) {
+                const prev = fontPts[(i - 1 + n) % n];
+                const curr = fontPts[i];
+                const next = fontPts[(i + 1) % n];
+                const ax = curr[0] - prev[0], ay = curr[1] - prev[1];
+                const bx = next[0] - curr[0], by = next[1] - curr[1];
+                const la = Math.hypot(ax, ay);
+                const lb = Math.hypot(bx, by);
+                if (la > 0 && lb > 0) {
+                    const dot = (ax * bx + ay * by) / (la * lb);
+                    // Turning angle < ~70 degrees -> smooth quadratic curve
+                    if (dot > 0.34) isSmooth[i] = 1;
+                }
+            }
+
+            const mid = (i) => {
+                const a = fontPts[i];
+                const b = fontPts[(i + 1) % n];
+                return [r((a[0] + b[0]) * 0.5), r((a[1] + b[1]) * 0.5)];
+            };
+
+            const lastIdx = n - 1;
+            const startPt = isSmooth[lastIdx]
+                ? mid(lastIdx)
+                : [r(fontPts[lastIdx][0]), r(fontPts[lastIdx][1])];
+
+            path.moveTo(startPt[0], startPt[1]);
+
+            for (let i = 0; i < n; i++) {
+                if (!isSmooth[i]) {
+                    path.lineTo(r(fontPts[i][0]), r(fontPts[i][1]));
+                } else {
+                    const prevIdx = (i - 1 + n) % n;
+                    if (!isSmooth[prevIdx]) {
+                        const mPrev = mid(prevIdx);
+                        path.lineTo(mPrev[0], mPrev[1]);
+                    }
+                    const mNext = mid(i);
+                    path.quadraticCurveTo(r(fontPts[i][0]), r(fontPts[i][1]), mNext[0], mNext[1]);
+                }
+            }
+            path.close();
+        }
+
+        /* =========================================================
+           TRUETYPE FONT COMPILATION
+           ========================================================= */
+        function getFontMeta() {
+            const rawName = (document.getElementById('fontNameInput')?.value || '').trim();
+            const rawStyle = (document.getElementById('fontStyleInput')?.value || '').trim();
+            const familyName = rawName || 'Citadelle';
+            const styleName = rawStyle || 'Typewriter';
+            const safeSlug = `${familyName}_${styleName}`.replace(/[^a-zA-Z0-9_-]+/g, '_');
+            return { familyName, styleName, filename: `${safeSlug}.ttf` };
+        }
+
         function generateFont() {
             const mappedBlobs = blobs.filter(b => b.char && b.char.trim() !== '');
-            if (!mappedBlobs.length) return;
+            const saveBtn = document.getElementById('saveProjBtn');
+            if (saveBtn) saveBtn.disabled = blobs.length === 0;
 
-            const tol = parseFloat(document.getElementById('smoothTol').value) || 1.5;
-            const globalTracking = parseInt(document.getElementById('globalTracking').value) || 80;
+            if (!mappedBlobs.length) {
+                document.getElementById('dlBtn').disabled = true;
+                document.getElementById('copyCssBtn').disabled = true;
+                updateMissing();
+                return;
+            }
+
+            const tol = parseFloat(document.getElementById('smoothTol').value) || 1.2;
+            const globalTracking = parseInt(document.getElementById('globalTracking').value, 10) || 80;
             const isMonospace = document.getElementById('monoToggle').checked;
+            const useBezier = document.getElementById('bezierToggle').checked;
+            const meta = getFontMeta();
 
-            // Deduplicate glyphs by character, prioritizing the currently active blob
+            // Deduplicate by character, prioritizing the currently active blob
             const charBlobMap = new Map();
-            const currentActive = activeBlob || (activeBlobIndex !== null ? mappedBlobs[activeBlobIndex] : null);
-            if (currentActive && currentActive.char && currentActive.char.trim()) {
-                charBlobMap.set(currentActive.char, currentActive);
+            if (activeBlob && activeBlob.char && activeBlob.char.trim()) {
+                charBlobMap.set(activeBlob.char, activeBlob);
             }
             mappedBlobs.forEach(b => {
                 if (!charBlobMap.has(b.char)) {
@@ -1087,7 +1539,6 @@
             });
 
             const uniqueBlobs = Array.from(charBlobMap.values());
-            // Sort by Unicode code point strictly ascending to guarantee valid TrueType cmap format 4
             uniqueBlobs.sort((a, b) => a.char.charCodeAt(0) - b.char.charCodeAt(0));
 
             const heights = uniqueBlobs.filter(b => b.points && b.points.length > 0).map(b => b.h);
@@ -1109,66 +1560,39 @@
                     const path = new opentype.Path();
                     const { outers, holes } = extractContoursWithHoles(b);
 
+                    const glyphScaledW = (b.w || 0) * globalScale;
                     const xNudge = (b.xOffset || 0) * globalScale;
                     const yNudge = (b.yOffset || 0) * globalScale;
-                    const leftBearing = 40 + xNudge;
+
+                    let advWidth;
+                    let leftBearing;
+
+                    if (isMonospace) {
+                        advWidth = Math.max(120, Math.round(monoWidth + (b.wOffset || 0)));
+                        // Center narrow glyphs horizontally inside the monospace cell
+                        leftBearing = (advWidth - glyphScaledW) * 0.5 + xNudge;
+                    } else {
+                        advWidth = Math.max(80, Math.round(glyphScaledW + 100 + globalTracking + (b.wOffset || 0)));
+                        leftBearing = 40 + xNudge;
+                    }
 
                     const toFontCoord = (p) => [
                         (p[0] - b.x) * globalScale + leftBearing,
                         (b.baseline - p[1]) * globalScale + yNudge
                     ];
 
-                    let addedAny = false;
+                    // Simplify in pixel-space before scaling so tolerance slider stays resolution-consistent
+                    outers.forEach(outerLoop => {
+                        const simpPix = simplifyClosed(outerLoop, tol);
+                        const fontPts = forceWinding(simpPix.map(toFontCoord), true);
+                        appendContourToPath(path, fontPts, useBezier);
+                    });
 
-                    if (outers && outers.length > 0) {
-                        outers.forEach(outerLoop => {
-                            let pts = outerLoop.map(toFontCoord);
-                            let simplified = simplify(pts, tol);
-                            if (simplified.length < 3 && pts.length >= 3) simplified = pts;
-                            const fontPts = forceWinding(simplified, true);
-                            if (fontPts.length >= 3) {
-                                path.moveTo(fontPts[0][0], fontPts[0][1]);
-                                for (let i = 1; i < fontPts.length; i++) {
-                                    path.lineTo(fontPts[i][0], fontPts[i][1]);
-                                }
-                                path.close();
-                                addedAny = true;
-                            }
-                        });
-
-                        holes.forEach(holeLoop => {
-                            let pts = holeLoop.map(toFontCoord);
-                            let simplified = simplify(pts, tol);
-                            if (simplified.length < 3 && pts.length >= 3) simplified = pts;
-                            const fontPts = forceWinding(simplified, false);
-                            if (fontPts.length >= 3) {
-                                path.moveTo(fontPts[0][0], fontPts[0][1]);
-                                for (let i = 1; i < fontPts.length; i++) {
-                                    path.lineTo(fontPts[i][0], fontPts[i][1]);
-                                }
-                                path.close();
-                            }
-                        });
-                    }
-
-                    if (!addedAny && b.points && b.points.length > 0) {
-                        const bx = leftBearing;
-                        const by = (b.baseline - (b.y + b.h)) * globalScale + yNudge;
-                        const bw = Math.max(b.w * globalScale, 10);
-                        const bh = Math.max(b.h * globalScale, 10);
-                        path.moveTo(bx, by);
-                        path.lineTo(bx + bw, by);
-                        path.lineTo(bx + bw, by + bh);
-                        path.lineTo(bx, by + bh);
-                        path.close();
-                    }
-
-                    let advWidth;
-                    if (isMonospace) {
-                        advWidth = monoWidth;
-                    } else {
-                        advWidth = Math.round((b.w || 40) * globalScale + 100 + globalTracking + (b.wOffset || 0));
-                    }
+                    holes.forEach(holeLoop => {
+                        const simpPix = simplifyClosed(holeLoop, tol);
+                        const fontPts = forceWinding(simpPix.map(toFontCoord), false);
+                        appendContourToPath(path, fontPts, useBezier);
+                    });
 
                     glyphs.push(new opentype.Glyph({
                         name: 'glyph_' + (b.char.charCodeAt(0) || 63) + '_' + idx,
@@ -1178,25 +1602,12 @@
                     }));
                 } catch (glyphErr) {
                     console.warn('Skipped bad glyph', b.char, glyphErr);
-                    // Still add a placeholder so the character slot exists
-                    const placeholder = new opentype.Path();
-                    placeholder.moveTo(40, 0);
-                    placeholder.lineTo(200, 0);
-                    placeholder.lineTo(200, 400);
-                    placeholder.lineTo(40, 400);
-                    placeholder.close();
-                    glyphs.push(new opentype.Glyph({
-                        name: 'placeholder_' + idx,
-                        unicode: b.char.charCodeAt(0) || 63,
-                        advanceWidth: monoWidth,
-                        path: placeholder
-                    }));
                 }
             });
 
             font = new opentype.Font({
-                familyName: 'Citadelle',
-                styleName: 'Typewriter',
+                familyName: meta.familyName,
+                styleName: meta.styleName,
                 unitsPerEm: 1000,
                 ascender: 800,
                 descender: -200,
@@ -1204,7 +1615,6 @@
             });
 
             try {
-                // Revoke previous object URL to avoid memory leak on repeated builds
                 if (lastFontUrl) {
                     URL.revokeObjectURL(lastFontUrl);
                     lastFontUrl = null;
@@ -1215,12 +1625,10 @@
                 const fontUrl = URL.createObjectURL(blob);
                 lastFontUrl = fontUrl;
 
-                // Unique family name forces the browser to treat it as a fresh font
                 const liveFamily = 'CitadelleLive_' + (++fontBuildCount);
                 const fontFace = new FontFace(liveFamily, `url(${fontUrl})`);
 
                 fontFace.load().then(f => {
-                    // Clean up any previous live fonts
                     document.fonts.forEach(existingFace => {
                         if (existingFace.family && existingFace.family.startsWith('CitadelleLive_')) {
                             document.fonts.delete(existingFace);
@@ -1228,22 +1636,22 @@
                     });
 
                     document.fonts.add(f);
+                    currentLiveFamily = liveFamily;
 
-                    // Deactivate vault selection
                     if (typeof activeVaultFamily !== 'undefined') {
                         activeVaultFamily = null;
                         if (typeof renderVault === 'function') renderVault();
                     }
 
                     specimen.style.fontFamily = `"${liveFamily}", 'Courier Prime', monospace`;
-                    // Force the browser to re-layout with the new font
                     specimen.style.display = 'none';
                     void specimen.offsetHeight;
                     specimen.style.display = '';
 
                     document.getElementById('dlBtn').disabled = false;
-                    console.log('Font loaded successfully:', liveFamily, 'glyphs:', glyphs.length);
+                    document.getElementById('copyCssBtn').disabled = false;
                     updateMissing();
+                    scheduleAutosave();
                 }).catch(err => {
                     console.error("FontFace load failed:", err);
                     specimen.style.fontFamily = 'Courier Prime, monospace';
@@ -1255,34 +1663,105 @@
         }
 
         function downloadFont() {
-            if (font) font.download('Citadelle_Custom.ttf');
+            if (!font) return;
+            const meta = getFontMeta();
+            font.download(meta.filename);
         }
 
+        function copyFontCSS() {
+            const meta = getFontMeta();
+            const css = `@font-face {\n  font-family: '${meta.familyName}';\n  src: url('./${meta.filename}') format('truetype');\n  font-weight: normal;\n  font-style: normal;\n  font-display: swap;\n}`;
+            const btn = document.getElementById('copyCssBtn');
+            const orig = btn.textContent;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(css).then(() => {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => { btn.textContent = orig; }, 1400);
+                }).catch(() => prompt('Copy @font-face CSS:', css));
+            } else {
+                prompt('Copy @font-face CSS:', css);
+            }
+        }
+
+        /* =========================================================
+           OVERLAY, TRAY & CLICKABLE MISSING CHARS
+           ========================================================= */
         function updateOverlay() {
             overlay.innerHTML = '';
-            if (!canvas.clientWidth || !canvas.width) return;
-            const ratio = canvas.clientWidth / canvas.width;
+            if (!canvas.clientWidth || !canvas.width || canvas.classList.contains('hidden')) return;
+            const ratioX = canvas.clientWidth / canvas.width;
+            const ratioY = canvas.clientHeight / canvas.height;
             blobs.forEach(b => {
                 const box = document.createElement('div');
                 box.className = `detection-box ${b.char ? 'mapped' : ''}`;
-                box.style.left = (b.x * ratio) + 'px';
-                box.style.top = (b.y * ratio) + 'px';
-                box.style.width = (b.w * ratio) + 'px';
-                box.style.height = (b.h * ratio) + 'px';
+                box.style.left = (b.x * ratioX) + 'px';
+                box.style.top = (b.y * ratioY) + 'px';
+                box.style.width = (b.w * ratioX) + 'px';
+                box.style.height = (b.h * ratioY) + 'px';
                 overlay.appendChild(box);
             });
         }
 
-        function addBlankGlyph() {
+        function updateMissing() {
+            const el = document.getElementById('missingChars');
+            if (!el) return;
+            el.innerHTML = '';
+
+            const text = specimen.innerText || '';
+            const needed = new Set();
+            for (const ch of text) {
+                if (ch.trim() && ch !== '\n' && ch !== '\r') needed.add(ch);
+            }
+            const have = new Set(blobs.filter(b => b.char && b.char.trim()).map(b => b.char));
+            const missing = [...needed].filter(ch => !have.has(ch)).sort();
+
+            if (missing.length === 0) {
+                if (needed.size) {
+                    const ok = document.createElement('span');
+                    ok.className = 'text-emerald-300/85';
+                    ok.textContent = 'All characters in specimen are mapped.';
+                    el.appendChild(ok);
+                }
+                return;
+            }
+
+            const label = document.createElement('span');
+            label.className = 'text-amber-200/90 mr-1';
+            label.textContent = 'Missing (click to draw):';
+            el.appendChild(label);
+
+            missing.forEach(ch => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'missing-chip';
+                btn.textContent = '+ ' + ch;
+                btn.title = `Create & draw "${ch}"`;
+                btn.onclick = () => addBlankGlyph(ch);
+                el.appendChild(btn);
+            });
+        }
+
+        function addBlankGlyph(explicitChar = null) {
             const chars = document.getElementById('charset').value.split('');
-            const nextChar = chars[blobs.length] || '?';
-            const refH = blobs.length ? Math.max(...blobs.map(b => b.h)) : 50;
+            let nextChar = explicitChar;
+            if (!nextChar) {
+                const used = new Set(blobs.map(b => b.char).filter(Boolean));
+                nextChar = chars.find(c => !used.has(c)) || chars[blobs.length] || '?';
+            }
+
+            const refH = blobs.length ? Math.max(36, Math.round(blobs.reduce((s, b) => s + b.h, 0) / blobs.length)) : 56;
+            const refW = Math.round(refH * 0.65);
             const refBaseline = blobs.length ? blobs[0].baseline : 140;
 
             const blank = {
-                x: 100, y: refBaseline - Math.round(refH * 0.8), w: Math.round(refH * 0.6), h: refH,
+                x: 100,
+                y: refBaseline - Math.round(refH * 0.85),
+                w: refW,
+                h: refH,
                 points: [],
-                yOffset: 0, xOffset: 0, wOffset: 0,
+                yOffset: 0,
+                xOffset: 0,
+                wOffset: 0,
                 char: nextChar,
                 baseline: refBaseline,
                 lineH: refH
@@ -1290,28 +1769,42 @@
             blobs.push(blank);
             renderGlyphTray();
             updateOverlay();
-            
-            const mapped = blobs.filter(b => b.char);
-            openInspector(mapped.length - 1);
-            
-            setTimeout(() => {
-                const toggle = document.getElementById('drawModeToggle');
-                if (toggle) {
-                    toggle.checked = true;
-                    toggleDrawMode();
-                }
-            }, 50);
+            openInspector(blank);
+            setDrawTool('brush');
         }
 
         function renderGlyphTray() {
             glyphTray.innerHTML = '';
-            const mapped = blobs.filter(b => b.char);
-            glyphCount.innerText = mapped.length;
+            const mappedCount = blobs.filter(b => b.char && b.char.trim()).length;
+            glyphCount.innerText = mappedCount + (blobs.length !== mappedCount ? ` / ${blobs.length}` : '');
 
-            mapped.forEach((b, idx) => {
+            // Detect duplicate character assignments
+            const counts = new Map();
+            blobs.forEach(b => {
+                if (b.char && b.char.trim()) {
+                    counts.set(b.char, (counts.get(b.char) || 0) + 1);
+                }
+            });
+            const dups = [...counts.entries()].filter(([, c]) => c > 1).map(([ch]) => ch);
+            const dupEl = document.getElementById('dupWarning');
+            if (dups.length > 0) {
+                dupEl.textContent = 'Duplicates: ' + dups.join(' ');
+                dupEl.classList.remove('hidden');
+            } else {
+                dupEl.classList.add('hidden');
+            }
+
+            if (!blobs.length) {
+                glyphTray.innerHTML = '<span class="text-white/40 italic text-xs">No glyphs extracted yet.</span>';
+                return;
+            }
+
+            blobs.forEach((b, idx) => {
+                const isDup = b.char && (counts.get(b.char) || 0) > 1;
+                const isUnmapped = !b.char || !b.char.trim();
                 const chip = document.createElement('div');
-                chip.className = `glyph-chip ${activeBlobIndex === idx ? 'active' : ''}`;
-                chip.onclick = () => openInspector(idx);
+                chip.className = `glyph-chip ${activeBlob === b ? 'active' : ''} ${isDup ? 'duplicate' : ''} ${isUnmapped ? 'unmapped' : ''}`;
+                chip.onclick = () => openInspector(b);
 
                 const num = document.createElement('span');
                 num.className = 'text-[9px] text-white/50 mb-1';
@@ -1319,35 +1812,93 @@
 
                 const charSpan = document.createElement('span');
                 charSpan.className = 'w-8 h-8 flex items-center justify-center font-bold text-base bg-black/40 border border-white/20 rounded';
-                charSpan.textContent = b.char || '?';
+                charSpan.textContent = b.char || '∅';
 
-                const yOff = document.createElement('span');
-                yOff.className = 'text-[8px] text-white/60 mt-1';
-                yOff.textContent = Math.round(b.yOffset || 0) + 'y';
+                const metaSpan = document.createElement('span');
+                metaSpan.className = `text-[8px] mt-1 ${isDup ? 'text-amber-300 font-bold' : 'text-white/60'}`;
+                metaSpan.textContent = isDup ? 'DUP' : (Math.round(b.yOffset || 0) + 'y');
 
                 chip.appendChild(num);
                 chip.appendChild(charSpan);
-                chip.appendChild(yOff);
+                chip.appendChild(metaSpan);
                 glyphTray.appendChild(chip);
             });
         }
 
-        /* --- GLYPH INSPECTOR MODAL --- */
-        function openInspector(idx) {
-            const mapped = blobs.filter(b => b.char);
-            const b = mapped[idx];
+        /* =========================================================
+           GLYPH INSPECTOR, DYNAMIC SCALING, BRUSH / ERASE / UNDO
+           ========================================================= */
+        function computeFitScale(b) {
+            const w = inspectCanvas.width;
+            const h = inspectCanvas.height;
+            const bw = Math.max(b.w || 40, 20);
+            const bh = Math.max(b.h || 56, 20);
+            const maxScaleX = (w - 64) / bw;
+            const maxScaleY = (h - 56) / bh;
+            return Math.max(0.6, Math.min(2.6, maxScaleX, maxScaleY));
+        }
+
+        function getInspectorTransform(b) {
+            const scale = lockedInspectScale;
+            const w = inspectCanvas.width;
+            const h = inspectCanvas.height;
+            const cx = w / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
+            const cy = h / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
+            const originX = cx - b.x * scale;
+            const originY = cy - b.y * scale;
+            const baselineY = originY + b.baseline * scale;
+            return { scale, cx, cy, originX, originY, baselineY };
+        }
+
+        function pushGlyphUndoSnapshot(b) {
+            glyphUndoStack.push({
+                x: b.x, y: b.y, w: b.w, h: b.h,
+                baseline: b.baseline,
+                points: b.points.map(p => [p[0], p[1]])
+            });
+            if (glyphUndoStack.length > 15) glyphUndoStack.shift();
+            updateInspectorButtons();
+        }
+
+        function updateInspectorButtons() {
+            const commitBtn = document.getElementById('commitDrawBtn');
+            const undoBtn = document.getElementById('undoDrawBtn');
+            if (commitBtn) commitBtn.disabled = drawingStrokes.length === 0;
+            if (undoBtn) undoBtn.disabled = (drawingStrokes.length === 0 && glyphUndoStack.length === 0);
+
+            const idx = blobs.indexOf(activeBlob);
+            const prevBtn = document.getElementById('prevGlyphBtn');
+            const nextBtn = document.getElementById('nextGlyphBtn');
+            if (prevBtn) prevBtn.disabled = idx <= 0;
+            if (nextBtn) nextBtn.disabled = idx === -1 || idx >= blobs.length - 1;
+        }
+
+        function setDrawTool(tool) {
+            drawTool = tool;
+            const viewBtn = document.getElementById('toolViewBtn');
+            const brushBtn = document.getElementById('toolBrushBtn');
+            const eraseBtn = document.getElementById('toolEraseBtn');
+
+            viewBtn.className = tool === 'view' ? 'seg-active' : '';
+            brushBtn.className = tool === 'brush' ? 'seg-active' : '';
+            eraseBtn.className = tool === 'erase' ? 'seg-erase-active' : '';
+
+            inspectCanvas.style.cursor = tool === 'view' ? 'default' : 'crosshair';
+        }
+
+        function openInspector(target) {
+            const b = (typeof target === 'number') ? blobs[target] : target;
             if (!b) return;
 
             activeBlob = b;
-            activeBlobIndex = idx;
             drawingStrokes = [];
-            drawMode = false;
-            
-            const toggle = document.getElementById('drawModeToggle');
-            if (toggle) toggle.checked = false;
-            inspectCanvas.style.cursor = 'default';
+            glyphUndoStack = [];
+            lockedInspectScale = computeFitScale(b);
+            setDrawTool('view');
 
-            document.getElementById('inspectCharTitle').innerText = b.char || '?';
+            const idx = blobs.indexOf(b);
+            document.getElementById('inspectIndexBadge').textContent = '#' + (idx + 1);
+            document.getElementById('inspectCharTitle').innerText = b.char || '∅';
             document.getElementById('inspectCharInput').value = b.char || '';
 
             document.getElementById('inspectY').value = b.yOffset || 0;
@@ -1360,20 +1911,23 @@
             document.getElementById('inspectWVal').innerText = (b.wOffset || 0) + 'px';
 
             inspectModal.style.display = 'flex';
+            updateInspectorButtons();
+            renderGlyphTray();
             drawInspectorPreview(b);
 
             document.getElementById('inspectCharInput').oninput = e => {
                 b.char = e.target.value;
-                document.getElementById('inspectCharTitle').innerText = b.char || '?';
-                generateFont();
+                document.getElementById('inspectCharTitle').innerText = b.char || '∅';
+                scheduleGenerateFont(40);
                 renderGlyphTray();
+                updateOverlay();
             };
 
             document.getElementById('inspectY').oninput = e => {
                 b.yOffset = parseFloat(e.target.value);
                 document.getElementById('inspectYVal').innerText = b.yOffset + 'px';
                 drawInspectorPreview(b);
-                generateFont();
+                scheduleGenerateFont(40);
                 renderGlyphTray();
             };
 
@@ -1381,7 +1935,7 @@
                 b.xOffset = parseFloat(e.target.value);
                 document.getElementById('inspectXVal').innerText = b.xOffset + 'px';
                 drawInspectorPreview(b);
-                generateFont();
+                scheduleGenerateFont(40);
                 renderGlyphTray();
             };
 
@@ -1389,8 +1943,17 @@
                 b.wOffset = parseFloat(e.target.value);
                 document.getElementById('inspectWVal').innerText = b.wOffset + 'px';
                 drawInspectorPreview(b);
-                generateFont();
+                scheduleGenerateFont(40);
             };
+        }
+
+        function stepInspector(delta) {
+            if (!activeBlob) return;
+            const idx = blobs.indexOf(activeBlob);
+            const nextIdx = idx + delta;
+            if (nextIdx >= 0 && nextIdx < blobs.length) {
+                openInspector(blobs[nextIdx]);
+            }
         }
 
         function drawInspectorPreview(b) {
@@ -1401,10 +1964,7 @@
             inspectCtx.fillStyle = '#111';
             inspectCtx.fillRect(0, 0, w, h);
 
-            const scale = 2.5;
-            const cx = w / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
-            const cy = h / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
-            const baselineY = cy + (b.baseline - b.y) * scale;
+            const { scale, cx, originX, originY, baselineY } = getInspectorTransform(b);
 
             // Baseline (Red)
             inspectCtx.strokeStyle = '#ef4444';
@@ -1419,73 +1979,53 @@
             inspectCtx.lineWidth = 1;
             inspectCtx.setLineDash([4, 4]);
             inspectCtx.beginPath();
-            inspectCtx.moveTo(cx - 10, 0); inspectCtx.lineTo(cx - 10, h);
-            inspectCtx.moveTo(cx + b.w * scale + 10, 0); inspectCtx.lineTo(cx + b.w * scale + 10, h);
+            inspectCtx.moveTo(cx - 8, 0); inspectCtx.lineTo(cx - 8, h);
+            inspectCtx.moveTo(cx + b.w * scale + 8, 0); inspectCtx.lineTo(cx + b.w * scale + 8, h);
             inspectCtx.stroke();
             inspectCtx.setLineDash([]);
 
-            // Draw letter live with multi-part contour support
+            // Render live glyph contours
             const { outers, holes } = extractContoursWithHoles(b);
-            if (outers && outers.length > 0) {
+            if (outers.length > 0) {
                 inspectCtx.beginPath();
-                const toScreen = (p) => [
-                    cx + (p[0] - b.x) * scale,
-                    cy + (p[1] - b.y) * scale
-                ];
-
-                outers.forEach(outerLoop => {
-                    if (outerLoop.length >= 3) {
-                        const o0 = toScreen(outerLoop[0]);
-                        inspectCtx.moveTo(o0[0], o0[1]);
-                        for (let i = 1; i < outerLoop.length; i++) {
-                            const pt = toScreen(outerLoop[i]);
-                            inspectCtx.lineTo(pt[0], pt[1]);
-                        }
-                        inspectCtx.closePath();
+                const traceLoop = (loop) => {
+                    if (loop.length < 3) return;
+                    inspectCtx.moveTo(originX + loop[0][0] * scale, originY + loop[0][1] * scale);
+                    for (let i = 1; i < loop.length; i++) {
+                        inspectCtx.lineTo(originX + loop[i][0] * scale, originY + loop[i][1] * scale);
                     }
-                });
-
-                holes.forEach(hp => {
-                    if (hp.length >= 3) {
-                        const h0 = toScreen(hp[0]);
-                        inspectCtx.moveTo(h0[0], h0[1]);
-                        for (let i = 1; i < hp.length; i++) {
-                            const pt = toScreen(hp[i]);
-                            inspectCtx.lineTo(pt[0], pt[1]);
-                        }
-                        inspectCtx.closePath();
-                    }
-                });
+                    inspectCtx.closePath();
+                };
+                outers.forEach(traceLoop);
+                holes.forEach(traceLoop);
 
                 inspectCtx.fillStyle = '#ffffff';
                 inspectCtx.fill('evenodd');
-                inspectCtx.strokeStyle = 'rgba(255,255,255,0.6)';
-                inspectCtx.lineWidth = 1;
+                inspectCtx.strokeStyle = 'rgba(255,255,255,0.55)';
+                inspectCtx.lineWidth = 0.8;
                 inspectCtx.stroke();
-            } else if (b.points && b.points.length > 0) {
-                inspectCtx.fillStyle = '#ffffff';
-                for (let [px, py] of b.points) {
-                    inspectCtx.fillRect(cx + (px - b.x) * scale, cy + (py - b.y) * scale, scale, scale);
-                }
             }
 
-            inspectCtx.font = '9px monospace';
-            inspectCtx.fillStyle = '#ef4444';
-            inspectCtx.fillText('BASELINE', 8, baselineY - 4);
-
-            // Overlay active drawing strokes
+            // Overlay uncommitted Brush & Erase strokes in chronological order
             if (drawingStrokes.length) {
-                inspectCtx.strokeStyle = '#7dd3fc';
-                inspectCtx.fillStyle = '#7dd3fc';
                 inspectCtx.lineCap = 'round';
                 inspectCtx.lineJoin = 'round';
                 for (const stroke of drawingStrokes) {
                     if (!stroke.points || !stroke.points.length) continue;
+                    const isErase = stroke.mode === 'erase';
+                    inspectCtx.strokeStyle = isErase ? 'rgba(28, 12, 16, 0.92)' : '#7dd3fc';
+                    inspectCtx.fillStyle = isErase ? 'rgba(28, 12, 16, 0.92)' : '#7dd3fc';
                     inspectCtx.lineWidth = stroke.size;
+
                     if (stroke.points.length === 1) {
                         inspectCtx.beginPath();
                         inspectCtx.arc(stroke.points[0][0], stroke.points[0][1], stroke.size / 2, 0, Math.PI * 2);
                         inspectCtx.fill();
+                        if (isErase) {
+                            inspectCtx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
+                            inspectCtx.lineWidth = 1;
+                            inspectCtx.stroke();
+                        }
                     } else {
                         inspectCtx.beginPath();
                         inspectCtx.moveTo(stroke.points[0][0], stroke.points[0][1]);
@@ -1496,66 +2036,61 @@
                     }
                 }
             }
+
+            inspectCtx.font = '9px monospace';
+            inspectCtx.fillStyle = '#ef4444';
+            inspectCtx.fillText('BASELINE', 8, Math.max(12, Math.min(h - 6, baselineY - 4)));
+            inspectCtx.fillStyle = 'rgba(255,255,255,0.35)';
+            inspectCtx.fillText(scale.toFixed(1) + 'x', w - 30, 14);
         }
 
-        function deleteCurrentGlyph() {
-            const targetBlob = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
-            if (targetBlob) {
-                const realIdx = blobs.indexOf(targetBlob);
-                if (realIdx !== -1) {
-                    blobs.splice(realIdx, 1);
-                    const chars = document.getElementById('charset').value.split('');
-                    blobs.forEach((b, i) => { b.char = chars[i] || ''; });
-                }
-                closeInspector();
-                renderGlyphTray();
-                generateFont();
-                updateOverlay();
+        function undoInspector() {
+            if (!activeBlob) return;
+            if (drawingStrokes.length > 0) {
+                drawingStrokes.pop();
+                drawInspectorPreview(activeBlob);
+                updateInspectorButtons();
+                return;
             }
-        }
-
-        function closeInspector() {
-            inspectModal.style.display = 'none';
-            activeBlobIndex = null;
-            activeBlob = null;
-            drawMode = false;
-            document.getElementById('drawModeToggle').checked = false;
-            drawingStrokes = [];
-        }
-
-        /* --- DRAWING MODE --- */
-        function toggleDrawMode() {
-            drawMode = document.getElementById('drawModeToggle').checked;
-            inspectCanvas.style.cursor = drawMode ? 'crosshair' : 'default';
+            if (glyphUndoStack.length > 0) {
+                const snap = glyphUndoStack.pop();
+                activeBlob.x = snap.x;
+                activeBlob.y = snap.y;
+                activeBlob.w = snap.w;
+                activeBlob.h = snap.h;
+                activeBlob.baseline = snap.baseline;
+                activeBlob.points = snap.points;
+                lockedInspectScale = computeFitScale(activeBlob);
+                drawInspectorPreview(activeBlob);
+                generateFont();
+                renderGlyphTray();
+                updateOverlay();
+                updateInspectorButtons();
+            }
         }
 
         function clearDrawing() {
             drawingStrokes = [];
-            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
-            if (b) drawInspectorPreview(b);
+            updateInspectorButtons();
+            if (activeBlob) drawInspectorPreview(activeBlob);
         }
 
         function clearGlyphPixels() {
-            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
-            if (!b) return;
-            b.points = [];
-            b.w = 40;
-            b.h = 60;
+            if (!activeBlob) return;
+            pushGlyphUndoSnapshot(activeBlob);
+            activeBlob.points = [];
             drawingStrokes = [];
-            drawInspectorPreview(b);
+            updateInspectorButtons();
+            drawInspectorPreview(activeBlob);
             generateFont();
         }
 
         function commitDrawing() {
-            if (!drawingStrokes.length) return;
-            const b = activeBlob || (activeBlobIndex !== null ? blobs.filter(x => x.char)[activeBlobIndex] : null);
-            if (!b) return;
+            if (!drawingStrokes.length || !activeBlob) return;
+            const b = activeBlob;
+            pushGlyphUndoSnapshot(b);
 
-            const scale = 2.5;
-            const cx = inspectCanvas.width / 2 - (b.w * scale) / 2 + (b.xOffset || 0) * scale;
-            const cy = inspectCanvas.height / 2 - (b.h * scale) / 2 - (b.yOffset || 0) * scale;
-            const originX = cx - b.x * scale;
-            const originY = cy - b.y * scale;
+            const { scale, originX, originY } = getInspectorTransform(b);
             const savedBaseline = b.baseline;
 
             const temp = document.createElement('canvas');
@@ -1565,24 +2100,30 @@
             tctx.fillStyle = '#000';
             tctx.fillRect(0, 0, temp.width, temp.height);
 
-            // Preserve existing points if not cleared (allows adding strokes / refining)
+            // Rasterize existing glyph pixels exactly onto the cell grid
             if (b.points && b.points.length > 0) {
                 tctx.fillStyle = '#fff';
-                for (const [px, py] of b.points) {
-                    const sx = originX + px * scale;
-                    const sy = originY + py * scale;
-                    tctx.fillRect(Math.floor(sx), Math.floor(sy), Math.ceil(scale), Math.ceil(scale));
+                for (let i = 0; i < b.points.length; i++) {
+                    const [px, py] = b.points[i];
+                    tctx.fillRect(
+                        originX + px * scale,
+                        originY + py * scale,
+                        scale + 0.25,
+                        scale + 0.25
+                    );
                 }
             }
 
-            tctx.strokeStyle = '#fff';
-            tctx.fillStyle = '#fff';
+            // Replay Brush & Erase strokes in exact chronological order
             tctx.lineCap = 'round';
             tctx.lineJoin = 'round';
-
             for (const stroke of drawingStrokes) {
                 if (!stroke.points || !stroke.points.length) continue;
-                tctx.lineWidth = Math.max(stroke.size, 3);
+                const col = stroke.mode === 'erase' ? '#000' : '#fff';
+                tctx.strokeStyle = col;
+                tctx.fillStyle = col;
+                tctx.lineWidth = Math.max(stroke.size, 2);
+
                 if (stroke.points.length === 1) {
                     tctx.beginPath();
                     tctx.arc(stroke.points[0][0], stroke.points[0][1], tctx.lineWidth / 2, 0, Math.PI * 2);
@@ -1597,50 +2138,47 @@
                 }
             }
 
-            const imgData = tctx.getImageData(0, 0, temp.width, temp.height);
-            const data = imgData.data;
-            const pointMap = new Set();
-            const newPoints = [];
+            // Sample at exact glyph-grid cell centers (prevents fractional-scale drift or thickening)
+            const data = tctx.getImageData(0, 0, temp.width, temp.height).data;
+            const gxMin = Math.floor((0 - originX) / scale);
+            const gxMax = Math.ceil((temp.width - originX) / scale);
+            const gyMin = Math.floor((0 - originY) / scale);
+            const gyMax = Math.ceil((temp.height - originY) / scale);
 
-            for (let y = 0; y < temp.height; y++) {
-                for (let x = 0; x < temp.width; x++) {
-                    const idx = (y * temp.width + x) * 4;
-                    if (data[idx] > 128) {
-                        const bx = Math.round((x - originX) / scale);
-                        const by = Math.round((y - originY) / scale);
-                        const key = `${bx},${by}`;
-                        if (!pointMap.has(key)) {
-                            pointMap.add(key);
-                            newPoints.push([bx, by]);
-                        }
+            const newPoints = [];
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+            for (let gy = gyMin; gy <= gyMax; gy++) {
+                const sy = Math.floor(originY + (gy + 0.5) * scale);
+                if (sy < 0 || sy >= temp.height) continue;
+                const rowOff = sy * temp.width;
+                for (let gx = gxMin; gx <= gxMax; gx++) {
+                    const sx = Math.floor(originX + (gx + 0.5) * scale);
+                    if (sx < 0 || sx >= temp.width) continue;
+                    if (data[(rowOff + sx) * 4] > 127) {
+                        newPoints.push([gx, gy]);
+                        if (gx < minX) minX = gx;
+                        if (gx > maxX) maxX = gx;
+                        if (gy < minY) minY = gy;
+                        if (gy > maxY) maxY = gy;
                     }
                 }
             }
 
-            if (newPoints.length < 4) {
-                alert('Drawing too small or empty. Draw more strokes and try again.');
-                return;
+            if (newPoints.length === 0) {
+                b.points = [];
+            } else {
+                b.x = minX;
+                b.y = minY;
+                b.w = maxX - minX + 1;
+                b.h = maxY - minY + 1;
+                b.points = newPoints;
+                b.baseline = savedBaseline;
             }
-
-            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-            for (const [px, py] of newPoints) {
-                if (px < minX) minX = px;
-                if (px > maxX) maxX = px;
-                if (py < minY) minY = py;
-                if (py > maxY) maxY = py;
-            }
-
-            b.x = minX;
-            b.y = minY;
-            b.w = maxX - minX + 1;
-            b.h = maxY - minY + 1;
-            b.points = newPoints;
-            b.baseline = savedBaseline;
 
             drawingStrokes = [];
-            document.getElementById('drawModeToggle').checked = false;
-            drawMode = false;
-            inspectCanvas.style.cursor = 'default';
+            lockedInspectScale = computeFitScale(b);
+            updateInspectorButtons();
 
             drawInspectorPreview(b);
             generateFont();
@@ -1648,36 +2186,57 @@
             updateOverlay();
         }
 
-        function getCanvasPos(e) {
+        function deleteCurrentGlyph() {
+            if (!activeBlob) return;
+            const realIdx = blobs.indexOf(activeBlob);
+            if (realIdx !== -1) {
+                blobs.splice(realIdx, 1);
+            }
+            closeInspector();
+            renderGlyphTray();
+            generateFont();
+            updateOverlay();
+        }
+
+        function closeInspector() {
+            inspectModal.style.display = 'none';
+            activeBlob = null;
+            drawingStrokes = [];
+            glyphUndoStack = [];
+            setDrawTool('view');
+            renderGlyphTray();
+        }
+
+        /* Inspector Pointer Events */
+        function getInspectCanvasPos(e) {
             const rect = inspectCanvas.getBoundingClientRect();
-            const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
             return {
-                x: (clientX - rect.left) * (inspectCanvas.width / rect.width),
-                y: (clientY - rect.top) * (inspectCanvas.height / rect.height)
+                x: (e.clientX - rect.left) * (inspectCanvas.width / rect.width),
+                y: (e.clientY - rect.top) * (inspectCanvas.height / rect.height)
             };
         }
 
         inspectCanvas.style.touchAction = 'none';
 
         inspectCanvas.addEventListener('pointerdown', e => {
-            if (!drawMode) return;
+            if (drawTool === 'view' || !activeBlob) return;
             e.preventDefault();
             isPainting = true;
-            const pos = getCanvasPos(e);
-            const size = parseInt(document.getElementById('brushSize').value) || 4;
-            currentStroke = { points: [[pos.x, pos.y]], size };
+            const pos = getInspectCanvasPos(e);
+            const size = parseInt(document.getElementById('brushSize').value, 10) || 7;
+            currentStroke = { mode: drawTool, points: [[pos.x, pos.y]], size };
             drawingStrokes.push(currentStroke);
             inspectCanvas.setPointerCapture(e.pointerId);
-            if (activeBlob) drawInspectorPreview(activeBlob);
+            updateInspectorButtons();
+            drawInspectorPreview(activeBlob);
         });
 
         inspectCanvas.addEventListener('pointermove', e => {
-            if (!isPainting || !currentStroke) return;
+            if (!isPainting || !currentStroke || !activeBlob) return;
             e.preventDefault();
-            const pos = getCanvasPos(e);
+            const pos = getInspectCanvasPos(e);
             currentStroke.points.push([pos.x, pos.y]);
-            if (activeBlob) drawInspectorPreview(activeBlob);
+            drawInspectorPreview(activeBlob);
         });
 
         inspectCanvas.addEventListener('pointerup', e => {
@@ -1690,6 +2249,192 @@
             isPainting = false;
             currentStroke = null;
         });
+
+        /* Inspector Keyboard Shortcuts */
+        window.addEventListener('keydown', e => {
+            if (inspectModal.style.display !== 'flex' || !activeBlob) return;
+            const tag = document.activeElement?.tagName;
+            const inTextInput = (tag === 'INPUT' && document.activeElement.type === 'text') || tag === 'TEXTAREA';
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeInspector();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !inTextInput) {
+                e.preventDefault();
+                undoInspector();
+                return;
+            }
+            if (!inTextInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                e.preventDefault();
+                if (e.key === 'ArrowUp') activeBlob.yOffset = Math.min(40, (activeBlob.yOffset || 0) + 1);
+                if (e.key === 'ArrowDown') activeBlob.yOffset = Math.max(-40, (activeBlob.yOffset || 0) - 1);
+                if (e.key === 'ArrowRight') activeBlob.xOffset = Math.min(30, (activeBlob.xOffset || 0) + 1);
+                if (e.key === 'ArrowLeft') activeBlob.xOffset = Math.max(-30, (activeBlob.xOffset || 0) - 1);
+
+                document.getElementById('inspectY').value = activeBlob.yOffset || 0;
+                document.getElementById('inspectYVal').innerText = (activeBlob.yOffset || 0) + 'px';
+                document.getElementById('inspectX').value = activeBlob.xOffset || 0;
+                document.getElementById('inspectXVal').innerText = (activeBlob.xOffset || 0) + 'px';
+                drawInspectorPreview(activeBlob);
+                scheduleGenerateFont(50);
+                renderGlyphTray();
+            }
+        });
+
+        /* =========================================================
+           PROJECT SAVE / LOAD (JSON) & LOCALSTORAGE AUTOSAVE
+           ========================================================= */
+        function serializeProject() {
+            const meta = getFontMeta();
+            return {
+                version: 2,
+                savedAt: new Date().toISOString(),
+                meta: { fontName: meta.familyName, fontStyle: meta.styleName },
+                settings: {
+                    charset: document.getElementById('charset').value,
+                    mono: document.getElementById('monoToggle').checked,
+                    bezier: document.getElementById('bezierToggle').checked,
+                    tracking: parseInt(document.getElementById('globalTracking').value, 10),
+                    smoothTol: parseFloat(document.getElementById('smoothTol').value),
+                    speckleMin: parseInt(document.getElementById('speckleMin').value, 10)
+                },
+                blobs: blobs.map(b => {
+                    const flat = new Array(b.points.length * 2);
+                    for (let i = 0; i < b.points.length; i++) {
+                        flat[i * 2] = b.points[i][0];
+                        flat[i * 2 + 1] = b.points[i][1];
+                    }
+                    return {
+                        x: b.x, y: b.y, w: b.w, h: b.h,
+                        baseline: b.baseline, lineH: b.lineH,
+                        char: b.char || '',
+                        xOffset: b.xOffset || 0,
+                        yOffset: b.yOffset || 0,
+                        wOffset: b.wOffset || 0,
+                        pts: flat
+                    };
+                })
+            };
+        }
+
+        function hydrateProject(data) {
+            if (!data || !Array.isArray(data.blobs)) {
+                alert('Invalid Fount project JSON file.');
+                return;
+            }
+            if (data.meta) {
+                document.getElementById('fontNameInput').value = data.meta.fontName || 'Citadelle';
+                document.getElementById('fontStyleInput').value = data.meta.fontStyle || 'Typewriter';
+            }
+            if (data.settings) {
+                if (typeof data.settings.charset === 'string') {
+                    document.getElementById('charset').value = data.settings.charset;
+                }
+                if (typeof data.settings.mono === 'boolean') {
+                    document.getElementById('monoToggle').checked = data.settings.mono;
+                }
+                if (typeof data.settings.bezier === 'boolean') {
+                    document.getElementById('bezierToggle').checked = data.settings.bezier;
+                }
+                if (typeof data.settings.tracking === 'number') {
+                    document.getElementById('globalTracking').value = data.settings.tracking;
+                    document.getElementById('trackVal').innerText = data.settings.tracking;
+                }
+                if (typeof data.settings.smoothTol === 'number') {
+                    document.getElementById('smoothTol').value = data.settings.smoothTol;
+                    document.getElementById('smoothVal').innerText = data.settings.smoothTol.toFixed(1) + 'px';
+                }
+                if (typeof data.settings.speckleMin === 'number') {
+                    document.getElementById('speckleMin').value = data.settings.speckleMin;
+                    document.getElementById('speckleVal').innerText = data.settings.speckleMin + 'px';
+                }
+            }
+
+            blobs = data.blobs.map(item => {
+                const flat = item.pts || [];
+                const points = [];
+                for (let i = 0; i < flat.length; i += 2) {
+                    points.push([flat[i], flat[i + 1]]);
+                }
+                return {
+                    x: item.x, y: item.y, w: item.w, h: item.h,
+                    baseline: item.baseline, lineH: item.lineH || item.h,
+                    char: item.char || '',
+                    xOffset: item.xOffset || 0,
+                    yOffset: item.yOffset || 0,
+                    wOffset: item.wOffset || 0,
+                    points
+                };
+            });
+
+            renderGlyphTray();
+            updateOverlay();
+            generateFont();
+        }
+
+        function saveProjectJSON() {
+            if (!blobs.length) return;
+            const meta = getFontMeta();
+            const json = JSON.stringify(serializeProject());
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = meta.filename.replace(/\.ttf$/i, '.fount.json');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function loadProjectFile(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    hydrateProject(data);
+                } catch (err) {
+                    alert('Could not parse project JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function scheduleAutosave() {
+            clearTimeout(autosaveTimer);
+            autosaveTimer = setTimeout(() => {
+                if (!blobs.length) return;
+                try {
+                    const json = JSON.stringify(serializeProject());
+                    if (json.length < 3_500_000) {
+                        localStorage.setItem(AUTOSAVE_KEY, json);
+                    }
+                } catch (_) {
+                    // Ignore storage quota errors silently
+                }
+            }, 800);
+        }
+
+        function restoreAutosave() {
+            try {
+                const raw = localStorage.getItem(AUTOSAVE_KEY);
+                if (!raw) return;
+                hydrateProject(JSON.parse(raw));
+                document.getElementById('restoreSessionBtn').classList.add('hidden');
+            } catch (err) {
+                console.warn('Autosave restore failed:', err);
+            }
+        }
+
+        function checkAutosaveAvailability() {
+            try {
+                if (localStorage.getItem(AUTOSAVE_KEY)) {
+                    document.getElementById('restoreSessionBtn').classList.remove('hidden');
+                }
+            } catch (_) {}
+        }
     </script>
 
     <!-- ARCHIVAL VAULT RACK SCRIPT -->
@@ -1753,16 +2498,31 @@
             if (!list) return;
             list.innerHTML = '';
 
+            // Custom compiled font switcher pill
+            const hasCustom = Boolean(currentLiveFamily);
+            const customActive = hasCustom && activeVaultFamily === null;
+            const customPill = document.createElement('button');
+            customPill.type = 'button';
+            customPill.disabled = !hasCustom;
+            customPill.onclick = () => previewCustomFont();
+            customPill.className = `flex items-center gap-1.5 px-3 py-1.5 rounded border shrink-0 text-xs font-mono transition-all ${
+                customActive
+                ? 'bg-cyan-300 text-black border-cyan-200 font-bold shadow-md'
+                : 'bg-black/40 text-cyan-200 border-cyan-400/40 hover:border-cyan-300'
+            }`;
+            customPill.innerHTML = `<span>★ Custom Font</span><span class="text-[8px] px-1 rounded ${customActive ? 'bg-black/15 text-black' : 'bg-cyan-400/15 text-cyan-200'}">LIVE</span>`;
+            list.appendChild(customPill);
+
             archiveVault.forEach((item, idx) => {
                 const isActive = activeVaultFamily === item.family;
 
                 const pill = document.createElement('div');
                 pill.className = `flex items-center gap-2 px-3 py-1.5 rounded border shrink-0 transition-all cursor-pointer ${
-                    isActive 
-                    ? 'bg-white text-[#c8102e] border-white font-bold shadow-md' 
+                    isActive
+                    ? 'bg-white text-[#c8102e] border-white font-bold shadow-md'
                     : 'bg-black/40 text-white/90 border-white/20 hover:border-white/50'
                 }`;
-                
+
                 pill.innerHTML = `
                     <div onclick="previewVaultFont(${idx})" class="flex items-center gap-1.5 text-xs font-mono select-none">
                         <span>${item.name}</span>
@@ -1780,15 +2540,19 @@
             });
         }
 
+        function previewCustomFont() {
+            if (!currentLiveFamily) return;
+            activeVaultFamily = null;
+            specimen.style.fontFamily = `"${currentLiveFamily}", 'Courier Prime', monospace`;
+            renderVault();
+        }
+
         function previewVaultFont(idx) {
             const item = archiveVault[idx];
             if (!item) return;
 
             activeVaultFamily = item.family;
-            const specimen = document.getElementById('specimen');
-            if (specimen) {
-                specimen.style.fontFamily = `'${item.family}', 'Courier Prime', monospace`;
-            }
+            specimen.style.fontFamily = `'${item.family}', 'Courier Prime', monospace`;
             renderVault();
         }
 
@@ -1812,8 +2576,8 @@
         }
 
         renderVault();
-        window.addEventListener('DOMContentLoaded', renderVault);
-        setTimeout(updateMissing, 200);
+        checkAutosaveAvailability();
+        setTimeout(updateMissing, 100);
     </script>
 </body>
 </html>
