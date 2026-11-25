@@ -875,18 +875,23 @@
     }
     updateISS(); setInterval(updateISS, 6000);
 
-    const CHOKEPOINTS = [
-      { name: "STRAIT OF HORMUZ", pos: [26.56, 56.25], note: "Primary Middle-East energy corridor." },
-      { name: "BAB-EL-MANDEB", pos: [12.58, 43.33], note: "Red Sea bottleneck." },
-      { name: "MALACCA STRAIT", pos: [1.43, 102.89], note: "Asia-Pacific conduit." },
-      { name: "TAIWAN STRAIT", pos: [24.40, 119.80], note: "Cross-strait naval vector." },
-      { name: "SUEZ CANAL", pos: [30.58, 32.57], note: "Mediterranean-Red Sea link." },
-      { name: "BOSPHORUS STRAIT", pos: [41.11, 29.06], note: "Black Sea transit." }
+ const CHOKEPOINTS = [
+      { name: "STRAIT OF HORMUZ", pos: [26.56, 56.25], note: "Primary Middle-East energy corridor.", country: "Iran", slug: "iran" },
+      { name: "BAB-EL-MANDEB", pos: [12.58, 43.33], note: "Red Sea bottleneck.", country: "Yemen", slug: "yemen" },
+      { name: "MALACCA STRAIT", pos: [1.43, 102.89], note: "Asia-Pacific conduit.", country: "Malaysia", slug: "malaysia" },
+      { name: "TAIWAN STRAIT", pos: [24.40, 119.80], note: "Cross-strait naval vector.", country: "Taiwan", slug: "taiwan" },
+      { name: "SUEZ CANAL", pos: [30.58, 32.57], note: "Mediterranean-Red Sea link.", country: "Egypt", slug: "egypt" },
+      { name: "BOSPHORUS STRAIT", pos: [41.11, 29.06], note: "Black Sea transit.", country: "Turkey", slug: "turkey" }
     ];
     CHOKEPOINTS.forEach(ch => {
       L.circleMarker(ch.pos, {
         radius: 6, fillColor: "#ffd24a", color: "#fff", weight: 1.5, fillOpacity: 0.8
-      }).bindPopup(`<b>MARITIME CHOKEPOINT</b><br><b>${ch.name}</b><br>${ch.note}`).addTo(layers.choke);
+      }).bindPopup(`
+        <b>MARITIME CHOKEPOINT</b><br><b>${ch.name}</b><br>${ch.note}
+        <div style="margin-top:6px;">
+          <button class="hud-btn" style="padding:3px 6px; font-size:9px; text-align:center;" onclick="openSectorBrief('${ch.country}', '${ch.slug}')">[BRIEF SECTOR: ${ch.country.toUpperCase()}]</button>
+        </div>
+      `).addTo(layers.choke);
     });
 
     // ================= 4. GRAM TOKEN SPARKLINE (4-TIER MULTI-SOURCE) =================
@@ -1293,7 +1298,9 @@
     let routeNodes = [];
     const tools = {};
 
-    function commonPanelFooter() {
+  function commonPanelFooter() {
+      const mapEl = document.getElementById('map');
+      const optMode = mapEl?.classList.contains('optics-nvg') ? 'nvg' : (mapEl?.classList.contains('optics-flir') ? 'flir' : 'std');
       return `
         <div class="side-group">
           <div class="side-group-title">// SENSORS & CRT FX</div>
@@ -1301,6 +1308,11 @@
           <button class="side-item ${!document.getElementById('crt').classList.contains('crt-off')?'active':''}" id="opt-crt" onclick="toggleCRT(this)">${!document.getElementById('crt').classList.contains('crt-off')?'[x]':'[ ]'} CRT SCANLINES</button>
           <button class="side-item ${audioOn?'active':''}" id="opt-audio" onclick="toggleAudio(this)">${audioOn?'[x]':'[ ]'} SOLENOID CLICKS</button>
           <button class="side-item ${!document.getElementById('tactical-cross').classList.contains('grid-off')?'active':''}" id="opt-grid" onclick="toggleGrid(this)">${!document.getElementById('tactical-cross').classList.contains('grid-off')?'[x]':'[ ]'} TACTICAL CROSS</button>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <button class="hud-btn ${optMode==='std'?'active':''}" data-optics="std" style="text-align:center; padding:4px;" onclick="setOpticsMode('std')">STD</button>
+            <button class="hud-btn ${optMode==='nvg'?'active':''}" data-optics="nvg" style="text-align:center; padding:4px;" onclick="setOpticsMode('nvg')">NVG</button>
+            <button class="hud-btn ${optMode==='flir'?'active':''}" data-optics="flir" style="text-align:center; padding:4px;" onclick="setOpticsMode('flir')">FLIR</button>
+          </div>
         </div>
         <div class="side-group">
           <div class="side-group-title">// RECON NODES</div>
@@ -1390,9 +1402,18 @@
       ${commonPanelFooter()}
     `;
 
-    tools.choke = () => `
+   tools.choke = () => `
       <div style="font-size:11px; display:flex; flex-direction:column; gap:6px;">
-        ${CHOKEPOINTS.map(c => `<div><b>${c.name}</b><br><span style="color:var(--mut); font-size:10px;">${c.note}</span></div>`).join('')}
+        ${CHOKEPOINTS.map(c => `
+          <div style="border-bottom:1px solid var(--line); padding-bottom:5px;">
+            <b>${c.name}</b><br>
+            <span style="color:var(--mut); font-size:10px;">${c.note}</span>
+            <div style="display:flex; gap:4px; margin-top:4px;">
+              <button class="hud-btn" style="padding:3px 6px; font-size:9px;" onclick="map.flyTo([${c.pos[0]}, ${c.pos[1]}], 7)">FLY TO</button>
+              <button class="hud-btn" style="padding:3px 6px; font-size:9px;" onclick="openSectorBrief('${c.country}', '${c.slug}')">BRIEF: ${c.country.toUpperCase()}</button>
+            </div>
+          </div>
+        `).join('')}
       </div>
       ${commonPanelFooter()}
     `;
@@ -1951,7 +1972,7 @@
     fetchAnimeStream();
     animeInterval = setInterval(fetchAnimeStream, 8000);
 
-    // ================= 17. WORLD FACTBOOK + GDELT + SECTOR SITREP -> MONA =================
+   // ================= 17. WORLD FACTBOOK + GDELT + SECTOR SITREP -> MONA =================
     const FB_HOTSPOTS = [
       { label: 'IRAQ', slug: 'iraq', name: 'Iraq' },
       { label: 'IRAN', slug: 'iran', name: 'Iran' },
@@ -2015,28 +2036,76 @@
       return fbCountryIndex;
     }
 
-    function scanInMemoryTelemetry(centerLat, centerLon, padDeg = 4.5) {
-      const inBox = ll =>
-        ll &&
-        Math.abs(ll.lat - centerLat) <= padDeg &&
-        Math.abs(ll.lng - centerLon) <= padDeg;
-
+    function scanTelemetryByPredicate(matchFn) {
       const milHits = [];
       layers.milAir.eachLayer(l => {
         const ll = l.getLatLng && l.getLatLng();
-        if (inBox(ll)) milHits.push(l._isisMeta?.callsign || 'MIL-AC');
+        if (ll && matchFn(ll)) milHits.push(l._isisMeta?.callsign || 'MIL-AC');
       });
 
       let civCount = 0;
-      layers.radar.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) civCount++; });
+      layers.radar.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (ll && matchFn(ll)) civCount++;
+      });
 
       let quakeCount = 0;
-      layers.quakes.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) quakeCount++; });
+      layers.quakes.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (ll && matchFn(ll)) quakeCount++;
+      });
 
       let fireCount = 0;
-      layers.fires.eachLayer(l => { if (inBox(l.getLatLng && l.getLatLng())) fireCount++; });
+      layers.fires.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (ll && matchFn(ll)) fireCount++;
+      });
 
       return { milHits, civCount, quakeCount, fireCount };
+    }
+
+    function scanInMemoryTelemetry(centerLat, centerLon, areaKm2) {
+      const padDeg = areaKm2
+        ? Math.max(1.2, Math.min(18, Math.sqrt(areaKm2) / 140))
+        : 4.5;
+      return scanTelemetryByPredicate(
+        ll => Math.abs(ll.lat - centerLat) <= padDeg && Math.abs(ll.lng - centerLon) <= padDeg
+      );
+    }
+
+    function scanViewportDossier() {
+      const preview = document.getElementById('fb-preview');
+      if (!preview) return;
+      playSolenoid(200, 0.03);
+
+      const b = map.getBounds();
+      const c = map.getCenter();
+      const sector = scanTelemetryByPredicate(ll => b.contains(ll));
+
+      fbLastDossier = {
+        name: 'ACTIVE MAP VIEWPORT',
+        code: `${c.lat.toFixed(2)},${c.lng.toFixed(2)}`,
+        region: `ZOOM ${map.getZoom().toFixed(1)}`,
+        capital: 'N/A',
+        popStr: 'N/A',
+        gdp: 'N/A',
+        borders: 'VIEWPORT BOUNDS',
+        introSummary: `Live sensor sweep across active Leaflet bounds.`,
+        govSummary: 'N/A (Viewport Snapshot)',
+        milSummary: sector.milHits.length ? sector.milHits.slice(0, 12).join(', ') : 'No military ADS-B contacts in bounds',
+        geoSummary: `SW(${b.getSouth().toFixed(2)}, ${b.getWest().toFixed(2)}) -> NE(${b.getNorth().toFixed(2)}, ${b.getEast().toFixed(2)})`,
+        sector,
+        gdelt: []
+      };
+
+      preview.innerHTML = `
+        <div><b>[ ACTIVE VIEWPORT // ${fbLastDossier.code} ]</b> (${fbLastDossier.region})</div>
+        <div><b>BOUNDS:</b> ${fbLastDossier.geoSummary}</div>
+        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
+        <div style="margin-top:4px;"><b>MIL CONTACTS:</b> ${fbLastDossier.milSummary}</div>
+      `;
+
+      pushTicker(`VIEWPORT SWEEP: MIL:${sector.milHits.length} CIV:${sector.civCount} QUAKES:${sector.quakeCount} FIRES:${sector.fireCount}`);
     }
 
     async function fetchGdeltHeadlines(countryName) {
@@ -2101,7 +2170,7 @@
       if (latlng) map.flyTo(latlng, 5, { duration: 1.1 });
 
       const sector = latlng
-        ? scanInMemoryTelemetry(latlng[0], latlng[1])
+        ? scanInMemoryTelemetry(latlng[0], latlng[1], rc?.area)
         : { milHits: [], civCount: 0, quakeCount: 0, fireCount: 0 };
 
       const govSummary = fbPickField(fbRes?.government, ['government_type', 'type', 'executive_branch', 'capital']);
@@ -2149,6 +2218,21 @@
       pushTicker(`FACTBOOK SITREP: ${fbLastDossier.name.toUpperCase()} // MIL:${sector.milHits.length} WIRE:${gdelt.length}`);
     }
 
+    function openSectorBrief(countryName, slug) {
+      map.closePopup();
+      document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
+      const secBtn = document.querySelector('#toolbar button[data-tool="sectors"]');
+      if (secBtn) secBtn.classList.add('active');
+      activeTool = 'sectors';
+      document.getElementById('sidePanel').classList.remove('closed');
+      renderPanel('sectors');
+      setTimeout(() => {
+        const inp = document.getElementById('fb-country-input');
+        if (inp) inp.value = countryName;
+        loadCountryDossier(countryName, slug);
+      }, 40);
+    }
+
     function exportDossierToMona() {
       if (!fbLastDossier) {
         loadCountryDossier();
@@ -2187,7 +2271,7 @@
       window.speechSynthesis.cancel();
       const d = fbLastDossier;
       const topNews = d.gdelt[0]?.title ? ` Top wire: ${d.gdelt[0].title}.` : '';
-      const text = `Situation report for ${d.name}. Capital ${d.capital}. ${d.sector.milHits.length} military aircraft tracked in sector.${topNews}`;
+      const text = `Situation report for ${d.name}. ${d.sector.milHits.length} military aircraft tracked in sector.${topNews}`;
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 1.02;
       u.pitch = 0.92;
@@ -2200,6 +2284,9 @@
       mapEl.classList.remove('optics-nvg', 'optics-flir');
       if (mode === 'nvg') mapEl.classList.add('optics-nvg');
       if (mode === 'flir') mapEl.classList.add('optics-flir');
+      document.querySelectorAll('[data-optics]').forEach(b => {
+        b.classList.toggle('active', b.dataset.optics === mode);
+      });
       playSolenoid(120, 0.03);
     }
 
@@ -2215,16 +2302,11 @@
             <datalist id="fb-country-list"></datalist>
             <button class="hud-btn" id="fb-fetch-btn" style="width:auto; padding:5px 8px;">FETCH</button>
           </div>
-          <div id="fb-preview">Select a hotspot chip or type a country to pull Factbook + GDELT + live sector sensors.</div>
+          <div id="fb-preview">Select a hotspot chip, type a country, or click VIEWPORT to sweep active map bounds.</div>
           <div class="fb-actions">
+            <button class="hud-btn" id="fb-viewport-btn" style="flex:0.8;">VIEWPORT</button>
             <button class="hud-btn" id="fb-mona-btn">+ MONA SITREP</button>
-            <button class="hud-btn" id="fb-speak-btn" style="flex:0.6;">SPEAK</button>
-          </div>
-          <div class="side-group-title" style="margin-top:8px;">// TILE OPTICS</div>
-          <div class="fb-actions">
-            <button class="hud-btn" data-optics="std">STD</button>
-            <button class="hud-btn" data-optics="nvg">NVG</button>
-            <button class="hud-btn" data-optics="flir">FLIR</button>
+            <button class="hud-btn" id="fb-speak-btn" style="flex:0.55;">SPEAK</button>
           </div>
         </div>
       `;
@@ -2241,6 +2323,7 @@
       document.getElementById('fb-country-input')?.addEventListener('keydown', e => {
         if (e.key === 'Enter') loadCountryDossier();
       });
+      document.getElementById('fb-viewport-btn')?.addEventListener('click', scanViewportDossier);
       document.getElementById('fb-mona-btn')?.addEventListener('click', exportDossierToMona);
       document.getElementById('fb-speak-btn')?.addEventListener('click', speakDossierBrief);
 
@@ -2250,10 +2333,6 @@
           if (inp) inp.value = btn.dataset.fbName;
           loadCountryDossier(btn.dataset.fbName, btn.dataset.fbSlug);
         });
-      });
-
-      document.querySelectorAll('#fb-dossier-shell [data-optics]').forEach(btn => {
-        btn.addEventListener('click', () => setOpticsMode(btn.dataset.optics));
       });
     }
   </script>
