@@ -29,7 +29,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Share+Tech+Mono&family=Special+Elite&family=IBM+Plex+Mono:wght@400;600&family=VT323&family=Courier+Prime&family=Space+Mono&family=EB+Garamond&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
+<style>
     :root {
       --bg: #070405;
       --sheet: rgba(13, 8, 10, 0.94);
@@ -45,9 +45,13 @@
       --mono: 'IBM Plex Mono', monospace;
     }
     body[data-theme="stark"] {
-      --bg: #08090b; --sheet: rgba(15, 16, 20, 0.95); --panel: #12141a;
-      --border: #2c313d; --accent: #f0f0f0; --accent-glow: #ffffff;
-      --phosphor: #e5e5e5; --text: #f5f2ef; --mut: #8890a0;
+      --bg: #000000; --sheet: #060608; --panel: #0c0c10;
+      --border: #6f7685; --accent: #ffffff; --accent-glow: #ffffff;
+      --phosphor: #ffffff; --text: #ffffff; --mut: #9ca3af;
+    }
+    body[data-theme="stark"] .pwp-svg-emblem,
+    body[data-theme="stark"] .triptych-bay img {
+      filter: grayscale(100%) contrast(1.18);
     }
     body[data-theme="bone"] {
       --bg: #ece5d8; --sheet: rgba(247, 243, 234, 0.96); --panel: #e3dbcc;
@@ -120,7 +124,6 @@
       position: relative; flex: 1; min-height: 0; width: 100%;
       display: flex; flex-direction: row; z-index: 2;
     }
-    /* Block scroll container so #editor-sheet expands seamlessly around ALL text */
     #stage {
       flex: 1; min-width: 0; overflow-y: auto;
       display: block;
@@ -244,10 +247,14 @@
       color: #ffffff;
     }
     .hud-pill.active {
-      background: #e61c1c;
+      background: var(--accent);
       border-color: #f5f2ef;
       color: #ffffff;
-      box-shadow: 0 0 10px rgba(230, 28, 28, 0.55);
+      box-shadow: 0 0 10px rgba(230, 28, 28, 0.45);
+    }
+    body[data-theme="stark"] .hud-pill.active {
+      color: #000000;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
     }
     .hud-sep { width: 1px; height: 14px; background: rgba(245, 242, 239, 0.2); flex-shrink: 0; margin: 0 2px; }
     .hilite-swatch {
@@ -422,9 +429,8 @@
     <nav id="hud-dock">
       <button class="hud-pill" id="btn-font">FONT: VT323</button>
       <button class="hud-pill" id="btn-bold"><b>B</b></button>
-      <button class="hud-pill" id="btn-italic"><i>I</i></button>
-      <button class="hud-pill" id="btn-theme">CRIMSON</button>
-      <button class="hud-pill" id="btn-hilite"><span class="hilite-swatch"></span>CRIMSON</button>
+      <button class="hud-pill" id="btn-italic"><i>I</i></button><button class="hud-pill" id="btn-theme">THEME: CRIMSON</button>
+      <button class="hud-pill" id="btn-hilite"><span class="hilite-swatch"></span>SEL: CRIMSON</button>
       <span class="hud-sep"></span>
       <button class="hud-pill active" id="btn-sound">AUDIO: ON</button>
       <button class="hud-pill" id="btn-vid">VID</button>
@@ -438,7 +444,7 @@
     </nav>
   </div>
 
-  <script>
+<script>
     const TRIPTYCH_GIF = 'https://raw.githubusercontent.com/ghostm68/666/main/triptych1787949777205.gif';
     const DEFAULT_DOLL_TEXT = `TALAMASCA FIELD DOSSIER // CASE 666-TALTOS
 TERMINAL: S. C. CRT [IMMORTAL HASH]
@@ -705,9 +711,10 @@ All text compresses directly into your browser's address bar.
     };
 
     const THEMES = ['crimson', 'stark', 'bone'];
-    const THEME_NAMES = ['CRIMSON', 'STARK', 'BONE'];
+    const THEME_NAMES = ['THEME: CRIMSON', 'THEME: STARK', 'THEME: BONE'];
     let themeIdx = 0;
-    document.getElementById('btn-theme').onclick = function () {
+    const btnTheme = document.getElementById('btn-theme');
+    btnTheme.onclick = function () {
       themeIdx = (themeIdx + 1) % THEMES.length;
       document.body.setAttribute('data-theme', THEMES[themeIdx]);
       localStorage.setItem('MONA_THEME', THEMES[themeIdx]);
@@ -718,8 +725,8 @@ All text compresses directly into your browser's address bar.
     if (savedTheme && THEMES.includes(savedTheme)) {
       themeIdx = THEMES.indexOf(savedTheme);
       document.body.setAttribute('data-theme', savedTheme);
-      document.getElementById('btn-theme').textContent = THEME_NAMES[themeIdx];
     }
+    btnTheme.textContent = THEME_NAMES[themeIdx];
 
     const HILITES = [
       { name: 'CRIMSON', bg: 'rgba(230, 28, 28, 0.86)', fg: '#ffffff' },
@@ -732,7 +739,7 @@ All text compresses directly into your browser's address bar.
       const h = HILITES[idx];
       document.documentElement.style.setProperty('--sel-bg', h.bg);
       document.documentElement.style.setProperty('--sel-fg', h.fg);
-      document.getElementById('btn-hilite').innerHTML = `<span class="hilite-swatch"></span>${h.name}`;
+      document.getElementById('btn-hilite').innerHTML = `<span class="hilite-swatch"></span>SEL: ${h.name}`;
       localStorage.setItem('MONA_HILITE_IDX', idx);
     }
     applyHilite(hiliteIdx);
@@ -844,8 +851,7 @@ All text compresses directly into your browser's address bar.
     document.getElementById('btn-new-snap').onclick = createBakCheckpoint;
     renderSnaps();
 
-    // ================= 6. EXPORTS (MAYFAIR_*), IMPORT, PURGE =================
-  // ================= 6. EXPORTS (INKREALM STAMP + TRIPTYCH STILL), IMPORT, PURGE =================
+    // ================= 6. EXPORTS (INKREALM STAMP + TRIPTYCH STILL), IMPORT, PURGE =================
     const expPop = document.getElementById('export-pop');
     document.getElementById('btn-exp').onclick = (e) => { e.stopPropagation(); expPop.classList.toggle('open'); };
     document.addEventListener('click', (e) => { if (!expPop.contains(e.target) && e.target.id !== 'btn-exp') expPop.classList.remove('open'); });
@@ -892,7 +898,6 @@ All text compresses directly into your browser's address bar.
           const doc = new jsPDF({ unit: 'pt', format: 'letter' });
           const still = await captureTriptychStill();
 
-          // INKREALM Masthead Stamp
           doc.setFont('times', 'bold');
           doc.setFontSize(16);
           doc.setTextColor(166, 20, 20);
@@ -904,7 +909,6 @@ All text compresses directly into your browser's address bar.
           doc.text('TALAMASCA DOLL-PROCESSOR // https://inkrealm.info', 54, 66);
           doc.text(`MAYFAIR ARCHIVE · ${dateStamp}`, 54, 78);
 
-          // Frozen Triptych GIF Still Frame (Top-Right)
           if (still) {
             const imgH = 40;
             const imgW = Math.min(118, imgH * (still.w / still.h));
@@ -919,7 +923,6 @@ All text compresses directly into your browser's address bar.
           doc.setLineWidth(0.8);
           doc.line(54, 88, 558, 88);
 
-          // Manuscript Body
           doc.setTextColor(22, 20, 20);
           doc.setFont('courier', 'normal');
           doc.setFontSize(11);
@@ -956,6 +959,23 @@ All text compresses directly into your browser's address bar.
         setTimeout(() => saveStatus.textContent = 'URL MEMORY: SYNCED', 2200);
       };
     });
+
+    document.getElementById('btn-imp').onclick = () => document.getElementById('file-imp').click();
+    document.getElementById('file-imp').onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { editor.innerText = r.result; updateMetrics(); syncImmortalMemory(); playSolenoid(400, 0.08); };
+      r.readAsText(f); e.target.value = '';
+    };
+    document.getElementById('btn-purge').onclick = () => {
+      if (confirm('PURGE ACTIVE DOSSIER BUFFER?')) {
+        editor.innerHTML = ''; updateMetrics();
+        localStorage.removeItem('PWP_FITTED_TEXT_V7'); localStorage.removeItem('MONA_HTML');
+        idbSet('active_html', '');
+        history.replaceState(null, '', ' ');
+        saveStatus.textContent = 'BUFFER PURGED';
+      }
+    };
 
     // ================= 7. INPUT EVENTS & CTRL+K CHORDS =================
     let ctrlKArmed = false;
