@@ -415,15 +415,15 @@
                             <span id="threshLabel" class="text-white/70">Local Sensitivity</span>
                             <div class="flex items-center gap-2">
                                 <button id="otsuBtn" onclick="autoThreshold()" title="Calculate Otsu Optimal Threshold" class="hidden btn-ghost text-[9px] px-1.5 py-0.5 rounded text-cyan-300 border-cyan-400/40">Auto (Otsu)</button>
-                                <span id="threshVal" class="font-mono">16</span>
+                                <span id="threshVal" class="font-mono">18</span>
                             </div>
                         </div>
-                        <input type="range" id="threshold" min="-10" max="55" value="16" class="w-full" oninput="updateThreshold(this.value)">
+                        <input type="range" id="threshold" min="-10" max="55" value="18" class="w-full" oninput="updateThreshold(this.value)">
                     </div>
 
                     <div class="pt-1">
                         <div class="flex justify-between items-center text-xs mb-1">
-                            <span class="text-white/70" title="Relative noise floor. 12 ≈ default (0.18× letter height). Higher rejects more small marks.">Speckle Sensitivity</span>
+                            <span class="text-white/70" title="Relative noise floor. Higher rejects more small marks.">Speckle Sensitivity</span>
                             <span id="speckleVal" class="font-mono">12</span>
                         </div>
                         <input type="range" id="speckleMin" min="2" max="40" value="12" class="w-full" oninput="updateSpeckle(this.value)">
@@ -664,7 +664,7 @@
         let lockedInspectScale = 2.5;
 
         let savedGlobalThreshold = 140;
-        let savedAdaptiveBias = 16;
+        let savedAdaptiveBias = 18;
         let estimatedLetterH = 40; // robust letter height for scale-invariant thresholds
 
         let analyzeTimer = null;
@@ -988,6 +988,30 @@
             updateMainCanvasDisplay();
         }
 
+        function despeckleIsolated(mask, w, minX, minY, maxX, maxY) {
+            const out = new Uint8Array(mask);
+            for (let y = minY; y < maxY; y++) {
+                const row = y * w;
+                for (let x = minX; x < maxX; x++) {
+                    if (!mask[row + x]) continue;
+                    let neighbors = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const ny = y + dy;
+                        if (ny < minY || ny >= maxY) continue;
+                        const nRow = ny * w;
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const nx = x + dx;
+                            if (nx < minX || nx >= maxX) continue;
+                            if (mask[nRow + nx]) neighbors++;
+                        }
+                    }
+                    if (neighbors < 2) out[row + x] = 0;
+                }
+            }
+            return out;
+        }
+
         function dilateBinaryMask(mask, w, h, weight, minX, minY, maxX, maxY) {
             if (weight <= 0) return mask;
             const scaleBoost = estimatedLetterH > 55 ? Math.min(1, Math.round((estimatedLetterH - 55) / 40)) : 0;
@@ -1020,7 +1044,7 @@
         function computeBinaryMask(minX = 0, minY = 0, maxX = sourceCanvas.width, maxY = sourceCanvas.height) {
             const w = sourceCanvas.width;
             const h = sourceCanvas.height;
-            const mask = new Uint8Array(w * h);
+            let mask = new Uint8Array(w * h);
             if (!w || !h) return mask;
 
             const data = sourceCtx.getImageData(0, 0, w, h).data;
@@ -1041,6 +1065,7 @@
                         }
                     }
                 }
+                mask = despeckleIsolated(mask, w, minX, minY, maxX, maxY);
                 return dilateBinaryMask(mask, w, h, inkWeight, minX, minY, maxX, maxY);
             }
 
@@ -1067,6 +1092,23 @@
                 }
             }
 
+            // Light 3x3 Gaussian denoise suppresses camera/paper grain without erasing thin pen strokes
+            const smoothed = new Uint8Array(rw * rh);
+            for (let y = 0; y < rh; y++) {
+                const ym = y > 0 ? y - 1 : 0;
+                const yp = y + 1 < rh ? y + 1 : rh - 1;
+                const r0 = ym * rw, r1 = y * rw, r2 = yp * rw;
+                for (let x = 0; x < rw; x++) {
+                    const xm = x > 0 ? x - 1 : 0;
+                    const xp = x + 1 < rw ? x + 1 : rw - 1;
+                    const sum =
+                        gray[r0 + xm] + (gray[r0 + x] << 1) + gray[r0 + xp] +
+                        (gray[r1 + xm] << 1) + (gray[r1 + x] << 2) + (gray[r1 + xp] << 1) +
+                        gray[r2 + xm] + (gray[r2 + x] << 1) + gray[r2 + xp];
+                    smoothed[r1 + x] = sum >> 4;
+                }
+            }
+
             const estH = estimatedLetterH > 8 ? estimatedLetterH : Math.min(rw, rh) * 0.08;
             const radius = Math.max(8, Math.min(48, Math.round(estH * 0.55)));
             const bias = sliderVal;
@@ -1085,13 +1127,15 @@
                     const area = (x1 - x0) * (y1 - y0);
                     const sum = integral[y1Off + x1] - integral[y0Off + x1] - integral[y1Off + x0] + integral[y0Off + x0];
                     const localMean = sum / area;
-                    const lum = gray[gRow + x];
+                    const lum = smoothed[gRow + x];
                     if (invert ? (lum > localMean + bias) : (lum < localMean - bias)) {
                         mask[dstRow + x] = 1;
                     }
                 }
             }
 
+            // Clear isolated 1-2px specks before dilation so inkWeight never blows up noise
+            mask = despeckleIsolated(mask, w, minX, minY, maxX, maxY);
             return dilateBinaryMask(mask, w, h, inkWeight, minX, minY, maxX, maxY);
         }
 
@@ -1417,18 +1461,27 @@
             };
 
             const estimateHFrom = (list) => {
-                const candidateHeights = list
-                    .map(b => b.h)
-                    .filter(hh => hh >= 8 && hh <= cropH * 0.85)
-                    .sort((a, b) => a - b);
+                let plausible = list.filter(b => b.h >= 8 && b.h <= cropH * 0.85);
+                if (plausible.length > 1) {
+                    plausible = plausible.filter(b => !(b.w > cropW * 0.92 && b.h > cropH * 0.92));
+                }
+                if (!plausible.length) return Math.max(18, Math.round(cropH * 0.14));
+
+                // Anchor against the largest blobs so background speckles cannot skew letter height
+                const descByArea = [...plausible].sort((a, b) => b.points.length - a.points.length);
+                const topCount = Math.min(descByArea.length, 40);
+                const refArea = descByArea[Math.floor(topCount * 0.25)].points.length;
+                const minAreaForHeight = Math.max(18, refArea * 0.12);
+
+                const letterCandidates = descByArea.filter(b => b.points.length >= minAreaForHeight);
+                const pool = letterCandidates.length >= 2 ? letterCandidates : plausible;
+                const candidateHeights = pool.map(b => b.h).sort((a, b) => a - b);
 
                 let robustH;
                 if (candidateHeights.length >= 3) {
                     robustH = candidateHeights[Math.floor(candidateHeights.length * 0.65)] || candidateHeights[Math.floor(candidateHeights.length * 0.5)];
-                } else if (candidateHeights.length > 0) {
-                    robustH = candidateHeights[Math.floor(candidateHeights.length * 0.5)];
                 } else {
-                    robustH = Math.max(18, Math.round(cropH * 0.14));
+                    robustH = candidateHeights[Math.floor(candidateHeights.length * 0.5)];
                 }
                 return Math.max(12, Math.min(160, robustH));
             };
@@ -1450,12 +1503,12 @@
                 rawBlobs = rawBlobs.filter(b => !(b.w > cropW * 0.92 && b.h > cropH * 0.92));
             }
 
-            // Convert slider into relative threshold (12 ≈ 0.18 × letter height)
+            // Convert slider into area-scaled speckle threshold (12 ≈ 0.006 × letterH²)
             const relativeFactor = userSpeckleSlider / 12;
-            const effectiveSpeckleMin = Math.max(4, Math.round(estimatedLetterH * 0.18 * relativeFactor));
+            const effectiveSpeckleMin = Math.max(4, Math.round((estimatedLetterH * estimatedLetterH * 0.006) * relativeFactor));
 
             // Re-filter with scale-aware threshold
-            rawBlobs = rawBlobs.filter(b => b.points.length >= effectiveSpeckleMin && b.h >= Math.max(4, estimatedLetterH * 0.18));
+            rawBlobs = rawBlobs.filter(b => b.points.length >= effectiveSpeckleMin && b.h >= Math.max(3, estimatedLetterH * 0.10));
 
             const heights = rawBlobs.map(b => b.h).sort((a, b) => a - b);
             const medianH = heights[Math.floor(heights.length * 0.5)] || estimatedLetterH;
