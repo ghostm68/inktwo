@@ -48,6 +48,11 @@
             user-select: none;
         }
 
+        .canvas-container.crop-active {
+            border-color: #fbbf24;
+            box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+        }
+
         .detection-box {
             position: absolute;
             border: 1px solid rgba(255, 255, 255, 0.38);
@@ -117,6 +122,7 @@
         .btn-primary { background: #ffffff; color: #c8102e; border: none; }
         body.classic-mode .btn-primary { background: #ff2a2a; color: #0a0a0a; }
         .btn-ghost { background: transparent; border: 1px solid var(--border); color: #fff; }
+        .btn-crop-active { background: #fbbf24; border: 1px solid #fde68a; color: #111111; }
         .btn-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; }
         .btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.5); color: #fff; }
 
@@ -350,7 +356,7 @@
                     </button>
                     <p id="aiStatus" class="text-[10px] text-cyan-200/80 font-mono text-center mt-1 hidden"></p>
                     <p id="scaleStatus" class="text-[10px] text-cyan-300/85 font-mono text-center mt-1">Scale-invariant detection ready</p>
-                    <p class="text-[10px] text-white/60 text-center">Drag on canvas to crop a clean line or region, or paste (Ctrl+V) anytime. AI works best on a single tight line crop.</p>
+                    <p class="text-[10px] text-white/60 text-center">On mobile, tap <b>✂ Draw Crop</b> above the image to box a clean region or single line; on desktop, drag anytime.</p>
 
                     <details class="mt-2 text-[10px] text-white/65 border border-white/15 rounded p-2">
                         <summary class="cursor-pointer font-semibold text-white/80 tracking-wide uppercase text-[9px]">How-to · Photo size, detection &amp; fallback caveat</summary>
@@ -358,10 +364,10 @@
                             <p><b>Detection is scale-aware.</b> The engine measures typical letter height and converts noise/split thresholds relative to it, so close-up and farther photos behave more consistently.</p>
                             <p><b>Best results:</b></p>
                             <ul class="list-disc pl-4 space-y-0.5">
-                                <li>Crop tightly around one clean line (or a short paragraph).</li>
+                                <li>On mobile, tap <b>✂ Draw Crop</b> and drag across one clean line (or just inside the paper) to ignore borders/tape. Tap <b>Reset Crop</b> to restore the full photo.</li>
                                 <li>Aim for letters roughly 30–80 px tall after load (status line shows the estimate).</li>
                                 <li>Prefer Adaptive Threshold + Auto-Split for handwriting. If 0 glyphs appear, turn on <b>Show B/W Mask</b> and lower <b>Local Sensitivity</b> (or disable Adaptive and click <b>Auto Otsu</b>).</li>
-                                <li>Use <b>AI Read Line (TrOCR)</b> on a tight crop to auto-fill the Target Character Order from the handwriting (on-device model, ~64 MB first load).</li>
+                                <li>Use <b>AI Read Line (TrOCR)</b> on a tight single-line crop to auto-fill Target Character Order from the handwriting (on-device model, ~64 MB first load).</li>
                                 <li>If letters stay stuck, open a glyph and use the <b>Split</b> tool.</li>
                                 <li>Raise Speckle Sensitivity if you see dust/noise; lower it if thin strokes disappear.</li>
                             </ul>
@@ -457,16 +463,35 @@
 
             <!-- MAIN WORKSPACE -->
             <main class="col-span-12 lg:col-span-9 space-y-5">
-                <!-- CANVAS & CROP WORKSPACE -->
-                <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
-                    <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20 pointer-events-none">
-                        Waiting for handwriting or manuscript input…<br>
-                        <span class="text-[11px] opacity-70">Drop a photo of handwriting, paste (Ctrl+V), or click "+ Draw New"</span>
+                <!-- CROP TOOLBAR + CANVAS WORKSPACE -->
+                <div class="space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                        <div class="flex items-center gap-2">
+                            <button id="cropModeBtn" onclick="toggleCropMode()" disabled
+                                class="btn-ghost text-[10px] px-3 py-1.5 rounded flex items-center gap-1.5"
+                                title="Toggle finger drag-to-crop on mobile (desktop mouse always crops on drag)">
+                                ✂ Draw Crop
+                            </button>
+                            <button id="clearCropTopBtn" onclick="clearCrop()" disabled
+                                class="btn-ghost text-[10px] px-2.5 py-1.5 rounded">
+                                Reset Crop
+                            </button>
+                        </div>
+                        <span id="cropStatusText" class="text-[10px] font-mono text-white/70">
+                            No image loaded
+                        </span>
                     </div>
-                    <div class="relative cursor-crosshair">
-                        <canvas id="mainCanvas" class="hidden"></canvas>
-                        <div id="overlay" class="absolute inset-0 pointer-events-none"></div>
-                        <div id="cropOverlay"></div>
+
+                    <div class="panel canvas-container min-h-[380px] p-2 flex items-center justify-center relative" id="canvasWrapper">
+                        <div id="dropZone" class="font-mono text-sm text-white/70 italic px-6 text-center py-20 pointer-events-none">
+                            Waiting for handwriting or manuscript input…<br>
+                            <span class="text-[11px] opacity-70">Drop a photo of handwriting, paste (Ctrl+V), or click "+ Draw New"</span>
+                        </div>
+                        <div id="canvasSurface" class="relative cursor-crosshair">
+                            <canvas id="mainCanvas" class="hidden max-w-full h-auto block"></canvas>
+                            <div id="overlay" class="absolute inset-0 pointer-events-none"></div>
+                            <div id="cropOverlay"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -630,6 +655,8 @@
         const sourceCanvas = document.createElement('canvas');
         const sourceCtx = sourceCanvas.getContext('2d');
 
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const canvasSurface = document.getElementById('canvasSurface');
         const overlay = document.getElementById('overlay');
         const cropOverlay = document.getElementById('cropOverlay');
         const specimen = document.getElementById('specimen');
@@ -651,7 +678,9 @@
         let autoCasedCount = 0;
 
         let cropRect = null;
+        let cropMode = false;
         let isDragging = false;
+        let activeCropPointerId = null;
         let dragStart = { canvasX: 0, canvasY: 0 };
 
         let activeBlob = null;
@@ -762,7 +791,6 @@
             }
         };
 
-        const canvasWrapper = document.getElementById('canvasWrapper');
         canvasWrapper.addEventListener('dragover', e => {
             e.preventDefault();
             e.stopPropagation();
@@ -962,6 +990,8 @@
             document.getElementById('dropZone').classList.add('hidden');
             cropRect = null;
             cropOverlay.style.display = 'none';
+            setCropMode(false);
+            updateCropUI();
             if (document.getElementById('adaptiveToggle').checked) {
                 analyze();
             } else {
@@ -1224,13 +1254,23 @@
         }
 
         /* =========================================================
-           DEDICATED DRAG-TO-CROP (ZERO CLICK OVERLAP)
+           MOBILE + DESKTOP POINTER DRAG-TO-CROP
            ========================================================= */
         function getDisplayPosFromCanvas(cx, cy) {
             if (!canvas.width || !canvas.height) return { left: 0, top: 0 };
             const scaleX = canvas.clientWidth / canvas.width;
             const scaleY = canvas.clientHeight / canvas.height;
             return { left: cx * scaleX, top: cy * scaleY };
+        }
+
+        function getCanvasPointFromPointer(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = rect.width ? (canvas.width / rect.width) : 1;
+            const scaleY = rect.height ? (canvas.height / rect.height) : 1;
+            return {
+                canvasX: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX)),
+                canvasY: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY))
+            };
         }
 
         function syncCropOverlayBox() {
@@ -1244,15 +1284,64 @@
             cropOverlay.style.height = size.top + 'px';
         }
 
-        canvas.parentElement.addEventListener('mousedown', e => {
+        function setCropMode(enabled) {
+            const hasImage = Boolean(sourceCanvas.width && !canvas.classList.contains('hidden'));
+            cropMode = Boolean(enabled && hasImage);
+            canvasSurface.style.touchAction = cropMode ? 'none' : 'pan-x pan-y pinch-zoom';
+            canvasWrapper.classList.toggle('crop-active', cropMode);
+            updateCropUI();
+        }
+
+        function toggleCropMode() {
             if (canvas.classList.contains('hidden')) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            dragStart = {
-                canvasX: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX)),
-                canvasY: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY))
-            };
+            setCropMode(!cropMode);
+        }
+
+        function updateCropUI() {
+            const btn = document.getElementById('cropModeBtn');
+            const resetBtn = document.getElementById('clearCropTopBtn');
+            const status = document.getElementById('cropStatusText');
+            const hasImage = Boolean(sourceCanvas.width && !canvas.classList.contains('hidden'));
+
+            if (btn) {
+                btn.disabled = !hasImage;
+                btn.className = cropMode
+                    ? 'btn-crop-active text-[10px] px-3 py-1.5 rounded flex items-center gap-1.5'
+                    : 'btn-ghost text-[10px] px-3 py-1.5 rounded flex items-center gap-1.5';
+                btn.textContent = cropMode ? '✂ Drag on Image…' : '✂ Draw Crop';
+            }
+            if (resetBtn) {
+                resetBtn.disabled = !hasImage || !cropRect;
+            }
+            if (status) {
+                if (!hasImage) {
+                    status.textContent = 'No image loaded';
+                    status.className = 'text-[10px] font-mono text-white/60';
+                } else if (cropMode) {
+                    status.textContent = 'Drag across text to crop (scroll paused)';
+                    status.className = 'text-[10px] font-mono text-amber-300';
+                } else if (cropRect) {
+                    status.textContent = `Cropped: ${Math.round(cropRect.w)}×${Math.round(cropRect.h)} px`;
+                    status.className = 'text-[10px] font-mono text-cyan-300';
+                } else {
+                    status.textContent = `Full image (${sourceCanvas.width}×${sourceCanvas.height})`;
+                    status.className = 'text-[10px] font-mono text-white/75';
+                }
+            }
+        }
+
+        canvasSurface.style.touchAction = 'pan-x pan-y pinch-zoom';
+
+        canvasSurface.addEventListener('pointerdown', e => {
+            if (canvas.classList.contains('hidden')) return;
+            const isMouse = (e.pointerType === 'mouse');
+            if (!isMouse && !cropMode) return;
+
+            e.preventDefault();
+            activeCropPointerId = e.pointerId;
+            try { canvasSurface.setPointerCapture(e.pointerId); } catch (_) {}
+
+            dragStart = getCanvasPointFromPointer(e);
             isDragging = true;
             cropOverlay.style.display = 'block';
             const pos = getDisplayPosFromCanvas(dragStart.canvasX, dragStart.canvasY);
@@ -1262,18 +1351,14 @@
             cropOverlay.style.height = '0px';
         });
 
-        window.addEventListener('mousemove', e => {
-            if (!isDragging) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const currCanvasX = Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX));
-            const currCanvasY = Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY));
-
-            const x = Math.min(dragStart.canvasX, currCanvasX);
-            const y = Math.min(dragStart.canvasY, currCanvasY);
-            const w = Math.abs(currCanvasX - dragStart.canvasX);
-            const h = Math.abs(currCanvasY - dragStart.canvasY);
+        canvasSurface.addEventListener('pointermove', e => {
+            if (!isDragging || e.pointerId !== activeCropPointerId) return;
+            e.preventDefault();
+            const pt = getCanvasPointFromPointer(e);
+            const x = Math.min(dragStart.canvasX, pt.canvasX);
+            const y = Math.min(dragStart.canvasY, pt.canvasY);
+            const w = Math.abs(pt.canvasX - dragStart.canvasX);
+            const h = Math.abs(pt.canvasY - dragStart.canvasY);
 
             const pos = getDisplayPosFromCanvas(x, y);
             const size = getDisplayPosFromCanvas(w, h);
@@ -1283,32 +1368,51 @@
             cropOverlay.style.height = size.top + 'px';
         });
 
-        window.addEventListener('mouseup', e => {
-            if (!isDragging) return;
+        function finishCropPointer(e, cancelled = false) {
+            if (!isDragging || e.pointerId !== activeCropPointerId) return;
             isDragging = false;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const endCanvasX = Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX));
-            const endCanvasY = Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY));
+            activeCropPointerId = null;
+            try { canvasSurface.releasePointerCapture(e.pointerId); } catch (_) {}
 
-            const x = Math.min(dragStart.canvasX, endCanvasX);
-            const y = Math.min(dragStart.canvasY, endCanvasY);
-            const w = Math.abs(endCanvasX - dragStart.canvasX);
-            const h = Math.abs(endCanvasY - dragStart.canvasY);
+            if (cancelled) {
+                if (cropRect) syncCropOverlayBox();
+                else cropOverlay.style.display = 'none';
+                return;
+            }
+
+            const pt = getCanvasPointFromPointer(e);
+            const x = Math.min(dragStart.canvasX, pt.canvasX);
+            const y = Math.min(dragStart.canvasY, pt.canvasY);
+            const w = Math.abs(pt.canvasX - dragStart.canvasX);
+            const h = Math.abs(pt.canvasY - dragStart.canvasY);
 
             if (w > 16 && h > 16) {
                 cropRect = { x, y, w, h };
                 syncCropOverlayBox();
+                if (e.pointerType !== 'mouse' && cropMode) {
+                    setCropMode(false);
+                } else {
+                    updateCropUI();
+                }
                 analyze();
-            } else {
+            } else if (e.pointerType === 'mouse' || cropRect) {
+                if (e.pointerType !== 'mouse' && cropMode) {
+                    setCropMode(false);
+                }
                 clearCrop();
+            } else {
+                cropOverlay.style.display = 'none';
             }
-        });
+        }
+
+        canvasSurface.addEventListener('pointerup', e => finishCropPointer(e, false));
+        canvasSurface.addEventListener('pointercancel', e => finishCropPointer(e, true));
 
         function clearCrop() {
             cropRect = null;
             cropOverlay.style.display = 'none';
+            setCropMode(false);
+            updateCropUI();
             analyze();
         }
 
@@ -3326,6 +3430,7 @@
 
         renderVault();
         applySpecimenFont();
+        updateCropUI();
         checkAutosaveAvailability();
         setTimeout(updateMissing, 100);
     </script>
