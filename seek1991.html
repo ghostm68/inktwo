@@ -320,7 +320,7 @@ button.action:hover { background: var(--accent); color: black; }
 <header>
   <div>
     <h1>SEEK<span>1991</span></h1>
-    <div id="status">Loading 1991 + Codex metadata...</div>
+    <div id="status">Loading 1991 + codex1991.json...</div>
   </div>
   <div class="sisters">
     <div class="sisters-note">links to companion sites →</div>
@@ -403,7 +403,7 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers
 env.allowLocalModels = false;
 
 const SOURCE_1991 = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
-const SOURCE_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.html';
+const SOURCE_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.json';
 
 let entries = [];
 let currentVisible = [];
@@ -416,7 +416,7 @@ let directorFilter = null;
 
 // Semantic + IndexedDB cache
 let embedder = null;
-let embeddings = new Map(); // uid -> Float32Array
+let embeddings = new Map();
 let indexingActive = false;
 const IDB_NAME = 'seek1991_vectors_v1';
 const IDB_STORE = 'vecs';
@@ -435,9 +435,9 @@ const semIndexBtn = document.getElementById('sem-index-btn');
 const semStopBtn = document.getElementById('sem-stop-btn');
 const mapWrap = document.getElementById('constellation-wrap');
 
-// ================= 1. SHARED RESILIENT PARSER (1991.html + codex1991.html) =================
+// ================= 1. ANTI-BLOB PARSER (1991.html + codex1991.json) =================
 function cleanEntities(str) {
-  return str
+  return (str || '')
     .replace(/&rsquop;/gi, "'")
     .replace(/\u00a0/g, ' ')
     .replace(/\s+/g, ' ')
@@ -448,43 +448,42 @@ function normKey(str) {
   return (str || '').toLowerCase().replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ').trim();
 }
 
-function parseCodexHtml(html) {
+function parseCodexJson(obj) {
   const map = new Map();
-  if (!html) return map;
-
-  // Strategy 1: parse HTML table rows (handles duplicate tables inside codex1991.html cleanly)
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  doc.querySelectorAll('tr').forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length >= 4) {
-      const id = parseInt(tds[0].textContent.trim(), 10);
-      if (!Number.isFinite(id)) return;
-      const title = cleanEntities(tds[1].textContent);
-      const yrMatch = tds[2].textContent.match(/\b(18|19|20)\d{2}\b/);
-      const year = yrMatch ? parseInt(yrMatch[0], 10) : null;
-      let director = cleanEntities(tds[3].textContent);
-      if (/^(—|-|n\/a|unknown|pending|\?)$/i.test(director)) director = '';
-      if (!map.has(id) || (year && !map.get(id).year) || (director && !map.get(id).director)) {
-        map.set(id, { id, title, year, director });
-      }
-    }
-  });
-
-  // Strategy 2: fallback scan for inline JS object literals if table was script-rendered
-  if (map.size < 100) {
-    const objRe = /["']?id["']?\s*:\s*(\d+)\s*,\s*["']?title["']?\s*:\s*["']([^"']+)["']\s*,\s*["']?year["']?\s*:\s*(\d{4}|null|["'][^"']*["'])\s*,\s*["']?director["']?\s*:\s*["']([^"']*)["']/g;
-    let m;
-    while ((m = objRe.exec(html)) !== null) {
-      const id = parseInt(m[1], 10);
-      const title = cleanEntities(m[2]);
-      const yrMatch = String(m[3]).match(/\b(18|19|20)\d{2}\b/);
-      const year = yrMatch ? parseInt(yrMatch[0], 10) : null;
-      let director = cleanEntities(m[4]);
-      if (/^(—|-|n\/a|unknown|pending|\?)$/i.test(director)) director = '';
-      if (!map.has(id)) map.set(id, { id, title, year, director });
+  if (!obj || typeof obj !== 'object') return map;
+  for (const [k, v] of Object.entries(obj)) {
+    const id = parseInt(k, 10);
+    if (Number.isFinite(id) && Array.isArray(v)) {
+      map.set(id, { id, year: v[0] || null, director: v[1] || '', title: v[2] || '' });
     }
   }
   return map;
+}
+
+function extractChunksFromStrong(el) {
+  const clone = el.cloneNode(true);
+  // Remove nested <strong> children so unclosed tags never double-capture inner entries
+  clone.querySelectorAll('strong').forEach(n => n.remove());
+  // Preserve <br> and block boundaries as real newlines before textContent
+  clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  clone.querySelectorAll('p, div, li').forEach(blk => {
+    blk.insertAdjacentText('beforebegin', '\n');
+    blk.insertAdjacentText('afterend', '\n');
+  });
+
+  const text = (clone.textContent || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ');
+  const chunks = [];
+  text.split(/\n+/).forEach(line => {
+    const trimmed = line.replace(/\s+/g, ' ').trim();
+    if (!trimmed) return;
+    // Split multi-movie blobs (e.g. "578_LOVE... 579_voodoo... 597~_Taliban...") cleanly
+    const parts = trimmed.split(/(?=(?:^|\s)\d{1,4}(?:andahalf)?\s?[_~]+)/i);
+    parts.forEach(p => {
+      const c = p.trim();
+      if (c) chunks.push(c);
+    });
+  });
+  return chunks;
 }
 
 function parse1991Html(html, codexMap) {
@@ -492,64 +491,66 @@ function parse1991Html(html, codexMap) {
   const doc = new DOMParser().parseFromString(fixedHtml, 'text/html');
   const strongs = doc.querySelectorAll('strong');
   const rawList = [];
+  const seenExact = new Set();
   const idFreq = new Map();
 
-  strongs.forEach((el, idx) => {
-    const rawText = cleanEntities(el.textContent || '');
-    if (!rawText) return;
+  strongs.forEach((el, elIdx) => {
+    const chunks = extractChunksFromStrong(el);
+    chunks.forEach((rawText, cIdx) => {
+      const m = rawText.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
+      if (!m) return;
 
-    // Matches: "1__Title", "3 __Title", "529~~_Title", "758__>Title", "907~~Title", "372andahalf__Title"
-    const m = rawText.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
-    if (!m) return;
+      const id = parseInt(m[1], 10);
+      let body = m[2].replace(/^[_~>\s]+/, '').trim();
+      if (!body) return;
 
-    const id = parseInt(m[1], 10);
-    let body = m[2].replace(/^[_~>\s]+/, '').trim();
-    if (!body) return;
+      let year = null;
+      let title = body;
+      let director = '';
 
-    // Extract year safely without mistaking it for a director
-    let year = null;
-    let title = body;
-    let director = '';
-
-    const trailingYear = body.match(/[\s,(\[]+\b((?:18|19|20)\d{2})\b[\s)\]]*$/);
-    if (trailingYear) {
-      year = parseInt(trailingYear[1], 10);
-      title = body.slice(0, trailingYear.index).replace(/[,\s-]+$/, '').trim();
-    } else {
-      const anyYear = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
-      if (anyYear) year = parseInt(anyYear[1] || anyYear[2], 10);
-    }
-
-    // Only parse comma-separated director if it looks like a person name (2-4 words, no digits)
-    if (title.includes(',')) {
-      const parts = title.split(',');
-      const tail = parts[parts.length - 1].trim();
-      const words = tail.split(/\s+/);
-      if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
-        director = tail;
-        title = parts.slice(0, -1).join(',').trim();
+      const trailingYear = body.match(/[\s,(\[-]+\b((?:18|19|20)\d{2})\b[\s)\]-]*$/);
+      if (trailingYear) {
+        year = parseInt(trailingYear[1], 10);
+        title = body.slice(0, trailingYear.index).replace(/[,\s-]+$/, '').trim();
+      } else {
+        const anyYear = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
+        if (anyYear) year = parseInt(anyYear[1] || anyYear[2], 10);
       }
-    }
 
-    // Grab brief surrounding context from parent <p> if present
-    let note = '';
-    const parentText = cleanEntities(el.parentElement?.textContent || '');
-    if (parentText.length > rawText.length + 12 && parentText.length < 480) {
-      note = parentText.replace(rawText, '').trim();
-    }
+      if (title.includes(',')) {
+        const parts = title.split(',');
+        const tail = parts[parts.length - 1].trim();
+        const words = tail.split(/\s+/);
+        if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
+          director = tail;
+          title = parts.slice(0, -1).join(',').trim();
+        }
+      }
 
-    idFreq.set(id, (idFreq.get(id) || 0) + 1);
-    rawList.push({ uid: `${id}_${idx}`, id, title, director, year, raw: rawText, note, verified: false });
+      const dedupeKey = `${id}|${normKey(title)}`;
+      if (seenExact.has(dedupeKey)) return;
+      seenExact.add(dedupeKey);
+
+      let note = '';
+      if (chunks.length === 1) {
+        const parentText = cleanEntities(el.parentElement?.textContent || '');
+        if (parentText.length > rawText.length + 12 && parentText.length < 480) {
+          note = parentText.replace(rawText, '').trim();
+        }
+      }
+
+      idFreq.set(id, (idFreq.get(id) || 0) + 1);
+      rawList.push({ uid: `${id}_${elIdx}_${cIdx}`, id, title, director, year, raw: rawText, note, verified: false });
+    });
   });
 
-  // Merge verified Codex metadata carefully (avoid mis-joining duplicate IDs)
   return rawList.map(e => {
     const isDupId = (idFreq.get(e.id) || 0) > 1;
     const cx = codexMap.get(e.id);
     if (cx) {
       const a = normKey(e.title);
       const b = normKey(cx.title);
-      const tokenMatch = !isDupId || a === b || a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6));
+      const tokenMatch = !isDupId || !b || a === b || a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6));
       if (tokenMatch) {
         if (!e.year && cx.year) e.year = cx.year;
         if (!e.director && cx.director) e.director = cx.director;
@@ -619,8 +620,8 @@ async function load() {
       fetch(SOURCE_CODEX).catch(() => null)
     ]);
     const html1991 = await res1991.text();
-    const htmlCodex = resCodex && resCodex.ok ? await resCodex.text() : '';
-    const codexMap = parseCodexHtml(htmlCodex);
+    const jsonCodex = resCodex && resCodex.ok ? await resCodex.json() : null;
+    const codexMap = parseCodexJson(jsonCodex);
 
     entries = parse1991Html(html1991, codexMap);
     await loadCachedVectors();
@@ -816,7 +817,6 @@ function findSimilarTo(entry) {
     return;
   }
 
-  // Instant metadata/lexical similarity fallback (same director, same decade, or overlapping words)
   const words = new Set(normKey(entry.title).split(' ').filter(w => w.length > 3));
   const scored = entries
     .filter(o => o.uid !== entry.uid)
@@ -925,7 +925,6 @@ async function semanticSearch(q, pool) {
   const qEmb = await embedder(q, { pooling: 'mean', normalize: true });
   const qVec = qEmb.data;
 
-  // If archive isn't indexed yet, embed top lexical candidates + a rolling batch so search works immediately
   if (embeddings.size < Math.min(200, pool.length)) {
     const lexCandidates = fuse ? fuse.search(q).slice(0, 60).map(r => r.item) : [];
     const extra = pool.filter(e => !embeddings.has(e.uid)).slice(0, 60);
@@ -1016,7 +1015,6 @@ function initConstellationGL() {
 function buildConstellationPoints() {
   const maxId = Math.max(...entries.map(e => e.id), 3200);
   cPoints = entries.map((e, i) => {
-    // Deterministic jitter so films from the same year spread cleanly
     const seed = Math.sin(e.id * 12.9898 + i * 78.233) * 43758.5453;
     const jit = (seed - Math.floor(seed)) - 0.5;
     const yr = e.year ? Math.max(1908, Math.min(2026, e.year)) : (1908 + (e.id / maxId) * 118);
@@ -1096,7 +1094,6 @@ function renderConstellation() {
     cgl.drawArrays(cgl.POINTS, 0, cPoints.length);
   }
 
-  // Draw Decade Gridlines + Hover Tooltip on 2D HUD
   const ctx = cHud.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
