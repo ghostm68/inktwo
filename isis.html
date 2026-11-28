@@ -11,7 +11,7 @@
   <meta name="description" content="Immerse yourself in the art of writing with Wordstar Nexus. Experience a sleek, distraction-free environment that ignites your creativity and brings your cinematic visions to life." />
   <meta name="keywords" content="writing, prose, software, elegant writing tools, distraction-free, creativity, Wordstar Nexus, OSINT, intel" />
   <meta name="author" content="Wordstar Nexus Team" />
-  <title>ISIS // OSINT w/ voice mona text — MERGED</title>
+  <title>ISIS // OSINT w/ voice mona text — MERGED + WEBGL2</title>
 
   <!-- Leaflet Core (100% Keyless) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -64,7 +64,7 @@
       pointer-events: none; z-index: 9500;
       background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.45) 50%);
       background-size: 100% 3px;
-      opacity: 0.65;
+      opacity: 0.55;
     }
     .crt-off { display: none; }
 
@@ -77,11 +77,30 @@
     }
     .grid-off { display: none !important; }
 
-    /* DYNAMIC SONAR SWEEP OVERLAY */
+    /* WEBGL2 TACTICAL OVERLAY (RADAR / TERMINATOR / AURORA / OPTICS FX) */
     #sonarCanvas {
       position: absolute; inset: 0; pointer-events: none; z-index: 1400; width: 100%; height: 100%;
     }
-    .sonar-off { display: none !important; }
+
+    /* LIVE CAM MAP MARKER RETICLE */
+    .cam-marker {
+      display: flex; align-items: center; justify-content: center;
+      color: #38ef7d;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: bold;
+      text-shadow: 0 0 6px rgba(56, 239, 125, 0.85), 0 0 2px #000;
+      transition: transform 0.15s ease;
+    }
+    .cam-marker.active-cam {
+      color: var(--crimson-glow);
+      text-shadow: 0 0 8px var(--crimson-glow), 0 0 2px #000;
+      transform: scale(1.25);
+    }
+    .cam-marker.osm-cam {
+      color: var(--yel);
+      text-shadow: 0 0 6px rgba(255, 210, 74, 0.85), 0 0 2px #000;
+    }
 
     /* ================= 1. TOP NAVIGATION ================= */
     #topbar {
@@ -95,24 +114,26 @@
       z-index: 10000;
     }
 
-    #brand { display: flex; align-items: center; gap: 14px; }
+    #brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
     #brandName {
       display: flex; align-items: center; gap: 8px;
       border-right: 1px solid var(--line2);
       padding-right: 14px;
+      flex-shrink: 0;
     }
     .brandText { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
     .brandSub { font-size: 10px; color: var(--mut); letter-spacing: 3px; margin-left: 4px; }
 
-    #gramChart { display: flex; align-items: center; gap: 10px; }
+    #gramChart { display: flex; align-items: center; gap: 10px; min-width: 0; }
     #gramSym { font-weight: 800; color: var(--crimson-glow); font-size: 13px; }
     #gramPrice { font-size: 15px; font-weight: bold; }
     #gramChange { font-size: 11px; padding: 2px 6px; border: 1px solid var(--line2); }
     #gramChange.up { color: var(--yel); border-color: rgba(255,210,74,0.4); }
     #gramChange.down { color: var(--crimson-glow); border-color: rgba(230,28,28,0.4); }
-    #gramSpark { width: 140px; height: 32px; }
+    #gramSpark { width: 120px; height: 30px; }
+    #gramWallet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 
-    #statusgrp { display: flex; align-items: center; gap: 14px; font-size: 11px; }
+    #statusgrp { display: flex; align-items: center; gap: 12px; font-size: 11px; flex-shrink: 0; }
     #zulu b { color: #fff; }
     .stat { text-align: center; }
     .stat b { display: block; font-size: 13px; color: var(--crimson-glow); }
@@ -167,13 +188,13 @@
       background: rgba(13, 9, 11, 0.94);
       border: 1px solid var(--line2);
       color: var(--mut);
-      width: 110px;
-      padding: 7px 10px;
+      width: 112px;
+      padding: 5.5px 9px;
       font-size: 10px;
       letter-spacing: 1px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       transition: all 0.15s ease;
     }
     #toolbar button:hover { border-color: var(--crimson); color: #fff; background: var(--panel2); }
@@ -187,10 +208,10 @@
     /* ================= 4. OPTICAL FEED BOX ================= */
     #optical-feed-box {
       position: absolute;
-      top: 340px; /* Clears 10 toolbar buttons */
+      top: 318px; /* Cleanly clears 11 toolbar buttons */
       left: 12px;
-      width: 250px;
-      max-height: calc(100% - 348px);
+      width: 262px;
+      max-height: calc(100% - 326px);
       overflow-y: auto;
       z-index: 2000;
       background: rgba(13, 8, 10, 0.96);
@@ -209,8 +230,17 @@
       font-size: 9px;
       letter-spacing: 1px;
       flex-shrink: 0;
+      gap: 4px;
     }
-    .ofb-head b { color: var(--crimson-glow); }
+    .ofb-head b {
+      color: var(--crimson-glow);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 140px;
+      display: inline-block;
+      vertical-align: bottom;
+    }
     .ofb-body {
       padding: 0;
       display: flex;
@@ -220,20 +250,66 @@
     .ofb-minimized .ofb-body { display: none; }
     .ofb-video-wrap {
       width: 100%;
-      height: 118px;
+      height: 124px;
       background: #000;
       overflow: hidden;
       flex-shrink: 0;
+      position: relative;
     }
-    .ofb-video-wrap iframe {
+    .ofb-video-wrap iframe,
+    .ofb-video-wrap img#opticalImg {
       width: 100%;
       height: 100%;
       border: 0;
       display: block;
+      object-fit: cover;
+    }
+    #opticalImg { display: none; }
+    #ofbGlitchCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 4;
+    }
+    .ofb-cam-bar {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 5px;
+      width: 100%;
+      background: #100508;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line2);
+      flex-shrink: 0;
+    }
+    .ofb-cam-bar button {
+      background: #1a080c;
+      border: 1px solid var(--line2);
+      color: var(--txt);
+      font-size: 8.5px;
+      padding: 2px 5px;
+      letter-spacing: 0.5px;
+    }
+    .ofb-cam-bar button:hover,
+    .ofb-cam-bar button.active {
+      border-color: var(--crimson);
+      color: var(--crimson-glow);
+      background: #2b090e;
+    }
+    #ofbCamLabel {
+      flex: 1;
+      font-size: 8.5px;
+      color: var(--cyan);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
     }
     .ofb-anime-wrap {
       width: 100%;
-      height: 115px;
+      height: 108px;
       background: #050203;
       position: relative;
       overflow: hidden;
@@ -257,7 +333,7 @@
     /* ================= 5. SLIDING FLYOUT DRAWER ================= */
     #sidePanel {
       position: absolute; top: 12px; bottom: 12px; left: 312px; z-index: 1999;
-      width: 320px;
+      width: 326px;
       background: rgba(13, 8, 10, 0.96);
       border: 1px solid var(--crimson);
       box-shadow: 0 10px 30px rgba(0,0,0,0.85);
@@ -285,12 +361,13 @@
     }
     .side-item:hover, .side-item.active { border-color: var(--crimson); color: var(--crimson-glow); background: #1f070a; }
 
-    .toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); }
+    .toggle { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
     .toggle label { color: var(--txt); font-size: 11px; }
     .toggle label em { display: block; font-style: normal; color: var(--mut); font-size: 9px; }
     .switch {
       width: 32px; height: 16px; border-radius: 8px; background: #070304;
       border: 1px solid var(--line2); position: relative; cursor: pointer;
+      flex-shrink: 0;
     }
     .switch::after {
       content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
@@ -304,6 +381,73 @@
       font-size: 10px; padding: 6px 9px; letter-spacing: 1px; text-align: left; width: 100%;
     }
     .hud-btn:hover, .hud-btn.active { border-color: var(--crimson); color: var(--crimson-glow); background: #24080b; }
+
+    /* MINI 3D WEBGL2 ORBITAL GLOBE INSIDE ORBIT PANEL */
+    #orbit-globe-wrap {
+      position: relative;
+      width: 100%;
+      height: 215px;
+      background: #040102;
+      border: 1px solid var(--crimson-dark);
+      margin-bottom: 8px;
+      overflow: hidden;
+      cursor: grab;
+    }
+    #orbit-globe-wrap:active { cursor: grabbing; }
+    #orbitGlobeCanvas, #orbitGlobeHud {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #orbitGlobeHud { pointer-events: none; }
+    .globe-caption {
+      position: absolute;
+      left: 6px;
+      bottom: 4px;
+      font-size: 8px;
+      color: var(--mut);
+      pointer-events: none;
+      letter-spacing: 1px;
+    }
+
+    /* CAM DIRECTORY LIST INSIDE CAMS PANEL */
+    .cam-card {
+      border: 1px solid var(--line2);
+      background: #080305;
+      padding: 6px;
+      margin-bottom: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cam-card.active {
+      border-color: var(--crimson);
+      background: #1a0609;
+    }
+    .cam-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+    }
+    .cam-card-top b { color: var(--cyan); }
+    .cam-card.active .cam-card-top b { color: var(--crimson-glow); }
+    .cam-card-meta { font-size: 8.5px; color: var(--mut); }
+    .cam-card-btns { display: flex; gap: 4px; }
+    .cam-card-btns button {
+      flex: 1;
+      background: #14070a;
+      border: 1px solid var(--line2);
+      color: var(--txt);
+      font-size: 8.5px;
+      padding: 3px 5px;
+    }
+    .cam-card-btns button:hover {
+      border-color: var(--crimson);
+      color: var(--crimson-glow);
+    }
 
     /* FACTBOOK + GDELT DOSSIER WIDGET INSIDE SECTORS */
     #fb-dossier-shell {
@@ -438,6 +582,7 @@
       .brandText { font-size: 14px; }
       #gramChart { transform: scale(0.88); transform-origin: left center; }
       #gramSpark { width: 80px; }
+      #gramWallet { display: none; }
 
       #statusgrp {
         width: 100%;
@@ -475,12 +620,13 @@
         left: 8px;
         right: 8px;
         width: calc(100vw - 16px);
-        max-width: 290px;
+        max-width: 295px;
         max-height: 52vh;
         overflow-y: auto;
         z-index: 2500;
       }
-      #optical-feed-box iframe {
+      #optical-feed-box iframe,
+      #optical-feed-box img#opticalImg {
         width: 100% !important;
         height: 140px !important;
       }
@@ -632,12 +778,13 @@
         <span id="gramPrice">--</span>
         <span id="gramChange" class="up">--%</span>
         <svg id="gramSpark" viewBox="0 0 140 32" preserveAspectRatio="none"></svg>
-        <span id="gramWallet" style="margin-left:auto; font-size:10px; color:var(--crimson-glow);">gram @ UQAc99MvKIcewbQFmOF_RvqpkAXZno0wiz3_BMsP87pJjSnB </span>
+        <span id="gramWallet" style="margin-left:auto; font-size:10px; color:var(--crimson-glow);">gram @ UQAc99MvKIcewbQFmOF_RvqpkAXZno0wiz3_BMsP87pJjSnB</span>
       </div>
     </div>
 
     <div id="statusgrp">
       <div id="zulu">ZULU <b id="zulu-clock">00:00:00</b>Z</div>
+      <div class="stat"><b id="cnt-cams">0</b><span>CAMS</span></div>
       <div class="stat"><b id="cnt-mil">0</b><span>MIL AIR</span></div>
       <div class="stat"><b id="cnt-quakes">0</b><span>QUAKES</span></div>
       <div class="stat"><b id="cnt-fires">0</b><span>FIRES</span></div>
@@ -649,13 +796,14 @@
   <!-- 2. MAIN WORKSPACE -->
   <div id="workspace">
     <div id="tactical-cross"></div>
-    <canvas id="sonarCanvas" class="sonar-off"></canvas>
+    <canvas id="sonarCanvas"></canvas>
     <div id="draw-hud"></div>
     <div id="map"></div>
 
-    <!-- LEFT TOOLBAR (10 tools) -->
+    <!-- LEFT TOOLBAR (11 tools) -->
     <nav id="toolbar">
       <button data-tool="layers"><span>⌂</span>LAYERS</button>
+      <button data-tool="cams"><span>◉</span>CITY CAMS</button>
       <button data-tool="radar"><span>✈</span>ADS-B AIR</button>
       <button data-tool="weather"><span>☂</span>DOPPLER</button>
       <button data-tool="signals"><span>📻</span>SIGINT</button>
@@ -670,9 +818,9 @@
     <!-- OPTICAL FEED BOX -->
     <div id="optical-feed-box">
       <div class="ofb-head">
-        <span>OPTICAL // <b>SURVEILLANCE FEED</b></span>
-        <div>
-          <span id="feedSaveStatus" style="color:var(--crimson-glow); margin-right:6px;">LIVE</span>
+        <span>OPTICAL // <b id="ofbTitle">SURVEILLANCE FEED</b></span>
+        <div style="flex-shrink:0;">
+          <span id="feedSaveStatus" style="color:var(--crimson-glow); margin-right:5px;">LIVE</span>
           <button style="background:transparent; border:none; color:var(--mut); font-family:var(--mono);" onclick="toggleFeedBox()">[_]</button>
         </div>
       </div>
@@ -680,10 +828,21 @@
         <div class="ofb-video-wrap">
           <iframe
             id="opticalFrame"
-            src="https://www.youtube.com/embed/LuKwFajn37U?modestbranding=1&autoplay=1&playsinline=1"
+            src="https://www.youtube.com/embed/LuKwFajn37U?modestbranding=1&autoplay=1&mute=1&playsinline=1"
             allow="autoplay; encrypted-media"
             allowfullscreen>
           </iframe>
+          <img id="opticalImg" src="" alt="Live Snapshot Feed" />
+          <canvas id="ofbGlitchCanvas"></canvas>
+        </div>
+
+        <!-- CITY CAM QUICK SWITCHER BAR -->
+        <div class="ofb-cam-bar">
+          <button title="Previous City Cam" onclick="stepCityCam(-1)">◀</button>
+          <span id="ofbCamLabel">TOKYO // SHIBUYA</span>
+          <button title="Next City Cam" onclick="stepCityCam(1)">▶</button>
+          <button id="ofbAutoBtn" title="Auto-cycle cams every 25s" onclick="toggleCamAutoCycle()">AUTO</button>
+          <button title="Log active cam to MONA" onclick="logActiveCamToMona()">+MONA</button>
         </div>
 
         <div id="anime-intercept-box" style="width: 100%; border-top: 1px solid var(--crimson-dark); background: #050203; position: relative;">
@@ -699,11 +858,12 @@
         </div>
 
         <div class="ofb-controls">
-          <input type="text" id="frameSrcInput" placeholder="ENTER RTSP/CCTV/EMBED URL..."
+          <input type="text" id="frameSrcInput" placeholder="YT EMBED / JPG / WEBCAM URL..."
             value=""
-            style="flex:1; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:9px; padding:3px 5px;"
-            oninput="saveOpticalFeedUrl(this.value);" />
-          <button class="hud-btn" style="width:auto; padding:2px 7px;" onclick="saveOpticalFeedUrl(document.getElementById('frameSrcInput').value)">LOCK</button>
+            style="flex:1; min-width:0; background:#070304; border:1px solid var(--line2); color:#ccc; font-size:9px; padding:3px 5px;"
+            onkeydown="if(event.key==='Enter') saveOpticalFeedUrl(this.value);" />
+          <button class="hud-btn" style="width:auto; padding:2px 6px;" onclick="saveOpticalFeedUrl(document.getElementById('frameSrcInput').value)">LOCK</button>
+          <button class="hud-btn" style="width:auto; padding:2px 6px; color:var(--cyan);" title="Pin this URL at current map center" onclick="pinCustomCamAtCenter()">PIN</button>
         </div>
       </div>
     </div>
@@ -748,7 +908,7 @@
       <span id="threat-text">SCANNING WIRE DISPATCHES...</span>
     </div>
 
-    <div>DIRECT BROWSER RUNTIME | ZERO PROXY</div>
+    <div id="runtime-badge">WEBGL2 TACTICAL RUNTIME | KEYLESS</div>
   </footer>
 
 <script>
@@ -789,8 +949,10 @@
       playSolenoid(80, 0.04);
       const crt = document.getElementById('crt');
       crt.classList.toggle('crt-off');
-      btn.innerText = crt.classList.contains('crt-off') ? "[ ] CRT SCANLINES" : "[x] CRT SCANLINES";
-      btn.classList.toggle('active', !crt.classList.contains('crt-off'));
+      const isOn = !crt.classList.contains('crt-off');
+      btn.innerText = isOn ? "[x] CRT SCANLINES" : "[ ] CRT SCANLINES";
+      btn.classList.toggle('active', isOn);
+      ensureTacticalLoop();
     }
 
     function toggleGrid(btn) {
@@ -820,6 +982,7 @@
     }).addTo(map);
 
     const layers = {
+      cams: L.layerGroup().addTo(map),
       milAir: L.layerGroup().addTo(map),
       weather: L.layerGroup().addTo(map),
       quakes: L.layerGroup().addTo(map),
@@ -831,6 +994,11 @@
       routes: L.layerGroup().addTo(map)
     };
 
+    // Live telemetry globals shared with WebGL2 Shaders + 3D Orbit Globe
+    let liveKpIndex = 2.0;
+    let liveSolarWind = 380;
+    let liveIssPos = { lat: 0, lon: 0, alt: 418, vel: 27600 };
+
     // ================= 3. KEYLESS LIVE DATA FEEDS =================
     fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson")
       .then(r => r.json()).then(data => {
@@ -838,10 +1006,12 @@
         data.features.forEach(f => {
           const coords = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
           const mag = f.properties.mag || 1;
-          L.circleMarker(coords, {
+          const m = L.circleMarker(coords, {
             radius: Math.max(3, mag * 2), fillColor: "#e61c1c", color: "#ff4d4d", weight: 1, fillOpacity: 0.6
           }).bindPopup(`<b>USGS SEISMIC ALERT</b><br>${f.properties.title}`).addTo(layers.quakes);
+          m._quakeMag = mag;
         });
+        refreshShaderTargets();
         pushTicker(`USGS: ${data.features[0]?.properties.title || "FAULT LINE RADAR SYNCHRONIZED"}`);
       }).catch(() => {});
 
@@ -856,26 +1026,89 @@
             }).bindPopup(`<b>NASA THERMAL HOTSPOT</b><br>${ev.title}`).addTo(layers.fires);
           }
         });
+        refreshShaderTargets();
       }).catch(() => {});
 
+    // ISS Node + Live Ground-Track Orbit Curve + Optical Horizon Footprint
     let issMarker = null;
+    let issFootprint = null;
+    let issTrackLines = [];
+    let issPrevPos = null;
+
+    function buildIssGroundTrack(lat, lon, ascending) {
+      const inc = 51.64 * Math.PI / 180;
+      const latRad = Math.max(-inc + 0.001, Math.min(inc - 0.001, lat * Math.PI / 180));
+      let u0 = Math.asin(Math.sin(latRad) / Math.sin(inc));
+      if (!ascending) u0 = Math.PI - u0;
+
+      const lonAtU0 = Math.atan2(Math.sin(u0) * Math.cos(inc), Math.cos(u0));
+      const raan = (lon * Math.PI / 180) - lonAtU0;
+
+      const segments = [];
+      let seg = [];
+      let prevLon = null;
+      const periodMin = 92.9;
+
+      for (let m = 0; m <= 95; m += 2) {
+        const u = u0 + (m / periodMin) * Math.PI * 2;
+        const pLat = Math.asin(Math.sin(inc) * Math.sin(u)) * 180 / Math.PI;
+        let pLon = (raan + Math.atan2(Math.sin(u) * Math.cos(inc), Math.cos(u))) * 180 / Math.PI - (m * 0.25068);
+        pLon = ((((pLon + 180) % 360) + 360) % 360) - 180;
+
+        if (prevLon !== null && Math.abs(pLon - prevLon) > 180) {
+          if (seg.length > 1) segments.push(seg);
+          seg = [];
+        }
+        seg.push([pLat, pLon]);
+        prevLon = pLon;
+      }
+      if (seg.length > 1) segments.push(seg);
+      return segments;
+    }
+
     async function updateISS() {
       try {
         const r = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
         const d = await r.json();
         const pos = [d.latitude, d.longitude];
+        const ascending = issPrevPos ? (d.latitude >= issPrevPos.lat) : true;
+        issPrevPos = { lat: d.latitude, lon: d.longitude };
+        liveIssPos = { lat: d.latitude, lon: d.longitude, alt: Math.round(d.altitude), vel: Math.round(d.velocity) };
+
         if (!issMarker) {
           issMarker = L.circleMarker(pos, {
-            radius: 7, fillColor: "#fff", color: "#e61c1c", weight: 2, fillOpacity: 0.9
-          }).bindPopup(`<b>ISS (ZARYA) NODE</b><br>Speed: ${Math.round(d.velocity)} km/h<br>Alt: ${Math.round(d.altitude)} km`).addTo(layers.iss);
+            radius: 7, fillColor: "#fff", color: "#e61c1c", weight: 2, fillOpacity: 0.92
+          }).addTo(layers.iss);
+          issFootprint = L.circle(pos, {
+            radius: 2200000,
+            color: "#e61c1c",
+            weight: 1,
+            dashArray: "4 6",
+            fillColor: "#e61c1c",
+            fillOpacity: 0.05,
+            interactive: false
+          }).addTo(layers.iss);
         } else {
           issMarker.setLatLng(pos);
+          issFootprint.setLatLng(pos);
+        }
+        issMarker.bindPopup(`<b>ISS (ZARYA) NODE</b><br>LAT: ${d.latitude.toFixed(2)} | LON: ${d.longitude.toFixed(2)}<br>Speed: ${liveIssPos.vel} km/h<br>Alt: ${liveIssPos.alt} km`);
+
+        issTrackLines.forEach(l => layers.iss.removeLayer(l));
+        issTrackLines = buildIssGroundTrack(d.latitude, d.longitude, ascending).map(pts =>
+          L.polyline(pts, { color: "#ff3333", weight: 1.2, opacity: 0.45, dashArray: "3 5", interactive: false }).addTo(layers.iss)
+        );
+
+        const issReadout = document.getElementById('orbit-iss-readout');
+        if (issReadout) {
+          const overhead = findNearestCamInFootprint(d.latitude, d.longitude);
+          issReadout.innerHTML = `LAT <b>${d.latitude.toFixed(2)}°</b> · LON <b>${d.longitude.toFixed(2)}°</b> · ALT <b>${liveIssPos.alt} KM</b> · Kp <b style="color:var(--cyan);">${liveKpIndex.toFixed(1)}</b>${overhead ? `<br><span style="color:var(--yel);">HORIZON PASS: ${overhead.name}</span>` : ''}`;
         }
       } catch(e) {}
     }
     updateISS(); setInterval(updateISS, 6000);
 
- const CHOKEPOINTS = [
+    const CHOKEPOINTS = [
       { name: "STRAIT OF HORMUZ", pos: [26.56, 56.25], note: "Primary Middle-East energy corridor.", country: "Iran", slug: "iran" },
       { name: "BAB-EL-MANDEB", pos: [12.58, 43.33], note: "Red Sea bottleneck.", country: "Yemen", slug: "yemen" },
       { name: "MALACCA STRAIT", pos: [1.43, 102.89], note: "Asia-Pacific conduit.", country: "Malaysia", slug: "malaysia" },
@@ -894,7 +1127,365 @@
       `).addTo(layers.choke);
     });
 
-    // ================= 4. GRAM TOKEN SPARKLINE (4-TIER MULTI-SOURCE) =================
+    // ================= 4. MODULE A: MAP-LINKED LIVE CITY CAMS + GLITCH MONITOR =================
+    const BUILTIN_CITY_CAMS = [
+      {
+        id: 'cam-tokyo',
+        name: 'TOKYO // SHIBUYA',
+        city: 'Tokyo, JP',
+        pos: [35.6595, 139.7004],
+        url: 'https://www.youtube.com/embed/LuKwFajn37U?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'LIVE STREAM',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-nyc-hudson',
+        name: 'NYC // LINCOLN HARBOR',
+        city: 'New York, US',
+        pos: [40.7640, -74.0180],
+        url: 'https://www.youtube.com/embed/ihgrs5YjgqM?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'EARTHCAM 4K',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-nyc-tsq',
+        name: 'NYC // TIMES SQUARE',
+        city: 'New York, US',
+        pos: [40.7580, -73.9855],
+        url: 'https://www.youtube.com/embed/1-iS7LArMPA?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'EARTHCAM LIVE',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-toronto',
+        name: 'TORONTO // CN TOWER',
+        city: 'Toronto, CA',
+        pos: [43.6426, -79.3871],
+        url: 'https://www.youtube.com/embed/JwPFHAfdgNk?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: '4K SKYLINE',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-venice',
+        name: 'VENICE // GRAND CANAL',
+        city: 'Venice, IT',
+        pos: [45.4340, 12.3380],
+        url: 'https://www.youtube.com/embed/8w--aUS1m20?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'SKYLINEWEBCAMS',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-helsinki',
+        name: 'HELSINKI // PORT TERMINAL',
+        city: 'Helsinki, FI',
+        pos: [60.1540, 24.9210],
+        url: 'https://www.youtube.com/embed/CvOB-Is_yYU?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'BALTIC PORT',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-florida',
+        name: 'FT LAUDERDALE // ATLANTIC',
+        city: 'Florida, US',
+        pos: [26.1190, -80.1050],
+        url: 'https://www.youtube.com/embed/bM0GplM_vPY?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'COASTAL CAM',
+        kind: 'embed'
+      },
+      {
+        id: 'cam-taipei',
+        name: 'TAIPEI // XIANGSHAN',
+        city: 'Taipei, TW',
+        pos: [25.0330, 121.5654],
+        url: 'https://www.youtube.com/embed/z_fY1pj1VBw?modestbranding=1&autoplay=1&mute=1&playsinline=1',
+        source: 'TAIWAN STRAIT',
+        kind: 'embed'
+      }
+    ];
+
+    let customCityCams = [];
+    let osmViewportCams = [];
+    let allCityCams = [];
+    let activeCamIdx = 0;
+    let camAutoTimer = null;
+    let imgSnapTimer = null;
+
+    function loadCustomCams() {
+      try {
+        const raw = localStorage.getItem('ISIS_CUSTOM_CAMS');
+        customCityCams = raw ? JSON.parse(raw) : [];
+      } catch (_) { customCityCams = []; }
+    }
+
+    function saveCustomCams() {
+      try { localStorage.setItem('ISIS_CUSTOM_CAMS', JSON.stringify(customCityCams)); } catch (_) {}
+    }
+
+    function normalizeCamUrl(rawUrl) {
+      let u = (rawUrl || '').trim();
+      if (!u) return { url: '', kind: 'embed' };
+      // Auto-convert standard YouTube watch/live/youtu.be links to clean autoplay embeds
+      const ytMatch = u.match(/(?:youtube\.com\/(?:watch\?v=|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      if (ytMatch) {
+        return {
+          url: `https://www.youtube.com/embed/${ytMatch[1]}?modestbranding=1&autoplay=1&mute=1&playsinline=1`,
+          kind: 'embed'
+        };
+      }
+      if (/\.(jpe?g|png|webp|gif|mjpg|mjpeg)(\?.*)?$/i.test(u)) {
+        return { url: u, kind: 'image' };
+      }
+      return { url: u, kind: 'embed' };
+    }
+
+    // Analog static & horizontal sync burst over #optical-feed-box when switching cams
+    let ofbGlitchUntil = 0;
+    function triggerOfbGlitch(ms = 420) {
+      ofbGlitchUntil = performance.now() + ms;
+      const c = document.getElementById('ofbGlitchCanvas');
+      if (!c) return;
+      c.width = c.clientWidth || 260;
+      c.height = c.clientHeight || 124;
+      const ctx = c.getContext('2d');
+      function frame(now) {
+        const rem = ofbGlitchUntil - now;
+        ctx.clearRect(0, 0, c.width, c.height);
+        if (rem <= 0) return;
+        const alpha = Math.min(1, rem / ms);
+        // Horizontal tear bars + static grain
+        for (let i = 0; i < 18; i++) {
+          const y = Math.random() * c.height;
+          const h = 1 + Math.random() * 5;
+          ctx.fillStyle = Math.random() > 0.35
+            ? `rgba(230, 28, 28, ${(0.18 + Math.random() * 0.38) * alpha})`
+            : `rgba(240, 230, 230, ${(0.12 + Math.random() * 0.3) * alpha})`;
+          ctx.fillRect(0, y, c.width, h);
+        }
+        ctx.fillStyle = `rgba(56, 239, 125, ${0.75 * alpha})`;
+        ctx.font = '9px Courier New, monospace';
+        ctx.fillText('SYNCING OPTICAL CARRIER...', 8, c.height - 10);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function applyOpticalStream(rawUrl, titleLabel, kindOverride) {
+      const parsed = normalizeCamUrl(rawUrl);
+      const kind = kindOverride || parsed.kind;
+      const url = parsed.url;
+      const frame = document.getElementById('opticalFrame');
+      const img = document.getElementById('opticalImg');
+      const box = document.getElementById('optical-feed-box');
+
+      if (imgSnapTimer) { clearInterval(imgSnapTimer); imgSnapTimer = null; }
+      if (box) box.classList.remove('ofb-minimized');
+      triggerOfbGlitch(440);
+
+      if (kind === 'image') {
+        frame.style.display = 'none';
+        frame.src = 'about:blank';
+        img.style.display = 'block';
+        const stamp = () => {
+          img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        };
+        stamp();
+        imgSnapTimer = setInterval(stamp, 5000);
+      } else {
+        img.style.display = 'none';
+        frame.style.display = 'block';
+        if (url && frame.src !== url) frame.src = url;
+      }
+
+      if (titleLabel) {
+        const tEl = document.getElementById('ofbTitle');
+        const lEl = document.getElementById('ofbCamLabel');
+        if (tEl) tEl.innerText = titleLabel;
+        if (lEl) lEl.innerText = titleLabel;
+      }
+      const inp = document.getElementById('frameSrcInput');
+      if (inp) inp.value = url;
+    }
+
+    function rebuildCityCamLayer() {
+      allCityCams = [...BUILTIN_CITY_CAMS, ...customCityCams, ...osmViewportCams];
+      layers.cams.clearLayers();
+      const cntEl = document.getElementById('cnt-cams');
+      if (cntEl) cntEl.innerText = allCityCams.length;
+
+      allCityCams.forEach((cam, idx) => {
+        const isCurrent = idx === activeCamIdx;
+        const cls = `cam-marker${isCurrent ? ' active-cam' : ''}${cam.source === 'OSM OVERPASS' ? ' osm-cam' : ''}`;
+        const icon = L.divIcon({
+          className: cls,
+          html: `[◉]`,
+          iconSize: [24, 16],
+          iconAnchor: [12, 8]
+        });
+
+        const marker = L.marker(cam.pos, { icon });
+        marker._camMeta = cam;
+        marker.bindPopup(`
+          <div style="min-width:210px; line-height:1.45;">
+            <b style="color:var(--cyan);">[ LIVE OPTICAL CAM ]</b><br>
+            <b>${cam.name}</b><br>
+            <span style="color:var(--mut);">${cam.city} · ${cam.pos[0].toFixed(3)}, ${cam.pos[1].toFixed(3)}</span><br>
+            <span style="color:var(--yel); font-size:9px;">SOURCE: ${cam.source}</span>
+            <div style="display:flex; gap:4px; margin-top:6px;">
+              <button class="hud-btn" style="padding:3px 6px; font-size:9px; text-align:center;" onclick="lockCityCam(${idx}, false)">LOCK FEED</button>
+              <button class="hud-btn" style="padding:3px 6px; font-size:9px; text-align:center;" onclick="logCamToMona(${idx})">+ MONA</button>
+            </div>
+            <div style="margin-top:4px; font-size:8.5px;">
+              <a href="${cam.url}" target="_blank" rel="noopener" style="color:var(--mut); text-decoration:underline;">OPEN EXTERNAL STREAM ↗</a>
+            </div>
+          </div>
+        `);
+
+        marker.on('click', () => {
+          lockCityCam(idx, false);
+        });
+        layers.cams.addLayer(marker);
+      });
+
+      refreshShaderTargets();
+      if (activeTool === 'cams') renderPanel('cams');
+    }
+
+    function lockCityCam(idx, fly = true) {
+      if (!allCityCams.length) return;
+      activeCamIdx = ((idx % allCityCams.length) + allCityCams.length) % allCityCams.length;
+      const cam = allCityCams[activeCamIdx];
+      playSolenoid(210, 0.03);
+      applyOpticalStream(cam.url, cam.name, cam.kind);
+      localStorage.setItem('ISIS_FEED_URL', cam.url);
+      if (fly) map.flyTo(cam.pos, Math.max(map.getZoom(), 6), { duration: 1.0 });
+      pushTicker(`OPTICAL LOCK: ${cam.name} [${cam.pos[0].toFixed(2)}, ${cam.pos[1].toFixed(2)}]`);
+      rebuildCityCamLayer();
+    }
+
+    function stepCityCam(delta) {
+      lockCityCam(activeCamIdx + delta, true);
+    }
+
+    function toggleCamAutoCycle() {
+      const btn = document.getElementById('ofbAutoBtn');
+      if (camAutoTimer) {
+        clearInterval(camAutoTimer);
+        camAutoTimer = null;
+        if (btn) btn.classList.remove('active');
+        pushTicker('OPTICAL AUTO-CYCLE: DISENGAGED');
+      } else {
+        camAutoTimer = setInterval(() => stepCityCam(1), 25000);
+        if (btn) btn.classList.add('active');
+        pushTicker('OPTICAL AUTO-CYCLE: ACTIVE (25S SWEEP)');
+      }
+    }
+
+    function logCamToMona(idx) {
+      const cam = allCityCams[idx];
+      if (!cam) return;
+      const zulu = document.getElementById('zulu-clock')?.innerText || '--:--:--';
+      const entry = `[OPTICAL INTERCEPT @ ${zulu}Z] ${cam.name} (${cam.city}) | COORDS: ${cam.pos[0].toFixed(4)}, ${cam.pos[1].toFixed(4)} | STREAM: ${cam.url}`;
+      if (!npPanel.classList.contains('open')) npBtn.click();
+      np.value = (np.value ? np.value.trimEnd() + '\n' : '') + entry + '\n';
+      np.scrollTop = np.scrollHeight;
+      np.dispatchEvent(new Event('input', { bubbles: true }));
+      playSolenoid(250, 0.04);
+    }
+
+    function logActiveCamToMona() {
+      logCamToMona(activeCamIdx);
+    }
+
+    function pinCustomCamAtCenter(customName, customUrl) {
+      const rawUrl = (customUrl || document.getElementById('frameSrcInput')?.value || '').trim();
+      if (!rawUrl) {
+        alert('Paste a YouTube Live, Embed, or .JPG/.MJPG webcam URL first.');
+        return;
+      }
+      const c = map.getCenter();
+      const label = (customName || prompt('LABEL FOR THIS CAMERA PIN:', `CAM // ${c.lat.toFixed(2)}, ${c.lng.toFixed(2)}`) || '').trim();
+      if (!label) return;
+      const parsed = normalizeCamUrl(rawUrl);
+      customCityCams.push({
+        id: 'custom-' + Date.now(),
+        name: label.toUpperCase(),
+        city: `${c.lat.toFixed(2)}, ${c.lng.toFixed(2)}`,
+        pos: [c.lat, c.lng],
+        url: parsed.url,
+        source: 'USER PIN',
+        kind: parsed.kind
+      });
+      saveCustomCams();
+      rebuildCityCamLayer();
+      lockCityCam(BUILTIN_CITY_CAMS.length + customCityCams.length - 1, false);
+    }
+
+    function purgeCustomCams() {
+      if (!confirm('REMOVE ALL CUSTOM PINNED CAMS?')) return;
+      customCityCams = [];
+      saveCustomCams();
+      activeCamIdx = 0;
+      rebuildCityCamLayer();
+    }
+
+    // Keyless OpenStreetMap Overpass Viewport Webcam Discovery
+    async function scanOsmViewportCams() {
+      const statusEl = document.getElementById('osm-cam-status');
+      if (statusEl) statusEl.innerText = 'QUERYING OVERPASS OSM WEBCAM NODES...';
+      playSolenoid(185, 0.03);
+
+      const b = map.getBounds();
+      const bbox = `${b.getSouth().toFixed(3)},${b.getWest().toFixed(3)},${b.getNorth().toFixed(3)},${b.getEast().toFixed(3)}`;
+      const query = `[out:json][timeout:12];(node["contact:webcam"](${bbox});node["man_made"="surveillance"]["url"](${bbox}););out body 24;`;
+
+      try {
+        const res = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: 'data=' + encodeURIComponent(query)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const nodes = (data.elements || []).filter(el => el.lat && el.lon && (el.tags?.['contact:webcam'] || el.tags?.url));
+
+        osmViewportCams = nodes.slice(0, 20).map((el, i) => {
+          const raw = el.tags['contact:webcam'] || el.tags.url;
+          const parsed = normalizeCamUrl(raw);
+          return {
+            id: `osm-${el.id}`,
+            name: (el.tags.name || el.tags.description || `OSM CAM #${i + 1}`).toUpperCase().slice(0, 28),
+            city: `${el.lat.toFixed(2)}, ${el.lon.toFixed(2)}`,
+            pos: [el.lat, el.lon],
+            url: parsed.url,
+            source: 'OSM OVERPASS',
+            kind: parsed.kind
+          };
+        });
+
+        rebuildCityCamLayer();
+        if (statusEl) {
+          statusEl.innerText = osmViewportCams.length
+            ? `FOUND ${osmViewportCams.length} PUBLIC OSM WEBCAMS IN VIEWPORT`
+            : 'NO PUBLIC OSM WEBCAMS TAGGED IN THIS VIEWPORT — ZOOM TO A METRO AREA';
+        }
+        pushTicker(`OSM OVERPASS: ${osmViewportCams.length} VIEWPORT WEBCAMS INDEXED`);
+      } catch (err) {
+        if (statusEl) statusEl.innerText = 'OVERPASS RATE-LIMITED / TIMEOUT — RETRY IN A MOMENT';
+      }
+    }
+
+    function findNearestCamInFootprint(lat, lon) {
+      let best = null, bestDist = 20; // ~2200 km in degrees
+      allCityCams.forEach(c => {
+        const d = Math.hypot(c.pos[0] - lat, c.pos[1] - lon);
+        if (d < bestDist) { bestDist = d; best = c; }
+      });
+      return best;
+    }
+
+    loadCustomCams();
+    rebuildCityCamLayer();
+
+    // ================= 5. GRAM TOKEN SPARKLINE (4-TIER MULTI-SOURCE) =================
     async function loadGramToken() {
       const priceEl = document.getElementById('gramPrice');
       const chgEl = document.getElementById('gramChange');
@@ -908,7 +1499,6 @@
         return true;
       };
 
-      // SOURCE 1: Coinbase
       try {
         for (const product of ['GRAM-USD', 'TON-USD']) {
           const tRes = await fetch(`https://api.exchange.coinbase.com/products/${product}/ticker`);
@@ -930,7 +1520,6 @@
         }
       } catch (e) {}
 
-      // SOURCE 2: Kraken
       try {
         const kRes = await fetch('https://api.kraken.com/0/public/Ticker?pair=TONUSD');
         const k = await kRes.json();
@@ -950,7 +1539,6 @@
         }
       } catch (e) {}
 
-      // SOURCE 3: Binance
       try {
         const tRes = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=TONUSDT");
         if (tRes.ok) {
@@ -964,7 +1552,6 @@
         }
       } catch (e) {}
 
-      // SOURCE 4: CoinGecko
       try {
         const cgRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=gram&vs_currencies=usd&include_24hr_change=true");
         const cg = await cgRes.json();
@@ -986,21 +1573,22 @@
     }
     loadGramToken(); setInterval(loadGramToken, 60000);
 
-    // ================= 5. OPTICAL FEED URL STORAGE =================
+    // ================= 6. OPTICAL FEED URL STORAGE =================
     function initOpticalFeed() {
       const saved = localStorage.getItem('ISIS_FEED_URL');
       if (saved) {
-        document.getElementById('frameSrcInput').value = saved;
-        document.getElementById('opticalFrame').src = saved;
+        applyOpticalStream(saved, 'SAVED FEED');
+      } else {
+        document.getElementById('frameSrcInput').value = BUILTIN_CITY_CAMS[0].url;
       }
     }
     initOpticalFeed();
 
     function saveOpticalFeedUrl(url) {
-      url = url.trim();
+      url = (url || '').trim();
+      if (!url) return;
       localStorage.setItem('ISIS_FEED_URL', url);
-      const frame = document.getElementById('opticalFrame');
-      if (frame && url && frame.src !== url) frame.src = url;
+      applyOpticalStream(url, 'CUSTOM LOCK');
       const status = document.getElementById('feedSaveStatus');
       if (status) {
         status.innerText = "SAVED";
@@ -1009,7 +1597,7 @@
       }
     }
 
-    // ================= 6. LIVE MILITARY ADS-B (adsb.lol + enrichment) =================
+    // ================= 7. LIVE MILITARY ADS-B (adsb.lol + enrichment) =================
     let adsbAutoRefresh = true;
     let milContactsCount = 0;
 
@@ -1047,7 +1635,6 @@
             fillOpacity: 0.85
           });
 
-          // Tag metadata for in-memory sector SITREP correlation
           marker._isisMeta = { callsign, type, alt, squawk };
 
           marker.on('click', async () => {
@@ -1089,6 +1676,7 @@
           layers.milAir.addLayer(marker);
         });
 
+        refreshShaderTargets();
         pushTicker(`ADS-B RADAR: ${aircraft.length} MILITARY CONTACTS TRACKED`);
       } catch (err) {
         console.warn('ADS-B Intercept failure:', err);
@@ -1097,7 +1685,7 @@
     fetchMilitaryAir();
     setInterval(() => { if (adsbAutoRefresh) fetchMilitaryAir(); }, 12000);
 
-    // ================= 7. LIVE DOPPLER WEATHER RADAR =================
+    // ================= 8. LIVE DOPPLER WEATHER RADAR =================
     let weatherTileLayer = null;
     async function initWeatherRadar() {
       try {
@@ -1120,62 +1708,571 @@
     initWeatherRadar();
     setInterval(initWeatherRadar, 300000);
 
-    // ================= 8. SONAR SWEEP ENGINE =================
+    // ================= 9. MODULE B: WEBGL2 TACTICAL OVERLAY SHADER =================
+    // Combines: Phosphor Radar + Reactive Target Pings + Solar Terminator + NOAA Kp Aurora + NVG/FLIR/CRT Post-FX
     const sonarCanvas = document.getElementById('sonarCanvas');
-    const sCtx = sonarCanvas.getContext('2d');
-    let sonarAngle = 0;
     let sonarActive = false;
+    let terminatorActive = true;
+    let shaderPulsesActive = true;
+    let opticsModeInt = 0; // 0=STD, 1=NVG, 2=FLIR
+    let tacticalRafId = null;
+
+    const MAX_SHADER_TARGETS = 64;
+    const shaderTargetsBuf = new Float32Array(MAX_SHADER_TARGETS * 4);
+    let shaderTargetCount = 0;
+
+    function refreshShaderTargets() {
+      if (!map) return;
+      const w = sonarCanvas.clientWidth || 1;
+      const h = sonarCanvas.clientHeight || 1;
+      const b = map.getBounds();
+      let idx = 0;
+
+      const push = (ll, type, mag) => {
+        if (idx >= MAX_SHADER_TARGETS || !b.contains(ll)) return;
+        const pt = map.latLngToContainerPoint(ll);
+        shaderTargetsBuf[idx * 4 + 0] = pt.x / w;
+        shaderTargetsBuf[idx * 4 + 1] = 1.0 - (pt.y / h); // WebGL bottom-left UV
+        shaderTargetsBuf[idx * 4 + 2] = type;             // 1=mil, 2=quake, 3=fire, 4=cam
+        shaderTargetsBuf[idx * 4 + 3] = mag;
+        idx++;
+      };
+
+      if (map.hasLayer(layers.quakes)) layers.quakes.eachLayer(l => l.getLatLng && push(l.getLatLng(), 2.0, l._quakeMag || 3.5));
+      if (map.hasLayer(layers.cams))   layers.cams.eachLayer(l => l.getLatLng && push(l.getLatLng(), 4.0, 1.0));
+      if (map.hasLayer(layers.milAir)) layers.milAir.eachLayer(l => l.getLatLng && push(l.getLatLng(), 1.0, 1.0));
+      if (map.hasLayer(layers.fires))  layers.fires.eachLayer(l => l.getLatLng && push(l.getLatLng(), 3.0, 1.0));
+      shaderTargetCount = idx;
+    }
+
+    function computeSubsolarRad() {
+      const now = new Date();
+      const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
+      const dayOfYear = (now - start) / 86400000;
+      const declDeg = -23.44 * Math.cos((2 * Math.PI / 365.24) * (dayOfYear + 10));
+      const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+      const sunLonDeg = (12.0 - utcHours) * 15.0;
+      return {
+        lat: declDeg * Math.PI / 180,
+        lon: sunLonDeg * Math.PI / 180
+      };
+    }
+
+    const gl = sonarCanvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: false });
+    let glProg = null;
+    let glLoc = {};
+
+    if (gl) {
+      const vsSrc = `#version 300 es
+        const vec2 P[3] = vec2[](vec2(-1.0,-1.0), vec2(3.0,-1.0), vec2(-1.0,3.0));
+        out vec2 v_uv;
+        void main() {
+          gl_Position = vec4(P[gl_VertexID], 0.0, 1.0);
+          v_uv = P[gl_VertexID] * 0.5 + 0.5;
+        }
+      `;
+
+      const fsSrc = `#version 300 es
+        precision highp float;
+        in vec2 v_uv;
+        out vec4 outColor;
+
+        uniform vec2 u_res;
+        uniform float u_time;
+        uniform float u_sonarOn;
+        uniform float u_termOn;
+        uniform float u_pulseOn;
+        uniform float u_crtOn;
+        uniform int u_optics;
+        uniform float u_kp;
+        uniform vec2 u_sun;         // (sunLat, sunLon) in radians
+        uniform vec4 u_mapPx;       // (minX, minY, maxX, maxY) in Leaflet world px
+        uniform float u_worldSize;
+        uniform int u_tCount;
+        uniform vec4 u_targets[64]; // (uv.x, uv.y, type, mag)
+
+        const float PI = 3.14159265359;
+        const float TAU = 6.28318530718;
+
+        float hash12(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+
+        void main() {
+          vec3 col = vec3(0.0);
+          float alpha = 0.0;
+
+          // 1. SOLAR TERMINATOR + LIVE NOAA Kp AURORA OVAL
+          if (u_termOn > 0.5 && u_worldSize > 0.0) {
+            float px = mix(u_mapPx.x, u_mapPx.z, v_uv.x);
+            float py = mix(u_mapPx.w, u_mapPx.y, v_uv.y); // top-down Leaflet world Y
+            float lon = (px / u_worldSize) * TAU - PI;
+            float mercY = PI - (py / u_worldSize) * TAU;
+
+            if (abs(mercY) < PI * 1.05) {
+              float lat = 2.0 * atan(exp(mercY)) - 1.5707963;
+              float cosZ = sin(lat) * sin(u_sun.x) + cos(lat) * cos(u_sun.x) * cos(lon - u_sun.y);
+
+              // Smooth night shadow with subtle crimson-obsidian twilight edge
+              float nightMask = smoothstep(0.08, -0.14, cosZ);
+              float termLine = exp(-pow(cosZ * 26.0, 2.0));
+
+              col += vec3(0.03, 0.006, 0.014) * nightMask;
+              alpha = max(alpha, nightMask * 0.36);
+
+              col += vec3(0.92, 0.14, 0.16) * termLine * 0.65;
+              alpha = max(alpha, termLine * 0.45);
+
+              // Geomagnetic Aurora Oval scaled by live NOAA Kp index
+              float ovalLat = radians(71.5 - clamp(u_kp, 0.0, 9.0) * 2.1);
+              float band = exp(-pow((abs(lat) - ovalLat) * 14.0, 2.0));
+              float wave = 0.55 + 0.45 * sin(lon * 6.0 + u_time * 0.65 + sin(lon * 3.0 - u_time * 0.4));
+              float kpGain = 0.22 + clamp(u_kp / 9.0, 0.0, 1.0) * 0.9;
+              float aur = band * wave * kpGain * (0.35 + 0.65 * nightMask);
+              vec3 aurCol = mix(vec3(0.18, 0.92, 0.48), vec3(0.95, 0.18, 0.24), clamp((u_kp - 3.0) / 5.0, 0.0, 1.0));
+              col += aurCol * aur * 0.7;
+              alpha = max(alpha, aur * 0.42);
+            }
+          }
+
+          // 2. PHOSPHOR PERSISTENCE RADAR SWEEP
+          float sweepAngle = mod(u_time * 1.15, TAU);
+          vec2 aspect = vec2(u_res.x / max(u_res.y, 1.0), 1.0);
+          vec2 p = (v_uv - 0.5) * aspect;
+          float r = length(p);
+
+          if (u_sonarOn > 0.5) {
+            float ang = mod(atan(p.y, p.x), TAU);
+            float diff = mod(sweepAngle - ang, TAU);
+
+            // Exponential phosphor afterglow behind the beam
+            float beam = exp(-diff * 3.4) * smoothstep(0.9, 0.02, r);
+            float edge = exp(-pow(diff * 75.0, 2.0)) * smoothstep(0.95, 0.0, r);
+
+            // Concentric range rings + tick notches
+            float rings = smoothstep(0.0022, 0.0005, abs(fract(r * 6.0) - 0.5) / 6.0) * step(r, 0.82);
+            float ticks = smoothstep(0.004, 0.001, abs(fract(ang / (TAU / 36.0)) - 0.5)) * smoothstep(0.015, 0.0, abs(r - 0.42));
+
+            vec3 radarCol = (u_optics == 1) ? vec3(0.22, 0.95, 0.48) : vec3(0.94, 0.14, 0.16);
+            float radIntensity = beam * 0.30 + edge * 0.72 + rings * 0.14 + ticks * 0.22;
+            col += radarCol * radIntensity;
+            alpha = max(alpha, clamp(radIntensity, 0.0, 0.78));
+          }
+
+          // 3. REACTIVE TARGET PHOSPHOR PINGS & SEISMIC/THERMAL PULSES
+          if ((u_sonarOn > 0.5 || u_pulseOn > 0.5) && u_tCount > 0) {
+            for (int i = 0; i < 64; i++) {
+              if (i >= u_tCount) break;
+              vec4 t = u_targets[i];
+              vec2 d = (v_uv - t.xy) * aspect;
+              float dist = length(d);
+
+              if (dist < 0.055) {
+                // Seismic expanding shockwave (type 2)
+                if (u_pulseOn > 0.5 && abs(t.z - 2.0) < 0.1) {
+                  float phase = fract(u_time * 0.35 + float(i) * 0.17);
+                  float maxR = 0.012 + clamp(t.w, 2.0, 7.0) * 0.0045;
+                  float ringR = phase * maxR;
+                  float wave = exp(-pow((dist - ringR) * 420.0, 2.0)) * (1.0 - phase);
+                  col += vec3(1.0, 0.22, 0.22) * wave * 0.85;
+                  alpha = max(alpha, wave * 0.65);
+                }
+
+                // Radar-painted phosphor flare when sweep crosses target
+                if (u_sonarOn > 0.5) {
+                  vec2 tp = (t.xy - 0.5) * aspect;
+                  float tAng = mod(atan(tp.y, tp.x), TAU);
+                  float tDiff = mod(sweepAngle - tAng, TAU);
+                  float flare = exp(-tDiff * 2.2);
+                  float ping = exp(-dist * 190.0) * flare;
+                  float halo = exp(-pow((dist - (0.006 + (1.0 - flare) * 0.018)) * 360.0, 2.0)) * flare;
+
+                  vec3 pCol = vec3(1.0, 0.2, 0.22);
+                  if (abs(t.z - 4.0) < 0.1) pCol = vec3(0.22, 0.94, 0.49); // City Cam cyan
+                  else if (abs(t.z - 3.0) < 0.1) pCol = vec3(1.0, 0.62, 0.14); // Fire amber
+
+                  col += pCol * (ping * 0.9 + halo * 0.75);
+                  alpha = max(alpha, clamp((ping + halo) * 0.75, 0.0, 0.85));
+                }
+              }
+            }
+          }
+
+          // 4. PROCEDURAL OPTICS POST-FX (NVG GRAIN + TUBE VIGNETTE / FLIR SHIMMER / CRT HUM BAR)
+          if (u_optics == 1) { // NVG
+            float grain = (hash12(gl_FragCoord.xy + fract(u_time) * 197.3) - 0.5) * 0.18;
+            float vig = smoothstep(0.42, 0.92, length(v_uv - 0.5) * 1.45);
+            col += vec3(0.12, 0.65, 0.28) * max(grain, 0.0);
+            alpha = max(alpha, vig * 0.52 + abs(grain) * 0.45);
+          } else if (u_optics == 2) { // FLIR
+            float grain = (hash12(gl_FragCoord.xy + fract(u_time) * 131.7) - 0.5) * 0.12;
+            float scan = sin(gl_FragCoord.y * 1.2 + u_time * 10.0) * 0.03;
+            float vig = smoothstep(0.48, 0.95, length(v_uv - 0.5) * 1.35);
+            col += vec3(0.9, 0.85, 0.95) * max(grain + scan, 0.0);
+            alpha = max(alpha, vig * 0.38 + abs(grain) * 0.35);
+          }
+
+          if (u_crtOn > 0.5) {
+            float humY = fract(u_time * 0.14);
+            float hum = exp(-pow((v_uv.y - humY) * 18.0, 2.0));
+            col += vec3(0.9, 0.12, 0.16) * hum * 0.09;
+            alpha = max(alpha, hum * 0.11);
+          }
+
+          outColor = vec4(col, clamp(alpha, 0.0, 0.88));
+        }
+      `;
+
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          console.warn('WebGL2 shader error:', gl.getShaderInfoLog(s));
+          return null;
+        }
+        return s;
+      };
+      const vs = compile(gl.VERTEX_SHADER, vsSrc);
+      const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
+      if (vs && fs) {
+        glProg = gl.createProgram();
+        gl.attachShader(glProg, vs);
+        gl.attachShader(glProg, fs);
+        gl.linkProgram(glProg);
+        gl.useProgram(glProg);
+        ['u_res','u_time','u_sonarOn','u_termOn','u_pulseOn','u_crtOn','u_optics','u_kp','u_sun','u_mapPx','u_worldSize','u_tCount','u_targets']
+          .forEach(k => glLoc[k] = gl.getUniformLocation(glProg, k));
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      }
+    } else {
+      const badge = document.getElementById('runtime-badge');
+      if (badge) badge.innerText = 'DIRECT BROWSER RUNTIME | 2D FALLBACK';
+    }
 
     function resizeSonar() {
-      sonarCanvas.width = sonarCanvas.clientWidth;
-      sonarCanvas.height = sonarCanvas.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = sonarCanvas.clientWidth || 1;
+      const h = sonarCanvas.clientHeight || 1;
+      sonarCanvas.width = Math.round(w * dpr);
+      sonarCanvas.height = Math.round(h * dpr);
+      if (gl) gl.viewport(0, 0, sonarCanvas.width, sonarCanvas.height);
+      refreshShaderTargets();
     }
     window.addEventListener('resize', resizeSonar);
+    map.on('move zoom resize', refreshShaderTargets);
     resizeSonar();
 
-    function drawSonar() {
-      if (!sonarActive) return;
-      sCtx.clearRect(0, 0, sonarCanvas.width, sonarCanvas.height);
-      const cx = sonarCanvas.width / 2;
-      const cy = sonarCanvas.height / 2;
-      const radius = Math.max(cx, cy);
-
-      sCtx.save();
-      sCtx.translate(cx, cy);
-      sCtx.rotate(sonarAngle);
-
-      const grad = sCtx.createRadialGradient(0, 0, 0, 0, 0, radius);
-      grad.addColorStop(0, 'rgba(230, 28, 28, 0.35)');
-      grad.addColorStop(1, 'rgba(230, 28, 28, 0)');
-
-      sCtx.beginPath();
-      sCtx.moveTo(0, 0);
-      sCtx.arc(0, 0, radius, 0, Math.PI / 4);
-      sCtx.closePath();
-      sCtx.fillStyle = grad;
-      sCtx.fill();
-
-      sCtx.beginPath();
-      sCtx.moveTo(0, 0);
-      sCtx.lineTo(radius, 0);
-      sCtx.strokeStyle = 'rgba(255, 51, 51, 0.7)';
-      sCtx.lineWidth = 1.5;
-      sCtx.stroke();
-
-      sCtx.restore();
-      sonarAngle += 0.03;
-      requestAnimationFrame(drawSonar);
+    function needsTacticalAnimation() {
+      const crtOn = !document.getElementById('crt').classList.contains('crt-off');
+      return sonarActive || terminatorActive || shaderPulsesActive || opticsModeInt > 0 || crtOn;
     }
+
+    function renderTacticalFrame(now) {
+      tacticalRafId = null;
+      if (document.hidden) return;
+      if (!gl || !glProg) return;
+
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      if (!needsTacticalAnimation()) return;
+
+      const pb = map.getPixelBounds();
+      const worldSize = 256 * Math.pow(2, map.getZoom());
+      const sun = computeSubsolarRad();
+      const crtOn = !document.getElementById('crt').classList.contains('crt-off');
+
+      gl.useProgram(glProg);
+      gl.uniform2f(glLoc.u_res, sonarCanvas.width, sonarCanvas.height);
+      gl.uniform1f(glLoc.u_time, now * 0.001);
+      gl.uniform1f(glLoc.u_sonarOn, sonarActive ? 1.0 : 0.0);
+      gl.uniform1f(glLoc.u_termOn, terminatorActive ? 1.0 : 0.0);
+      gl.uniform1f(glLoc.u_pulseOn, shaderPulsesActive ? 1.0 : 0.0);
+      gl.uniform1f(glLoc.u_crtOn, crtOn ? 1.0 : 0.0);
+      gl.uniform1i(glLoc.u_optics, opticsModeInt);
+      gl.uniform1f(glLoc.u_kp, liveKpIndex);
+      gl.uniform2f(glLoc.u_sun, sun.lat, sun.lon);
+      gl.uniform4f(glLoc.u_mapPx, pb.min.x, pb.min.y, pb.max.x, pb.max.y);
+      gl.uniform1f(glLoc.u_worldSize, worldSize);
+      gl.uniform1i(glLoc.u_tCount, shaderTargetCount);
+      gl.uniform4fv(glLoc.u_targets, shaderTargetsBuf);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      tacticalRafId = requestAnimationFrame(renderTacticalFrame);
+    }
+
+    function ensureTacticalLoop() {
+      if (!tacticalRafId && gl && glProg) {
+        tacticalRafId = requestAnimationFrame(renderTacticalFrame);
+      }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) ensureTacticalLoop();
+    });
+    ensureTacticalLoop();
 
     function toggleSonar(btn) {
+      playSolenoid(150, 0.03);
       sonarActive = !sonarActive;
-      sonarCanvas.classList.toggle('sonar-off', !sonarActive);
-      btn.innerText = sonarActive ? "[x] SONAR SWEEP" : "[ ] SONAR SWEEP";
+      btn.innerText = sonarActive ? "[x] PHOSPHOR RADAR" : "[ ] PHOSPHOR RADAR";
       btn.classList.toggle('active', sonarActive);
-      if (sonarActive) drawSonar();
+      refreshShaderTargets();
+      ensureTacticalLoop();
     }
 
-    // ================= 9. SIGINT RADIO RECEIVER =================
+    function toggleTerminator(btn) {
+      playSolenoid(125, 0.03);
+      terminatorActive = !terminatorActive;
+      btn.innerText = terminatorActive ? "[x] DAY/NIGHT + AURORA" : "[ ] DAY/NIGHT + AURORA";
+      btn.classList.toggle('active', terminatorActive);
+      ensureTacticalLoop();
+    }
+
+    // ================= 10. MODULE C: MINI 3D WEBGL2 ORBITAL GLOBE (IN ORBIT PANEL) =================
+    let orbitGlobeRaf = null;
+    let orbitGlobeYaw = -0.35;
+    let orbitGlobePitch = 0.28;
+    let orbitGlobeDragging = false;
+
+    function destroyOrbitGlobe() {
+      if (orbitGlobeRaf) {
+        cancelAnimationFrame(orbitGlobeRaf);
+        orbitGlobeRaf = null;
+      }
+    }
+
+    function initOrbitGlobe() {
+      destroyOrbitGlobe();
+      const canvas = document.getElementById('orbitGlobeCanvas');
+      const hud = document.getElementById('orbitGlobeHud');
+      const wrap = document.getElementById('orbit-globe-wrap');
+      if (!canvas || !hud || !wrap) return;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cw = wrap.clientWidth || 294;
+      const ch = wrap.clientHeight || 215;
+      canvas.width = Math.round(cw * dpr);
+      canvas.height = Math.round(ch * dpr);
+      hud.width = Math.round(cw * dpr);
+      hud.height = Math.round(ch * dpr);
+      const hCtx = hud.getContext('2d');
+      hCtx.scale(dpr, dpr);
+
+      const ggl = canvas.getContext('webgl2', { alpha: true, antialias: true });
+      let gProg = null;
+      const gLoc = {};
+
+      if (ggl) {
+        const gvs = `#version 300 es
+          const vec2 P[3] = vec2[](vec2(-1.0,-1.0), vec2(3.0,-1.0), vec2(-1.0,3.0));
+          out vec2 v_uv;
+          void main() { gl_Position = vec4(P[gl_VertexID],0.0,1.0); v_uv = P[gl_VertexID]*0.5+0.5; }
+        `;
+        const gfs = `#version 300 es
+          precision highp float;
+          in vec2 v_uv;
+          out vec4 outColor;
+          uniform vec2 u_res;
+          uniform float u_time;
+          uniform float u_yaw;
+          uniform float u_pitch;
+          uniform vec2 u_sun;
+          uniform float u_kp;
+
+          mat3 rotY(float a){ float c=cos(a),s=sin(a); return mat3(c,0,s, 0,1,0, -s,0,c); }
+          mat3 rotX(float a){ float c=cos(a),s=sin(a); return mat3(1,0,0, 0,c,-s, 0,s,c); }
+
+          void main() {
+            vec2 p = (v_uv - 0.5) * 2.0;
+            p.x *= u_res.x / max(u_res.y, 1.0);
+            float d2 = dot(p, p);
+
+            // Subtle atmospheric rim outside sphere
+            float rimHalo = exp(-abs(length(p) - 0.84) * 14.0);
+            vec3 bg = vec3(0.55, 0.06, 0.08) * rimHalo * 0.45;
+            if (d2 > 0.84 * 0.84) {
+              outColor = vec4(bg, rimHalo * 0.55);
+              return;
+            }
+
+            float z = sqrt(max(0.0, 0.84*0.84 - d2));
+            vec3 nView = normalize(vec3(p.x, p.y, z));
+            vec3 nWorld = rotY(-u_yaw) * rotX(-u_pitch) * nView;
+
+            float lat = asin(clamp(nWorld.y, -1.0, 1.0));
+            float lon = atan(nWorld.x, nWorld.z);
+
+            // Lat/Lon wireframe graticule (every 15 deg)
+            float gLat = smoothstep(0.045, 0.012, abs(fract((lat / 3.14159265) * 12.0 + 0.5) - 0.5));
+            float gLon = smoothstep(0.045, 0.012, abs(fract((lon / 6.2831853) * 24.0 + 0.5) - 0.5)) * smoothstep(1.52, 1.32, abs(lat));
+            float eq = smoothstep(0.018, 0.004, abs(lat));
+            float grid = max(max(gLat, gLon) * 0.45, eq * 0.85);
+
+            // 3D Solar Terminator lighting
+            vec3 sunDir = vec3(cos(u_sun.x)*sin(u_sun.y), sin(u_sun.x), cos(u_sun.x)*cos(u_sun.y));
+            float ndl = dot(nWorld, sunDir);
+            float day = smoothstep(-0.12, 0.16, ndl);
+            float term = exp(-pow(ndl * 16.0, 2.0));
+
+            // Kp Aurora ring
+            float aLat = radians(71.0 - clamp(u_kp, 0.0, 9.0) * 2.1);
+            float aur = exp(-pow((abs(lat) - aLat) * 16.0, 2.0)) * (0.55 + 0.45 * sin(lon * 5.0 + u_time * 1.4));
+
+            float fresnel = pow(1.0 - max(nView.z, 0.0), 2.8);
+            vec3 col = mix(vec3(0.04, 0.012, 0.018), vec3(0.16, 0.04, 0.055), day);
+            col += vec3(0.92, 0.16, 0.18) * grid * (0.35 + 0.65 * day);
+            col += vec3(1.0, 0.25, 0.22) * term * 0.55;
+            col += vec3(0.22, 0.94, 0.49) * aur * (0.25 + clamp(u_kp / 9.0, 0.0, 1.0) * 0.75);
+            col += vec3(0.95, 0.16, 0.2) * fresnel * 0.65;
+
+            outColor = vec4(col, 1.0);
+          }
+        `;
+        const comp = (t, s) => { const sh = ggl.createShader(t); ggl.shaderSource(sh, s); ggl.compileShader(sh); return sh; };
+        gProg = ggl.createProgram();
+        ggl.attachShader(gProg, comp(ggl.VERTEX_SHADER, gvs));
+        ggl.attachShader(gProg, comp(ggl.FRAGMENT_SHADER, gfs));
+        ggl.linkProgram(gProg);
+        ggl.useProgram(gProg);
+        ['u_res','u_time','u_yaw','u_pitch','u_sun','u_kp'].forEach(k => gLoc[k] = ggl.getUniformLocation(gProg, k));
+        ggl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      // Project lat/lon to 2D HUD coords matching shader rotation
+      function project3D(latDeg, lonDeg, radiusScale = 0.84) {
+        const lat = latDeg * Math.PI / 180;
+        const lon = lonDeg * Math.PI / 180;
+        let x = Math.cos(lat) * Math.sin(lon);
+        let y = Math.sin(lat);
+        let z = Math.cos(lat) * Math.cos(lon);
+
+        // Apply rotY(yaw) then rotX(pitch) — exact inverse of shader's world lookup
+        const cy = Math.cos(orbitGlobeYaw), sy = Math.sin(orbitGlobeYaw);
+        const x1 = x * cy + z * sy;
+        const z1 = -x * sy + z * cy;
+        const cp = Math.cos(orbitGlobePitch), sp = Math.sin(orbitGlobePitch);
+        const y2 = y * cp - z1 * sp;
+        const z2 = y * sp + z1 * cp;
+
+        const rPx = (ch * 0.5) * radiusScale;
+        return {
+          sx: cw * 0.5 + x1 * rPx,
+          sy: ch * 0.5 - y2 * rPx,
+          visible: z2 > 0.04,
+          depth: z2
+        };
+      }
+
+      let dragStartX = 0, dragStartY = 0, moved = false;
+      let projectedPins = [];
+
+      wrap.onpointerdown = (e) => {
+        orbitGlobeDragging = true;
+        moved = false;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        wrap.setPointerCapture(e.pointerId);
+      };
+      wrap.onpointermove = (e) => {
+        if (!orbitGlobeDragging) return;
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        orbitGlobeYaw += dx * 0.011;
+        orbitGlobePitch = Math.max(-1.1, Math.min(1.1, orbitGlobePitch + dy * 0.011));
+      };
+      wrap.onpointerup = (e) => {
+        orbitGlobeDragging = false;
+        if (!moved) {
+          const rect = wrap.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          let hit = null, best = 16;
+          projectedPins.forEach(pin => {
+            const d = Math.hypot(pin.sx - mx, pin.sy - my);
+            if (d < best) { best = d; hit = pin; }
+          });
+          if (hit) {
+            playSolenoid(225, 0.03);
+            if (hit.type === 'cam') lockCityCam(hit.camIdx, true);
+            else if (hit.type === 'iss') map.flyTo([liveIssPos.lat, liveIssPos.lon], 5);
+            else if (hit.type === 'choke') map.flyTo(hit.pos, 7);
+          }
+        }
+      };
+
+      function frame(now) {
+        if (!document.getElementById('orbitGlobeCanvas')) { destroyOrbitGlobe(); return; }
+        if (!orbitGlobeDragging) orbitGlobeYaw += 0.0032;
+
+        if (ggl && gProg) {
+          const sun = computeSubsolarRad();
+          ggl.clearColor(0, 0, 0, 0);
+          ggl.clear(ggl.COLOR_BUFFER_BIT);
+          ggl.useProgram(gProg);
+          ggl.uniform2f(gLoc.u_res, canvas.width, canvas.height);
+          ggl.uniform1f(gLoc.u_time, now * 0.001);
+          ggl.uniform1f(gLoc.u_yaw, orbitGlobeYaw);
+          ggl.uniform1f(gLoc.u_pitch, orbitGlobePitch);
+          ggl.uniform2f(gLoc.u_sun, sun.lat, sun.lon);
+          ggl.uniform1f(gLoc.u_kp, liveKpIndex);
+          ggl.drawArrays(ggl.TRIANGLES, 0, 3);
+        }
+
+        // Overlay crisp 2D projected pins (City Cams + Chokepoints + Live ISS)
+        hCtx.clearRect(0, 0, cw, ch);
+        projectedPins = [];
+
+        CHOKEPOINTS.forEach(chP => {
+          const pr = project3D(chP.pos[0], chP.pos[1]);
+          if (!pr.visible) return;
+          projectedPins.push({ type: 'choke', pos: chP.pos, sx: pr.sx, sy: pr.sy });
+          hCtx.fillStyle = '#ffd24a';
+          hCtx.beginPath(); hCtx.arc(pr.sx, pr.sy, 2.5, 0, Math.PI * 2); hCtx.fill();
+        });
+
+        allCityCams.slice(0, 14).forEach((cam, idx) => {
+          const pr = project3D(cam.pos[0], cam.pos[1]);
+          if (!pr.visible) return;
+          projectedPins.push({ type: 'cam', camIdx: idx, sx: pr.sx, sy: pr.sy });
+          const isAct = idx === activeCamIdx;
+          hCtx.strokeStyle = isAct ? '#ff3333' : '#38ef7d';
+          hCtx.lineWidth = isAct ? 1.6 : 1.1;
+          hCtx.strokeRect(pr.sx - 3.5, pr.sy - 3.5, 7, 7);
+          if (isAct || pr.depth > 0.72) {
+            hCtx.fillStyle = isAct ? '#ff9999' : '#8bf5b5';
+            hCtx.font = '8px Courier New, monospace';
+            hCtx.fillText(cam.name.split(' ')[0], pr.sx + 6, pr.sy + 3);
+          }
+        });
+
+        // Live ISS beacon floating slightly above surface
+        const issP = project3D(liveIssPos.lat, liveIssPos.lon, 0.90);
+        if (issP.visible) {
+          projectedPins.push({ type: 'iss', sx: issP.sx, sy: issP.sy });
+          const pulse = 4 + Math.sin(now * 0.008) * 1.8;
+          hCtx.strokeStyle = 'rgba(255,51,51,0.85)';
+          hCtx.lineWidth = 1.2;
+          hCtx.beginPath(); hCtx.arc(issP.sx, issP.sy, pulse, 0, Math.PI * 2); hCtx.stroke();
+          hCtx.fillStyle = '#ffffff';
+          hCtx.beginPath(); hCtx.arc(issP.sx, issP.sy, 2.6, 0, Math.PI * 2); hCtx.fill();
+          hCtx.fillStyle = '#ffffff';
+          hCtx.font = 'bold 8px Courier New, monospace';
+          hCtx.fillText('ISS', issP.sx + 6, issP.sy - 4);
+        }
+
+        orbitGlobeRaf = requestAnimationFrame(frame);
+      }
+      orbitGlobeRaf = requestAnimationFrame(frame);
+    }
+
+    // ================= 11. SIGINT RADIO RECEIVER =================
     let currentRadioAudio = new Audio();
     const RADIO_STATIONS = [
       { name: "ATC / CHICAGO TOWER", url: "https://relay.radioreference.com/kord_twr" },
@@ -1201,7 +2298,7 @@
       pushTicker("SIGINT RECEIVER MUTED");
     }
 
-    // ================= 10. OPENSKY CIVILIAN ADS-B (viewport) =================
+    // ================= 12. OPENSKY CIVILIAN ADS-B (viewport) =================
     let radarInterval = null;
     let cachedFlights = [];
 
@@ -1290,7 +2387,7 @@
       `;
     }
 
-    // ================= 11. TOOL CONTROLLER & PANELS =================
+    // ================= 13. TOOL CONTROLLER & PANELS =================
     let activeTool = null;
     let drawMode = "pin";
     let drawPts = [];
@@ -1298,13 +2395,14 @@
     let routeNodes = [];
     const tools = {};
 
-  function commonPanelFooter() {
+    function commonPanelFooter() {
       const mapEl = document.getElementById('map');
       const optMode = mapEl?.classList.contains('optics-nvg') ? 'nvg' : (mapEl?.classList.contains('optics-flir') ? 'flir' : 'std');
       return `
         <div class="side-group">
-          <div class="side-group-title">// SENSORS & CRT FX</div>
-          <button class="side-item ${sonarActive ? 'active' : ''}" onclick="toggleSonar(this)">${sonarActive ? '[x]' : '[ ]'} SONAR SWEEP</button>
+          <div class="side-group-title">// WEBGL2 SHADERS & CRT FX</div>
+          <button class="side-item ${terminatorActive ? 'active' : ''}" onclick="toggleTerminator(this)">${terminatorActive ? '[x]' : '[ ]'} DAY/NIGHT + AURORA</button>
+          <button class="side-item ${sonarActive ? 'active' : ''}" onclick="toggleSonar(this)">${sonarActive ? '[x]' : '[ ]'} PHOSPHOR RADAR</button>
           <button class="side-item ${!document.getElementById('crt').classList.contains('crt-off')?'active':''}" id="opt-crt" onclick="toggleCRT(this)">${!document.getElementById('crt').classList.contains('crt-off')?'[x]':'[ ]'} CRT SCANLINES</button>
           <button class="side-item ${audioOn?'active':''}" id="opt-audio" onclick="toggleAudio(this)">${audioOn?'[x]':'[ ]'} SOLENOID CLICKS</button>
           <button class="side-item ${!document.getElementById('tactical-cross').classList.contains('grid-off')?'active':''}" id="opt-grid" onclick="toggleGrid(this)">${!document.getElementById('tactical-cross').classList.contains('grid-off')?'[x]':'[ ]'} TACTICAL CROSS</button>
@@ -1323,13 +2421,48 @@
     }
 
     tools.layers = () => `
-      <div class="toggle"><label>ADS-B MILITARY AIR<em>Global unredacted transponders</em></label><span class="switch on" onclick="toggleSwitch(this, 'milAir')"></span></div>
-      <div class="toggle"><label>OPENSKY CIVILIAN ADS-B<em>Viewport air traffic</em></label><span class="switch on" onclick="toggleSwitch(this, 'radar')"></span></div>
-      <div class="toggle"><label>LIVE DOPPLER RADAR<em>RainViewer precipitation</em></label><span class="switch on" onclick="toggleSwitch(this, 'weather')"></span></div>
-      <div class="toggle"><label>USGS SEISMIC GRID<em>Earthquakes 2.5+ M</em></label><span class="switch on" onclick="toggleSwitch(this, 'quakes')"></span></div>
-      <div class="toggle"><label>NASA THERMAL HOTSPOTS<em>Global active fires</em></label><span class="switch on" onclick="toggleSwitch(this, 'fires')"></span></div>
-      <div class="toggle"><label>ORBITAL / ISS TRACK<em>Live satellite path</em></label><span class="switch on" onclick="toggleSwitch(this, 'iss')"></span></div>
-      <div class="toggle"><label>MARITIME CHOKEPOINTS<em>Naval transit corridors</em></label><span class="switch on" onclick="toggleSwitch(this, 'choke')"></span></div>
+      <div class="toggle"><label>LIVE CITY CAMS<em>Geo-pinned optical feeds</em></label><span class="switch ${map.hasLayer(layers.cams)?'on':''}" onclick="toggleSwitch(this, 'cams')"></span></div>
+      <div class="toggle"><label>ADS-B MILITARY AIR<em>Global unredacted transponders</em></label><span class="switch ${map.hasLayer(layers.milAir)?'on':''}" onclick="toggleSwitch(this, 'milAir')"></span></div>
+      <div class="toggle"><label>OPENSKY CIVILIAN ADS-B<em>Viewport air traffic</em></label><span class="switch ${map.hasLayer(layers.radar)?'on':''}" onclick="toggleSwitch(this, 'radar')"></span></div>
+      <div class="toggle"><label>LIVE DOPPLER RADAR<em>RainViewer precipitation</em></label><span class="switch ${map.hasLayer(layers.weather)?'on':''}" onclick="toggleSwitch(this, 'weather')"></span></div>
+      <div class="toggle"><label>USGS SEISMIC GRID<em>Earthquakes 2.5+ M</em></label><span class="switch ${map.hasLayer(layers.quakes)?'on':''}" onclick="toggleSwitch(this, 'quakes')"></span></div>
+      <div class="toggle"><label>NASA THERMAL HOTSPOTS<em>Global active fires</em></label><span class="switch ${map.hasLayer(layers.fires)?'on':''}" onclick="toggleSwitch(this, 'fires')"></span></div>
+      <div class="toggle"><label>ORBITAL / ISS TRACK<em>Live satellite + ground path</em></label><span class="switch ${map.hasLayer(layers.iss)?'on':''}" onclick="toggleSwitch(this, 'iss')"></span></div>
+      <div class="toggle"><label>MARITIME CHOKEPOINTS<em>Naval transit corridors</em></label><span class="switch ${map.hasLayer(layers.choke)?'on':''}" onclick="toggleSwitch(this, 'choke')"></span></div>
+      ${commonPanelFooter()}
+    `;
+
+    tools.cams = () => `
+      <div style="font-size:10px; color:var(--mut); margin-bottom:8px; line-height:1.45;">
+        Click any <span style="color:var(--cyan);">[◉]</span> pin on the map or below to lock live video into the Optical Monitor. Supports YouTube Live, Embeds &amp; auto-refreshing .JPG/.MJPG cams.
+      </div>
+      <div style="display:flex; gap:4px; margin-bottom:6px;">
+        <button class="hud-btn" style="flex:1; text-align:center;" onclick="scanOsmViewportCams()">⚡ SCAN OSM VIEWPORT</button>
+        <button class="hud-btn ${camAutoTimer?'active':''}" style="width:auto;" onclick="toggleCamAutoCycle(); renderPanel('cams');">AUTO</button>
+      </div>
+      <div id="osm-cam-status" style="font-size:8.5px; color:var(--yel); margin-bottom:7px;">
+        ACTIVE NODES: ${allCityCams.length} (${BUILTIN_CITY_CAMS.length} GLOBAL · ${customCityCams.length} USER · ${osmViewportCams.length} OSM)
+      </div>
+      <div style="max-height:260px; overflow-y:auto; padding-right:2px;">
+        ${allCityCams.map((c, i) => `
+          <div class="cam-card ${i === activeCamIdx ? 'active' : ''}">
+            <div class="cam-card-top">
+              <b>${c.name}</b>
+              <span style="color:var(--mut); font-size:8px;">${c.source}</span>
+            </div>
+            <div class="cam-card-meta">${c.city} · [${c.pos[0].toFixed(2)}, ${c.pos[1].toFixed(2)}]</div>
+            <div class="cam-card-btns">
+              <button onclick="lockCityCam(${i}, true)">LOCK &amp; FLY</button>
+              <button onclick="logCamToMona(${i})">+ MONA</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="side-group">
+        <div class="side-group-title">// PIN CUSTOM CAM AT MAP CENTER</div>
+        <button class="hud-btn" onclick="pinCustomCamAtCenter()">+ PIN CURRENT MONITOR URL HERE</button>
+        ${customCityCams.length ? `<button class="hud-btn" style="margin-top:4px; border-color:#57161b;" onclick="purgeCustomCams()">✕ CLEAR CUSTOM PINS (${customCityCams.length})</button>` : ''}
+      </div>
       ${commonPanelFooter()}
     `;
 
@@ -1392,17 +2525,29 @@
       `;
     };
 
-    tools.space = () => `
-      <div style="font-size:11px; line-height:1.7;">
-        <b>NODE: ISS (ZARYA)</b><br>
-        ALTITUDE: ~418 KM<br>
-        STATUS: TRACKING NOMINAL<br>
-        <button class="hud-btn" style="margin-top:8px;" onclick="if(issMarker) map.setView(issMarker.getLatLng(), 5)">FOCUS ISS TARGET</button>
-      </div>
-      ${commonPanelFooter()}
-    `;
+    tools.space = () => {
+      setTimeout(initOrbitGlobe, 30);
+      return `
+        <div id="orbit-globe-wrap">
+          <canvas id="orbitGlobeCanvas"></canvas>
+          <canvas id="orbitGlobeHud"></canvas>
+          <div class="globe-caption">DRAG TO ORBIT · CLICK PIN TO LOCK CAM / SECTOR</div>
+        </div>
+        <div style="font-size:10px; line-height:1.6;">
+          <b>ORBITAL TELEMETRY // ISS (ZARYA)</b><br>
+          <div id="orbit-iss-readout" style="color:var(--mut);">
+            LAT <b>${liveIssPos.lat.toFixed(2)}°</b> · LON <b>${liveIssPos.lon.toFixed(2)}°</b> · ALT <b>${liveIssPos.alt} KM</b> · Kp <b style="color:var(--cyan);">${liveKpIndex.toFixed(1)}</b>
+          </div>
+          <div style="display:flex; gap:4px; margin-top:6px;">
+            <button class="hud-btn" style="text-align:center;" onclick="if(issMarker) map.flyTo(issMarker.getLatLng(), 5)">FOCUS ISS</button>
+            <button class="hud-btn" style="text-align:center;" onclick="syncSpaceWx()">SYNC NOAA</button>
+          </div>
+        </div>
+        ${commonPanelFooter()}
+      `;
+    };
 
-   tools.choke = () => `
+    tools.choke = () => `
       <div style="font-size:11px; display:flex; flex-direction:column; gap:6px;">
         ${CHOKEPOINTS.map(c => `
           <div style="border-bottom:1px solid var(--line); padding-bottom:5px;">
@@ -1484,6 +2629,7 @@
     }
 
     function renderPanel(tool) {
+      if (tool !== 'space') destroyOrbitGlobe();
       document.getElementById('spTitle').innerText = tool.toUpperCase();
       document.getElementById('spContent').innerHTML = tools[tool] ? tools[tool]() : '';
 
@@ -1524,6 +2670,7 @@
           document.getElementById('sidePanel').classList.add('closed');
           b.classList.remove('active');
           activeTool = null;
+          destroyOrbitGlobe();
           document.getElementById('map').classList.remove('crosshair-cursor');
           document.getElementById('draw-hud').style.display = 'none';
           return;
@@ -1541,6 +2688,7 @@
       document.querySelectorAll('#toolbar button').forEach(x => x.classList.remove('active'));
       document.getElementById('map').classList.remove('crosshair-cursor');
       document.getElementById('draw-hud').style.display = 'none';
+      destroyOrbitGlobe();
       activeTool = null;
     });
 
@@ -1548,6 +2696,7 @@
       sw.classList.toggle('on');
       if (map.hasLayer(layers[layer])) map.removeLayer(layers[layer]);
       else map.addLayer(layers[layer]);
+      refreshShaderTargets();
     }
 
     function toggleDrawer(name) {
@@ -1601,7 +2750,7 @@
       }
     });
 
-    // ================= 12. MONA PWP EDITOR (full CompressionStream support) =================
+    // ================= 14. MONA PWP EDITOR (full CompressionStream support) =================
     const npBtn = document.getElementById('notepadToggleBtn');
     const npPanel = document.getElementById('notepadPanel');
     const np = document.getElementById('notepad');
@@ -1823,8 +2972,9 @@
       document.getElementById('npSaveStatus').innerText = "VOICE INPUT";
     }
 
-    // ================= 13. NEWS WIRE TICKER ENGINE =================
+    // ================= 15. NEWS WIRE TICKER ENGINE =================
     const alerts = [
+      "WEBGL2 OPTICAL ENGINE: SOLAR TERMINATOR, NOAA AURORA & CITY CAMS ONLINE",
       "GRAM / TON NETWORK: SPOT TELEMETRY STREAMING VIA BINANCE/COINGECKO",
       "MARITIME ADVISORY: STRAIT OF HORMUZ & BAB-EL-MANDEB ACTIVE",
       "ORBITAL: ISS NODE COMPLETING REVOLUTION AT 27,600 KM/H"
@@ -1844,7 +2994,7 @@
       }
     }, 5000);
 
-    // ================= 14. SPACE WEATHER TELEMETRY (NOAA SWPC) =================
+    // ================= 16. SPACE WEATHER TELEMETRY (NOAA SWPC -> LIVE AURORA SHADER) =================
     const KP_LABELS = ["QUIET","QUIET","QUIET","UNSETTLED","ACTIVE","G1 STORM","G2 STORM","G3 STORM","G4 STORM","G5 EXTREME"];
 
     async function syncSpaceWx() {
@@ -1855,6 +3005,7 @@
         const rawKp = Array.isArray(latest) ? latest[1] : (latest.Kp || latest.kp);
         const kpVal = parseFloat(rawKp);
         if (!isNaN(kpVal)) {
+          liveKpIndex = kpVal;
           const label = KP_LABELS[Math.max(0, Math.min(9, Math.round(kpVal)))];
           pushTicker(`GEOMAGNETIC // Kp ${kpVal.toFixed(2)} — ${label}`);
         }
@@ -1867,6 +3018,7 @@
         const rawSpeed = Array.isArray(latest) ? latest[2] : latest.speed;
         const speed = Math.round(parseFloat(rawSpeed));
         if (!isNaN(speed) && speed > 0) {
+          liveSolarWind = speed;
           pushTicker(`SOLAR WIND // ${speed} KM/S${speed > 500 ? ' — ELEVATED' : ''}`);
         }
       } catch (e) {}
@@ -1888,7 +3040,7 @@
     syncSpaceWx();
     setInterval(syncSpaceWx, 300000);
 
-    // ================= 15. CENTER FOOTER: LIVE ISIL/ISIS THREAT WIRE =================
+    // ================= 17. CENTER FOOTER: LIVE ISIL/ISIS THREAT WIRE =================
     const threatFeed = [
       "CENTCOM // COALITION FORCES INTERDICT HIGH-VALUE TARGET CELL IN SYRIAN DESERT",
       "MONITORING // UN ADVISORY CITES PERSISTENT WILAYAT KHURASAN CROSS-BORDER ACTIVITY",
@@ -1941,7 +3093,7 @@
     syncThreatWire();
     setInterval(syncThreatWire, 300000);
 
-    // ================= 16. NEKOS.BEST INTERCEPT FEED =================
+    // ================= 18. NEKOS.BEST INTERCEPT FEED =================
     const ANIME_CATEGORIES = ['neko', 'waifu', 'kitsune', 'hug', 'pat', 'smile', 'dance', 'poke'];
     let animeInterval = null;
 
@@ -1972,7 +3124,7 @@
     fetchAnimeStream();
     animeInterval = setInterval(fetchAnimeStream, 8000);
 
-   // ================= 17. WORLD FACTBOOK + GDELT + SECTOR SITREP -> MONA =================
+    // ================= 19. WORLD FACTBOOK + GDELT + SECTOR SITREP -> MONA =================
     const FB_HOTSPOTS = [
       { label: 'IRAQ', slug: 'iraq', name: 'Iraq' },
       { label: 'IRAN', slug: 'iran', name: 'Iran' },
@@ -2061,7 +3213,13 @@
         if (ll && matchFn(ll)) fireCount++;
       });
 
-      return { milHits, civCount, quakeCount, fireCount };
+      let camCount = 0;
+      layers.cams.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (ll && matchFn(ll)) camCount++;
+      });
+
+      return { milHits, civCount, quakeCount, fireCount, camCount };
     }
 
     function scanInMemoryTelemetry(centerLat, centerLon, areaKm2) {
@@ -2101,11 +3259,11 @@
       preview.innerHTML = `
         <div><b>[ ACTIVE VIEWPORT // ${fbLastDossier.code} ]</b> (${fbLastDossier.region})</div>
         <div><b>BOUNDS:</b> ${fbLastDossier.geoSummary}</div>
-        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
+        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> CAMS: ${sector.camCount} | MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
         <div style="margin-top:4px;"><b>MIL CONTACTS:</b> ${fbLastDossier.milSummary}</div>
       `;
 
-      pushTicker(`VIEWPORT SWEEP: MIL:${sector.milHits.length} CIV:${sector.civCount} QUAKES:${sector.quakeCount} FIRES:${sector.fireCount}`);
+      pushTicker(`VIEWPORT SWEEP: CAMS:${sector.camCount} MIL:${sector.milHits.length} CIV:${sector.civCount} QUAKES:${sector.quakeCount} FIRES:${sector.fireCount}`);
     }
 
     async function fetchGdeltHeadlines(countryName) {
@@ -2171,7 +3329,7 @@
 
       const sector = latlng
         ? scanInMemoryTelemetry(latlng[0], latlng[1], rc?.area)
-        : { milHits: [], civCount: 0, quakeCount: 0, fireCount: 0 };
+        : { milHits: [], civCount: 0, quakeCount: 0, fireCount: 0, camCount: 0 };
 
       const govSummary = fbPickField(fbRes?.government, ['government_type', 'type', 'executive_branch', 'capital']);
       const milSummary = fbPickField(fbRes?.military, ['military_and_security_forces', 'military_branches', 'branches', 'military_expenditures', 'note']);
@@ -2207,7 +3365,7 @@
         <div><b>BORDERS:</b> ${fbLastDossier.borders}</div>
         <div style="margin-top:4px;"><b>GOV:</b> ${fbLastDossier.govSummary}</div>
         <div style="margin-top:4px;"><b>MIL:</b> ${fbLastDossier.milSummary}</div>
-        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
+        <div style="margin-top:4px;"><b>SECTOR SENSORS:</b> CAMS: ${sector.camCount} | MIL-AIR: ${sector.milHits.length} | CIV: ${sector.civCount} | QUAKES: ${sector.quakeCount} | FIRES: ${sector.fireCount}</div>
         <div style="margin-top:4px;"><b>GDELT WIRE (7D):</b>
           ${gdelt.length
             ? gdelt.map(a => `<span class="fb-hl">• ${a.title} <i style="color:var(--mut);">[${a.domain}]</i></span>`).join('')
@@ -2215,7 +3373,7 @@
         </div>
       `;
 
-      pushTicker(`FACTBOOK SITREP: ${fbLastDossier.name.toUpperCase()} // MIL:${sector.milHits.length} WIRE:${gdelt.length}`);
+      pushTicker(`FACTBOOK SITREP: ${fbLastDossier.name.toUpperCase()} // CAMS:${sector.camCount} MIL:${sector.milHits.length} WIRE:${gdelt.length}`);
     }
 
     function openSectorBrief(countryName, slug) {
@@ -2253,7 +3411,7 @@
         `GOV: ${d.govSummary}`,
         `MIL: ${d.milSummary}`,
         `GEO: ${d.geoSummary}`,
-        `LIVE SECTOR TELEMETRY: MIL ADS-B=${d.sector.milHits.length}${milList} | CIV=${d.sector.civCount} | QUAKES=${d.sector.quakeCount} | FIRES=${d.sector.fireCount}`,
+        `LIVE SECTOR TELEMETRY: CAMS=${d.sector.camCount || 0} | MIL ADS-B=${d.sector.milHits.length}${milList} | CIV=${d.sector.civCount} | QUAKES=${d.sector.quakeCount} | FIRES=${d.sector.fireCount}`,
         `GDELT WIRE (7D):`,
         gdeltBlock,
         `==================================================`
@@ -2282,12 +3440,14 @@
       const mapEl = document.getElementById('map');
       if (!mapEl) return;
       mapEl.classList.remove('optics-nvg', 'optics-flir');
-      if (mode === 'nvg') mapEl.classList.add('optics-nvg');
-      if (mode === 'flir') mapEl.classList.add('optics-flir');
+      opticsModeInt = 0;
+      if (mode === 'nvg') { mapEl.classList.add('optics-nvg'); opticsModeInt = 1; }
+      if (mode === 'flir') { mapEl.classList.add('optics-flir'); opticsModeInt = 2; }
       document.querySelectorAll('[data-optics]').forEach(b => {
         b.classList.toggle('active', b.dataset.optics === mode);
       });
       playSolenoid(120, 0.03);
+      ensureTacticalLoop();
     }
 
     function buildFactbookShellHTML() {
