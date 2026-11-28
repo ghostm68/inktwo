@@ -197,7 +197,7 @@
             <div style="display:flex; flex-direction:column; gap:3px;">
                 <button class="preset-btn" onclick="setQuery('SELECT id_num, title, year, director, verified FROM items ORDER BY id_num DESC LIMIT 50')">> Latest 50 Entries</button>
                 <button class="preset-btn" onclick="setQuery('SELECT decade, COUNT(*) AS films FROM items WHERE decade IS NOT NULL GROUP BY decade ORDER BY decade ASC')">> Films by Decade</button>
-                <button class="preset-btn" onclick="setQuery(`SELECT director, COUNT(*) AS films, MIN(year) AS first_yr, MAX(year) AS last_yr FROM items WHERE director <> '' GROUP BY director ORDER BY films DESC LIMIT 40`)">> Top 40 Directors</button>
+                <button class="preset-btn" onclick="setQuery(`SELECT director, COUNT(*) AS films, MIN(year) AS first_yr, MAX(year) AS last_yr FROM items WHERE director IS NOT NULL AND director <> '' GROUP BY director ORDER BY films DESC LIMIT 40`)">> Top 40 Directors</button>
                 <button class="preset-btn" onclick="setQuery('SELECT COUNT(*) AS total, SUM(CASE WHEN verified THEN 1 ELSE 0 END) AS codex_verified, SUM(CASE WHEN NOT verified THEN 1 ELSE 0 END) AS unverified FROM items')">> Archive Summary</button>
             </div>
 
@@ -205,7 +205,7 @@
             <div style="display:flex; flex-direction:column; gap:3px;">
                 <button class="preset-btn audit" onclick="setQuery('SELECT id_num, COUNT(*) AS copies, STRING_AGG(title, \' || \') AS titles FROM items WHERE id_num IS NOT NULL GROUP BY id_num HAVING COUNT(*) > 1 ORDER BY id_num ASC')">! Duplicate IDs</button>
                 <button class="preset-btn audit" onclick="setQuery('SELECT LOWER(TRIM(title)) AS norm_title, COUNT(*) AS copies, STRING_AGG(CAST(id_num AS VARCHAR), \', \') AS ids FROM items GROUP BY LOWER(TRIM(title)) HAVING COUNT(*) > 1 ORDER BY copies DESC, norm_title ASC')">! Duplicate Titles</button>
-                <button class="preset-btn audit" onclick="setQuery('WITH bounds AS (SELECT MAX(id_num) AS mx FROM items), seq AS (SELECT unnest(generate_series(1, (SELECT mx FROM bounds))) AS missing_id) SELECT missing_id FROM seq LEFT JOIN items i ON seq.missing_id = i.id_num WHERE i.id_num IS NULL ORDER BY missing_id ASC')">! Missing ID Gaps</button>
+                <button class="preset-btn audit" onclick="setQuery('SELECT gs AS missing_id FROM range(1, (SELECT MAX(id_num) + 1 FROM items)) AS t(gs) LEFT JOIN items i ON t.gs = i.id_num WHERE i.id_num IS NULL ORDER BY missing_id ASC')">! Missing ID Gaps</button>
                 <button class="preset-btn audit" onclick="setQuery('SELECT id_num, title, year, director, original_text FROM items WHERE NOT verified ORDER BY id_num DESC')">! Unverified (&gt;Codex)</button>
                 <button class="preset-btn audit" onclick="setQuery(`SELECT id_num, title, original_text FROM items WHERE original_text LIKE '%~%' OR original_text LIKE '%>%' OR original_text LIKE '%andahalf%' ORDER BY id_num ASC`)">! Quirky Syntax</button>
             </div>
@@ -240,7 +240,7 @@
             <div class="help-box">
                 Type in the <span class="highlight">Pink Box</span> to query titles, directors, years, or IDs.<br><br>
                 Use <b>Curator Audit</b> above to find duplicate IDs, skipped numbers, or unverified additions.<br><br>
-                <b>CSV</b> exports the <i>current</i> SQL result table.
+                <b>CSV / JSON</b> exports the <i>current</i> SQL result table.
             </div>
         </aside>
 
@@ -265,7 +265,7 @@
     </div>
 
     <script type="module">
-        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm';
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
 
         let db = null;
         let conn = null;
@@ -275,10 +275,10 @@
 
         const URL_PRIMARY = 'https://inkrealm.info/1991';
         const URL_FALLBACK = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
-        const URL_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.html';
+        const URL_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.json';
 
         function cleanEntities(str) {
-            return (str || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+            return (str || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
         }
         function normKey(str) {
             return (str || '').toLowerCase().replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ').trim();
@@ -286,26 +286,21 @@
         function escapeSQL(str) {
             return (str || '').replace(/'/g, "''");
         }
+        function csvCell(val) {
+            if (val === null || val === undefined) return '\\N';
+            const s = String(val).replace(/"/g, '""');
+            return `"${s}"`;
+        }
 
-        function parseCodexHtml(html) {
+        function parseCodexJson(obj) {
             const map = new Map();
-            if (!html) return map;
-            const doc = new DOMParser().parseFromString(html, 'text/html');
-            doc.querySelectorAll('tr').forEach(tr => {
-                const tds = tr.querySelectorAll('td');
-                if (tds.length >= 4) {
-                    const id = parseInt(tds[0].textContent.trim(), 10);
-                    if (!Number.isFinite(id)) return;
-                    const title = cleanEntities(tds[1].textContent);
-                    const yrMatch = tds[2].textContent.match(/\b(18|19|20)\d{2}\b/);
-                    const year = yrMatch ? parseInt(yrMatch[0], 10) : null;
-                    let director = cleanEntities(tds[3].textContent);
-                    if (/^(—|-|n\/a|unknown|pending|\?)$/i.test(director)) director = '';
-                    if (!map.has(id) || (year && !map.get(id).year) || (director && !map.get(id).director)) {
-                        map.set(id, { id, title, year, director });
-                    }
+            if (!obj || typeof obj !== 'object') return map;
+            for (const [k, v] of Object.entries(obj)) {
+                const id = parseInt(k, 10);
+                if (Number.isFinite(id) && Array.isArray(v)) {
+                    map.set(id, { id, year: v[0] || null, director: v[1] || '', title: v[2] || '' });
                 }
-            });
+            }
             return map;
         }
 
@@ -357,7 +352,7 @@
                 const cx = codexMap.get(row.id_num);
                 if (cx) {
                     const a = normKey(row.title), b = normKey(cx.title);
-                    if (!isDup || a === b || a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6))) {
+                    if (!isDup || !b || a === b || a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6))) {
                         if (!row.year && cx.year) row.year = cx.year;
                         if (!row.director && cx.director) row.director = cx.director;
                         row.verified = Boolean(cx.year || cx.director);
@@ -375,16 +370,17 @@
                 const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
                 const worker_url = URL.createObjectURL(new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'}));
                 const worker = new Worker(worker_url);
-                const logger = new duckdb.ConsoleLogger();
+                const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
                 db = new duckdb.AsyncDuckDB(logger, worker);
                 await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
                 conn = await db.connect();
 
-                statusBar.textContent = "Engine Ready. Fetching 1991 + Codex...";
+                statusBar.textContent = "Engine Ready. Fetching 1991 + codex1991.json...";
                 await loadData();
             } catch (err) {
                 statusBar.style.color = 'red';
                 statusBar.textContent = "Error Init: " + err.message;
+                console.error(err);
             }
         }
 
@@ -400,38 +396,53 @@
 
         async function loadData() {
             try {
-                const [htmlText, codexText] = await Promise.all([
+                const [htmlText, codexJson] = await Promise.all([
                     fetch1991Text(),
-                    fetch(URL_CODEX).then(r => r.ok ? r.text() : '').catch(() => '')
+                    fetch(URL_CODEX).then(r => r.ok ? r.json() : null).catch(() => null)
                 ]);
 
-                const codexMap = parseCodexHtml(codexText);
+                const codexMap = parseCodexJson(codexJson);
                 const dataArray = parse1991Merged(htmlText, codexMap);
                 if (dataArray.length === 0) throw new Error('No entries parsed.');
 
-                statusBar.textContent = `Parsed ${dataArray.length} entries (${codexMap.size} Codex records). Loading DuckDB...`;
+                statusBar.textContent = `Parsed ${dataArray.length} entries (${codexMap.size} Codex records). Bulk-loading into DuckDB...`;
 
+                // Bulk ingest via virtual CSV file (bypasses SQL parser stack limit cleanly)
+                const csvLines = ['row_id,id_num,title,year,decade,director,verified,original_text'];
+                for (let i = 0; i < dataArray.length; i++) {
+                    const r = dataArray[i];
+                    csvLines.push([
+                        r.row_id,
+                        r.id_num,
+                        csvCell(r.title),
+                        r.year ?? '\\N',
+                        r.decade ?? '\\N',
+                        csvCell(r.director || ''),
+                        r.verified ? 'true' : 'false',
+                        csvCell(r.original_text)
+                    ].join(','));
+                }
+
+                await db.registerFileText('items.csv', csvLines.join('\n'));
                 await conn.query(`
-                    CREATE TABLE items (
-                        row_id INTEGER,
-                        id_num INTEGER,
-                        title VARCHAR,
-                        year INTEGER,
-                        decade INTEGER,
-                        director VARCHAR,
-                        verified BOOLEAN,
-                        original_text VARCHAR
+                    CREATE TABLE items AS
+                    SELECT * FROM read_csv('items.csv',
+                        header=true,
+                        quote='"',
+                        escape='"',
+                        nullstr='\\N',
+                        columns={
+                            'row_id': 'INTEGER',
+                            'id_num': 'INTEGER',
+                            'title': 'VARCHAR',
+                            'year': 'INTEGER',
+                            'decade': 'INTEGER',
+                            'director': 'VARCHAR',
+                            'verified': 'BOOLEAN',
+                            'original_text': 'VARCHAR'
+                        }
                     )
                 `);
-
-                const values = dataArray.map(r =>
-                    `(${r.row_id}, ${r.id_num}, '${escapeSQL(r.title)}', ${r.year ?? 'NULL'}, ${r.decade ?? 'NULL'}, '${escapeSQL(r.director)}', ${r.verified ? 'TRUE' : 'FALSE'}, '${escapeSQL(r.original_text)}')`
-                );
-
-                const CHUNK_SIZE = 500;
-                for (let i = 0; i < values.length; i += CHUNK_SIZE) {
-                    await conn.query(`INSERT INTO items VALUES ${values.slice(i, i + CHUNK_SIZE).join(",")}`);
-                }
 
                 updateSchemaSidebar();
                 runQuery();
