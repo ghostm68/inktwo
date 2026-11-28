@@ -6,7 +6,7 @@
 <title>SEEK 1991</title>
 <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/gh/ghostm68/inktwo@main/svg/inky.svg">
 <meta property="og:title" content="SEEK 1991">
-<meta property="og:description" content="// TITLE SEARCH + STATS //">
+<meta property="og:description" content="// TITLE SEARCH + SEMANTIC + WEBGL2 CONSTELLATION //">
 <meta property="og:image" content="https://raw.githubusercontent.com/ghostm68/pantheon/main/tsa.inkrealm1991.png">
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 <style>
@@ -14,6 +14,8 @@
   --bg: #000;
   --text: #e0e0e0;
   --accent: #FF1991;
+  --cyan: #38ef7d;
+  --yel: #ffd24a;
   --dim: #333;
   --border: #555;
   --mono: 'Courier New', Courier, monospace;
@@ -39,66 +41,44 @@ header {
 }
 h1 { margin: 0; font-size: 1.8rem; letter-spacing: 2px; text-transform: uppercase; }
 h1 span { color: var(--accent); }
-#status { font-size: 0.75rem; color: #888; }
+#status { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
 .layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 290px 1fr;
   gap: 20px;
   min-height: calc(100vh - 120px);
-}
-@media (max-width: 800px) {
-  body { padding: 10px; }
-  header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  h1 { font-size: 1.5rem; letter-spacing: 1px; }
-  .layout {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    min-height: auto;
-  }
-  .sidebar {
-    border-right: none;
-    border-bottom: 1px solid var(--dim);
-    padding-right: 0;
-    padding-bottom: 12px;
-    max-height: none;
-    overflow-y: visible;
-  }
-  .search-box { padding: 8px; }
-  #q { font-size: 16px; padding: 10px; }
-  .modes button, .filter-btn, button.action {
-    padding: 10px 12px;
-    min-height: 44px;
-    font-size: 0.8rem;
-  }
-  .results {
-    max-height: 55vh;
-  }
-  .result { padding: 12px 10px; }
-  .result .title { font-size: 0.95rem; }
-}
-@media (max-width: 480px) {
-  body { padding: 8px; }
-  h1 { font-size: 1.3rem; }
-  .modes { gap: 4px; }
 }
 .sidebar {
   border-right: 1px solid var(--dim);
   padding-right: 12px;
   overflow-y: auto;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 125px);
 }
-.sidebar h3 { color: var(--accent); margin: 16px 0 8px; font-size: 0.9rem; border-bottom: 1px solid var(--dim); padding-bottom: 4px; }
-.stat { font-size: 0.8rem; margin: 4px 0; color: #ccc; }
+.sidebar h3 {
+  color: var(--accent);
+  margin: 14px 0 8px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--dim);
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.stat { font-size: 0.78rem; margin: 4px 0; color: #ccc; }
 .stat b { color: white; }
+.stat-link {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px;
+}
+.stat-link:hover { background: #180812; color: var(--accent); }
+
 .search-box {
   background: #111;
   border: 1px solid var(--accent);
   padding: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 #q {
   width: 100%;
@@ -106,18 +86,18 @@ h1 span { color: var(--accent); }
   color: white;
   border: none;
   font-family: var(--mono);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   padding: 8px;
   outline: none;
 }
-.modes { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.modes { display: flex; gap: 5px; margin: 8px 0 4px; flex-wrap: wrap; }
 .modes button, .filter-btn {
   background: black;
   color: #aaa;
   border: 1px solid #555;
-  padding: 6px 10px;
+  padding: 5px 8px;
   font-family: var(--mono);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   cursor: pointer;
   text-transform: uppercase;
 }
@@ -125,36 +105,171 @@ h1 span { color: var(--accent); }
   background: var(--accent);
   color: black;
   border-color: var(--accent);
+  font-weight: bold;
 }
 .modes button:hover, .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.modes button.active:hover, .filter-btn.active:hover { color: black; }
+
+#semantic-controls {
+  display: none;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #333;
+  font-size: 0.7rem;
+}
+#semantic-controls.open { display: block; }
+#semantic-status { font-size: 0.7rem; color: #999; margin-top: 4px; line-height: 1.4; }
+.sem-bar { height: 5px; background: #222; margin: 5px 0; }
+.sem-bar span { display: block; height: 100%; background: var(--cyan); width: 0%; transition: width 0.15s; }
+
+.main-col { display: flex; flex-direction: column; min-width: 0; }
+.topbar-results {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+#result-count { font-size: 0.8rem; color: #888; }
+.active-pill {
+  display: inline-block;
+  background: #220916;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+
 .results {
   overflow-y: auto;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 175px);
   border: 1px solid var(--dim);
 }
 .result {
   padding: 10px 12px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid #1e1e1e;
   cursor: pointer;
+  transition: background 0.1s;
 }
-.result:hover { background: #111; }
-.result .id { color: var(--accent); font-size: 0.8rem; }
-.result .title { font-size: 1rem; }
+.result:hover { background: #120910; }
+.result.selected { background: #1d0915; border-left: 3px solid var(--accent); }
+.result-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.result .id { color: var(--accent); font-size: 0.8rem; font-weight: bold; }
+.result .badge {
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border: 1px solid #444;
+  color: #999;
+}
+.result .badge.dup { border-color: var(--yel); color: var(--yel); }
+.result .badge.new { border-color: var(--cyan); color: var(--cyan); }
+.result .title { font-size: 0.98rem; color: #fff; margin-top: 2px; }
 .result .meta { font-size: 0.75rem; color: #888; margin-top: 2px; }
 .highlight { background: var(--accent); color: black; padding: 0 2px; }
-.stats-panel { font-size: 0.8rem; line-height: 1.5; }
-.bar { height: 8px; background: #222; margin: 2px 0 8px; }
+
+/* INSPECTOR DRAWER */
+#inspector {
+  display: none;
+  border: 1px solid var(--accent);
+  background: #0d050a;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+#inspector.open { display: block; }
+.insp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: 1px solid #331624;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.insp-title { font-size: 1.08rem; color: #fff; font-weight: bold; }
+.insp-sub { font-size: 0.78rem; color: #bbb; margin-top: 3px; }
+.insp-raw {
+  font-size: 0.72rem;
+  color: #888;
+  background: #050204;
+  border: 1px dashed #333;
+  padding: 6px 8px;
+  margin: 8px 0;
+  word-break: break-word;
+}
+.insp-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.insp-actions button, .insp-actions a {
+  background: black;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 4px 9px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-decoration: none;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.insp-actions button:hover, .insp-actions a:hover { background: var(--accent); color: black; }
+
+/* WEBGL2 CONSTELLATION MAP */
+#constellation-wrap {
+  display: none;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 185px);
+  min-height: 420px;
+  border: 1px solid var(--accent);
+  background: #040204;
+  overflow: hidden;
+  cursor: grab;
+}
+#constellation-wrap.open { display: block; }
+#constellation-wrap:active { cursor: grabbing; }
+#constellationCanvas, #constellationHud {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#constellationHud { pointer-events: none; }
+.map-legend {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: 0.7rem;
+  color: #aaa;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid #331624;
+  padding: 4px 8px;
+  pointer-events: none;
+}
+.map-reset-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: rgba(0,0,0,0.85);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.map-reset-btn:hover { background: var(--accent); color: black; }
+
+.stats-panel { font-size: 0.78rem; line-height: 1.5; }
+.bar { height: 7px; background: #1e1e1e; margin: 2px 0 7px; }
 .bar span { display: block; height: 100%; background: var(--accent); }
-.help { font-size: 0.75rem; color: #888; margin-top: 12px; border: 1px dashed #333; padding: 8px; }
+.help { font-size: 0.72rem; color: #888; margin-top: 12px; border: 1px dashed #333; padding: 8px; line-height: 1.45; }
+.actions-row { display: flex; flex-wrap: wrap; gap: 6px; }
 button.action {
   background: black; color: var(--accent); border: 1px solid var(--accent);
-  padding: 6px 12px; font-family: var(--mono); cursor: pointer; font-size: 0.75rem;
+  padding: 6px 10px; font-family: var(--mono); cursor: pointer; font-size: 0.72rem;
+  text-transform: uppercase;
 }
 button.action:hover { background: var(--accent); color: black; }
-#semantic-status { font-size: 0.7rem; color: #666; margin-top: 4px; }
-
-@media (max-width: 800px) {
-  }
 
 .sisters {
   display: flex;
@@ -163,10 +278,7 @@ button.action:hover { background: var(--accent); color: black; }
   gap: 4px;
   font-size: 0.7rem;
 }
-.sisters-note {
-  color: #666;
-  letter-spacing: 0.5px;
-}
+.sisters-note { color: #666; letter-spacing: 0.5px; }
 .sisters-links { display: flex; gap: 8px; }
 .sisters-links a {
   color: #888;
@@ -176,13 +288,28 @@ button.action:hover { background: var(--accent); color: black; }
 }
 .sisters-links a:hover { color: var(--accent); border-color: var(--accent); }
 
-/* Sleeker scrollbar — pink track, grey thumb */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--accent); }
-::-webkit-scrollbar-thumb { background: #aaa; border-radius: 0; }
-::-webkit-scrollbar-thumb:hover { background: #ddd; }
+::-webkit-scrollbar-track { background: #1a0610; }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: #ff5cb0; }
 
 @media (max-width: 800px) {
+  body { padding: 10px; }
+  header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  h1 { font-size: 1.5rem; letter-spacing: 1px; }
+  .layout { grid-template-columns: 1fr; gap: 12px; min-height: auto; }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--dim);
+    padding-right: 0;
+    padding-bottom: 12px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  #q { font-size: 16px; padding: 10px; }
+  .modes button, .filter-btn, button.action { padding: 8px 10px; min-height: 38px; font-size: 0.76rem; }
+  .results { max-height: 55vh; }
+  #constellation-wrap { height: 55vh; min-height: 320px; }
   .sisters { align-items: flex-start; margin-top: 4px; }
   .sisters-links a { padding: 6px 10px; }
 }
@@ -193,7 +320,7 @@ button.action:hover { background: var(--accent); color: black; }
 <header>
   <div>
     <h1>SEEK<span>1991</span></h1>
-    <div id="status">Loading archive...</div>
+    <div id="status">Loading 1991 + Codex metadata...</div>
   </div>
   <div class="sisters">
     <div class="sisters-note">links to companion sites →</div>
@@ -208,38 +335,64 @@ button.action:hover { background: var(--accent); color: black; }
 <div class="layout">
   <aside class="sidebar">
     <div class="search-box">
-      <input id="q" type="text" placeholder="search titles..." autocomplete="off">
+      <input id="q" type="text" placeholder="title, director, year, or ID..." autocomplete="off">
       <div class="modes">
         <button data-mode="fuzzy" class="active">Fuzzy</button>
         <button data-mode="exact">Exact</button>
         <button data-mode="semantic">Semantic</button>
+        <button data-mode="map">✦ Map</button>
       </div>
-      <div id="semantic-status"></div>
+      <div id="semantic-controls">
+        <div style="display:flex; gap:5px; align-items:center;">
+          <button class="action" id="sem-index-btn" style="padding:3px 7px; font-size:0.68rem;">Index Full Archive</button>
+          <button class="action" id="sem-stop-btn" style="padding:3px 7px; font-size:0.68rem; display:none;">Stop</button>
+        </div>
+        <div class="sem-bar"><span id="sem-progress"></span></div>
+        <div id="semantic-status">Cached locally in IndexedDB.</div>
+      </div>
     </div>
 
     <h3>Filters</h3>
-    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+    <div style="display:flex; flex-wrap:wrap; gap:5px;">
       <button class="filter-btn active" data-filter="all">All</button>
       <button class="filter-btn" data-filter="has-director">Has Director</button>
       <button class="filter-btn" data-filter="has-year">Has Year</button>
+      <button class="filter-btn" data-filter="unverified">New (&gt;Codex)</button>
+      <button class="filter-btn" data-filter="dup-id">Dup IDs</button>
     </div>
 
-    <h3>Stats</h3>
+    <h3>Stats (click to filter)</h3>
     <div id="stats" class="stats-panel">—</div>
 
     <h3>Actions</h3>
-    <button class="action" id="random-btn">Random 5</button>
-    <button class="action" id="recent-btn">Latest 20</button>
-    <button class="action" id="export-btn">Export CSV</button>
+    <div class="actions-row">
+      <button class="action" id="random-btn">Random 5</button>
+      <button class="action" id="recent-btn">Latest 20</button>
+      <button class="action" id="export-btn">Export CSV</button>
+    </div>
 
     <div class="help">
-      Fuzzy tolerates typos. Exact matches substrings. Semantic finds related titles (loads model on first use).<br>
-      Click a result to copy its ID.
+      <b>Fuzzy</b> tolerates typos across titles, directors &amp; years.<br>
+      <b>Semantic</b> caches MiniLM vectors in IndexedDB across all 3,200+ films.<br>
+      <b>✦ Map</b> opens a WebGL2 starfield of the entire archive (scroll to zoom, drag to pan, click any star).
     </div>
   </aside>
 
-  <main>
-    <div id="result-count" style="font-size:0.8rem; color:#888; margin-bottom:8px;"></div>
+  <main class="main-col">
+    <div id="inspector"></div>
+
+    <div class="topbar-results">
+      <div id="result-count"></div>
+      <div id="active-facets"></div>
+    </div>
+
+    <div id="constellation-wrap">
+      <canvas id="constellationCanvas"></canvas>
+      <canvas id="constellationHud"></canvas>
+      <div class="map-legend">X: YEAR (1908–2026) · Y: ARCHIVE SEQUENCE · PINK: CLASSIC · CYAN: MODERN · WHITE: SEARCH HITS</div>
+      <button class="map-reset-btn" id="map-reset-btn">RESET VIEW</button>
+    </div>
+
     <div id="results" class="results"></div>
   </main>
 </div>
@@ -249,148 +402,466 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers
 
 env.allowLocalModels = false;
 
-const SOURCE = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
+const SOURCE_1991 = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
+const SOURCE_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.html';
+
 let entries = [];
+let currentVisible = [];
+let selectedUid = null;
 let fuse = null;
 let mode = 'fuzzy';
 let filter = 'all';
+let decadeFilter = null;
+let directorFilter = null;
+
+// Semantic + IndexedDB cache
 let embedder = null;
-let embeddings = new Map();
+let embeddings = new Map(); // uid -> Float32Array
+let indexingActive = false;
+const IDB_NAME = 'seek1991_vectors_v1';
+const IDB_STORE = 'vecs';
 
 const statusEl = document.getElementById('status');
 const resultsEl = document.getElementById('results');
+const inspectorEl = document.getElementById('inspector');
 const qEl = document.getElementById('q');
 const statsEl = document.getElementById('stats');
 const countEl = document.getElementById('result-count');
+const facetsEl = document.getElementById('active-facets');
+const semControls = document.getElementById('semantic-controls');
 const semStatus = document.getElementById('semantic-status');
+const semProgress = document.getElementById('sem-progress');
+const semIndexBtn = document.getElementById('sem-index-btn');
+const semStopBtn = document.getElementById('sem-stop-btn');
+const mapWrap = document.getElementById('constellation-wrap');
 
-function parseEntries(html) {
-  const re = /<strong[^>]*>([0-9]+)[_]+([^<]+)<\/strong>/gi;
-  const out = [];
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const id = parseInt(m[1], 10);
-    let raw = m[2].replace(/&nbsp;/g, ' ').replace(/&/g, '&').replace(/&rsquo;/g, "'").trim();
-    let title = raw;
-    let director = '';
-    let year = null;
-    const yearMatch = raw.match(/\((\d{4})\)|\b(19|20)\d{2}\b/);
-    if (yearMatch) year = parseInt(yearMatch[1] || yearMatch[0], 10);
-    if (raw.includes(',')) {
-      const parts = raw.split(',');
-      title = parts.slice(0, -1).join(',').trim();
-      director = parts[parts.length - 1].trim();
-    }
-    title = title.replace(/^\s*[_]+\s*/, '').trim();
-    if (title) out.push({ id, title, director, year, raw });
-  }
-  // dedupe by id (last wins)
-  const map = new Map();
-  for (const e of out) map.set(e.id, e);
-  return Array.from(map.values()).sort((a, b) => a.id - b.id);
+// ================= 1. SHARED RESILIENT PARSER (1991.html + codex1991.html) =================
+function cleanEntities(str) {
+  return str
+    .replace(/&rsquop;/gi, "'")
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
+function normKey(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ').trim();
+}
+
+function parseCodexHtml(html) {
+  const map = new Map();
+  if (!html) return map;
+
+  // Strategy 1: parse HTML table rows (handles duplicate tables inside codex1991.html cleanly)
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length >= 4) {
+      const id = parseInt(tds[0].textContent.trim(), 10);
+      if (!Number.isFinite(id)) return;
+      const title = cleanEntities(tds[1].textContent);
+      const yrMatch = tds[2].textContent.match(/\b(18|19|20)\d{2}\b/);
+      const year = yrMatch ? parseInt(yrMatch[0], 10) : null;
+      let director = cleanEntities(tds[3].textContent);
+      if (/^(—|-|n\/a|unknown|pending|\?)$/i.test(director)) director = '';
+      if (!map.has(id) || (year && !map.get(id).year) || (director && !map.get(id).director)) {
+        map.set(id, { id, title, year, director });
+      }
+    }
+  });
+
+  // Strategy 2: fallback scan for inline JS object literals if table was script-rendered
+  if (map.size < 100) {
+    const objRe = /["']?id["']?\s*:\s*(\d+)\s*,\s*["']?title["']?\s*:\s*["']([^"']+)["']\s*,\s*["']?year["']?\s*:\s*(\d{4}|null|["'][^"']*["'])\s*,\s*["']?director["']?\s*:\s*["']([^"']*)["']/g;
+    let m;
+    while ((m = objRe.exec(html)) !== null) {
+      const id = parseInt(m[1], 10);
+      const title = cleanEntities(m[2]);
+      const yrMatch = String(m[3]).match(/\b(18|19|20)\d{2}\b/);
+      const year = yrMatch ? parseInt(yrMatch[0], 10) : null;
+      let director = cleanEntities(m[4]);
+      if (/^(—|-|n\/a|unknown|pending|\?)$/i.test(director)) director = '';
+      if (!map.has(id)) map.set(id, { id, title, year, director });
+    }
+  }
+  return map;
+}
+
+function parse1991Html(html, codexMap) {
+  const fixedHtml = html.replace(/&rsquop;/gi, "'");
+  const doc = new DOMParser().parseFromString(fixedHtml, 'text/html');
+  const strongs = doc.querySelectorAll('strong');
+  const rawList = [];
+  const idFreq = new Map();
+
+  strongs.forEach((el, idx) => {
+    const rawText = cleanEntities(el.textContent || '');
+    if (!rawText) return;
+
+    // Matches: "1__Title", "3 __Title", "529~~_Title", "758__>Title", "907~~Title", "372andahalf__Title"
+    const m = rawText.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
+    if (!m) return;
+
+    const id = parseInt(m[1], 10);
+    let body = m[2].replace(/^[_~>\s]+/, '').trim();
+    if (!body) return;
+
+    // Extract year safely without mistaking it for a director
+    let year = null;
+    let title = body;
+    let director = '';
+
+    const trailingYear = body.match(/[\s,(\[]+\b((?:18|19|20)\d{2})\b[\s)\]]*$/);
+    if (trailingYear) {
+      year = parseInt(trailingYear[1], 10);
+      title = body.slice(0, trailingYear.index).replace(/[,\s-]+$/, '').trim();
+    } else {
+      const anyYear = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
+      if (anyYear) year = parseInt(anyYear[1] || anyYear[2], 10);
+    }
+
+    // Only parse comma-separated director if it looks like a person name (2-4 words, no digits)
+    if (title.includes(',')) {
+      const parts = title.split(',');
+      const tail = parts[parts.length - 1].trim();
+      const words = tail.split(/\s+/);
+      if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
+        director = tail;
+        title = parts.slice(0, -1).join(',').trim();
+      }
+    }
+
+    // Grab brief surrounding context from parent <p> if present
+    let note = '';
+    const parentText = cleanEntities(el.parentElement?.textContent || '');
+    if (parentText.length > rawText.length + 12 && parentText.length < 480) {
+      note = parentText.replace(rawText, '').trim();
+    }
+
+    idFreq.set(id, (idFreq.get(id) || 0) + 1);
+    rawList.push({ uid: `${id}_${idx}`, id, title, director, year, raw: rawText, note, verified: false });
+  });
+
+  // Merge verified Codex metadata carefully (avoid mis-joining duplicate IDs)
+  return rawList.map(e => {
+    const isDupId = (idFreq.get(e.id) || 0) > 1;
+    const cx = codexMap.get(e.id);
+    if (cx) {
+      const a = normKey(e.title);
+      const b = normKey(cx.title);
+      const tokenMatch = !isDupId || a === b || a.includes(b.slice(0, 6)) || b.includes(a.slice(0, 6));
+      if (tokenMatch) {
+        if (!e.year && cx.year) e.year = cx.year;
+        if (!e.director && cx.director) e.director = cx.director;
+        e.verified = Boolean(cx.year || cx.director);
+        if (cx.title && normKey(cx.title) !== a) e.alias = cx.title;
+      }
+    }
+    e.dupId = isDupId;
+    e.decade = e.year ? Math.floor(e.year / 10) * 10 : null;
+    return e;
+  }).sort((a, b) => a.id - b.id);
+}
+
+// ================= 2. INDEXEDDB CACHE FOR SEMANTIC VECTORS =================
+function openVecDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) {
+        req.result.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadCachedVectors() {
+  try {
+    const db = await openVecDB();
+    return await new Promise(resolve => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const cur = store.openCursor();
+      cur.onsuccess = e => {
+        const c = e.target.result;
+        if (c) {
+          embeddings.set(c.key, new Float32Array(c.value));
+          c.continue();
+        } else {
+          resolve();
+        }
+      };
+      cur.onerror = () => resolve();
+    });
+  } catch (_) {}
+}
+
+async function saveVectorBatch(pairs) {
+  try {
+    const db = await openVecDB();
+    await new Promise(resolve => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      for (const [k, vec] of pairs) store.put(vec.buffer.slice(0), k);
+      tx.oncomplete = resolve;
+      tx.onerror = resolve;
+    });
+  } catch (_) {}
+}
+
+// ================= 3. BOOT & LOAD =================
 async function load() {
   try {
-    const res = await fetch(SOURCE);
-    const html = await res.text();
-    entries = parseEntries(html);
-    statusEl.textContent = `Ready — ${entries.length} titles`;
+    const [res1991, resCodex] = await Promise.all([
+      fetch(SOURCE_1991),
+      fetch(SOURCE_CODEX).catch(() => null)
+    ]);
+    const html1991 = await res1991.text();
+    const htmlCodex = resCodex && resCodex.ok ? await resCodex.text() : '';
+    const codexMap = parseCodexHtml(htmlCodex);
+
+    entries = parse1991Html(html1991, codexMap);
+    await loadCachedVectors();
+
+    const verifiedCount = entries.filter(e => e.verified).length;
+    statusEl.textContent = `Ready — ${entries.length} entries (${verifiedCount} enriched via Codex · ${embeddings.size} vectors cached)`;
+    updateSemanticBar();
     rebuildFuse();
     renderStats();
-    show(entries.slice(0, 50));
+    search();
   } catch (err) {
     statusEl.textContent = 'Load failed: ' + err.message;
     console.error(err);
   }
 }
 
-function rebuildFuse() {
-  const pool = getFiltered();
-  fuse = new Fuse(pool, {
-    keys: ['title', 'director'],
-    threshold: 0.4,
-    ignoreLocation: true,
-    includeScore: true
+function getFiltered() {
+  return entries.filter(e => {
+    if (filter === 'has-director' && !e.director) return false;
+    if (filter === 'has-year' && !e.year) return false;
+    if (filter === 'unverified' && e.verified) return false;
+    if (filter === 'dup-id' && !e.dupId) return false;
+    if (decadeFilter !== null && e.decade !== decadeFilter) return false;
+    if (directorFilter !== null && e.director !== directorFilter) return false;
+    return true;
   });
 }
 
-function getFiltered() {
-  if (filter === 'has-director') return entries.filter(e => e.director);
-  if (filter === 'has-year') return entries.filter(e => e.year);
-  return entries;
+function rebuildFuse() {
+  fuse = new Fuse(getFiltered(), {
+    keys: [
+      { name: 'title', weight: 0.65 },
+      { name: 'alias', weight: 0.25 },
+      { name: 'director', weight: 0.35 },
+      { name: 'year', weight: 0.15 }
+    ],
+    threshold: 0.36,
+    ignoreLocation: true,
+    includeScore: true
+  });
 }
 
 function renderStats() {
   const total = entries.length;
   const withDir = entries.filter(e => e.director).length;
   const withYear = entries.filter(e => e.year).length;
+  const dups = entries.filter(e => e.dupId).length;
+
   const decades = {};
-  entries.forEach(e => {
-    if (e.year) {
-      const d = Math.floor(e.year / 10) * 10;
-      decades[d] = (decades[d] || 0) + 1;
-    }
-  });
-  const topDecades = Object.entries(decades).sort((a,b) => b[1]-a[1]).slice(0, 6);
   const dirCount = {};
   entries.forEach(e => {
+    if (e.decade) decades[e.decade] = (decades[e.decade] || 0) + 1;
     if (e.director) dirCount[e.director] = (dirCount[e.director] || 0) + 1;
   });
-  const topDirs = Object.entries(dirCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
 
-  let html = `<div class="stat">Total: <b>${total}</b></div>`;
+  const topDecades = Object.entries(decades).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const maxD = Math.max(...topDecades.map(d => d[1]), 1);
+  const topDirs = Object.entries(dirCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  let html = `<div class="stat">Total entries: <b>${total}</b></div>`;
   html += `<div class="stat">With director: <b>${withDir}</b></div>`;
   html += `<div class="stat">With year: <b>${withYear}</b></div>`;
-  html += `<div class="stat" style="margin-top:10px;">By decade</div>`;
-  const maxD = Math.max(...topDecades.map(d => d[1]), 1);
+  html += `<div class="stat">Duplicate IDs: <b style="color:var(--yel);">${dups}</b></div>`;
+
+  html += `<div class="stat" style="margin-top:10px; color:var(--accent);">BY DECADE</div>`;
   topDecades.forEach(([dec, n]) => {
-    html += `<div class="stat">${dec}s <b>${n}</b></div><div class="bar"><span style="width:${(n/maxD)*100}%"></span></div>`;
+    html += `<div class="stat stat-link" data-dec="${dec}"><span>${dec}s</span><b>${n}</b></div><div class="bar"><span style="width:${(n/maxD)*100}%"></span></div>`;
   });
-  html += `<div class="stat" style="margin-top:10px;">Top directors</div>`;
+
+  html += `<div class="stat" style="margin-top:10px; color:var(--accent);">TOP DIRECTORS</div>`;
   topDirs.forEach(([d, n]) => {
-    html += `<div class="stat">${d} <b>${n}</b></div>`;
+    html += `<div class="stat stat-link" data-dir="${d.replace(/"/g, '&quot;')}"><span>${d}</span><b>${n}</b></div>`;
   });
   statsEl.innerHTML = html;
+
+  statsEl.querySelectorAll('[data-dec]').forEach(el => {
+    el.onclick = () => {
+      const d = parseInt(el.dataset.dec, 10);
+      decadeFilter = decadeFilter === d ? null : d;
+      rebuildFuse();
+      search();
+    };
+  });
+  statsEl.querySelectorAll('[data-dir]').forEach(el => {
+    el.onclick = () => {
+      const d = el.dataset.dir;
+      directorFilter = directorFilter === d ? null : d;
+      rebuildFuse();
+      search();
+    };
+  });
+}
+
+function renderFacets() {
+  const pills = [];
+  if (decadeFilter !== null) pills.push(`<span class="active-pill" id="clr-dec">${decadeFilter}s ✕</span>`);
+  if (directorFilter !== null) pills.push(`<span class="active-pill" id="clr-dir">${directorFilter} ✕</span>`);
+  facetsEl.innerHTML = pills.join(' ');
+  document.getElementById('clr-dec')?.addEventListener('click', () => { decadeFilter = null; rebuildFuse(); search(); });
+  document.getElementById('clr-dir')?.addEventListener('click', () => { directorFilter = null; rebuildFuse(); search(); });
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function highlight(text, query) {
-  if (!query || mode === 'semantic') return text;
+  const safe = escapeHtml(text);
+  if (!query || mode === 'semantic' || mode === 'map') return safe;
   const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  return text.replace(re, '<span class="highlight">$1</span>');
+  return safe.replace(re, '<span class="highlight">$1</span>');
 }
 
 function show(list, query = '') {
-  countEl.textContent = list.length ? `${list.length} results` : 'No matches';
+  currentVisible = list;
+  renderFacets();
+  countEl.textContent = list.length ? `${list.length} matches` : 'No matches';
+
+  if (mode === 'map') {
+    updateConstellationHits(list);
+    return;
+  }
+
   if (!list.length) {
     resultsEl.innerHTML = '<div style="padding:20px; color:#666;">No results.</div>';
     return;
   }
-  resultsEl.innerHTML = list.slice(0, 200).map(e => `
-    <div class="result" data-id="${e.id}">
-      <div class="id">${e.id}</div>
+  resultsEl.innerHTML = list.slice(0, 250).map(e => `
+    <div class="result ${e.uid === selectedUid ? 'selected' : ''}" data-uid="${e.uid}">
+      <div class="result-top">
+        <span class="id">#${e.id}</span>
+        ${e.dupId ? '<span class="badge dup">DUP ID</span>' : ''}
+        ${!e.verified ? '<span class="badge new">NEW</span>' : ''}
+      </div>
       <div class="title">${highlight(e.title, query)}</div>
-      <div class="meta">${e.year || '—'} · ${e.director || '—'}</div>
+      <div class="meta">${e.year || '—'} · ${highlight(e.director || '—', query)}${e.alias ? ` · [${escapeHtml(e.alias)}]` : ''}</div>
     </div>
   `).join('');
 }
 
+// ================= 4. FILM INSPECTOR + SIMILAR FINDER =================
+function openInspector(entry) {
+  if (!entry) return;
+  selectedUid = entry.uid;
+  const qStr = encodeURIComponent(`${entry.title} ${entry.year || ''}`.trim());
+
+  inspectorEl.classList.add('open');
+  inspectorEl.innerHTML = `
+    <div class="insp-head">
+      <div>
+        <div class="insp-title">#${entry.id} — ${escapeHtml(entry.title)}</div>
+        <div class="insp-sub">YEAR: <b>${entry.year || 'UNKNOWN'}</b> · DIRECTOR: <b>${escapeHtml(entry.director || 'UNKNOWN')}</b> ${entry.verified ? '· [CODEX VERIFIED]' : '· [LIVE 1991 ONLY]'}</div>
+      </div>
+      <button class="action" id="insp-close" style="padding:3px 7px;">✕</button>
+    </div>
+    <div class="insp-raw">RAW 1991: ${escapeHtml(entry.raw)}${entry.note ? `<br><span style="color:#aaa;">NOTE: ${escapeHtml(entry.note)}</span>` : ''}</div>
+    <div class="insp-actions">
+      <button id="insp-copy">Copy ID</button>
+      <button id="insp-sim">Find Similar</button>
+      <a href="https://letterboxd.com/search/${qStr}/" target="_blank" rel="noopener">Letterboxd ↗</a>
+      <a href="https://www.imdb.com/find/?q=${qStr}" target="_blank" rel="noopener">IMDb ↗</a>
+      <a href="https://inkrealm.info/1991.html" target="_blank" rel="noopener">Open 1991 ↗</a>
+    </div>
+  `;
+
+  document.getElementById('insp-close').onclick = () => {
+    inspectorEl.classList.remove('open');
+    selectedUid = null;
+  };
+  document.getElementById('insp-copy').onclick = () => {
+    navigator.clipboard?.writeText(String(entry.id));
+    statusEl.textContent = `Copied ID ${entry.id} (${entry.title})`;
+  };
+  document.getElementById('insp-sim').onclick = () => findSimilarTo(entry);
+}
+
+function findSimilarTo(entry) {
+  const vec = embeddings.get(entry.uid);
+  if (vec && embeddings.size > 50) {
+    const scored = [];
+    for (const other of entries) {
+      if (other.uid === entry.uid) continue;
+      const ov = embeddings.get(other.uid);
+      if (!ov) continue;
+      let dot = 0;
+      for (let i = 0; i < vec.length; i++) dot += vec[i] * ov[i];
+      scored.push({ e: other, s: dot });
+    }
+    scored.sort((a, b) => b.s - a.s);
+    const hits = scored.slice(0, 25).map(x => x.e);
+    countEl.textContent = `25 semantically similar to "${entry.title}"`;
+    show(hits);
+    return;
+  }
+
+  // Instant metadata/lexical similarity fallback (same director, same decade, or overlapping words)
+  const words = new Set(normKey(entry.title).split(' ').filter(w => w.length > 3));
+  const scored = entries
+    .filter(o => o.uid !== entry.uid)
+    .map(o => {
+      let s = 0;
+      if (entry.director && o.director === entry.director) s += 5;
+      if (entry.decade && o.decade === entry.decade) s += 1.5;
+      normKey(o.title).split(' ').forEach(w => { if (words.has(w)) s += 2; });
+      if (Math.abs(o.id - entry.id) < 15) s += 0.6;
+      return { e: o, s };
+    })
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 25)
+    .map(x => x.e);
+
+  show(scored);
+  countEl.textContent = `${scored.length} related to "${entry.title}" (index semantic vectors for deeper matches)`;
+}
+
+// ================= 5. SEARCH + FULL-ARCHIVE SEMANTIC INDEXER =================
 async function search() {
   const q = qEl.value.trim();
   const pool = getFiltered();
+
   if (!q) {
-    show(pool.slice(0, 50));
+    show(mode === 'map' ? pool : pool.slice(0, 60));
     return;
   }
-  if (mode === 'exact') {
+
+  if (mode === 'exact' || mode === 'map') {
     const lower = q.toLowerCase();
-    const hits = pool.filter(e => 
-      e.title.toLowerCase().includes(lower) || 
+    const hits = pool.filter(e =>
+      e.title.toLowerCase().includes(lower) ||
+      (e.alias && e.alias.toLowerCase().includes(lower)) ||
       (e.director && e.director.toLowerCase().includes(lower)) ||
-      String(e.id) === q
+      String(e.id) === q ||
+      String(e.year || '') === q
     );
     show(hits, q);
   } else if (mode === 'fuzzy') {
+    if (/^\d+$/.test(q)) {
+      const exactNum = pool.filter(e => String(e.id) === q || String(e.year || '') === q);
+      if (exactNum.length) { show(exactNum, q); return; }
+    }
     const hits = fuse.search(q).map(r => r.item);
     show(hits, q);
   } else if (mode === 'semantic') {
@@ -398,49 +869,331 @@ async function search() {
   }
 }
 
+function updateSemanticBar() {
+  const pct = entries.length ? Math.round((embeddings.size / entries.length) * 100) : 0;
+  semProgress.style.width = `${pct}%`;
+  if (!indexingActive) {
+    semStatus.textContent = `${embeddings.size}/${entries.length} titles indexed (${pct}%) · cached in browser`;
+  }
+}
+
 async function ensureEmbedder() {
   if (embedder) return;
-  semStatus.textContent = 'Loading embedding model…';
+  semStatus.textContent = 'Loading Xenova/all-MiniLM-L6-v2 (~22MB, cached once)…';
   embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  semStatus.textContent = 'Model ready.';
+  semStatus.textContent = 'Embedding model ready.';
+}
+
+async function indexFullArchive() {
+  if (indexingActive) return;
+  await ensureEmbedder();
+  indexingActive = true;
+  semStopBtn.style.display = 'inline-block';
+  semIndexBtn.disabled = true;
+
+  const missing = entries.filter(e => !embeddings.has(e.uid));
+  const batchPairs = [];
+
+  for (let i = 0; i < missing.length; i++) {
+    if (!indexingActive) break;
+    const e = missing[i];
+    const text = `${e.title}${e.year ? ' (' + e.year + ')' : ''}${e.director ? ' by ' + e.director : ''}`;
+    const emb = await embedder(text, { pooling: 'mean', normalize: true });
+    const vec = new Float32Array(emb.data);
+    embeddings.set(e.uid, vec);
+    batchPairs.push([e.uid, vec]);
+
+    if (batchPairs.length >= 25 || i === missing.length - 1) {
+      await saveVectorBatch(batchPairs.splice(0));
+      const pct = Math.round((embeddings.size / entries.length) * 100);
+      semProgress.style.width = `${pct}%`;
+      semStatus.textContent = `Indexing ${embeddings.size}/${entries.length} (${pct}%)…`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  indexingActive = false;
+  semStopBtn.style.display = 'none';
+  semIndexBtn.disabled = false;
+  updateSemanticBar();
+  if (qEl.value.trim() && mode === 'semantic') search();
 }
 
 async function semanticSearch(q, pool) {
   await ensureEmbedder();
   semStatus.textContent = 'Embedding query…';
   const qEmb = await embedder(q, { pooling: 'mean', normalize: true });
-  const qVec = Array.from(qEmb.data);
+  const qVec = qEmb.data;
 
-  // embed missing titles (batch a few)
-  const toEmbed = pool.filter(e => !embeddings.has(e.id)).slice(0, 40);
-  if (toEmbed.length) {
-    semStatus.textContent = `Embedding ${toEmbed.length} titles…`;
-    for (const e of toEmbed) {
-      const emb = await embedder(e.title, { pooling: 'mean', normalize: true });
-      embeddings.set(e.id, Array.from(emb.data));
+  // If archive isn't indexed yet, embed top lexical candidates + a rolling batch so search works immediately
+  if (embeddings.size < Math.min(200, pool.length)) {
+    const lexCandidates = fuse ? fuse.search(q).slice(0, 60).map(r => r.item) : [];
+    const extra = pool.filter(e => !embeddings.has(e.uid)).slice(0, 60);
+    const batch = [...new Set([...lexCandidates, ...extra])].filter(e => !embeddings.has(e.uid));
+    const toSave = [];
+    for (let i = 0; i < batch.length; i++) {
+      const e = batch[i];
+      const text = `${e.title}${e.year ? ' (' + e.year + ')' : ''}${e.director ? ' by ' + e.director : ''}`;
+      const emb = await embedder(text, { pooling: 'mean', normalize: true });
+      const vec = new Float32Array(emb.data);
+      embeddings.set(e.uid, vec);
+      toSave.push([e.uid, vec]);
+      if (i % 15 === 0) semStatus.textContent = `Warming vectors (${embeddings.size}/${entries.length})… click "Index Full Archive" for 100% coverage`;
     }
+    if (toSave.length) await saveVectorBatch(toSave);
   }
 
-  const scored = pool.map(e => {
-    const vec = embeddings.get(e.id);
-    if (!vec) return { e, score: 0 };
+  const scored = [];
+  for (const e of pool) {
+    const vec = embeddings.get(e.uid);
+    if (!vec) continue;
     let dot = 0;
     for (let i = 0; i < qVec.length; i++) dot += qVec[i] * vec[i];
-    return { e, score: dot };
-  }).filter(x => x.score > 0.25)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 40)
-    .map(x => x.e);
+    if (dot > 0.24) scored.push({ e, score: dot });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const hits = scored.slice(0, 60).map(x => x.e);
 
-  semStatus.textContent = scored.length ? `${scored.length} semantic matches` : 'No strong semantic matches';
-  show(scored, q);
+  updateSemanticBar();
+  semStatus.textContent = `${hits.length} matches across ${embeddings.size}/${entries.length} indexed titles`;
+  show(hits, q);
 }
 
-// events
+// ================= 6. WEBGL2 CONSTELLATION MAP OF ALL 3,200+ FILMS =================
+const cCanvas = document.getElementById('constellationCanvas');
+const cHud = document.getElementById('constellationHud');
+let cgl = null, cProg = null, cLoc = {}, cVbo = null;
+let cPoints = [];
+let cHitSet = new Set();
+let cPanX = 0, cPanY = 0, cZoom = 1.0;
+let cDragging = false, cMoved = false, cLastX = 0, cLastY = 0;
+let cHoverPt = null;
+
+function initConstellationGL() {
+  if (cgl) return;
+  cgl = cCanvas.getContext('webgl2', { alpha: false, antialias: true });
+  if (!cgl) return;
+
+  const vs = `#version 300 es
+    layout(location=0) in vec2 a_pos;
+    layout(location=1) in vec3 a_col;
+    layout(location=2) in float a_size;
+    uniform vec2 u_pan;
+    uniform float u_zoom;
+    out vec3 v_col;
+    void main() {
+      vec2 p = (a_pos + u_pan) * u_zoom;
+      gl_Position = vec4(p, 0.0, 1.0);
+      gl_PointSize = clamp(a_size * sqrt(u_zoom), 2.5, 16.0);
+      v_col = a_col;
+    }
+  `;
+  const fs = `#version 300 es
+    precision mediump float;
+    in vec3 v_col;
+    out vec4 outColor;
+    void main() {
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      if (d > 1.0) discard;
+      float core = smoothstep(1.0, 0.15, d);
+      outColor = vec4(v_col, core * 0.92);
+    }
+  `;
+  const comp = (t, s) => { const sh = cgl.createShader(t); cgl.shaderSource(sh, s); cgl.compileShader(sh); return sh; };
+  cProg = cgl.createProgram();
+  cgl.attachShader(cProg, comp(cgl.VERTEX_SHADER, vs));
+  cgl.attachShader(cProg, comp(cgl.FRAGMENT_SHADER, fs));
+  cgl.linkProgram(cProg);
+  cLoc = {
+    u_pan: cgl.getUniformLocation(cProg, 'u_pan'),
+    u_zoom: cgl.getUniformLocation(cProg, 'u_zoom')
+  };
+  cVbo = cgl.createBuffer();
+  cgl.enable(cgl.BLEND);
+  cgl.blendFunc(cgl.SRC_ALPHA, cgl.ONE);
+}
+
+function buildConstellationPoints() {
+  const maxId = Math.max(...entries.map(e => e.id), 3200);
+  cPoints = entries.map((e, i) => {
+    // Deterministic jitter so films from the same year spread cleanly
+    const seed = Math.sin(e.id * 12.9898 + i * 78.233) * 43758.5453;
+    const jit = (seed - Math.floor(seed)) - 0.5;
+    const yr = e.year ? Math.max(1908, Math.min(2026, e.year)) : (1908 + (e.id / maxId) * 118);
+    const nx = ((yr - 1908) / (2026 - 1908)) * 1.76 - 0.88 + jit * 0.012;
+    const ny = ((e.id / maxId) * 1.66 - 0.83) + ((Math.cos(e.id * 4.13) * 0.5) * 0.025);
+    return { e, x: nx, y: ny };
+  });
+}
+
+function updateConstellationHits(list) {
+  cHitSet = new Set(list.map(e => e.uid));
+  renderConstellation();
+}
+
+function renderConstellation() {
+  if (mode !== 'map') return;
+  initConstellationGL();
+  if (!cPoints.length && entries.length) buildConstellationPoints();
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = mapWrap.clientWidth || 600;
+  const h = mapWrap.clientHeight || 420;
+  if (cCanvas.width !== Math.round(w * dpr) || cCanvas.height !== Math.round(h * dpr)) {
+    cCanvas.width = Math.round(w * dpr);
+    cCanvas.height = Math.round(h * dpr);
+    cHud.width = Math.round(w * dpr);
+    cHud.height = Math.round(h * dpr);
+  }
+
+  const hasQuery = qEl.value.trim().length > 0 || filter !== 'all' || decadeFilter !== null || directorFilter !== null;
+
+  if (cgl && cProg) {
+    cgl.viewport(0, 0, cCanvas.width, cCanvas.height);
+    cgl.clearColor(0.015, 0.008, 0.018, 1.0);
+    cgl.clear(cgl.COLOR_BUFFER_BIT);
+
+    const stride = 6;
+    const data = new Float32Array(cPoints.length * stride);
+    for (let i = 0; i < cPoints.length; i++) {
+      const pt = cPoints[i];
+      const isHit = cHitSet.has(pt.e.uid);
+      const isSel = pt.e.uid === selectedUid;
+      let r = 1.0, g = 0.1, b = 0.57, sz = 4.5 * dpr;
+
+      if (pt.e.year) {
+        const t = (Math.max(1910, Math.min(2026, pt.e.year)) - 1910) / 116;
+        r = 1.0 - t * 0.72;
+        g = 0.12 + t * 0.82;
+        b = 0.56 + (1.0 - Math.abs(t - 0.5) * 2.0) * 0.35;
+      } else {
+        r = 0.5; g = 0.42; b = 0.22;
+      }
+
+      if (hasQuery) {
+        if (isHit) { r = 1.0; g = 1.0; b = 1.0; sz = 7.5 * dpr; }
+        else { r *= 0.22; g *= 0.22; b *= 0.22; sz = 3.0 * dpr; }
+      }
+      if (isSel) { r = 1.0; g = 0.85; b = 0.25; sz = 11.0 * dpr; }
+
+      const o = i * stride;
+      data[o] = pt.x; data[o+1] = pt.y;
+      data[o+2] = r; data[o+3] = g; data[o+4] = b;
+      data[o+5] = sz;
+    }
+
+    cgl.useProgram(cProg);
+    cgl.uniform2f(cLoc.u_pan, cPanX, cPanY);
+    cgl.uniform1f(cLoc.u_zoom, cZoom);
+    cgl.bindBuffer(cgl.ARRAY_BUFFER, cVbo);
+    cgl.bufferData(cgl.ARRAY_BUFFER, data, cgl.DYNAMIC_DRAW);
+    cgl.enableVertexAttribArray(0);
+    cgl.vertexAttribPointer(0, 2, cgl.FLOAT, false, stride * 4, 0);
+    cgl.enableVertexAttribArray(1);
+    cgl.vertexAttribPointer(1, 3, cgl.FLOAT, false, stride * 4, 8);
+    cgl.enableVertexAttribArray(2);
+    cgl.vertexAttribPointer(2, 1, cgl.FLOAT, false, stride * 4, 20);
+    cgl.drawArrays(cgl.POINTS, 0, cPoints.length);
+  }
+
+  // Draw Decade Gridlines + Hover Tooltip on 2D HUD
+  const ctx = cHud.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.strokeStyle = 'rgba(255, 25, 145, 0.14)';
+  ctx.fillStyle = 'rgba(255, 25, 145, 0.55)';
+  ctx.font = '10px Courier New, monospace';
+  for (let yr = 1920; yr <= 2020; yr += 10) {
+    const nx = ((yr - 1908) / (2026 - 1908)) * 1.76 - 0.88;
+    const sx = (((nx + cPanX) * cZoom) * 0.5 + 0.5) * w;
+    if (sx < 0 || sx > w) continue;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke();
+    ctx.fillText(String(yr), sx + 3, h - 8);
+  }
+
+  if (cHoverPt) {
+    const sx = (((cHoverPt.x + cPanX) * cZoom) * 0.5 + 0.5) * w;
+    const sy = (1.0 - (((cHoverPt.y + cPanY) * cZoom) * 0.5 + 0.5)) * h;
+    ctx.strokeStyle = '#FF1991';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI * 2); ctx.stroke();
+
+    const label = `#${cHoverPt.e.id} ${cHoverPt.e.title} (${cHoverPt.e.year || '—'})`;
+    const sub = cHoverPt.e.director ? `dir. ${cHoverPt.e.director}` : 'click to inspect';
+    const bw = Math.max(ctx.measureText(label).width, ctx.measureText(sub).width) + 16;
+    const bx = Math.min(w - bw - 8, Math.max(8, sx + 12));
+    const by = Math.max(32, sy - 26);
+
+    ctx.fillStyle = 'rgba(8, 2, 6, 0.92)';
+    ctx.fillRect(bx, by, bw, 32);
+    ctx.strokeStyle = '#FF1991';
+    ctx.strokeRect(bx, by, bw, 32);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, bx + 8, by + 13);
+    ctx.fillStyle = '#38ef7d';
+    ctx.fillText(sub, bx + 8, by + 26);
+  }
+}
+
+function hitTestConstellation(clientX, clientY) {
+  const rect = mapWrap.getBoundingClientRect();
+  const mx = clientX - rect.left;
+  const my = clientY - rect.top;
+  const w = rect.width || 1, h = rect.height || 1;
+  let best = null, bestD = 14;
+  for (let i = 0; i < cPoints.length; i++) {
+    const pt = cPoints[i];
+    const sx = (((pt.x + cPanX) * cZoom) * 0.5 + 0.5) * w;
+    const sy = (1.0 - (((pt.y + cPanY) * cZoom) * 0.5 + 0.5)) * h;
+    const d = Math.hypot(sx - mx, sy - my);
+    if (d < bestD) { bestD = d; best = pt; }
+  }
+  return best;
+}
+
+mapWrap.addEventListener('pointerdown', e => {
+  if (e.target.id === 'map-reset-btn') return;
+  cDragging = true; cMoved = false; cLastX = e.clientX; cLastY = e.clientY;
+  mapWrap.setPointerCapture(e.pointerId);
+});
+mapWrap.addEventListener('pointermove', e => {
+  if (cDragging) {
+    const dx = e.clientX - cLastX, dy = e.clientY - cLastY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) cMoved = true;
+    cLastX = e.clientX; cLastY = e.clientY;
+    const rect = mapWrap.getBoundingClientRect();
+    cPanX += (dx / rect.width) * 2 / cZoom;
+    cPanY -= (dy / rect.height) * 2 / cZoom;
+    renderConstellation();
+  } else {
+    const hit = hitTestConstellation(e.clientX, e.clientY);
+    if (hit !== cHoverPt) { cHoverPt = hit; renderConstellation(); }
+  }
+});
+mapWrap.addEventListener('pointerup', e => {
+  cDragging = false;
+  if (!cMoved) {
+    const hit = hitTestConstellation(e.clientX, e.clientY);
+    if (hit) { openInspector(hit.e); renderConstellation(); }
+  }
+});
+mapWrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.18 : 0.85;
+  cZoom = Math.max(0.7, Math.min(18, cZoom * factor));
+  renderConstellation();
+}, { passive: false });
+document.getElementById('map-reset-btn').onclick = () => {
+  cPanX = 0; cPanY = 0; cZoom = 1.0; renderConstellation();
+};
+window.addEventListener('resize', () => { if (mode === 'map') renderConstellation(); });
+
+// ================= 7. UI EVENTS =================
 let t;
 qEl.addEventListener('input', () => {
   clearTimeout(t);
-  t = setTimeout(search, 180);
+  t = setTimeout(search, 160);
 });
 
 document.querySelectorAll('.modes button').forEach(btn => {
@@ -448,8 +1201,12 @@ document.querySelectorAll('.modes button').forEach(btn => {
     document.querySelectorAll('.modes button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     mode = btn.dataset.mode;
+    semControls.classList.toggle('open', mode === 'semantic');
+    mapWrap.classList.toggle('open', mode === 'map');
+    resultsEl.style.display = mode === 'map' ? 'none' : 'block';
     if (mode === 'fuzzy') rebuildFuse();
     search();
+    if (mode === 'map') renderConstellation();
   });
 });
 
@@ -462,6 +1219,9 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     search();
   });
 });
+
+semIndexBtn.onclick = indexFullArchive;
+semStopBtn.onclick = () => { indexingActive = false; };
 
 document.getElementById('random-btn').onclick = () => {
   const pool = getFiltered();
@@ -477,24 +1237,26 @@ document.getElementById('recent-btn').onclick = () => {
 };
 
 document.getElementById('export-btn').onclick = () => {
-  const rows = ['ID,TITLE,YEAR,DIRECTOR'];
-  getFiltered().forEach(e => {
-    rows.push(`${e.id},"${e.title.replace(/"/g,'""')}",${e.year||''},"${(e.director||'').replace(/"/g,'""')}"`);
+  const rows = ['ID,TITLE,YEAR,DIRECTOR,VERIFIED,DUP_ID'];
+  (currentVisible.length ? currentVisible : getFiltered()).forEach(e => {
+    rows.push(`${e.id},"${e.title.replace(/"/g, '""')}",${e.year || ''},"${(e.director || '').replace(/"/g, '""')}",${e.verified},${e.dupId}`);
   });
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'seek1991.csv';
+  a.download = 'seek1991_enriched.csv';
   a.click();
 };
 
 resultsEl.addEventListener('click', e => {
   const row = e.target.closest('.result');
   if (!row) return;
-  const id = row.dataset.id;
-  navigator.clipboard?.writeText(id);
-  statusEl.textContent = `Copied ID ${id}`;
-  setTimeout(() => statusEl.textContent = `Ready — ${entries.length} titles`, 1500);
+  const entry = entries.find(x => x.uid === row.dataset.uid);
+  if (entry) {
+    openInspector(entry);
+    resultsEl.querySelectorAll('.result.selected').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+  }
 });
 
 load();
