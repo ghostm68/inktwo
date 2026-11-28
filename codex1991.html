@@ -37,6 +37,16 @@
       --yel: #ffd24a;
     }
     * { box-sizing: border-box; }
+    ::selection {
+  background: #ffd24a;
+  color: #000;
+  text-shadow: none;
+}
+::-moz-selection {
+  background: #ffd24a;
+  color: #000;
+  text-shadow: none;
+}
     body { font-family: 'Segoe UI', sans-serif; margin: 28px; background: #000; color: #e0e0e0; }
     .container { max-width: 1220px; margin: 0 auto; background: #111; padding: 28px; border-radius: 10px; border: 1px solid #333; }
 
@@ -221,7 +231,52 @@
       display: flex; justify-content: space-between; align-items: center;
       margin-top: 14px; font-family: monospace; font-size: 0.82rem; color: #888; flex-wrap: wrap; gap: 8px;
     }
-
+/* --- CUSTOM SELECT DROPDOWN (1991 YELLOW) --- */
+.custom-select-container { position: relative; width: 100%; margin-bottom: 12px; }
+.select-selected {
+  background-color: #0a0a0a;
+  border: 1px solid #444;
+  color: #ffd24a;
+  padding: 9px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.84rem;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  border-radius: 4px;
+}
+.select-selected:hover,
+.select-selected.select-arrow-active { border-color: #ffd24a; }
+.select-selected:after {
+  position: absolute; content: "▼"; right: 10px; top: 50%;
+  transform: translateY(-50%); font-size: 0.65rem; color: #ffd24a;
+}
+.select-selected.select-arrow-active:after { content: "▲"; }
+.select-items {
+  position: absolute;
+  top: calc(100% + 2px); left: 0; right: 0;
+  background-color: #000;
+  border: 1px solid #ffd24a;
+  z-index: 10005;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.select-items div {
+  color: #bbb;
+  padding: 9px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+}
+.select-items div:hover,
+.select-items div.same-as-selected {
+  background-color: #ffd24a !important;
+  color: #000 !important;
+  font-weight: bold;
+}
+.select-hide { display: none; }
     /* Print Style */
     @media print {
       body { background: white; color: black; margin: 0; }
@@ -1042,7 +1097,55 @@
         btn.textContent = '🚀 ANALYZE';
       }
     }
+function initCustomSelect(selectId) {
+      const sel = document.getElementById(selectId);
+      if (!sel || sel.dataset.customized) return;
+      sel.dataset.customized = '1';
+      sel.style.display = 'none';
 
+      const wrap = document.createElement('div');
+      wrap.className = 'custom-select-container';
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(sel);
+
+      const selected = document.createElement('div');
+      selected.className = 'select-selected';
+      selected.textContent = sel.options[sel.selectedIndex]?.textContent.trim() || '';
+      wrap.appendChild(selected);
+
+      const items = document.createElement('div');
+      items.className = 'select-items select-hide';
+
+      Array.from(sel.options).forEach((opt, idx) => {
+        const item = document.createElement('div');
+        item.textContent = opt.textContent.trim();
+        if (idx === sel.selectedIndex) item.classList.add('same-as-selected');
+        item.addEventListener('click', e => {
+          e.stopPropagation();
+          sel.selectedIndex = idx;
+          sel.dispatchEvent(new Event('change'));
+          selected.textContent = item.textContent;
+          items.querySelectorAll('div').forEach(d => d.classList.remove('same-as-selected'));
+          item.classList.add('same-as-selected');
+          items.classList.add('select-hide');
+          selected.classList.remove('select-arrow-active');
+        });
+        items.appendChild(item);
+      });
+      wrap.appendChild(items);
+
+      selected.addEventListener('click', e => {
+        e.stopPropagation();
+        items.classList.toggle('select-hide');
+        selected.classList.toggle('select-arrow-active');
+      });
+
+      document.addEventListener('click', () => {
+        items.classList.add('select-hide');
+        selected.classList.remove('select-arrow-active');
+      });
+    }
+    initCustomSelect('nvidiaModel');
     window.onload = boot;
   </script>
 </body>
