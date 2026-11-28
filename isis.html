@@ -999,6 +999,37 @@
     let liveSolarWind = 380;
     let liveIssPos = { lat: 0, lon: 0, alt: 418, vel: 27600 };
 
+    // Early shader target buffer (must exist before any layer rebuild / fetch .then calls refreshShaderTargets)
+    const MAX_SHADER_TARGETS = 64;
+    const shaderTargetsBuf = new Float32Array(MAX_SHADER_TARGETS * 4);
+    let shaderTargetCount = 0;
+    let sonarCanvas = null; // assigned later in WebGL module
+    let activeTool = null; // declared early (used by rebuildCityCamLayer before tool controller)
+
+    function refreshShaderTargets() {
+      if (!map || !sonarCanvas) return;
+      const w = sonarCanvas.clientWidth || 1;
+      const h = sonarCanvas.clientHeight || 1;
+      const b = map.getBounds();
+      let idx = 0;
+
+      const push = (ll, type, mag) => {
+        if (idx >= MAX_SHADER_TARGETS || !b.contains(ll)) return;
+        const pt = map.latLngToContainerPoint(ll);
+        shaderTargetsBuf[idx * 4 + 0] = pt.x / w;
+        shaderTargetsBuf[idx * 4 + 1] = 1.0 - (pt.y / h); // WebGL bottom-left UV
+        shaderTargetsBuf[idx * 4 + 2] = type;             // 1=mil, 2=quake, 3=fire, 4=cam
+        shaderTargetsBuf[idx * 4 + 3] = mag;
+        idx++;
+      };
+
+      if (map.hasLayer(layers.quakes)) layers.quakes.eachLayer(l => l.getLatLng && push(l.getLatLng(), 2.0, l._quakeMag || 3.5));
+      if (map.hasLayer(layers.cams))   layers.cams.eachLayer(l => l.getLatLng && push(l.getLatLng(), 4.0, 1.0));
+      if (map.hasLayer(layers.milAir)) layers.milAir.eachLayer(l => l.getLatLng && push(l.getLatLng(), 1.0, 1.0));
+      if (map.hasLayer(layers.fires))  layers.fires.eachLayer(l => l.getLatLng && push(l.getLatLng(), 3.0, 1.0));
+      shaderTargetCount = idx;
+    }
+
     // ================= 3. KEYLESS LIVE DATA FEEDS =================
     fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson")
       .then(r => r.json()).then(data => {
@@ -1710,40 +1741,12 @@
 
     // ================= 9. MODULE B: WEBGL2 TACTICAL OVERLAY SHADER =================
     // Combines: Phosphor Radar + Reactive Target Pings + Solar Terminator + NOAA Kp Aurora + NVG/FLIR/CRT Post-FX
-    const sonarCanvas = document.getElementById('sonarCanvas');
+    sonarCanvas = document.getElementById('sonarCanvas');
     let sonarActive = false;
     let terminatorActive = true;
     let shaderPulsesActive = true;
     let opticsModeInt = 0; // 0=STD, 1=NVG, 2=FLIR
     let tacticalRafId = null;
-
-    const MAX_SHADER_TARGETS = 64;
-    const shaderTargetsBuf = new Float32Array(MAX_SHADER_TARGETS * 4);
-    let shaderTargetCount = 0;
-
-    function refreshShaderTargets() {
-      if (!map) return;
-      const w = sonarCanvas.clientWidth || 1;
-      const h = sonarCanvas.clientHeight || 1;
-      const b = map.getBounds();
-      let idx = 0;
-
-      const push = (ll, type, mag) => {
-        if (idx >= MAX_SHADER_TARGETS || !b.contains(ll)) return;
-        const pt = map.latLngToContainerPoint(ll);
-        shaderTargetsBuf[idx * 4 + 0] = pt.x / w;
-        shaderTargetsBuf[idx * 4 + 1] = 1.0 - (pt.y / h); // WebGL bottom-left UV
-        shaderTargetsBuf[idx * 4 + 2] = type;             // 1=mil, 2=quake, 3=fire, 4=cam
-        shaderTargetsBuf[idx * 4 + 3] = mag;
-        idx++;
-      };
-
-      if (map.hasLayer(layers.quakes)) layers.quakes.eachLayer(l => l.getLatLng && push(l.getLatLng(), 2.0, l._quakeMag || 3.5));
-      if (map.hasLayer(layers.cams))   layers.cams.eachLayer(l => l.getLatLng && push(l.getLatLng(), 4.0, 1.0));
-      if (map.hasLayer(layers.milAir)) layers.milAir.eachLayer(l => l.getLatLng && push(l.getLatLng(), 1.0, 1.0));
-      if (map.hasLayer(layers.fires))  layers.fires.eachLayer(l => l.getLatLng && push(l.getLatLng(), 3.0, 1.0));
-      shaderTargetCount = idx;
-    }
 
     function computeSubsolarRad() {
       const now = new Date();
@@ -2388,7 +2391,7 @@
     }
 
     // ================= 13. TOOL CONTROLLER & PANELS =================
-    let activeTool = null;
+    // activeTool already declared early
     let drawMode = "pin";
     let drawPts = [];
     let currentPolyline = null;
