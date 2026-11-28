@@ -1,0 +1,46 @@
+name: Sync Codex 1991 JSON
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '1991.html'
+  workflow_dispatch:
+    inputs:
+      max_enrich:
+        description: 'Max missing entries to auto-enrich this run'
+        required: false
+        default: '50'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sync 1991.html -> codex1991.json
+        env:
+          MAX_ENRICH: ${{ github.event.inputs.max_enrich || '40' }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: node scripts/sync-codex.mjs
+
+      - name: Commit updated codex1991.json
+        run: |
+          if git diff --quiet codex1991.json; then
+            echo "No changes to codex1991.json"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add codex1991.json
+            git commit -m "chore: auto-sync codex1991.json from 1991.html [skip ci]"
+            git push
+          fi
