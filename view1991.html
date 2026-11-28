@@ -277,9 +277,6 @@
         const URL_FALLBACK = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/1991.html';
         const URL_CODEX = 'https://raw.githubusercontent.com/ghostm68/inktwo/refs/heads/main/codex1991.json';
 
-        function cleanEntities(str) {
-            return (str || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-        }
         function normKey(str) {
             return (str || '').toLowerCase().replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ').trim();
         }
@@ -287,8 +284,8 @@
             return (str || '').replace(/'/g, "''");
         }
         function csvCell(val) {
-            if (val === null || val === undefined) return '\\N';
-            const s = String(val).replace(/"/g, '""');
+            if (val === null || val === undefined) return '__NULL__';
+            const s = String(val).replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
             return `"${s}"`;
         }
 
@@ -304,47 +301,72 @@
             return map;
         }
 
+        function extractChunksFromStrong(el) {
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll('strong').forEach(n => n.remove());
+            clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+            clone.querySelectorAll('p, div, li').forEach(blk => {
+                blk.insertAdjacentText('beforebegin', '\n');
+                blk.insertAdjacentText('afterend', '\n');
+            });
+            const text = (clone.textContent || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ');
+            const chunks = [];
+            text.split(/\n+/).forEach(line => {
+                const trimmed = line.replace(/\s+/g, ' ').trim();
+                if (!trimmed) return;
+                trimmed.split(/(?=(?:^|\s)\d{1,4}(?:andahalf)?\s?[_~]+)/i).forEach(p => {
+                    const c = p.trim();
+                    if (c) chunks.push(c);
+                });
+            });
+            return chunks;
+        }
+
         function parse1991Merged(htmlText, codexMap) {
             const doc = new DOMParser().parseFromString(htmlText.replace(/&rsquop;/gi, "'"), 'text/html');
-            const elements = doc.querySelectorAll('strong');
             const out = [];
+            const seenExact = new Set();
             const idFreq = new Map();
 
-            elements.forEach(el => {
-                const rawText = cleanEntities(el.textContent || '');
-                if (!rawText) return;
-                const m = rawText.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
-                if (!m) return;
+            doc.querySelectorAll('strong').forEach(el => {
+                extractChunksFromStrong(el).forEach(rawText => {
+                    const m = rawText.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
+                    if (!m) return;
 
-                const id_num = parseInt(m[1], 10);
-                let body = m[2].replace(/^[_~>\s]+/, '').trim();
-                if (!body) return;
+                    const id_num = parseInt(m[1], 10);
+                    let body = m[2].replace(/^[_~>\s]+/, '').trim();
+                    if (!body) return;
 
-                let year = null;
-                let title = body;
-                let director = '';
+                    let year = null;
+                    let title = body;
+                    let director = '';
 
-                const trailingYear = body.match(/[\s,(\[]+\b((?:18|19|20)\d{2})\b[\s)\]]*$/);
-                if (trailingYear) {
-                    year = parseInt(trailingYear[1], 10);
-                    title = body.slice(0, trailingYear.index).replace(/[,\s-]+$/, '').trim();
-                } else {
-                    const anyYear = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
-                    if (anyYear) year = parseInt(anyYear[1] || anyYear[2], 10);
-                }
-
-                if (title.includes(',')) {
-                    const parts = title.split(',');
-                    const tail = parts[parts.length - 1].trim();
-                    const words = tail.split(/\s+/);
-                    if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
-                        director = tail;
-                        title = parts.slice(0, -1).join(',').trim();
+                    const trailingYear = body.match(/[\s,(\[-]+\b((?:18|19|20)\d{2})\b[\s)\]-]*$/);
+                    if (trailingYear) {
+                        year = parseInt(trailingYear[1], 10);
+                        title = body.slice(0, trailingYear.index).replace(/[,\s-]+$/, '').trim();
+                    } else {
+                        const anyYear = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
+                        if (anyYear) year = parseInt(anyYear[1] || anyYear[2], 10);
                     }
-                }
 
-                idFreq.set(id_num, (idFreq.get(id_num) || 0) + 1);
-                out.push({ id_num, title, year, director, verified: false, original_text: rawText });
+                    if (title.includes(',')) {
+                        const parts = title.split(',');
+                        const tail = parts[parts.length - 1].trim();
+                        const words = tail.split(/\s+/);
+                        if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
+                            director = tail;
+                            title = parts.slice(0, -1).join(',').trim();
+                        }
+                    }
+
+                    const dedupeKey = `${id_num}|${normKey(title)}`;
+                    if (seenExact.has(dedupeKey)) return;
+                    seenExact.add(dedupeKey);
+
+                    idFreq.set(id_num, (idFreq.get(id_num) || 0) + 1);
+                    out.push({ id_num, title, year, director, verified: false, original_text: rawText });
+                });
             });
 
             return out.map((row, i) => {
@@ -407,7 +429,6 @@
 
                 statusBar.textContent = `Parsed ${dataArray.length} entries (${codexMap.size} Codex records). Bulk-loading into DuckDB...`;
 
-                // Bulk ingest via virtual CSV file (bypasses SQL parser stack limit cleanly)
                 const csvLines = ['row_id,id_num,title,year,decade,director,verified,original_text'];
                 for (let i = 0; i < dataArray.length; i++) {
                     const r = dataArray[i];
@@ -415,8 +436,8 @@
                         r.row_id,
                         r.id_num,
                         csvCell(r.title),
-                        r.year ?? '\\N',
-                        r.decade ?? '\\N',
+                        r.year ?? '__NULL__',
+                        r.decade ?? '__NULL__',
                         csvCell(r.director || ''),
                         r.verified ? 'true' : 'false',
                         csvCell(r.original_text)
@@ -430,7 +451,7 @@
                         header=true,
                         quote='"',
                         escape='"',
-                        nullstr='\\N',
+                        nullstr='__NULL__',
                         columns={
                             'row_id': 'INTEGER',
                             'id_num': 'INTEGER',
