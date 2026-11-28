@@ -279,43 +279,72 @@ function norm(s) {
   return (s || '').toLowerCase().replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ').trim();
 }
 
+function extractChunksFromStrong(el) {
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('strong').forEach(n => n.remove());
+  clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  clone.querySelectorAll('p, div, li').forEach(blk => {
+    blk.insertAdjacentText('beforebegin', '\n');
+    blk.insertAdjacentText('afterend', '\n');
+  });
+
+  const text = (clone.textContent || '').replace(/&rsquop;/gi, "'").replace(/\u00a0/g, ' ');
+  const chunks = [];
+  text.split(/\n+/).forEach(line => {
+    const trimmed = line.replace(/\s+/g, ' ').trim();
+    if (!trimmed) return;
+    const parts = trimmed.split(/(?=(?:^|\s)\d{1,4}(?:andahalf)?\s?[_~]+)/i);
+    parts.forEach(p => {
+      const c = p.trim();
+      if (c) chunks.push(c);
+    });
+  });
+  return chunks;
+}
+
 function parse1991(html) {
   const doc = new DOMParser().parseFromString(html.replace(/&rsquop;/gi, "'"), 'text/html');
   const out = [];
+  const seenExact = new Set();
   const idFreq = new Map();
 
-  doc.querySelectorAll('strong').forEach((el, idx) => {
-    const raw = clean(el.textContent);
-    if (!raw) return;
-    const m = raw.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
-    if (!m) return;
+  doc.querySelectorAll('strong').forEach((el, elIdx) => {
+    const chunks = extractChunksFromStrong(el);
+    chunks.forEach((raw, cIdx) => {
+      const m = raw.match(/^(\d+)(?:andahalf)?\s*[_~>]+[\s_~>]*([^\s].*)$/i);
+      if (!m) return;
 
-    const id = parseInt(m[1], 10);
-    let body = m[2].replace(/^[_~>\s]+/, '').trim();
-    if (!body) return;
+      const id = parseInt(m[1], 10);
+      let body = m[2].replace(/^[_~>\s]+/, '').trim();
+      if (!body) return;
 
-    let year = null, title = body, director = '';
-    const trYr = body.match(/[\s,(\[]+\b((?:18|19|20)\d{2})\b[\s)\]]*$/);
-    if (trYr) {
-      year = parseInt(trYr[1], 10);
-      title = body.slice(0, trYr.index).replace(/[,\s-]+$/, '').trim();
-    } else {
-      const anyYr = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
-      if (anyYr) year = parseInt(anyYr[1] || anyYr[2], 10);
-    }
-
-    if (title.includes(',')) {
-      const parts = title.split(',');
-      const tail = parts[parts.length - 1].trim();
-      const words = tail.split(/\s+/);
-      if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
-        director = tail;
-        title = parts.slice(0, -1).join(',').trim();
+      let year = null, title = body, director = '';
+      const trYr = body.match(/[\s,(\[-]+\b((?:18|19|20)\d{2})\b[\s)\]-]*$/);
+      if (trYr) {
+        year = parseInt(trYr[1], 10);
+        title = body.slice(0, trYr.index).replace(/[,\s-]+$/, '').trim();
+      } else {
+        const anyYr = body.match(/\((\d{4})\)|\b((?:18|19|20)\d{2})\b/);
+        if (anyYr) year = parseInt(anyYr[1] || anyYr[2], 10);
       }
-    }
 
-    idFreq.set(id, (idFreq.get(id) || 0) + 1);
-    out.push({ uid: `${id}_${idx}`, id, title, year, director, raw, verified: false });
+      if (title.includes(',')) {
+        const parts = title.split(',');
+        const tail = parts[parts.length - 1].trim();
+        const words = tail.split(/\s+/);
+        if (words.length >= 2 && words.length <= 3 && !/\d/.test(tail) && !/\b(the|of|and|in|at|on|sun|star|evening|morning|new|york|kansas)\b/i.test(tail)) {
+          director = tail;
+          title = parts.slice(0, -1).join(',').trim();
+        }
+      }
+
+      const dedupeKey = `${id}|${norm(title)}`;
+      if (seenExact.has(dedupeKey)) return;
+      seenExact.add(dedupeKey);
+
+      idFreq.set(id, (idFreq.get(id) || 0) + 1);
+      out.push({ uid: `${id}_${elIdx}_${cIdx}`, id, title, year, director, raw, verified: false });
+    });
   });
 
   return out.map(e => {
@@ -357,7 +386,6 @@ async function load() {
     const html1991 = await res1991.text();
     codexStore = jsonData || {};
 
-    // Restore any unsaved local curator edits from localStorage
     try {
       const localDraft = JSON.parse(localStorage.getItem('CODEX1991_DRAFT') || '{}');
       Object.assign(codexStore, localDraft);
@@ -452,7 +480,6 @@ function saveLocalEdit(entry) {
   updateStats();
 }
 
-// Keyless Wikidata Lookup for Pending Titles (CORS origin=*)
 async function lookupWikidata(title) {
   const search = async q => {
     const r = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(q)}&language=en&limit=5&format=json&origin=*`);
@@ -485,7 +512,6 @@ async function lookupWikidata(title) {
   return (year || director) ? { year, director } : null;
 }
 
-// Inline edit & Wikidata single-row click
 tbody.addEventListener('change', ev => {
   const inp = ev.target.closest('.edit-in');
   if (!inp) return;
@@ -525,7 +551,6 @@ tbody.addEventListener('click', async ev => {
   }
 });
 
-// Batch auto-fill next 10 pending entries via Wikidata
 document.getElementById('wiki-batch-btn').onclick = async () => {
   const pend = entries.filter(e => !e.verified).slice(0, 10);
   if (!pend.length) { curatorMsg.textContent = 'No pending entries left!'; return; }
@@ -548,7 +573,6 @@ document.getElementById('wiki-batch-btn').onclick = async () => {
   render();
 };
 
-// Download compact codex1991.json
 document.getElementById('save-json-btn').onclick = () => {
   const cleanMap = {};
   entries.forEach(e => {
@@ -566,7 +590,6 @@ document.getElementById('save-json-btn').onclick = () => {
   curatorMsg.textContent = `Downloaded codex1991.json (${Object.keys(cleanMap).length} records)`;
 };
 
-// Import either a codex1991.json OR an old monolithic codex1991.html
 document.getElementById('import-json-in').addEventListener('change', ev => {
   const file = ev.target.files[0];
   if (!file) return;
@@ -597,7 +620,6 @@ document.getElementById('import-json-in').addEventListener('change', ev => {
   reader.readAsText(file);
 });
 
-// Filters, Sorting, Paging & CSV Export
 document.querySelectorAll('[data-filter]').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('[data-filter]').forEach(x => x.classList.remove('active'));
